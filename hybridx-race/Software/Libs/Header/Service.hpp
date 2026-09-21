@@ -1,33 +1,55 @@
+/**
+ ******************************************************************************
+ * @file    Service.hpp
+ * @date    21-09-2026
+ * @author  HybridX
+ * @brief   Background process: race logic, sensors, FIT writing, persistence.
+ ******************************************************************************
+ *
+ * Adapted from the SDK's Workout example, which is the closest fit: non-GPS,
+ * distance-free, manual laps. Removed: pressure and altitude, distance and
+ * speed, calories and body weight, the auto-lap divider. Added: the race model,
+ * segment-aware haptics, AppConfig, and the lifecycle rule below.
+ *
+ * **Lifecycle.** The kernel does not stop a service when its GUI closes
+ * (Docs/service-lifecycle.md 1.1). The SDK's activity apps exit ~500 ms later
+ * regardless of whether an activity is running -- safe only because their GUI
+ * cannot exit mid-activity, and called out as a trap in 5.4. Ours keeps timing
+ * and saves after a grace window instead; see skGuiGoneGraceMs.
+ *
+ ******************************************************************************
+ */
+
 #ifndef SERVICE_HPP
 #define SERVICE_HPP
 
-#include <ctime>   // std::time_t (mLastCalibUtc, startTrack, ...)
+#include <array>
+#include <memory>
 
+#include "SDK/AppConfig/AppConfig.hpp"
 #include "SDK/Kernel/Kernel.hpp"
+#include "SDK/Messages/CommandMessages.hpp"
+#include "SDK/Metrics/MonotonicTime.hpp"
+#include "SDK/Metrics/ThrottledSample.hpp"
+#include "SDK/Metrics/VariableCounter.hpp"
 #include "SDK/SensorLayer/SensorConnection.hpp"
 #include "SDK/SensorLayer/SensorDataBatch.hpp"
-#include "SDK/TrackMap/TrackMapBuilder.hpp"
-#include "SDK/Metrics/MonotonicTime.hpp"
-#include "SDK/Metrics/MonotonicCounter.hpp"
-#include "SDK/Metrics/VariableCounter.hpp"
-#include "SDK/Metrics/SpeedSmoother.hpp"
-#include "SDK/Metrics/DeltaCounter.hpp"
-#include "SDK/Metrics/ThrottledSample.hpp"
-#include "SDK/Filters/SimpleLPF.hpp"
+#include "SDK/Timer/Timer.hpp"
 
-#include "SDK/Calibration/OutdoorStrideCalibrator.hpp"
-
-#include "SettingsSerializer.hpp"
+#include "ActivitySummary.hpp"
 #include "ActivitySummarySerializer.hpp"
 #include "ActivityWriter.hpp"
 #include "Commands.hpp"
+#include "RaceModel.hpp"
+#include "Settings.hpp"
+#include "SettingsSerializer.hpp"
+#include "Track.hpp"
 #include "WristTiltDetector.hpp"
 
 class Service : public WristTiltDetector::IListener
 {
 public:
-    Service(SDK::Kernel &kernel);
-
+    explicit Service(SDK::Kernel &kernel);
     virtual ~Service();
 
     void run();
@@ -35,219 +57,140 @@ public:
 private:
     // -- Constants ------------------------------------------------------------
 
-    static constexpr uint32_t skBacklightTimeout     = 5000;
-    static constexpr uint32_t skSamplePeriod         = 1000;
-    static constexpr uint32_t skSampleLatency        = 1000;
+    static constexpr uint32_t skBacklightTimeout = 5000u;
+    static constexpr uint32_t skSamplePeriod = 1000u;
+    static constexpr uint32_t skSampleLatency = 1000u;
+    static constexpr uint32_t skBatteryLogPeriodMs = 5u * 60u * 1000u;
+    static constexpr float    skFusionSampleRateHz = 100.0f;
 
-    static constexpr float    skMapDistanceThreshold = 10.0f; // meters
-    static constexpr uint32_t skMapMaxPoints         = 70;
+    /**
+     * @brief How long a race keeps timing after its GUI closes.
+     *
+     * Jon's call, recorded in NOTES.md 1.2. R2 is Back almost everywhere else
+     * in the UI, so the person most likely to leave mid-race is the one
+     * fumbling for the split button; saving immediately would end their race on
+     * one bad press. After this window with no GUI, the race is saved and the
+     * service exits, so nothing leaks and nothing is lost.
+     */
+    static constexpr uint32_t skGuiGoneGraceMs = 5u * 60u * 1000u;
 
-    static constexpr uint32_t skBatteryLogPeriodMs   = 5 * 60 * 1000;
-    static constexpr float    skFusionSampleRateHz   = 100.0f;
-
-    /// Window, in 1 Hz track ticks, over which the live pace / speed readout is
-    /// averaged. Ten seconds cuts the GPS speed noise to about a third -- enough
-    /// to hold a target pace by -- while still tracking a real change of effort
-    /// fast enough to be useful inside an interval repeat.
-    static constexpr std::size_t skPaceSmoothingTicks = 10;
+    /// Heart rate below this is not a heart rate (brief 9.2).
+    static constexpr float skHrMinValid = 20.0f;
+    static constexpr float skHrMaxValid = 300.0f;
 
     // -- Infrastructure -------------------------------------------------------
 
-    SDK::Kernel&          mKernel;
-    bool                  mGuiStarted;
+    SDK::Kernel &mKernel;
+    bool         mGuiStarted = false;
 
-    // -- Settings & persistence -----------------------------------------------
+    /// Monotonic tick when the GUI went away; 0 while it is present.
+    uint32_t mGuiGoneAtMs = 0u;
 
-    Settings                  mSettings;
+    // -- Settings and persistence ---------------------------------------------
+
+    Settings                  mSettings {};
     bool                      mIsImperial = false;
     bool                      mTimeFormat12h = false;
     SettingsSerializer        mSettingsSerializer;
-    ActivitySummary           mSummary;
+    ActivitySummary           mSummary {};
     ActivitySummarySerializer mActivitySummarySerializer;
     ActivityWriter            mActivityWriter;
-    SDK::TrackMapBuilder      mTrackMapBuilder;
 
-    // -- Sensors --------------------------------------------------------------
+    /// Read in run(), never in the constructor: in the simulator the logger
+    /// does not exist yet at construction time (brief 9.4).
+    std::unique_ptr<SDK::AppConfig> mConfig;
 
-    SDK::Sensor::Connection mSensorGpsLocation;
-    SDK::Sensor::Connection mSensorGpsSpeed;
-    SDK::Sensor::Connection mSensorGpsDistance;
-    SDK::Sensor::Connection mSensorPressure;
+    // -- Sensors ---------------------------------------------------------------
+
     SDK::Sensor::Connection mSensorHr;
     SDK::Sensor::Connection mSensorBatteryLevel;
     SDK::Sensor::Connection mSensorBatteryMetrics;
     SDK::Sensor::Connection mSensorWristMotion;
     SDK::Sensor::Connection mSensorFusion;
-    SDK::Sensor::Connection mSensorRunningCadence;
-    SDK::Sensor::Connection mSensorGrade;
     bool                    mIsSensorsConnected = false;
 
-    struct {
-        float cadenceSpm      = 0.0f;
-        bool  cadenceValid    = false;
-    } mRunningCadence{};
-
-    // -- Outdoor stride calibration inputs (latched per stream) ---------
-    struct {
-        float gradePct        = 0.0f;
-        bool  gradeValid      = false;
-    } mGradeData{};
-    float       mGpsSpeedMs       = 0.0f; ///< Latest raw GPS speed (instantaneous source).
-    bool        mGpsSpeedValid    = false;
-    bool        mGpsSpeedFresh    = false; ///< A speed sample arrived since the last track tick.
-    bool        mGpsDeadReckoning = false;
-    std::time_t mLastCalibUtc     = 0;   ///< For per-tick delta_t.
-
-    // -- Metrics --------------------------------------------------------------
+    // -- Metrics ----------------------------------------------------------------
 
     SDK::Metric::MonotonicTime<SDK::Interface::ISystem> mTimeTracker;
-    SDK::Metric::MonotonicCounter<std::time_t>          mTimeCounter;
-    SDK::Metric::MonotonicCounter<float>                mDistanceCounter;
-    SDK::Metric::VariableCounter                        mSpeedCounter;
-    /// Smooths the GPS speed for the live pace / speed readout only; the FIT
-    /// record series and the maxima stay on the unsmoothed samples in
-    /// mSpeedCounter. The averages are not involved either way -- they come
-    /// from the distance and time totals, not from a mean of these samples.
-    SDK::Metric::SpeedSmoother<skPaceSmoothingTicks>    mSpeedSmoother;
     SDK::Metric::VariableCounter                        mHrCounter;
-    uint8_t                                             mHrSource = 0;      ///< Latest HR source (HeartRateEx::Source) for the icon + FIT hr_source.
-    uint8_t                                             mHrOpticalBpm = 0;  ///< Latest raw optical (PPG) bpm, for the FIT hr_optical series.
-    uint8_t                                             mHrExternalBpm = 0; ///< Latest raw external (strap) bpm, for the FIT hr_external series.
-    SDK::Filter::SimpleLPF                              mAltitudeFilter;
-    SDK::Metric::DeltaCounter                           mAltitudeCounter;
+    SDK::Metric::ThrottledSample<float, SDK::Interface::ISystem> mBatterySoc;
+    SDK::Metric::ThrottledSample<float, SDK::Interface::ISystem> mBatteryVoltage;
 
-    // Battery SoC and voltage are sampled independently;
-    // a FIT record is written only when both are due.
-    SDK::Metric::ThrottledSample<float, SDK::Interface::ISystem> mBatterySoc;     ///< State of charge, percent
-    SDK::Metric::ThrottledSample<float, SDK::Interface::ISystem> mBatteryVoltage; ///< Voltage, volts
+    std::array<uint8_t, CustomMessage::kHrThresholdsCount> mHrThresholds = {};
+    uint8_t mHrThresholdCount = 0u;
+    uint8_t mHrSource = 0u;       ///< HeartRateEx::Source, for the icon and FIT
+    uint8_t mHrOpticalBpm = 0u;   ///< Raw optical bpm, for the FIT series
+    uint8_t mHrExternalBpm = 0u;  ///< Raw external bpm, for the FIT series
+    uint8_t mHrTrust = 0u;        ///< Latest arbitrated trust level
 
-    // -- GPS state ------------------------------------------------------------
+    // -- The race ----------------------------------------------------------------
 
-    struct {
-        bool     fix;       // Actual GPS fix
-        float    latitude;  // degrees
-        float    longitude; // degrees
-        float    altitude;  // meters
-        uint32_t timestamp; // ms
+    Race::RaceModel mRace;
+    Track::State    mTrackState = Track::State::INACTIVE;
+    Track::Data     mRaceData {};
+    std::time_t     mRaceStartUtc = 0;  ///< Wall time of the start, for FIT
+    bool            mFitOpen = false;   ///< True between start() and stop()
 
-        void reset()
-        {
-            fix       = false;
-            latitude  = 0.0f;
-            longitude = 0.0f;
-            altitude  = 0.0f;
-            timestamp = 0;
-        }
-    } mGps{};
-
-    float mSeaLevelPressure = 0.0f; // Pa
-
-    // -- Track state ----------------------------------------------------------
-
-    enum class LapDivSource {
-        OFF = 0,
-        DISTANCE,
-        TIME,
-    };
-
-    LapDivSource mLapDivSource        = LapDivSource::OFF;
-    Track::State mTrackState          = Track::State::INACTIVE;
-    bool         mPreviousGpsFixState = false;
-    bool         mGpsInitialConnectFailed = false;  ///< GPS_LOCATION subscribe lost the startup ack race; the retry logs the recovery.
-    bool         mGpsWanted = false;                 ///< GPS_LOCATION should stay connected (pre-activity + active track); cleared in disconnect() so the retry never re-wakes the GNSS post-activity.
-    bool         mSessionNotEmpty     = false;
-    bool         mLapNotEmpty         = false;
-    Track::Data  mTrackData{};
-
-    // -- Interval training state ----------------------------------------------
-
-    bool        mIntervalsMode        = false;
-    bool        mIntervalsCompleted   = false; ///< Set after workout completed; blocks further phase processing
-    std::time_t mPhaseStartActiveSec  = 0;     ///< mTimeCounter.getValueActive() at phase start
-    float       mPhaseStartActiveDist = 0.0f;  ///< mDistanceCounter.getValueActive() at phase start
-
-    /// Maps interval phases to workout_step message_index values for the FIT
-    /// workout description (0xFFFF = no associated step).
-    struct IntervalsStepMap {
-        bool     valid       = false;
-        uint16_t warmUpIdx   = 0xFFFF;
-        uint16_t runIdx      = 0xFFFF;
-        uint16_t restIdx     = 0xFFFF;
-        uint16_t finalRunIdx = 0xFFFF; ///< last RUN step when the final rest is skipped
-        uint16_t coolDownIdx = 0xFFFF;
-    };
-    IntervalsStepMap mIntervalsStepMap;
-
-    // -- Wrist tilt -----------------------------------------------------------
+    // -- Wrist tilt ---------------------------------------------------------------
 
     WristTiltDetector mWristTiltDetector;
 
-    // -- Outdoor stride calibrator ---------------------------------------
+    // -- Lifecycle -----------------------------------------------------------------
 
-    SDK::Calibration::OutdoorStrideCalibrator mCalibrator;
-
-    // -- Lifecycle ------------------------------------------------------------
-
-    void connectGps();
-    void connectSensors(); // All except GPS
+    void connectSensors();
     void disconnect();
     void onStartGUI();
     void onStopGUI();
+    bool hasWorkOutstanding() const;
 
-    // -- Sensor data dispatch -------------------------------------------------
+    // -- Sensor data ----------------------------------------------------------------
 
-    void handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data);
+    void handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch &data);
 
-    // -- Event handlers -------------------------------------------------------
+    // -- Event handlers --------------------------------------------------------------
 
-    void handleEvent(const CustomMessage::TrackStart& event);
-    void handleEvent(const CustomMessage::TrackStop& event);
-    void handleEvent(const CustomMessage::SettingsSave& event);
-    void handleEvent(const CustomMessage::TrackPause& event);
-    void handleEvent(const CustomMessage::TrackResume& event);
-    void handleEvent(const CustomMessage::ManualLap& event);
-    void handleEvent(const CustomMessage::IntervalsNextPhase& event);
+    void handleEvent(const CustomMessage::SettingsSave &event);
+    void handleEvent(const CustomMessage::RaceStart &event);
+    void handleEvent(const CustomMessage::RaceSplit &event);
+    void handleUndoSplit();
+    void handlePause();
+    void handleResume();
+    void handleFinishEarly();
+    void handleUndoFinish();
+    void handleSave();
+    void handleDiscard();
 
-    // -- Track control --------------------------------------------------------
+    // -- Race control ------------------------------------------------------------------
 
+    void loadConfiguration();
     void sendInitialInfoToGui();
-    void startTrack(std::time_t utc);
-    void processTrack();
-    void saveLap(float autoLapDistanceM = 0.0f);
-    void stopTrack(bool discard);
-    void pauseTrack(bool pause);
-    void buildPartialSummary();
+    void sendSettings();
+    void startRace(Race::Format format);
+    void processRace();
+    void publishRaceData();
+    void onSegmentOpened(bool raceStarting);
+    void finishRace(bool completed);
+    void saveRace(bool discard);
+    void buildSummary();
+    void sendSummary();
     ActivityWriter::RecordData prepareRecordData();
-    LapDivSource getLapDivSource();
+    uint32_t nowMs() const;
 
-    // -- Interval training ----------------------------------------------------
-
-    void startIntervalsPhase(Track::IntervalsPhase phase);
-    void advanceIntervalsPhase(bool manual = false);
-    void processIntervals();
-    void onIntervalsPhaseChange(bool alert, bool manual);
-
-    /// Build the workout_step list from the intervals config, emit the workout /
-    /// workout_step messages, and populate mIntervalsStepMap for lap referencing.
-    void emitIntervalsWorkout();
-    /// workout_step message_index for the current interval phase (0xFFFF = none).
-    uint16_t intervalsWktStepIndex() const;
-
-    // -- Notifications --------------------------------------------------------
+    // -- Notifications -------------------------------------------------------------------
 
     void setCapabilities();
-    void requestAccessoryPrepare();   // opt in to external HR (pre-warm at GUI start)
+    void requestAccessoryPrepare();
     void requestAccessoryRelease();
-    void notifyFirstFix();
-    void notifyLapEnd();
+    void notifySegment(Race::SegmentType type);
     void notifyNewActivity();
     void backlightOn(uint32_t timeoutMs = skBacklightTimeout);
-    void playBuzzerPattern(uint16_t beepMs, uint8_t count = 1, uint16_t silenceMs = 100);
-    void playVibroPattern(SDK::Message::RequestVibroPlay::Effect effect, uint8_t count = 1, uint16_t silenceMs = 100);
+    void playBuzzerPattern(uint16_t beepMs, uint8_t count = 1u, uint16_t silenceMs = 100u);
+    void playVibroPattern(SDK::Message::RequestVibroPlay::Effect effect, uint8_t count = 1u,
+                          uint16_t silenceMs = 100u);
 
-    // -- WristTilt callback ---------------------------------------------------
+    // -- WristTilt callback ------------------------------------------------------------------
 
-    virtual void onWristTilt(uint32_t timestampMs) override;
+    void onWristTilt(uint32_t timestampMs) override;
 };
 
-#endif // SERVICE_HPP
+#endif  // SERVICE_HPP

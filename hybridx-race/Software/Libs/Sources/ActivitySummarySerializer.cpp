@@ -1,54 +1,64 @@
 /**
  ******************************************************************************
  * @file    ActivitySummarySerializer.cpp
- * @date    08-04-2025
- * @author  Denys Saienko <denys.saienko@droid-technologies.com>
- * @brief   Serializes/Deserializes summary data to a file.
+ * @date    21-09-2026
+ * @author  HybridX
+ * @brief   Reads and writes the "Last race" summary as JSON (brief 10.2).
  ******************************************************************************
+ *
+ * Adapted from the SDK's Running/RunLVGL example, keeping its idiom: stream
+ * straight into the file on save, read the whole file and query by dotted path
+ * on load.
+ *
+ * The one rule worth restating (brief 14.3): a reader getter leaves its output
+ * untouched when the key is missing and returns false. So every field is given
+ * a deterministic value *before* the read, and an older file simply keeps the
+ * defaults rather than picking up whatever was on the stack.
  *
  ******************************************************************************
  */
 
 #include "ActivitySummarySerializer.hpp"
 
-#include <cassert>
 #include <cinttypes>
-#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <string_view>
 
-#include "SDK/JSON/JsonStreamWriter.hpp"
 #include "SDK/JSON/JsonStreamReader.hpp"
+#include "SDK/JSON/JsonStreamWriter.hpp"
 
-#define LOG_MODULE_PRX      "ActivitySummarySerializer"
-#define LOG_MODULE_LEVEL    LOG_LEVEL_DEBUG
+#define LOG_MODULE_PRX   "SummarySer"
+#define LOG_MODULE_LEVEL LOG_LEVEL_INFO
 #include "SDK/UnaLogger/Logger.h"
 
-ActivitySummarySerializer::ActivitySummarySerializer(const SDK::Kernel& kernel,
-    const char* pathToFile) :
-    mKernel(kernel), mPath(pathToFile)
+ActivitySummarySerializer::ActivitySummarySerializer(const SDK::Kernel &kernel,
+                                                     const char *pathToFile)
+        : mKernel(kernel)
+        , mPath(pathToFile)
 {
-    assert(pathToFile != nullptr);
 }
 
-bool ActivitySummarySerializer::save(const ActivitySummary& summary)
+bool ActivitySummarySerializer::save(const ActivitySummary &summary)
 {
-    const char* slash = strrchr(mPath, '/');
-    if (slash) {
-        char buff[SDK::Interface::IFileSystem::skMaxPathLen]{ };
-        snprintf(buff, sizeof(buff), "%.*s", static_cast<int>(slash - mPath), mPath);
-        // Create dir
-        if (!mKernel.fs.mkdir(buff)) {
+    if (mPath == nullptr) {
+        return false;
+    }
+
+    // Create the parent directory if the summary lives in one.
+    const char *slash = std::strrchr(mPath, '/');
+    if (slash != nullptr) {
+        char dir[SDK::Interface::IFileSystem::skMaxPathLen] {};
+        std::snprintf(dir, sizeof(dir), "%.*s", static_cast<int>(slash - mPath), mPath);
+        if (!mKernel.fs.mkdir(dir)) {
+            LOG_ERROR("Cannot create %s\n", dir);
             return false;
         }
     }
 
-    std::unique_ptr<SDK::Interface::IFile> file = mKernel.fs.file(mPath);
-
-    if (!file) {
-        return false;
-    }
-
-    if (!file->open(true, true)) {
-        file.reset();
+    auto file = mKernel.fs.file(mPath);
+    if (!file || !file->open(true, true)) {
+        LOG_ERROR("Cannot open %s\n", mPath);
         return false;
     }
 
@@ -56,25 +66,29 @@ bool ActivitySummarySerializer::save(const ActivitySummary& summary)
 
     writer.startMap();
 
-    writer.add("utc", static_cast<uint32_t>(summary.utc));
-    writer.add("time", static_cast<uint32_t>(summary.time));
-    writer.add("distance", summary.distance);
-    writer.add("speed_avg", summary.speedAvg);
-    writer.add("elevation", summary.elevation);
-    writer.add("pace_avg", summary.paceAvg);
-    writer.add("hr_max", summary.hrMax);
+    writer.add("version", static_cast<uint32_t>(1));
+    writer.add("format", static_cast<uint8_t>(summary.format));
+    writer.add("roxzone", summary.roxzone);
+    writer.add("completed", summary.completed);
+    writer.add("start_utc", static_cast<uint32_t>(summary.startUtc));
+    writer.add("total_ms", summary.totalMs);
+    writer.add("runs_ms", summary.runsMs);
+    writer.add("stations_ms", summary.stationsMs);
+    writer.add("roxzone_ms", summary.roxzoneMs);
     writer.add("hr_avg", summary.hrAvg);
+    writer.add("hr_max", summary.hrMax);
+    writer.add("seg_count", summary.count);
 
-    const uint8_t* points = reinterpret_cast<const uint8_t*>(summary.map.points.data());
-    writer.addHexString("map", points, summary.map.points.size() * 2);
-
-    writer.add("lap_count", static_cast<uint32_t>(summary.laps.size()));
-    writer.startArray("laps");
-    for (const LapSummary& lap : summary.laps) {
+    writer.startArray("segments");
+    for (uint8_t i = 0u; i < summary.count && i < Race::kMaxSegments; ++i) {
+        const SegmentSummary &s = summary.segments[i];
         writer.startMap();
-        writer.add("dur",  static_cast<uint32_t>(lap.duration));
-        writer.add("dist", lap.distance);
-        writer.add("pace", lap.paceAvg);
+        writer.add("t", s.type);
+        writer.add("r", s.round);
+        writer.add("s", s.stationId);
+        writer.add("ms", s.durationMs);
+        writer.add("ha", s.hrAvg);
+        writer.add("hm", s.hrMax);
         writer.endMap();
     }
     writer.endArray();
@@ -83,131 +97,100 @@ bool ActivitySummarySerializer::save(const ActivitySummary& summary)
 
     file->flush();
     file->close();
-
     return true;
 }
 
-bool ActivitySummarySerializer::load(ActivitySummary& summary)
+bool ActivitySummarySerializer::load(ActivitySummary &summary)
 {
-    std::unique_ptr<SDK::Interface::IFile> file = mKernel.fs.file(mPath);
+    summary = ActivitySummary {};  // deterministic defaults before any read
 
-    if (!file) {
+    if (mPath == nullptr) {
         return false;
     }
 
-    if (!file->exist()) {
-        file.reset();
+    auto file = mKernel.fs.file(mPath);
+    if (!file || !file->exist() || !file->open()) {
         return false;
     }
 
-    if (!file->open(false, false)) {
-        file.reset();
-        return false;
-    }
-
-    size_t fileSize = file->size();
-    if (fileSize == 0) { // Check for adequate size
+    const size_t size = file->size();
+    if (size == 0u) {
         file->close();
-        file.reset();
         return false;
     }
 
-    char* buffer = new (std::nothrow)char[fileSize];
+    char *buffer = new (std::nothrow) char[size];
     if (buffer == nullptr) {
+        LOG_ERROR("Out of memory reading %s\n", mPath);
         file->close();
-        file.reset();
         return false;
     }
 
-    size_t read = 0;
-    bool status = file->read(buffer, fileSize, read) && (read == fileSize);
-
+    size_t read = 0u;
+    const bool readOk = file->read(buffer, size, read);
     file->close();
-    file.reset();
 
-    if (!status) {
+    if (!readOk || read == 0u) {
         delete[] buffer;
         return false;
     }
 
-    SDK::JsonStreamReader reader(buffer, fileSize);
-
+    SDK::JsonStreamReader reader(buffer, read);
     if (!reader.validate()) {
-        LOG_ERROR("JSON is invalid\n");
+        LOG_ERROR("Summary JSON is invalid\n");
         delete[] buffer;
         return false;
     }
 
-    // If any fields are missing, just ignore it.
+    uint8_t format = 0u;
+    if (reader.get("format", format) && format <= static_cast<uint8_t>(Race::Format::HalfB)) {
+        summary.format = static_cast<Race::Format>(format);
+    }
 
-#if defined(SIMULATOR)
-#if defined(_USE_32BIT_TIME_T)
-    uint32_t tmp = 0;
-#else
-    uint64_t tmp = 0;
-#endif
-    // get() leaves its output alone when the key is missing, so assign only
-    // on success: a missing "utc" must not inherit "time".
-    if (reader.get("time", tmp)) {
-        summary.time = static_cast<time_t>(tmp);
+    reader.get("roxzone", summary.roxzone);
+    reader.get("completed", summary.completed);
+
+    uint32_t startUtc = 0u;
+    if (reader.get("start_utc", startUtc)) {
+        summary.startUtc = static_cast<std::time_t>(startUtc);
     }
-    if (reader.get("utc", tmp)) {
-        summary.utc = static_cast<time_t>(tmp);
-    }
-#else
-    reader.get("time", summary.time);
-    reader.get("utc", summary.utc);
-#endif
-    reader.get("distance", summary.distance);
-    reader.get("speed_avg", summary.speedAvg);
-    reader.get("elevation", summary.elevation);
-    reader.get("pace_avg", summary.paceAvg);
-    reader.get("hr_max", summary.hrMax);
+
+    reader.get("total_ms", summary.totalMs);
+    reader.get("runs_ms", summary.runsMs);
+    reader.get("stations_ms", summary.stationsMs);
+    reader.get("roxzone_ms", summary.roxzoneMs);
     reader.get("hr_avg", summary.hrAvg);
+    reader.get("hr_max", summary.hrMax);
 
-    // Laps
-    uint32_t lapCount = 0;
-    reader.get("lap_count", lapCount);
-    summary.laps.clear();
-    summary.laps.reserve(lapCount);
-    for (uint32_t i = 0; i < lapCount; ++i) {
+    uint8_t count = 0u;
+    reader.get("seg_count", count);
+    if (count > Race::kMaxSegments) {
+        // A corrupt count must not walk off the array: there is no MMU.
+        LOG_WARNING("Summary claims %u segments, clamping\n", count);
+        count = Race::kMaxSegments;
+    }
+
+    for (uint8_t i = 0u; i < count; ++i) {
         char query[32];
-        LapSummary lap{};
+        SegmentSummary &s = summary.segments[i];
 
-        uint32_t dur = 0;
-        snprintf(query, sizeof(query), "laps[%" PRIu32 "].dur", i);
-        reader.get(query, dur);
-        lap.duration = static_cast<time_t>(dur);
-
-        snprintf(query, sizeof(query), "laps[%" PRIu32 "].dist", i);
-        reader.get(query, lap.distance);
-
-        snprintf(query, sizeof(query), "laps[%" PRIu32 "].pace", i);
-        reader.get(query, lap.paceAvg);
-
-        summary.laps.push_back(lap);
+        std::snprintf(query, sizeof(query), "segments[%u].t", static_cast<unsigned>(i));
+        reader.get(query, s.type);
+        std::snprintf(query, sizeof(query), "segments[%u].r", static_cast<unsigned>(i));
+        reader.get(query, s.round);
+        std::snprintf(query, sizeof(query), "segments[%u].s", static_cast<unsigned>(i));
+        reader.get(query, s.stationId);
+        std::snprintf(query, sizeof(query), "segments[%u].ms", static_cast<unsigned>(i));
+        reader.get(query, s.durationMs);
+        std::snprintf(query, sizeof(query), "segments[%u].ha", static_cast<unsigned>(i));
+        reader.get(query, s.hrAvg);
+        std::snprintf(query, sizeof(query), "segments[%u].hm", static_cast<unsigned>(i));
+        reader.get(query, s.hrMax);
     }
 
-#if 1
-    // Track map as HEX-String
-    const char* hexStr = nullptr;
-    size_t hexStrLen = 0;
-
-    if (reader.get("map", hexStr, hexStrLen) && hexStrLen % 4 == 0) {
-        summary.map.points.reserve(hexStrLen / 4);
-        for (size_t i = 0; i < hexStrLen / 4; i++) {
-            SDK::TrackMapScreen::Point point{ };
-            char xstr[3] = { hexStr[i * 4], hexStr[i * 4 + 1], 0 };
-            char ystr[3] = { hexStr[i * 4 + 2], hexStr[i * 4 + 3], 0 };
-            point.x = static_cast<uint8_t>(strtol(xstr, nullptr, 16));
-            point.y = static_cast<uint8_t>(strtol(ystr, nullptr, 16));
-            summary.map.points.push_back(point);
-        }
-    }
-#endif
-
+    summary.count = count;
+    summary.valid = (count > 0u);
 
     delete[] buffer;
-
     return true;
 }

@@ -1,276 +1,316 @@
+/**
+ ******************************************************************************
+ * @file    Commands.hpp
+ * @date    21-09-2026
+ * @author  HybridX
+ * @brief   Typed messages between the Service and the GUI process.
+ ******************************************************************************
+ *
+ * Follows the pattern RunLVGL uses -- fixed-hex-ID structs deriving from
+ * SDK::MessageBase -- with brief 9.3's message set.
+ *
+ * Two rules the SDK's own activity apps do not enforce, and we do:
+ *
+ * 1. **Every struct is static_assert'd against the 256-byte pool block.**
+ *    Docs/writing-a-clockface.md:310: a larger allocation returns nullptr and
+ *    the send is dropped *silently*. The simulator allocates with new[], so it
+ *    will never show you the failure. This has to be a compile-time check.
+ *
+ * 2. **IDs are split into two ranges**, service->GUI below 0x80 and
+ *    GUI->service at 0x80 and up. RunLVGL interleaves the two directions in
+ *    one run of values, which makes an accidental collision easy when the set
+ *    grows.
+ *
+ * The summary is the one thing that cannot fit a message: 31 segments is
+ * 744 bytes. RunLVGL sends a raw pointer into service memory, which works only
+ * because the two processes share an address space and leaves the GUI holding
+ * a pointer whose lifetime it does not control. We page it instead --
+ * SUMMARY_META once, then SUMMARY_PAGE per handful of segments.
+ *
+ ******************************************************************************
+ */
 
 #ifndef COMMANDS_HPP
 #define COMMANDS_HPP
 
-#include <cstring>
-
 #include "SDK/Messages/MessageBase.hpp"
 #include "SDK/Messages/MessageTypes.hpp"
-#include "SDK/Messages/CommandMessages.hpp"
 
-// Application types
+#include "RaceData.hpp"
 #include "Settings.hpp"
 #include "Track.hpp"
-#include "ActivitySummary.hpp"
 
-// Force 4-byte alignment for all message structures
+// Force 4-byte alignment for all message structures, as the SDK examples do.
 #pragma pack(push, 4)
 
-namespace CustomMessage {
+namespace CustomMessage
+{
 
-    // Kernel HR configuration — shared defaults used before first kernel update
-    static constexpr uint8_t kHrThresholdsCount                       = 6;
-    static constexpr uint8_t kHrThresholdsDefault[kHrThresholdsCount] = { 95, 114, 133, 152, 171, 190 };
+// -- Service -> GUI ------------------------------------------------------------
+constexpr SDK::MessageType::Type SETTINGS_UPDATE   = 0x00000001;
+constexpr SDK::MessageType::Type LOCAL_TIME        = 0x00000002;
+constexpr SDK::MessageType::Type BATTERY           = 0x00000003;
+constexpr SDK::MessageType::Type HR_UPDATE         = 0x00000004;
+constexpr SDK::MessageType::Type RACE_STATE_UPDATE = 0x00000005;
+constexpr SDK::MessageType::Type RACE_DATA_UPDATE  = 0x00000006;
+constexpr SDK::MessageType::Type SPLIT_EVENT       = 0x00000007;
+constexpr SDK::MessageType::Type RACE_FINISHED     = 0x00000008;
+constexpr SDK::MessageType::Type SUMMARY_META      = 0x00000009;
+constexpr SDK::MessageType::Type SUMMARY_PAGE      = 0x0000000A;
+constexpr SDK::MessageType::Type ACCESSORY_STATUS  = 0x0000000B;
 
-    // Application custom commands
-    // Service --> GUI
-    constexpr SDK::MessageType::Type SETTINGS_UPDATE    = 0x00000001;
-    constexpr SDK::MessageType::Type LOCAL_TIME         = 0x00000002;
-    constexpr SDK::MessageType::Type BATTERY            = 0x00000003;
-    constexpr SDK::MessageType::Type GPS_FIX            = 0x00000004;
-    constexpr SDK::MessageType::Type TRACK_STATE_UPDATE = 0x00000005;
-    constexpr SDK::MessageType::Type TRACK_DATA_UPDATE  = 0x00000006;
-    constexpr SDK::MessageType::Type LAP_END                  = 0x00000007;
-    constexpr SDK::MessageType::Type SUMMARY                  = 0x00000008;
-    constexpr SDK::MessageType::Type INTERVALS_PHASE_ALERT      = 0x00000009;
-    constexpr SDK::MessageType::Type INTERVALS_WORKOUT_COMPLETED = 0x00000010;
-    constexpr SDK::MessageType::Type ACCESSORY_STATUS          = 0x00000012;
+// -- GUI -> Service ------------------------------------------------------------
+constexpr SDK::MessageType::Type SETTINGS_SAVE     = 0x00000080;
+constexpr SDK::MessageType::Type RACE_START        = 0x00000081;
+constexpr SDK::MessageType::Type RACE_SPLIT        = 0x00000082;
+constexpr SDK::MessageType::Type RACE_UNDO_SPLIT   = 0x00000083;
+constexpr SDK::MessageType::Type RACE_PAUSE        = 0x00000084;
+constexpr SDK::MessageType::Type RACE_RESUME       = 0x00000085;
+constexpr SDK::MessageType::Type RACE_FINISH_EARLY = 0x00000086;
+constexpr SDK::MessageType::Type RACE_UNDO_FINISH  = 0x00000087;
+constexpr SDK::MessageType::Type RACE_SAVE         = 0x00000088;
+constexpr SDK::MessageType::Type RACE_DISCARD      = 0x00000089;
+constexpr SDK::MessageType::Type SUMMARY_REQUEST   = 0x0000008A;
 
-    // GUI --> Service
-    constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
-    constexpr SDK::MessageType::Type TRACK_START           = 0x0000000B;
-    constexpr SDK::MessageType::Type TRACK_STOP            = 0x0000000C;
-    constexpr SDK::MessageType::Type TRACK_PAUSE           = 0x0000000D;
-    constexpr SDK::MessageType::Type TRACK_RESUME          = 0x0000000E;
-    constexpr SDK::MessageType::Type MANUAL_LAP            = 0x0000000F;
-    constexpr SDK::MessageType::Type INTERVALS_NEXT_PHASE  = 0x00000011;
+// =============================================================================
+// Service -> GUI
+// =============================================================================
 
-    // Service <-> GUI
-    struct SettingsUpd : public SDK::MessageBase {
-        // Application settings
-        Settings settings;
+/// Heart-rate zone boundaries, as the system profile reports them.
+constexpr uint8_t kHrThresholdsCount = 6u;
+constexpr uint8_t kHrThresholdsDefault[kHrThresholdsCount] = { 95, 114, 133, 152, 171, 190 };
 
-        // Kernel settings
-        bool    unitsImperial;
-        bool    timeFormat12h;   // true = 12-hour clock, false = 24-hour
-        uint8_t hrThresholds[kHrThresholdsCount];
-        uint8_t hrThresholdsCount;
+/**
+ * @brief The settings the service is working from, plus the system context the
+ *        GUI needs to render.
+ *
+ * Units, clock format and heart-rate zones come from the system profile rather
+ * than from us, but the GUI has no route to them, so the service forwards them
+ * here -- the same shape the SDK's activity apps use.
+ */
+struct SettingsUpd : public SDK::MessageBase
+{
+    Settings settings;
+    bool     isImperial = false;
+    bool     is12HourFormat = false;
+    uint8_t  hrThresholds[kHrThresholdsCount] {};
+    uint8_t  hrThresholdsCount = 0u;
 
-        SettingsUpd()
-            : SDK::MessageBase(SETTINGS_UPDATE)
-            , unitsImperial(false)
-            , timeFormat12h(false)
-            , hrThresholds {}
-            , hrThresholdsCount(0)
-        {}
+    SettingsUpd() : SDK::MessageBase(SETTINGS_UPDATE), settings {} {}
+    explicit SettingsUpd(const Settings &s) : SettingsUpd() { settings = s; }
+};
 
-        explicit SettingsUpd(Settings settings, bool units, bool timeFormat12h,
-                         const uint8_t (&thresholds)[kHrThresholdsCount], uint8_t thresholdCount)
-            : SettingsUpd()
-        {
-            this->settings          = settings;
-            this->unitsImperial     = units;
-            this->timeFormat12h     = timeFormat12h;
-            memcpy(this->hrThresholds, thresholds, sizeof(this->hrThresholds));
-            this->hrThresholdsCount = thresholdCount;
-        }
+/// Wall-clock time of day, for the status face.
+struct LocalTime : public SDK::MessageBase
+{
+    uint8_t hour = 0u;
+    uint8_t minute = 0u;
+    uint8_t second = 0u;
+    uint8_t month = 0u;
+    uint8_t day = 0u;
+    uint8_t weekday = 0u;
+
+    LocalTime() : SDK::MessageBase(LOCAL_TIME) {}
+};
+
+/// Battery percentage.
+struct Battery : public SDK::MessageBase
+{
+    uint8_t level = 0u;
+
+    Battery() : SDK::MessageBase(BATTERY) {}
+    explicit Battery(uint8_t l) : Battery() { level = l; }
+};
+
+/// Heart rate outside a race, so the sensor status row can show a reading.
+struct HrUpdate : public SDK::MessageBase
+{
+    uint8_t bpm = 0u;
+    uint8_t source = 0u;  ///< 0 none, 1 optical, 2 external
+
+    HrUpdate() : SDK::MessageBase(HR_UPDATE) {}
+    HrUpdate(uint8_t b, uint8_t s) : HrUpdate()
+    {
+        bpm = b;
+        source = s;
+    }
+};
+
+/// The race has changed state.
+struct RaceStateUpd : public SDK::MessageBase
+{
+    Track::State state = Track::State::INACTIVE;
+
+    RaceStateUpd() : SDK::MessageBase(RACE_STATE_UPDATE) {}
+    explicit RaceStateUpd(Track::State s) : RaceStateUpd() { state = s; }
+};
+
+/// The 1 Hz workhorse: where we are and how long it has taken.
+struct RaceDataUpd : public SDK::MessageBase
+{
+    Track::Data data {};
+
+    RaceDataUpd() : SDK::MessageBase(RACE_DATA_UPDATE) {}
+    explicit RaceDataUpd(const Track::Data &d) : RaceDataUpd() { data = d; }
+};
+
+/// A segment just closed. Drives the toast and the haptics (brief 8.3).
+struct SplitEvent : public SDK::MessageBase
+{
+    Track::SplitEvent split {};
+
+    SplitEvent() : SDK::MessageBase(CustomMessage::SPLIT_EVENT) {}
+    explicit SplitEvent(const Track::SplitEvent &s) : SplitEvent() { split = s; }
+};
+
+/// The race is over and the timer has stopped.
+struct RaceFinished : public SDK::MessageBase
+{
+    bool completed = false;  ///< False when the race was ended early
+
+    RaceFinished() : SDK::MessageBase(RACE_FINISHED) {}
+    explicit RaceFinished(bool c) : RaceFinished() { completed = c; }
+};
+
+/// Overview of a finished race. Sent before any SUMMARY_PAGE.
+struct SummaryMeta : public SDK::MessageBase
+{
+    Race::Format format = Race::Format::Full;
+    bool     roxzone = false;
+    bool     completed = false;
+    uint8_t  segmentCount = 0u;   ///< How many SUMMARY_PAGE entries to expect
+    uint32_t totalMs = 0u;
+    uint32_t runsMs = 0u;
+    uint32_t stationsMs = 0u;
+    uint32_t roxzoneMs = 0u;
+    uint8_t  hrAvg = 0u;
+    uint8_t  hrMax = 0u;
+
+    SummaryMeta() : SDK::MessageBase(SUMMARY_META) {}
+};
+
+/**
+ * @brief A page of finished segments.
+ *
+ * Paged rather than sent whole because 31 segments do not fit a 256-byte pool
+ * block. Eight entries a page keeps this message comfortably inside it and
+ * means a full race is four pages.
+ */
+struct SummaryPage : public SDK::MessageBase
+{
+    static constexpr uint8_t kEntriesPerPage = 8u;
+
+    struct Entry
+    {
+        Race::SegmentDesc desc {};
+        uint32_t activeMs = 0u;
+        uint8_t  hrAvg = 0u;
+        uint8_t  hrMax = 0u;
     };
 
-    // Service --> GUI
-    struct Time : public SDK::MessageBase {
-        std::tm localTime;
-        Time()
-            : SDK::MessageBase(LOCAL_TIME)
-            , localTime {}
-        {}
+    uint8_t firstIndex = 0u;  ///< Index of entries[0] in the whole race
+    uint8_t count = 0u;       ///< Valid entries, 1 to kEntriesPerPage
+    Entry   entries[kEntriesPerPage] {};
 
-        explicit Time(std::tm localTime)
-            : Time()
-        {
-            this->localTime = localTime;
-        }
-    };
+    SummaryPage() : SDK::MessageBase(SUMMARY_PAGE) {}
+};
 
-    struct Battery : public SDK::MessageBase {
-        uint8_t level;
-        Battery()
-            : SDK::MessageBase(BATTERY)
-            , level(0)
-        {}
+/// External heart-rate strap link status.
+struct AccessoryStatusUpd : public SDK::MessageBase
+{
+    uint8_t state = 0u;   ///< SDK::Accessory::State
+    char    name[24] {};  ///< Device name, may be empty
 
-        explicit Battery(uint8_t level)
-            : Battery()
-        {
-            this->level = level;
-        }
-    };
+    AccessoryStatusUpd() : SDK::MessageBase(ACCESSORY_STATUS) {}
+};
 
-    struct GpsFix : public SDK::MessageBase {
-        bool state;
-        GpsFix()
-            : SDK::MessageBase(GPS_FIX)
-            , state(false)
-        {}
+// =============================================================================
+// GUI -> Service
+// =============================================================================
 
-        explicit GpsFix(bool state)
-            : GpsFix()
-        {
-            this->state = state;
-        }
-    };
+/// Persist edited settings.
+struct SettingsSave : public SDK::MessageBase
+{
+    Settings settings;
 
-    struct TrackStateUpd : public SDK::MessageBase {
-        Track::State state;
-        TrackStateUpd()
-            : SDK::MessageBase(TRACK_STATE_UPDATE)
-            , state{}
-        {}
+    SettingsSave() : SDK::MessageBase(SETTINGS_SAVE), settings {} {}
+    explicit SettingsSave(const Settings &s) : SettingsSave() { settings = s; }
+};
 
-        explicit TrackStateUpd(Track::State state)
-            : TrackStateUpd()
-        {
-            this->state = state;
-        }
-    };
+/// Start a race in the given format.
+struct RaceStart : public SDK::MessageBase
+{
+    Race::Format format = Race::Format::Full;
 
-    struct TrackDataUpd : public SDK::MessageBase {
-        Track::Data data;
-        TrackDataUpd()
-            : SDK::MessageBase(TRACK_DATA_UPDATE)
-            , data{}
-        {}
+    RaceStart() : SDK::MessageBase(RACE_START) {}
+    explicit RaceStart(Race::Format f) : RaceStart() { format = f; }
+};
 
-        explicit TrackDataUpd(const Track::Data &data)
-            : TrackDataUpd()
-        {
-            this->data = data;
-        }
-    };
+/**
+ * @brief Split, carrying the instant the button went down.
+ *
+ * The GUI stamps the press rather than letting the service read its own clock,
+ * so up to 100 ms of tick latency cannot bias the split (brief 7.4).
+ */
+struct RaceSplit : public SDK::MessageBase
+{
+    uint32_t pressMs = 0u;
 
-    struct LapEnded : public SDK::MessageBase {
-        uint32_t lapNum;
-        LapEnded()
-            : SDK::MessageBase(LAP_END)
-            , lapNum(0)
-        {}
+    RaceSplit() : SDK::MessageBase(RACE_SPLIT) {}
+    explicit RaceSplit(uint32_t ms) : RaceSplit() { pressMs = ms; }
+};
 
-        explicit LapEnded(uint32_t lapNum)
-            : LapEnded()
-        {
-            this->lapNum = lapNum;
-        }
-    };
+/// Signals with no payload.
+#define HYBRIDX_SIGNAL_MESSAGE(Name, Id)                     \
+    struct Name : public SDK::MessageBase                    \
+    {                                                        \
+        Name() : SDK::MessageBase(Id) {}                     \
+    }
 
-    struct Summary : public SDK::MessageBase {
-        const ActivitySummary* summary; ///< Non-owning pointer; receiver must copy before releaseMessage
-        Summary()
-            : SDK::MessageBase(SUMMARY)
-            , summary(nullptr)
-        {}
+HYBRIDX_SIGNAL_MESSAGE(RaceUndoSplit, RACE_UNDO_SPLIT);
+HYBRIDX_SIGNAL_MESSAGE(RacePause, RACE_PAUSE);
+HYBRIDX_SIGNAL_MESSAGE(RaceResume, RACE_RESUME);
+HYBRIDX_SIGNAL_MESSAGE(RaceFinishEarly, RACE_FINISH_EARLY);
+HYBRIDX_SIGNAL_MESSAGE(RaceUndoFinish, RACE_UNDO_FINISH);
+HYBRIDX_SIGNAL_MESSAGE(RaceSave, RACE_SAVE);
+HYBRIDX_SIGNAL_MESSAGE(RaceDiscard, RACE_DISCARD);
+HYBRIDX_SIGNAL_MESSAGE(SummaryRequest, SUMMARY_REQUEST);
 
-        explicit Summary(const ActivitySummary* summaryPtr)
-            : Summary()
-        {
-            this->summary = summaryPtr;
-        }
-    };
+#undef HYBRIDX_SIGNAL_MESSAGE
 
-    struct IntervalsPhaseAlert : public SDK::MessageBase {
-        Track::IntervalsData intervals; ///< Snapshot of the NEW phase — already set before this message is sent
-        IntervalsPhaseAlert() : SDK::MessageBase(INTERVALS_PHASE_ALERT) {}
+// =============================================================================
+// The guard the SDK's activity apps are missing
+// =============================================================================
 
-        explicit IntervalsPhaseAlert(const Track::IntervalsData& intervals)
-            : IntervalsPhaseAlert()
-        {
-            this->intervals = intervals;
-        }
-    };
+/// Largest block the kernel's message pools offer.
+constexpr size_t kMaxMessageBytes = 256u;
 
-    struct IntervalsWorkoutCompleted : public SDK::MessageBase {
-        IntervalsWorkoutCompleted() : SDK::MessageBase(INTERVALS_WORKOUT_COMPLETED) {}
-    };
+#define HYBRIDX_ASSERT_FITS_POOL(T)                                        \
+    static_assert(sizeof(T) <= kMaxMessageBytes,                           \
+                  #T " exceeds the 256-byte kernel pool block: the send "  \
+                     "would fail silently on the watch")
 
-    // External-accessory link status forwarded from the kernel's
-    // EVENT_ACCESSORY_STATUS, for the pre-activity HR indicator (WP-S4).
-    struct AccessoryStatusUpd : public SDK::MessageBase {
-        uint8_t state;     ///< SDK::Accessory::State
-        char    name[24];  ///< device name (may be empty)
-        AccessoryStatusUpd()
-            : SDK::MessageBase(ACCESSORY_STATUS)
-            , state(0)
-            , name{}
-        {}
+HYBRIDX_ASSERT_FITS_POOL(SettingsUpd);
+HYBRIDX_ASSERT_FITS_POOL(LocalTime);
+HYBRIDX_ASSERT_FITS_POOL(Battery);
+HYBRIDX_ASSERT_FITS_POOL(HrUpdate);
+HYBRIDX_ASSERT_FITS_POOL(RaceStateUpd);
+HYBRIDX_ASSERT_FITS_POOL(RaceDataUpd);
+HYBRIDX_ASSERT_FITS_POOL(SplitEvent);
+HYBRIDX_ASSERT_FITS_POOL(RaceFinished);
+HYBRIDX_ASSERT_FITS_POOL(SummaryMeta);
+HYBRIDX_ASSERT_FITS_POOL(SummaryPage);
+HYBRIDX_ASSERT_FITS_POOL(AccessoryStatusUpd);
+HYBRIDX_ASSERT_FITS_POOL(SettingsSave);
+HYBRIDX_ASSERT_FITS_POOL(RaceStart);
+HYBRIDX_ASSERT_FITS_POOL(RaceSplit);
+HYBRIDX_ASSERT_FITS_POOL(RaceUndoSplit);
+HYBRIDX_ASSERT_FITS_POOL(SummaryRequest);
 
-        explicit AccessoryStatusUpd(uint8_t state, const char* name)
-            : AccessoryStatusUpd()
-        {
-            this->state = state;
-            if (name) {
-                strncpy(this->name, name, sizeof(this->name) - 1);
-            }
-        }
-    };
+#undef HYBRIDX_ASSERT_FITS_POOL
 
-    // GUI --> Service
-    struct SettingsSave : public SDK::MessageBase {
-        // Application settings
-        Settings settings;
-
-        SettingsSave()
-            : SDK::MessageBase(SETTINGS_SAVE)
-        {}
-
-        explicit SettingsSave(Settings settings)
-            : SettingsSave()
-        {
-            this->settings = settings;
-        }
-    };
-
-    struct TrackStart : public SDK::MessageBase {
-        bool intervalsMode = false;
-        TrackStart() : SDK::MessageBase(TRACK_START) {}
-
-        explicit TrackStart(bool intervalsMode)
-            : TrackStart()
-        {
-            this->intervalsMode = intervalsMode;
-        }
-    };
-
-    struct IntervalsNextPhase : public SDK::MessageBase {
-        IntervalsNextPhase() : SDK::MessageBase(INTERVALS_NEXT_PHASE) {}
-    };
-
-    struct TrackStop : public SDK::MessageBase {
-        bool discard;   // If true, tarck will be discarded, otherwise saved
-        TrackStop()
-            : SDK::MessageBase(TRACK_STOP)
-            , discard(false)
-        {}
-
-        explicit TrackStop(bool discard)
-            : TrackStop()
-        {
-            this->discard = discard;
-        }
-    };
-
-    struct TrackPause : public SDK::MessageBase {
-        TrackPause() : SDK::MessageBase(TRACK_PAUSE) {}
-    };
-
-    struct TrackResume : public SDK::MessageBase {
-        TrackResume() : SDK::MessageBase(TRACK_RESUME) {}
-    };
-
-    struct ManualLap : public SDK::MessageBase {
-        ManualLap() : SDK::MessageBase(MANUAL_LAP) {}
-    };
-
-
-} // namespace CustomMessage
+}  // namespace CustomMessage
 
 #pragma pack(pop)
 
-#endif // COMMANDS_HPP
+#endif  // COMMANDS_HPP

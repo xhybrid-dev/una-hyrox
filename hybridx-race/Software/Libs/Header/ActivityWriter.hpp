@@ -15,7 +15,6 @@
 
 #include "SDK/Kernel/Kernel.hpp"
 #include "SDK/Fit/FitProfile.hpp"
-#include "SDK/Fit/FitRecordCadence.hpp"
 #include "SDK/Fit/FitWriter.hpp"
 #include "SDK/Fit/RecordingMarker.hpp"
 
@@ -34,13 +33,8 @@ public:
 
     struct RecordData {
         enum class Field : uint8_t {
-            COORDS     = 1u << 0, // lat/long valid as a group
-            SPEED      = 1u << 1,
-            ALTITUDE   = 1u << 2,
-            HEART_RATE   = 1u << 3,
-            BATTERY      = 1u << 4,
-            CADENCE      = 1u << 5,
-            STEP_LENGTH  = 1u << 6,
+            HEART_RATE = 1u << 0,
+            BATTERY    = 1u << 1,
         };
 
         void set(Field f)                 { mFlags |= mask(f); }
@@ -49,19 +43,13 @@ public:
         bool has(Field f) const           { return (mFlags & mask(f)) != 0; }
         void clearAll()                   { mFlags = 0; }
 
-        std::time_t timestamp      = 0;     // UTC
-        float       latitude       = 0.0f;  // degrees
-        float       longitude      = 0.0f;  // degrees
-        float       speed          = 0.0f;  // m/s
-        float       altitude       = 0.0f;  // m
-        float       heartRate      = 0.0f;  // bpm (arbitrated)
-        uint8_t     hrSource       = 0;     // HeartRateEx::Source (0=none,1=optical,2=external)
-        uint8_t     hrOpticalBpm   = 0;     // raw wrist-optical (PPG) bpm (0 = none)
-        uint8_t     hrExternalBpm  = 0;     // raw external strap bpm (0 = none)
-        uint8_t     batteryLevel   = 0;     // %
-        uint16_t    batteryVoltage = 0;     // mV
-        float       cadenceSpm     = 0.0f;  // steps/min
-        float       stepLengthM    = 0.0f;  // single-step distance, m
+        std::time_t timestamp      = 0;   // UTC
+        float       heartRate      = 0.0f; // bpm (arbitrated)
+        uint8_t     hrSource       = 0;   // HeartRateEx::Source (0=none,1=optical,2=external)
+        uint8_t     hrOpticalBpm   = 0;   // raw wrist-optical (PPG) bpm (0 = none)
+        uint8_t     hrExternalBpm  = 0;   // raw external strap bpm (0 = none)
+        uint8_t     batteryLevel   = 0;   // %
+        uint16_t    batteryVoltage = 0;   // mV
 
     private:
         static constexpr uint8_t mask(Field f)
@@ -73,47 +61,33 @@ public:
     };
 
     struct LapData {
-        std::time_t timestamp = 0;      // UTC
-        std::time_t timeStart = 0;      // UTC
-        std::time_t duration  = 0;      // seconds
-        std::time_t elapsed   = 0;      // seconds
-        float       distance  = 0.0f;   // m
-        float       speedAvg  = 0.0f;   // m/s
-        float       speedMax  = 0.0f;   // m/s
-        float       hrAvg     = 0.0f;   // bpm
-        float       hrMax     = 0.0f;   // bpm
-        float       ascent    = 0.0f;   // m
-        float       descent   = 0.0f;   // m
-        // workout_step this lap belongs to (kMessageIndexInvalid = none)
-        uint16_t    wktStepIndex = SDK::Fit::kMessageIndexInvalid;
-    };
-
-    /**
-     * @brief One step of a structured (interval) workout description.
-     *
-     * Encoded into a workout_step message. For a REPEAT step, durationValue is the
-     * message_index of the first step to loop back to and repeatCount the number of
-     * iterations; intensity is left unset.
-     */
-    struct WorkoutStepData {
-        SDK::Fit::Intensity       intensity     = SDK::Fit::Intensity::Invalid;
-        SDK::Fit::WktStepDuration durationType  = SDK::Fit::WktStepDuration::Open;
-        uint32_t                  durationValue = 0;  // TIME: ms; DISTANCE: cm; OPEN: 0; REPEAT: first-step index
-        uint32_t                  repeatCount   = 0;  // REPEAT only -> target_value (iterations)
+        std::time_t timestamp        = 0;     // UTC
+        std::time_t timeStart        = 0;     // UTC
+        std::time_t duration         = 0;     // seconds
+        std::time_t elapsed          = 0;     // seconds
+        float       hrAvg            = 0.0f;  // bpm
+        float       hrMax            = 0.0f;  // bpm
+        // Which HYROX segment this lap was (brief 10.1). Written as developer
+        // fields because the FIT profile has nothing that means "sled push".
+        uint8_t     segmentType      = 0;     // 0 run, 1 roxzone in, 2 station, 3 roxzone out
+        uint8_t     round            = 0;     // 1 to 8
+        uint8_t     stationId        = 0;     // 1 to 8, 0 when not a station
     };
 
     struct TrackData {
-        std::time_t timestamp = 0;      // UTC
-        std::time_t timeStart = 0;      // UTC
-        std::time_t duration  = 0;      // seconds
-        std::time_t elapsed   = 0;      // seconds
-        float       distance  = 0.0f;   // m
-        float       speedAvg  = 0.0f;   // m/s
-        float       speedMax  = 0.0f;   // m/s
-        float       hrAvg     = 0.0f;   // bpm
-        float       hrMax     = 0.0f;   // bpm
-        float       ascent    = 0.0f;   // m
-        float       descent   = 0.0f;   // m
+        std::time_t timestamp          = 0;    // UTC
+        std::time_t timeStart          = 0;    // UTC
+        std::time_t duration           = 0;    // seconds
+        std::time_t elapsed            = 0;    // seconds
+        float       hrAvg              = 0.0f; // bpm
+        float       hrMax              = 0.0f; // bpm
+        uint8_t     raceFormat         = 0;    // 0 full, 1 half A, 2 half B
+        uint8_t     roxzoneMode        = 0;    // 1 when Roxzone splitting was on
+        uint8_t     completed          = 0;    // 1 finished normally, 0 ended early
+        // Decision D2 is still open, so the session sport is a parameter rather
+        // than a constant: Phase 3 can emit candidate files for Jon to upload.
+        uint8_t     sport              = 10;   // FIT sport, default training
+        uint8_t     subSport           = 0;    // FIT sub_sport, default generic
     };
 
     ActivityWriter(const SDK::Kernel& kernel, const char* pathToDir);
@@ -123,8 +97,6 @@ public:
     void resume(std::time_t timestamp);
     void addRecord(const RecordData& record);
     void addLap(const LapData& lap);
-    /// Emit the workout + workout_step messages describing a structured workout.
-    void addWorkout(const char* name, const WorkoutStepData* steps, uint8_t count);
     /// Finalize the current activity. The return value is the FIT-durability
     /// contract: true iff the FIT stream + its finish()/flush/close succeeded, so
     /// the .fit is safely on disk (the kernel auto-registers it on close, and
@@ -150,24 +122,29 @@ private:
         L_DEV_ID,
         L_FIELD_DESC,   // reused for each field_description (redefined per string size)
         L_EVENT,
-        L_RECORD,       // no GPS, no battery
-        L_RECORD_G,     // + GPS
+        L_RECORD,       // no battery
         L_RECORD_B,     // + battery
-        L_RECORD_GB,    // + GPS + battery
         L_LAP,
         L_SESSION,
         L_ACTIVITY,
-        L_WORKOUT,
-        L_WORKOUT_STEP,
     };
 
     /// Developer field definition numbers (UNA-assigned).
     enum DevField : uint8_t {
-        DF_BATTERY_LEVEL   = 2,
-        DF_BATTERY_VOLTAGE = 3,
-        DF_HR_SOURCE       = 4,
-        DF_HR_OPTICAL      = 5,
-        DF_HR_EXTERNAL     = 6,
+        DF_BATTERY_LEVEL    = 2,
+        DF_BATTERY_VOLTAGE  = 3,
+        DF_HR_SOURCE        = 4,
+        DF_HR_OPTICAL       = 5,
+        DF_HR_EXTERNAL      = 6,
+        // Per-lap segment identity (brief 10.1). These are what lets HybridX,
+        // or anything else, map a lap back to a HYROX segment.
+        DF_SEGMENT_TYPE     = 7,
+        DF_ROUND            = 8,
+        DF_STATION_ID       = 9,
+        // Per-session race identity (brief 10.1).
+        DF_RACE_FORMAT      = 10,
+        DF_ROXZONE_MODE     = 11,
+        DF_COMPLETED        = 12,
     };
 
     /// Flush + marker-refresh cadence during recording (seconds of record time).
@@ -193,7 +170,6 @@ private:
     static std::time_t tm2epoch(const struct tm* tm);
     static std::time_t epochToLocal(std::time_t utc);
     static uint32_t unixToFitTimestamp(std::time_t unixTimestamp);
-    static int32_t  degreesToSemicircles(float degrees);
 };
 
 #endif // ACTIVITY_WRITER_HPP

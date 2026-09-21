@@ -1,199 +1,143 @@
 /**
  ******************************************************************************
  * @file    SettingsSerializer.cpp
- * @date    08-04-2025
- * @author  Denys Saienko <denys.saienko@droid-technologies.com>
- * @brief   Serializes/Deserializes settings to a file.
+ * @date    21-09-2026
+ * @author  HybridX
+ * @brief   Reads and writes the on-watch settings file.
  ******************************************************************************
+ *
+ * Adapted from the SDK's Running/RunLVGL example, keeping its idiom and its
+ * one important habit: a reader getter leaves its output untouched when the
+ * key is missing, so every field is given a deterministic value before the
+ * read and an older file simply keeps the defaults.
+ *
+ * AppConfig is the source of truth for the fields the phone can edit; this
+ * file also carries them so the watch has something to work from before the
+ * config is read, and it is the only home for the last-used race format.
  *
  ******************************************************************************
  */
+
 #include "SettingsSerializer.hpp"
 
-#include <cassert>
+#include <cstdio>
+#include <cstring>
 
-#include "SDK/JSON/JsonStreamWriter.hpp"
 #include "SDK/JSON/JsonStreamReader.hpp"
+#include "SDK/JSON/JsonStreamWriter.hpp"
 
-#define LOG_MODULE_PRX      "SettingsSerializer"
-#define LOG_MODULE_LEVEL    LOG_LEVEL_DEBUG
+#define LOG_MODULE_PRX   "SettingsSer"
+#define LOG_MODULE_LEVEL LOG_LEVEL_INFO
 #include "SDK/UnaLogger/Logger.h"
 
-
-static const char* metricToStr(Settings::Intervals::Metric metric)
+SettingsSerializer::SettingsSerializer(const SDK::Kernel &kernel, const char *pathToFile)
+        : mKernel(kernel)
+        , mPath(pathToFile)
 {
-    switch (metric) {
-    case Settings::Intervals::Metric::OPEN:     return "OPEN";
-    case Settings::Intervals::Metric::TIME:     return "TIME";
-    case Settings::Intervals::Metric::DISTANCE: return "DISTANCE";
-    default:                                    return "OPEN"; // default
-    }
-}
-
-static Settings::Intervals::Metric strToMetric(std::string_view str)
-{
-    if (str == "OPEN")      return Settings::Intervals::Metric::OPEN;
-    if (str == "DISTANCE")  return Settings::Intervals::Metric::DISTANCE;
-    if (str == "TIME")      return Settings::Intervals::Metric::TIME;
-
-    return Settings::Intervals::Metric::OPEN; // default
-}
-
-
-SettingsSerializer::SettingsSerializer(const SDK::Kernel& kernel,
-    const char *pathToFile) :
-    mKernel(kernel), mPath(pathToFile)
-{
-    assert(pathToFile != nullptr);
 }
 
 bool SettingsSerializer::save(const Settings &settings)
 {
-    const char *slash = strrchr(mPath, '/');
-    if (slash) {
-        char buff[SDK::Interface::IFileSystem::skMaxPathLen] { };
-        snprintf(buff, sizeof(buff), "%.*s", static_cast<int>(slash - mPath), mPath);
-        // Create dir
-        if (!mKernel.fs.mkdir(buff)) {
+    if (mPath == nullptr) {
+        return false;
+    }
+
+    const char *slash = std::strrchr(mPath, '/');
+    if (slash != nullptr) {
+        char dir[SDK::Interface::IFileSystem::skMaxPathLen] {};
+        std::snprintf(dir, sizeof(dir), "%.*s", static_cast<int>(slash - mPath), mPath);
+        if (!mKernel.fs.mkdir(dir)) {
+            LOG_ERROR("Cannot create %s\n", dir);
             return false;
         }
     }
 
-    std::unique_ptr<SDK::Interface::IFile> file = mKernel.fs.file(mPath);
-
-    if (!file) {
-        return false;
-    }
-
-    if (!file->open(true, true)) {
-        file.reset();
+    auto file = mKernel.fs.file(mPath);
+    if (!file || !file->open(true, true)) {
+        LOG_ERROR("Cannot open %s\n", mPath);
         return false;
     }
 
     SDK::JsonStreamWriter writer(file.get());
 
     writer.startMap();
-
-    writer.add("version",        settings.version);
-    writer.add("auto_pause_en",  settings.autoPauseEn);
-    writer.add("phone_notif_en", settings.phoneNotifEn);
-    writer.add("calib_trace_en", settings.calibTraceEn);
-    writer.add("alert_distance_id", static_cast<uint8_t>(settings.alertDistanceId));
-    writer.add("alert_time_id",     static_cast<uint8_t>(settings.alertTimeId));
-
-    writer.startMap("intervals");
-    writer.add("repeats_num",   settings.intervals.repeatsNum);
-    writer.add("run_metric",    metricToStr(settings.intervals.runMetric));
-    writer.add("run_time",      settings.intervals.runTime);
-    writer.add("run_distance",  settings.intervals.runDistance);
-    writer.add("rest_metric",   metricToStr(settings.intervals.restMetric));
-    writer.add("rest_time",     settings.intervals.restTime);
-    writer.add("rest_distance", settings.intervals.restDistance);
-    writer.add("warm_up",       settings.intervals.warmUp);
-    writer.add("cool_down",     settings.intervals.coolDown);
-    writer.add("last_rest",     settings.intervals.lastRest);
-    writer.endMap();
-
+    writer.add("version", settings.version);
+    writer.add("format", static_cast<uint8_t>(settings.format));
+    writer.add("roxzone_splits", settings.roxzoneSplits);
+    writer.add("split_lockout_sec", settings.splitLockoutSec);
+    writer.add("vibrate_on_split", settings.vibrateOnSplit);
+    writer.add("target_finish_min", settings.targetFinishMin);
     writer.endMap();
 
     file->flush();
     file->close();
-
     return true;
 }
 
 bool SettingsSerializer::load(Settings &settings)
 {
-    std::unique_ptr<SDK::Interface::IFile> file = mKernel.fs.file(mPath);
+    settings = Settings {};  // deterministic defaults before any read
 
-    if (!file) {
+    if (mPath == nullptr) {
         return false;
     }
 
-    if (!file->exist()) {
-        file.reset();
+    auto file = mKernel.fs.file(mPath);
+    if (!file || !file->exist() || !file->open()) {
         return false;
     }
 
-    if (!file->open(false, false)) {
-        file.reset();
-        return false;
-    }
-
-    size_t fileSize = file->size();
-    if (fileSize == 0) { // Check for adequate size
+    const size_t size = file->size();
+    if (size == 0u) {
         file->close();
-        file.reset();
         return false;
     }
 
-    char* buffer = new (std::nothrow)char[fileSize];
+    char *buffer = new (std::nothrow) char[size];
     if (buffer == nullptr) {
+        LOG_ERROR("Out of memory reading %s\n", mPath);
         file->close();
-        file.reset();
         return false;
     }
 
-    size_t read = 0;
-    bool status = file->read(buffer, fileSize, read) && (read == fileSize);
-
+    size_t read = 0u;
+    const bool readOk = file->read(buffer, size, read);
     file->close();
-    file.reset();
 
-    if (!status) {
+    if (!readOk || read == 0u) {
         delete[] buffer;
         return false;
     }
 
-    SDK::JsonStreamReader reader(buffer, fileSize);
-
+    SDK::JsonStreamReader reader(buffer, read);
     if (!reader.validate()) {
-        LOG_ERROR("JSON is invalid\n");
+        LOG_ERROR("Settings JSON is invalid\n");
         delete[] buffer;
         return false;
     }
 
-    reader.get("version",        settings.version);
-    reader.get("auto_pause_en",  settings.autoPauseEn);
-    reader.get("phone_notif_en", settings.phoneNotifEn);
-    settings.calibTraceEn = false;  // deterministic default for legacy files
-    reader.get("calib_trace_en", settings.calibTraceEn);
-    uint8_t distId = static_cast<uint8_t>(Settings::Alerts::Distance::ID_DEFAULT);
-    uint8_t timeId = static_cast<uint8_t>(Settings::Alerts::Time::ID_OFF);
-    reader.get("alert_distance_id", distId);
-    reader.get("alert_time_id",     timeId);
-    settings.alertDistanceId = distId < Settings::Alerts::Distance::ID_COUNT
-        ? static_cast<Settings::Alerts::Distance::Id>(distId)
-        : Settings::Alerts::Distance::ID_DEFAULT;
-    settings.alertTimeId = timeId < Settings::Alerts::Time::ID_COUNT
-        ? static_cast<Settings::Alerts::Time::Id>(timeId)
-        : Settings::Alerts::Time::ID_OFF;
+    reader.get("version", settings.version);
 
-    // Distance and time auto-laps are mutually exclusive. Normalize a legacy
-    // file that has both enabled by keeping distance (which getLapDivSource()
-    // prefers) and clearing time, matching the settings-menu invariant.
-    if (settings.alertDistanceId != Settings::Alerts::Distance::ID_OFF) {
-        settings.alertTimeId = Settings::Alerts::Time::ID_OFF;
+    // Enums are validated on the way in, never blindly cast.
+    uint8_t format = 0u;
+    if (reader.get("format", format) && format <= static_cast<uint8_t>(Race::Format::HalfB)) {
+        settings.format = static_cast<Race::Format>(format);
     }
 
-    reader.get("intervals.repeats_num",   settings.intervals.repeatsNum);
-    reader.get("intervals.run_time",      settings.intervals.runTime);
-    reader.get("intervals.run_distance",  settings.intervals.runDistance);
-    reader.get("intervals.rest_time",     settings.intervals.restTime);
-    reader.get("intervals.rest_distance", settings.intervals.restDistance);
-    reader.get("intervals.warm_up",       settings.intervals.warmUp);
-    reader.get("intervals.cool_down",     settings.intervals.coolDown);
-    reader.get("intervals.last_rest",     settings.intervals.lastRest);
+    reader.get("roxzone_splits", settings.roxzoneSplits);
+    reader.get("split_lockout_sec", settings.splitLockoutSec);
+    reader.get("vibrate_on_split", settings.vibrateOnSplit);
+    reader.get("target_finish_min", settings.targetFinishMin);
 
-    std::string_view metric;
-    if (reader.get("intervals.run_metric", metric)) {
-        settings.intervals.runMetric = strToMetric(metric);
+    // Clamp what the file claims: it is user-writable over USB.
+    if (settings.splitLockoutSec < Settings::kLockoutMinSec ||
+        settings.splitLockoutSec > Settings::kLockoutMaxSec) {
+        settings.splitLockoutSec = Settings::kLockoutDefaultSec;
     }
-    if (reader.get("intervals.rest_metric", metric)) {
-        settings.intervals.restMetric = strToMetric(metric);
+    if (settings.targetFinishMin > Settings::kTargetFinishMaxMin) {
+        settings.targetFinishMin = 0u;
     }
 
     delete[] buffer;
-
     return true;
 }
