@@ -19,12 +19,16 @@
 class TrackResultScreen : public Screen
 {
 public:
-    enum class Result : uint8_t { Saved, Discarded };
+    /// Finished is the "race over, not yet saved" screen of brief 8.2 item 6;
+    /// Saved and Discarded are the two-second confirmations after it.
+    enum class Result : uint8_t { Finished, Saved, Discarded };
 
     TrackResultScreen(Model& model, Result result);
     ~TrackResultScreen() override;
 
     void onShow() override;
+    void onKey(uint8_t code) override;
+    void onIdleTimeout() override;
 
 protected:
     void build() override;
@@ -33,8 +37,11 @@ private:
     static void dismissCb(lv_timer_t* t);
 
     Result      mResult;
+    lv_obj_t*   mTotal = nullptr;
+    uint32_t    mAutoSaveTicks = 0;
     lv_timer_t* mDismiss = nullptr;
-    std::unique_ptr<Widgets::Title> mTitle;
+    std::unique_ptr<Widgets::Title>   mTitle;
+    std::unique_ptr<Widgets::Buttons> mButtons;
 };
 
 #endif // TRACK_RESULT_SCREEN_HPP

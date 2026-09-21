@@ -1,27 +1,30 @@
 /**
  ******************************************************************************
  * @file    TrackActionScreen.cpp
- * @brief   Paused-activity menu (see TrackActionScreen.hpp).
+ * @brief   In-race action menu (see TrackActionScreen.hpp).
  ******************************************************************************
  */
 
 #include "gui/screens/TrackActionScreen.hpp"
+
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
-#include "gui/Format.hpp"
+
+using namespace SDK::GUI;
 
 namespace
 {
-constexpr uint32_t kCarouselPeriodMs = 3000;
-
 using Style = WheelMenu::Item::Style;
-const WheelMenu::Item kItems[App::MenuNav::TrackView::Action::ID_COUNT] = {
+
+// Mutable: the pause row's label flips with the race state.
+WheelMenu::Item kItems[App::MenuNav::RaceView::Action::ID_COUNT] = {
     { Style::Simple, "Resume" },
-    { Style::Simple, "Summary" },
-    { Style::Simple, "Save & End" },
+    { Style::Simple, "Undo last\nsplit" },
+    { Style::Simple, "Pause" },
+    { Style::Simple, "End race" },
     { Style::Simple, "Discard" },
 };
-} // namespace
+}  // namespace
 
 TrackActionScreen::TrackActionScreen(Model& model)
     : Screen(model)
@@ -30,102 +33,93 @@ TrackActionScreen::TrackActionScreen(Model& model)
 
 void TrackActionScreen::build()
 {
-    // Surrounding item text sits 6 px higher than the default (TrackActionView).
-    mMenu    = std::make_unique<WheelMenu>(mRoot, kItems, Menu::ID_COUNT, -6);
+    mMenu    = std::make_unique<WheelMenu>(mRoot, kItems, Menu::ID_COUNT);
     mButtons = std::make_unique<Widgets::Buttons>(mRoot);
+    mTitle   = std::make_unique<Widgets::Title>(mRoot, "Race");
+
     mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,
-                  Widgets::Buttons::AMBER, Widgets::Buttons::NONE);
-    mPause    = std::make_unique<Widgets::PauseIndicator>(mRoot, 200);
-    mCarousel = std::make_unique<Widgets::InfoCarousel>(mRoot, 40, 0);
-    mCarousel->setPeriodMs(kCarouselPeriodMs);
-    mCarousel->setCallback(&TrackActionScreen::carouselCb, this);
+                  Widgets::Buttons::AMBER, Widgets::Buttons::WHITE);
 }
 
 void TrackActionScreen::onShow()
 {
-    mIsImperial = mModel.isUnitsImperial();
-    onTrackData(mModel.getTrackData());
+    // Deliberately no trackPause() here -- see the header.
+    mMenu->select(mModel.menu().race.action.get());
     mModel.resetIdleTimer();
-    mMenu->select(mModel.menu().track.action.get());
-    mCarousel->setCount(4);
-    mModel.trackPause();
+    refreshItems();
 }
 
 void TrackActionScreen::onHide()
 {
-    mModel.menu().track.action.set(mMenu->selected());
+    mModel.menu().race.action.set(mMenu->selected());
+}
+
+void TrackActionScreen::refreshItems()
+{
+    kItems[Menu::ID_PAUSE].text = mModel.isRacePaused() ? "Resume\ntimer" : "Pause";
+    mMenu->refresh();
 }
 
 void TrackActionScreen::onKey(uint8_t code)
 {
     namespace Btn = SDK::GUI::Button;
     switch (code) {
-        case Btn::L1: mMenu->prev(); break;
-        case Btn::L2: mMenu->next(); break;
+    case Btn::L1: mMenu->prev(); break;
+    case Btn::L2: mMenu->next(); break;
 
-        // Save & End / Discard start a hold-to-confirm the moment R1 goes down;
-        // the countdown screen runs while R1 stays held.
-        case Btn::R1_PRESS:
-            if (mMenu->selected() == Menu::ID_SAVE) {
-                mModel.setHoldConfirmMode(Model::HoldConfirmMode::Finish);
-                ScreenManager::instance().goTo(ScreenId::TrackHoldConfirm);
-            } else if (mMenu->selected() == Menu::ID_DISCARD) {
-                mModel.setHoldConfirmMode(Model::HoldConfirmMode::Discard);
-                ScreenManager::instance().goTo(ScreenId::TrackHoldConfirm);
-            }
-            break;
+    // End race and Discard are hold-to-confirm: both are unrecoverable, and a
+    // single press is exactly what a sweaty hand produces by accident.
+    case Btn::R1_PRESS:
+        if (mMenu->selected() == Menu::ID_END) {
+            mModel.setHoldConfirmMode(Model::HoldConfirmMode::Finish);
+            ScreenManager::instance().goTo(ScreenId::RaceHoldConfirm);
+        } else if (mMenu->selected() == Menu::ID_DISCARD) {
+            mModel.setHoldConfirmMode(Model::HoldConfirmMode::Discard);
+            ScreenManager::instance().goTo(ScreenId::RaceHoldConfirm);
+        }
+        break;
 
-        case Btn::R1:
-            if (mMenu->selected() == Menu::ID_RESUME) {
-                mModel.trackResume();
-                ScreenManager::instance().goTo(ScreenId::Track);
-            } else if (mMenu->selected() == Menu::ID_SUMMARY) {
-                ScreenManager::instance().goTo(ScreenId::TrackSummary);
-            }
-            break;
+    case Btn::R1: confirm(); break;
 
-        default:
-            break;
+    case Btn::R2:
+        ScreenManager::instance().goTo(ScreenId::Race);
+        break;
+
+    default:
+        break;
     }
 }
 
-void TrackActionScreen::onTrackData(const Track::Data& data)
+void TrackActionScreen::confirm()
 {
-    mPause->setTime(data.totalTime);
-    mAvgPaceConv   = Fmt::paceUnits(data.avgPace, mIsImperial);
-    mDistanceConv  = Fmt::distUnits(data.distance, mIsImperial);
-    mAvgHr         = data.avgHR;
-    mElevationConv = mIsImperial ? SDK::Utils::metersToFeet(data.elevation) : data.elevation;
-    mCarousel->refresh();
-}
+    switch (mMenu->selected()) {
+    case Menu::ID_RESUME:
+        ScreenManager::instance().goTo(ScreenId::Race);
+        break;
 
-void TrackActionScreen::carouselCb(void* user, int16_t index)
-{
-    static_cast<TrackActionScreen*>(user)->updateCarousel(index);
-}
+    case Menu::ID_UNDO_SPLIT:
+        mModel.raceUndoSplit();
+        ScreenManager::instance().goTo(ScreenId::Race);
+        break;
 
-void TrackActionScreen::updateCarousel(int16_t index)
-{
-    char buf[16];
-    switch (index) {
-        case 0:
-            mCarousel->setTitle("AVG. PACE");
-            Fmt::pace(buf, sizeof(buf), mAvgPaceConv);
-            break;
-        case 1:
-            mCarousel->setTitle("DISTANCE");
-            Fmt::distanceTotal(buf, sizeof(buf), mDistanceConv);
-            break;
-        case 2:
-            mCarousel->setTitle("AVG. HR");
-            Fmt::heartRate(buf, sizeof(buf), mAvgHr);
-            break;
-        case 3:
-            mCarousel->setTitle("ELEVATION");
-            snprintf(buf, sizeof(buf), "%d", static_cast<int>(mElevationConv));
-            break;
-        default:
-            return;
+    case Menu::ID_PAUSE:
+        if (mModel.isRacePaused()) {
+            mModel.raceResume();
+        } else {
+            mModel.racePause();
+        }
+        refreshItems();
+        break;
+
+    default:
+        // End and Discard are handled on R1_PRESS, not on the click.
+        break;
     }
-    mCarousel->setValue(buf);
+}
+
+void TrackActionScreen::onIdleTimeout()
+{
+    // Brief 8.2 item 5: back to the race after ten seconds, and NEVER out of
+    // the app -- a race must not be abandoned because nobody pressed anything.
+    ScreenManager::instance().goTo(ScreenId::Race);
 }

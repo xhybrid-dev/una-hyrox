@@ -73,6 +73,17 @@ constexpr uint8_t kRunCount = 8;
 constexpr const char *kRunWork = "1 km";
 
 /**
+ * @brief Separator between a segment's name and its work, e.g. "SLED PULL - 50 m".
+ *
+ * Brief 7.2 shows a middle dot. The shipped Poppins subsets are ASCII only
+ * (0x20-0x7E, see LVGL-GUI/assets/gen_assets.py), so U+00B7 rendered as an
+ * empty box on the first simulator run. A hyphen is used until the fonts are
+ * regenerated with the glyph in Phase 4; that needs lv_font_conv, which is a
+ * Node tool and an asset job rather than a code change.
+ */
+constexpr const char *kLabelSep = "-";
+
+/**
  * @brief The HYROX 26/27 station order.
  *
  * Indexed 0 to 7; station IDs elsewhere are 1-based, so station @c id lives at

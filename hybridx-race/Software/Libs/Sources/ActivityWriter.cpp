@@ -402,7 +402,7 @@ bool ActivityWriter::saveSummary(const TrackData& track)
     writer.add("time_start", static_cast<uint32_t>(track.timeStart));
     writer.add("duration", static_cast<uint32_t>(track.duration));
     writer.add("hr_avg", track.hrAvg);
-    writer.add("activity_type", "workout");
+    writer.add("activity_type", "race");
     writer.endMap();
 
     const bool ok = mFile->flush();

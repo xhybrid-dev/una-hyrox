@@ -1,37 +1,47 @@
 /**
  ******************************************************************************
  * @file    MainScreen.cpp
- * @brief   Pre-activity menu (see MainScreen.hpp).
+ * @brief   Pre-race menu (see MainScreen.hpp).
  ******************************************************************************
  */
 
 #include "gui/screens/MainScreen.hpp"
-#include "gui/screens/ScreenManager.hpp"
-#include "gui/theme/Theme.hpp"
+
 #include "gui/Assets.hpp"
 #include "gui/Strings.hpp"
+#include "gui/screens/ScreenManager.hpp"
+#include "gui/theme/Theme.hpp"
 
-#define LOG_MODULE_PRX      "MainScreen"
-#define LOG_MODULE_LEVEL    LOG_LEVEL_INFO
+#define LOG_MODULE_PRX   "MainScreen"
+#define LOG_MODULE_LEVEL LOG_LEVEL_INFO
 #include "SDK/UnaLogger/Logger.h"
 
 using namespace SDK::GUI;
 
 namespace
 {
-// Same items and geometry as MainView::setupItems() in the TouchGFX app.
 using Style = WheelMenu::Item::Style;
-const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
-    // ID_START
-    { Style::Simple, "Start", nullptr, &poppins_semibold_35 },
-    // ID_INTERVALS: icon beside left-aligned text, in both slots
-    { Style::Icon, "Intervals", nullptr, &poppins_semibold_30, nullptr, Color::WHITE, false,
-      &img_intervals_40x43, { 30, 10, 87, 140 },
-      &img_intervals_24x26, { 62, 17, 97, 130 } },
-    // ID_SETTINGS
+
+// Brief 8.2 item 1. No GPS gating anywhere: HYROX is indoors.
+// Mutable: the Format row's tip line is rewritten as the format changes, then
+// the wheel is refreshed (the SDK widget reads the item, it has no setter).
+WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
+    { Style::Simple, "Start race", nullptr, &poppins_semibold_30 },
+    { Style::Tip,    "Format" },
+    { Style::Simple, "Last race" },
     { Style::Simple, "Settings" },
 };
-} // namespace
+
+const char* formatName(Race::Format f)
+{
+    switch (f) {
+    case Race::Format::HalfA: return "Half: 1 to 4";
+    case Race::Format::HalfB: return "Half: 5 to 8";
+    case Race::Format::Full:
+    default:                  return "Full";
+    }
+}
+}  // namespace
 
 MainScreen::MainScreen(Model& model)
     : Screen(model)
@@ -40,9 +50,7 @@ MainScreen::MainScreen(Model& model)
 
 void MainScreen::build()
 {
-    mMenu      = std::make_unique<WheelMenu>(mRoot, kItems, Menu::ID_COUNT);
-    // As in MainView::onAnimationMiddle: the lens and R1 hint change half way
-    // through the slide, when the incoming item is about to take the centre.
+    mMenu = std::make_unique<WheelMenu>(mRoot, kItems, Menu::ID_COUNT);
     mMenu->setSlideMidCallback(
         [](void* ctx, uint16_t) { static_cast<MainScreen*>(ctx)->updateBackground(); }, this);
     mButtons   = std::make_unique<Widgets::Buttons>(mRoot);
@@ -58,7 +66,7 @@ void MainScreen::onShow()
     mMenu->select(mModel.menu().get());
     mModel.menu().resetChildren();
     mModel.resetIdleTimer();
-    onGpsFix(mModel.hasGpsFix());
+    updateBackground();
     onAccessoryStatus(mModel.getAccessoryState(), "");
 }
 
@@ -71,58 +79,88 @@ void MainScreen::onKey(uint8_t code)
 {
     namespace Btn = SDK::GUI::Button;
     switch (code) {
-        case Btn::L1: mMenu->prev(); break;   // lens follows at the slide midpoint
-        case Btn::L2: mMenu->next(); break;
-        case Btn::R1: confirm(); break;
-        case Btn::R2: mModel.exitApp(); break;
-        default: break;
+    case Btn::L1: mMenu->prev(); break;
+    case Btn::L2: mMenu->next(); break;
+    case Btn::R1: confirm(); break;
+    case Btn::R2: mModel.exitApp(); break;
+    default: break;
     }
 }
 
 void MainScreen::confirm()
 {
     switch (mMenu->selected()) {
-        case Menu::ID_START:
-            if (mGpsFix) {
-                mModel.trackStart(false);
-                ScreenManager::instance().goTo(ScreenId::Track);
-            } else {
-                mModel.setPendingIntervalsMode(false);
-                ScreenManager::instance().goTo(ScreenId::TrackStartConfirm);
-            }
-            break;
-        case Menu::ID_INTERVALS:
-            // No GPS-fix check here: the intervals menu is always reachable so
-            // the workout can be configured indoors. The check happens on Start.
-            ScreenManager::instance().goTo(ScreenId::MenuIntervals);
-            break;
-        case Menu::ID_SETTINGS:
-            ScreenManager::instance().goTo(ScreenId::MenuSettings);
-            break;
-        default:
-            break;
+    case Menu::ID_START:
+        ScreenManager::instance().goTo(ScreenId::RaceStartConfirm);
+        break;
+
+    case Menu::ID_FORMAT:
+        // Cycling in place rather than opening a screen: there are only three
+        // formats and the hint line shows the current one.
+        cycleFormat();
+        break;
+
+    case Menu::ID_LAST_RACE:
+        if (mModel.isSummaryAvailable()) {
+            ScreenManager::instance().goTo(ScreenId::RaceSummary);
+        }
+        break;
+
+    case Menu::ID_SETTINGS:
+        ScreenManager::instance().goTo(ScreenId::MenuSettings);
+        break;
+
+    default:
+        break;
     }
+}
+
+void MainScreen::cycleFormat()
+{
+    Race::Format next = Race::Format::Full;
+    switch (mModel.getFormat()) {
+    case Race::Format::Full:  next = Race::Format::HalfA; break;
+    case Race::Format::HalfA: next = Race::Format::HalfB; break;
+    case Race::Format::HalfB:
+    default:                  next = Race::Format::Full;  break;
+    }
+    mModel.setFormat(next);
+    updateBackground();
 }
 
 void MainScreen::updateBackground()
 {
-    // Start without a fix is greyed out and R1 hidden; everything else is live.
-    const bool startBlocked = mMenu->selected() == Menu::ID_START && !mGpsFix;
-    mMenu->setBackground(startBlocked ? Color::GRAY_DARK : Color::TEAL_DARK);
-    mButtons->setR1(startBlocked ? Widgets::Buttons::NONE : Widgets::Buttons::AMBER);
+    const uint16_t selected = mMenu->selected();
+
+    // "Last race" is dead until a race has been saved, so grey it and drop the
+    // select hint rather than offering an empty screen.
+    const bool blocked = (selected == Menu::ID_LAST_RACE) && !mModel.isSummaryAvailable();
+    mMenu->setBackground(blocked ? Color::GRAY_DARK : Color::TEAL_DARK);
+    mButtons->setR1(blocked ? Widgets::Buttons::NONE : Widgets::Buttons::AMBER);
+
+    // The Format row carries the current format, so the athlete can see what
+    // they are about to start without opening anything.
+    kItems[Menu::ID_FORMAT].tip = formatName(mModel.getFormat());
+    mMenu->refresh();
 }
 
 void MainScreen::onIdleTimeout()
 {
+    // Every menu screen exits on idle (brief 8.4). The RunLVGL review found ten
+    // screens missing this; Start is exempt so a hesitating athlete is not
+    // thrown out of the app.
     if (mMenu->selected() != Menu::ID_START) {
         mModel.exitApp();
     }
 }
 
-void MainScreen::onGpsFix(bool acquired)
+void MainScreen::onSettings(const Settings& /*settings*/)
 {
-    mGpsFix = acquired;
-    mSensorRow->setGps(Widgets::SensorStatusRow::gpsState(acquired));
+    updateBackground();
+}
+
+void MainScreen::onSummary(const ActivitySummary& /*summary*/)
+{
     updateBackground();
 }
 

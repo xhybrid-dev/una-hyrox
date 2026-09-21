@@ -22,34 +22,18 @@ class Screen;
 
 enum class ScreenId : uint8_t {
     Main,
-    // Intervals configuration
-    MenuIntervals,
-    MenuIntervalsRepeats,
-    MenuIntervalsRun,
-    MenuIntervalsRest,
-    MenuIntervalsRunTime,
-    MenuIntervalsRunDistance,
-    MenuIntervalsRestTime,
-    MenuIntervalsRestDistance,
     // Settings
     MenuSettings,
-    MenuAlerts,
-    MenuAlertDistance,
-    MenuAlertTime,
-    MenuAlertDistanceSaved,
-    MenuAlertTimeSaved,
-    // Activity
-    TrackStartConfirm,
-    TrackIntervalsCountdown,
-    Track,
-    TrackIntervalsAlert,
-    TrackIntervalsCompleted,
-    TrackAction,
-    TrackHoldConfirm,
-    TrackLap,
-    TrackSaved,
-    TrackDiscarded,
-    TrackSummary,
+    // Race
+    RaceStartConfirm,
+    Race,
+    RaceAction,
+    RaceHoldConfirm,
+    RaceSplit,       ///< The split toast (brief 8.2 item 4)
+    RaceFinished,    ///< Total time, R1 saves, L2 undoes (brief 8.2 item 6)
+    RaceSaved,
+    RaceDiscarded,
+    RaceSummary,
 };
 
 class ScreenManager

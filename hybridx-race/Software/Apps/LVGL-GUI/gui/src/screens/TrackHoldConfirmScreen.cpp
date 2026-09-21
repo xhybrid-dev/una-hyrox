@@ -85,7 +85,7 @@ void TrackHoldConfirmScreen::cancel()
         return;
     }
     lv_anim_delete(this, nullptr);
-    ScreenManager::instance().goTo(ScreenId::TrackAction);
+    ScreenManager::instance().goTo(ScreenId::RaceAction);
 }
 
 void TrackHoldConfirmScreen::animExecCb(void* var, int32_t value)
@@ -112,8 +112,8 @@ void TrackHoldConfirmScreen::animReadyCb(lv_anim_t* a)
     }
     self->mFired = true;
     ScreenManager::instance().goTo(self->mMode == Model::HoldConfirmMode::Finish
-                                       ? ScreenId::TrackSaved
-                                       : ScreenId::TrackDiscarded);
+                                       ? ScreenId::RaceSaved
+                                       : ScreenId::RaceDiscarded);
 }
 
 void TrackHoldConfirmScreen::setCountdown(uint32_t number)

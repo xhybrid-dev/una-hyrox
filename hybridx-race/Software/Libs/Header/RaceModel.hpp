@@ -28,6 +28,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 
 #include "RaceData.hpp"
 
@@ -145,7 +146,42 @@ public:
      * @param buf  Caller-owned buffer, at least @c kMaxLabelLen bytes.
      * @param size Size of @p buf.
      */
-    static void label(const SegmentDesc &desc, char *buf, size_t size);
+    static inline void label(const SegmentDesc &desc, char *buf, size_t size)
+{
+        if (buf == nullptr || size == 0u) {
+            return;
+        }
+    
+        switch (desc.type) {
+        case SegmentType::Run:
+            snprintf(buf, size, "RUN %u/%u %s %s", static_cast<unsigned>(desc.round),
+                     static_cast<unsigned>(kRunCount), kLabelSep, kRunWork);
+            break;
+    
+        case SegmentType::RoxIn:
+            snprintf(buf, size, "%s", "ROXZONE IN");
+            break;
+    
+        case SegmentType::Station:
+            // stationId is 1-based; guard it because there is no MMU.
+            if (desc.stationId >= 1u && desc.stationId <= kStationCount) {
+                const Station &s = kStations[desc.stationId - 1u];
+                snprintf(buf, size, "%s %s %s", s.name, kLabelSep, s.work);
+            } else {
+                snprintf(buf, size, "%s", "STATION");
+            }
+            break;
+    
+        case SegmentType::RoxOut:
+            snprintf(buf, size, "%s", "ROXZONE OUT");
+            break;
+    
+        default:
+            buf[0] = '\0';
+            break;
+        }
+    }
+
 
     // -- Events of brief 7.3 ---------------------------------------------------
 

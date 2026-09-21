@@ -32,24 +32,45 @@ public:
 
     virtual void onIdleTimeout() {}
     virtual void onSuspend() {}
-    virtual void onGpsFix(bool acquired) { (void)acquired; }
     virtual void onBatteryLevel(uint8_t level) { (void)level; }
     virtual void onDate(uint16_t year, uint8_t month, uint8_t day, uint8_t wday)
     {
-        (void)year; (void)month; (void)day; (void)wday;
+        (void)year;
+        (void)month;
+        (void)day;
+        (void)wday;
     }
     virtual void onTime(uint8_t hour, uint8_t minute, uint8_t sec)
     {
-        (void)hour; (void)minute; (void)sec;
+        (void)hour;
+        (void)minute;
+        (void)sec;
     }
     virtual void onSettings(const Settings& settings) { (void)settings; }
-    virtual void onTrackState(const Track::State& state) { (void)state; }
-    virtual void onTrackData(const Track::Data& data) { (void)data; }
-    virtual void onLapChanged(uint8_t lapEnd) { (void)lapEnd; }
-    virtual void onIntervalsPhaseAlert() {}
-    virtual void onIntervalsWorkoutCompleted() {}
-    virtual void onActivitySummary(const ActivitySummary& summary) { (void)summary; }
-    virtual void onAccessoryStatus(uint8_t state, const char* name) { (void)state; (void)name; }
+
+    /// The race changed state (running, paused, over).
+    virtual void onRaceState(const Track::State& state) { (void)state; }
+
+    /// The 1 Hz snapshot, and every split.
+    virtual void onRaceData(const Track::Data& data) { (void)data; }
+
+    /// A segment closed. Drives the split toast (brief 8.2 item 4).
+    virtual void onSplit(const Track::SplitEvent& split) { (void)split; }
+
+    /// The race is over and the clock has stopped.
+    virtual void onRaceFinished(bool completed) { (void)completed; }
+
+    /// The summary finished arriving (meta plus all its pages).
+    virtual void onSummary(const ActivitySummary& summary) { (void)summary; }
+
+    /// Live heart rate while no race is running.
+    virtual void onIdleHr(uint8_t bpm) { (void)bpm; }
+
+    virtual void onAccessoryStatus(uint8_t state, const char* name)
+    {
+        (void)state;
+        (void)name;
+    }
 
 protected:
     Model* model;

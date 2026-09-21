@@ -55,133 +55,54 @@ struct Position {
 // -----------------------------------------------------------------------------
 
 struct Root {
-    enum Id { ID_START = 0, ID_INTERVALS, ID_SETTINGS,
+    enum Id { ID_START = 0, ID_FORMAT, ID_LAST_RACE, ID_SETTINGS,
               ID_COUNT, ID_DEFAULT = ID_START };
 
-    struct Intervals {
-        enum Id {
-            ID_START = 0, ID_REPEATS, ID_RUN, ID_REST,
-            ID_WARM_UP, ID_COOL_DOWN, ID_LAST_REST,
-            ID_COUNT, ID_DEFAULT = ID_START
-        };
-
-        // Dynamic menu: Open + x1..x20 -- no fixed enum, items built at runtime
-        struct Repeats {
-            static constexpr uint16_t kMaxRepeats = 20;          // x1..x20
-            static constexpr uint16_t kMaxCount   = kMaxRepeats + 1; // + Open
-            static constexpr uint16_t ID_DEFAULT  = 0;           // Open
-        };
-
-        // For RUN, REST submenus
-        struct Metric {
-            enum Id {
-                ID_TIME = 0, ID_DISTANCE, ID_OPEN,
-                ID_COUNT, ID_DEFAULT = ID_TIME
-            };
-        };
-
-        // 2-part time picker (shared by RunTime / RestTime screens)
-        // Items are built at runtime -- no fixed enum.
-        struct TimePicker {
-            static constexpr uint16_t kMaxMin   = 60;   ///< Max minutes: 0..60
-            static constexpr uint16_t kStepMin  = 1;
-            static constexpr uint16_t kCountMin = kMaxMin / kStepMin + 1; // 61
-
-            static constexpr uint16_t kMaxSec   = 55;   ///< Max seconds: 0..55 (step 5)
-            static constexpr uint16_t kStepSec  = 5;
-            static constexpr uint16_t kCountSec = kMaxSec / kStepSec + 1; // 12
-        };
-
-        // 2-part distance picker (shared by RunDistance / RestDistance screens)
-        // Stage WHOLE: pick whole km (0..10) or mi (0..6)
-        // Stage FRAC:  pick decimal in 0.05-unit steps (0.00..0.95 -> 20 items)
-        struct DistancePicker {
-            static constexpr uint16_t kMaxWholeKm   = 10;
-            static constexpr uint16_t kMaxWholeMi   = 6;
-            static constexpr uint16_t kCountWholeKm = kMaxWholeKm + 1;  ///< 0..10 -> 11 items
-            static constexpr uint16_t kCountWholeMi = kMaxWholeMi + 1;  ///< 0..6  -> 7 items
-
-            static constexpr float    kFracStep  = 0.05f;  ///< Units (km or mi) per index step
-            static constexpr uint16_t kCountFrac = 20;     ///< 0.00..0.95 in 0.05 steps
-        };
+    /// Race format picker (brief 8.2 item 1).
+    struct Format {
+        enum Id { ID_FULL = 0, ID_HALF_A, ID_HALF_B,
+                  ID_COUNT, ID_DEFAULT = ID_FULL };
     };
 
+    /// Settings wheel (brief 8.2 item 2). Target finish is read-only and
+    /// hidden until F14 ships, so it is not an item here.
     struct Settings {
-        enum Id {
-            ID_ALERTS = 0, ID_PHONE_NOTIF,
-            ID_COUNT, ID_DEFAULT = ID_ALERTS
-        };
-
-        struct Alerts {
-            enum Id {
-                ID_DISTANCE = 0, ID_TIME,
-                ID_COUNT, ID_DEFAULT = ID_DISTANCE
-            };
-
-            using Distance = ::Settings::Alerts::Distance;
-            using Time     = ::Settings::Alerts::Time;
-        };
+        enum Id { ID_ROXZONE = 0, ID_LOCKOUT, ID_VIBRATE,
+                  ID_COUNT, ID_DEFAULT = ID_ROXZONE };
     };
 };
 
 
-// TrackView is a destination reached from multiple places (Root::START,
-// Root::Intervals::START), so it is not nested inside Root.
-// TrackAction is always an overlay of TrackView, so it lives inside it.
-struct TrackView {
-    enum Id { ID_INTERVALS = 0, ID_TRACK1, ID_TRACK2, ID_TRACK3,
-              ID_COUNT, ID_DEFAULT = ID_INTERVALS };
+// RaceView is the in-race screen; its action menu is always an overlay of it.
+struct RaceView {
+    enum Id { ID_MAIN = 0, ID_SPLITS, ID_STATUS,
+              ID_COUNT, ID_DEFAULT = ID_MAIN };
 
+    /// Brief 8.2 item 5.
     struct Action {
-        enum Id { ID_RESUME = 0, ID_SUMMARY, ID_SAVE, ID_DISCARD,
+        enum Id { ID_RESUME = 0, ID_UNDO_SPLIT, ID_PAUSE, ID_END, ID_DISCARD,
                   ID_COUNT, ID_DEFAULT = ID_RESUME };
     };
 };
 
 
 // -----------------------------------------------------------------------------
-// Nav
-// Hierarchical navigation state. Each node inherits Position<TMenu> to provide
-// get() / set() / reset() for its own index, and adds:
-//   resetChildren() -- resets all direct child nodes to their defaults
-//   reset()         -- resets own position + all children (full subtree)
-//
-// Leaf nodes are plain Position<TMenu> -- no children, reset() already defined.
-// xNav structs are created only for nodes that have children.
+// Nav -- the whole tree, one position per level.
 // -----------------------------------------------------------------------------
 struct Nav : Position<Root> {
 
-    // TrackView node -- Action is a child (entered from any TrackView page)
-    struct TrackViewNav : Position<TrackView> {
-        Position<TrackView::Action> action;
+    struct RaceViewNav : Position<RaceView> {
+        Position<RaceView::Action> action;
 
         void resetChildren() { action.reset(); }
-        void reset()         { Position<TrackView>::reset(); resetChildren(); }
+        void reset()         { Position<RaceView>::reset(); resetChildren(); }
     };
 
-    // Intervals node -- repeats picker and run/rest metric pickers are children
-    struct IntervalsNav : Position<Root::Intervals> {
-        Position<Root::Intervals::Repeats> repeats;
-        Position<Root::Intervals::Metric>  run;
-        Position<Root::Intervals::Metric>  rest;
+    Position<Root::Format>   format;
+    Position<Root::Settings> settings;
+    RaceViewNav              race;
 
-        void resetChildren() { repeats.reset(); run.reset(); rest.reset(); }
-        void reset()         { Position<Root::Intervals>::reset(); resetChildren(); }
-    };
-
-    // Settings node -- alerts picker is a child
-    struct SettingsNav : Position<Root::Settings> {
-        Position<Root::Settings::Alerts> alerts;
-
-        void resetChildren() { alerts.reset(); }
-        void reset()         { Position<Root::Settings>::reset(); resetChildren(); }
-    };
-
-    TrackViewNav  track;      // TrackView page + nested TrackAction
-    IntervalsNav  intervals;  // Intervals menu + nested run/rest metrics
-    SettingsNav   settings;   // Settings menu + nested alerts
-
-    void resetChildren() { track.reset(); intervals.reset(); settings.reset(); }
+    void resetChildren() { format.reset(); settings.reset(); race.reset(); }
     void reset()         { Position<Root>::reset(); resetChildren(); }
 };
 

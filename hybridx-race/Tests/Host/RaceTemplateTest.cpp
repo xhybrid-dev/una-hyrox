@@ -124,7 +124,7 @@ TEST(RaceTemplateTest, HalfBKeepsRealRoundNumbers)
     // The athlete is doing rounds 5 to 8, and the watch must say so.
     EXPECT_EQ(plan[0].round, 5u);
     EXPECT_EQ(plan[0].type, SegmentType::Run);
-    EXPECT_EQ(labelOf(plan[0]), "RUN 5/8 \xC2\xB7 1 km");
+    EXPECT_EQ(labelOf(plan[0]), "RUN 5/8 - 1 km");
 
     EXPECT_EQ(plan[1].stationId, 5u) << "first station of the second half is Row";
     EXPECT_EQ(plan[7].round, 8u);
@@ -135,9 +135,9 @@ TEST(RaceTemplateTest, HalfBKeepsRealRoundNumbers)
 
 TEST(RaceTemplateTest, LabelsReadAsSpecified)
 {
-    EXPECT_EQ(labelOf({ SegmentType::Run, 3u, 0u }), "RUN 3/8 \xC2\xB7 1 km");
+    EXPECT_EQ(labelOf({ SegmentType::Run, 3u, 0u }), "RUN 3/8 - 1 km");
     EXPECT_EQ(labelOf({ SegmentType::RoxIn, 3u, 0u }), "ROXZONE IN");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 3u, 3u }), "SLED PULL \xC2\xB7 50 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 3u, 3u }), "SLED PULL - 50 m");
     EXPECT_EQ(labelOf({ SegmentType::RoxOut, 3u, 0u }), "ROXZONE OUT");
 }
 
@@ -145,14 +145,14 @@ TEST(RaceTemplateTest, EveryStationLabelsWithItsConfirmedWork)
 {
     // Jon confirmed this table on 21 September 2026; it is the reason the app
     // exists, so it gets an explicit test rather than a loop over kStations.
-    EXPECT_EQ(labelOf({ SegmentType::Station, 1u, 1u }), "SKIERG \xC2\xB7 1000 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 2u, 2u }), "SLED PUSH \xC2\xB7 50 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 3u, 3u }), "SLED PULL \xC2\xB7 50 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 4u, 4u }), "BURPEE BROAD JUMPS \xC2\xB7 80 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 5u, 5u }), "ROW \xC2\xB7 1000 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 6u, 6u }), "FARMERS CARRY \xC2\xB7 200 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 7u, 7u }), "SANDBAG LUNGES \xC2\xB7 100 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 8u, 8u }), "WALL BALLS \xC2\xB7 100 reps");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 1u, 1u }), "SKIERG - 1000 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 2u, 2u }), "SLED PUSH - 50 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 3u, 3u }), "SLED PULL - 50 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 4u, 4u }), "BURPEE BROAD JUMPS - 80 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 5u, 5u }), "ROW - 1000 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 6u, 6u }), "FARMERS CARRY - 200 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 7u, 7u }), "SANDBAG LUNGES - 100 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 8u, 8u }), "WALL BALLS - 100 reps");
 }
 
 TEST(RaceTemplateTest, LongestLabelFitsTheDeclaredBuffer)

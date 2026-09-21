@@ -1,12 +1,10 @@
 /**
  ******************************************************************************
  * @file    TrackSummaryScreen.hpp
- * @brief   Activity summary: map, overview, heart rate and a paged lap list,
- *          browsed with L1/L2.
+ * @brief   Race summary (brief 8.2 item 7): an overview page, then the full
+ *          split list five rows at a time.
  *
- * Port of the Run app's TrackSummaryView and its SummaryFace* containers.
- * Reached from the action menu while paused (R2 returns there) or after a
- * save (R1 leaves the app).
+ * L1/L2 page, R2 leaves. No idle exit while a race is unsaved behind it.
  ******************************************************************************
  */
 
@@ -14,7 +12,6 @@
 #define TRACK_SUMMARY_SCREEN_HPP
 
 #include <memory>
-#include <vector>
 
 #include "gui/screens/Screen.hpp"
 #include "gui/widgets/Widgets.hpp"
@@ -26,58 +23,25 @@ public:
 
     void onShow() override;
     void onKey(uint8_t code) override;
+    void onSummary(const ActivitySummary& summary) override;
 
 protected:
     void build() override;
 
 private:
-    enum Face : uint8_t { FACE_MAP = 0, FACE_OVERVIEW, FACE_HEARTRATE, FACE_LAPS };
+    static constexpr uint8_t kRowsPerPage = 5;
 
-    static constexpr uint8_t kLapPageSize = 3;   ///< rows advanced per L1/L2 press
-    static constexpr uint8_t kLapVisible  = 5;   ///< rows on screen at once
-    static constexpr uint8_t kLapColumns  = 5;   ///< index, distance, units, time, pace
+    /// Page 0 is the overview; pages 1.. are the split list.
+    uint8_t pageCount() const;
+    void    redraw();
 
-    void buildFaceMap();
-    void buildFaceOverview();
-    void buildFaceHeartRate();
-    void buildFaceLaps();
+    uint8_t mPage = 0;
 
-    void setSummary(const ActivitySummary& s);
-    void showFace(uint8_t face);
-    void updateIndicator();
-    void fillLapRows();
-    void backToTrack();
+    lv_obj_t* mHeading = nullptr;
+    lv_obj_t* mRows[kRowsPerPage] = {};
 
-    lv_obj_t* mFaces[4] = {};
-
-    // Map + overview headers
-    lv_obj_t* mMapDistance      = nullptr;
-    lv_obj_t* mMapUnits         = nullptr;
-    lv_obj_t* mOverviewDistance = nullptr;
-    lv_obj_t* mOverviewUnits    = nullptr;
-    lv_obj_t* mAvgPace          = nullptr;
-    lv_obj_t* mTimer            = nullptr;
-    std::unique_ptr<Widgets::Map> mMap;
-
-    // Heart rate
-    lv_obj_t* mMaxHr = nullptr;
-    lv_obj_t* mAvgHr = nullptr;
-
-    // Laps
-    lv_obj_t* mLapsCount = nullptr;
-    lv_obj_t* mLapsTotal = nullptr;
-    lv_obj_t* mLapRows[kLapVisible][kLapColumns] = {};
-    const std::vector<LapSummary>* mLaps = nullptr;
-
-    std::unique_ptr<Widgets::Buttons>         mButtons;
-    std::unique_ptr<Widgets::ScrollIndicator> mIndicator;
-    std::unique_ptr<Widgets::Title>           mTitles[4];
-
-    uint8_t mFace       = FACE_MAP;
-    bool    mIsImperial = false;
-    bool    mPaused     = false;
-    uint8_t mLapPages   = 0;
-    uint8_t mLapPage    = 0;
+    std::unique_ptr<Widgets::Title>   mTitle;
+    std::unique_ptr<Widgets::Buttons> mButtons;
 };
 
 #endif // TRACK_SUMMARY_SCREEN_HPP

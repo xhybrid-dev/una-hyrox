@@ -23,21 +23,21 @@ public:
     void onHide() override;
     void onKey(uint8_t code) override;
     /// Idle on a menu screen leaves the app, as the TouchGFX presenter does.
-    void onIdleTimeout() override { mModel.exitApp(); }
-    void onSettings(const Settings& settings) override;
-    void onGpsFix(bool acquired) override;
-    void onAccessoryStatus(uint8_t state, const char* name) override;
+    void onIdleTimeout() override;
 
 protected:
     void build() override;
 
 private:
+    void confirm();
+    void refreshItems();
+
+private:
+    Settings mSettings {};
     using Menu = App::MenuNav::Root::Settings;
 
-    WheelMenu::Item mItems[Menu::ID_COUNT] {};
 
     std::unique_ptr<Widgets::Title>           mTitle;
-    std::unique_ptr<Widgets::SensorStatusRow> mSensorRow;
     std::unique_ptr<Widgets::Buttons>         mButtons;
     std::unique_ptr<WheelMenu>                mMenu;
 };

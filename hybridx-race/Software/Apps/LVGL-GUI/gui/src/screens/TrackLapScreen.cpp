@@ -1,20 +1,24 @@
 /**
  ******************************************************************************
  * @file    TrackLapScreen.cpp
- * @brief   Lap popup (see TrackLapScreen.hpp).
+ * @brief   Split toast (see TrackLapScreen.hpp).
  ******************************************************************************
  */
 
 #include "gui/screens/TrackLapScreen.hpp"
-#include "gui/screens/ScreenManager.hpp"
-#include "gui/theme/Theme.hpp"
+
 #include "gui/Format.hpp"
 #include "gui/Strings.hpp"
+#include "gui/screens/ScreenManager.hpp"
+#include "gui/theme/Theme.hpp"
+
+#include "RaceModel.hpp"
 
 namespace
 {
-constexpr uint32_t kDismissMs = 5000;
-} // namespace
+/// Brief 8.2: "shows for about 2 s".
+constexpr uint32_t kDismissMs = 2000;
+}  // namespace
 
 TrackLapScreen::TrackLapScreen(Model& model)
     : Screen(model)
@@ -31,42 +35,48 @@ TrackLapScreen::~TrackLapScreen()
 void TrackLapScreen::build()
 {
     using F = Theme::Font;
-    Theme::label(mRoot, F::Italic18, "Dist.", 18, 58, 100);
-    mDistance = Theme::label(mRoot, F::SemiBold35, Strings::kNoValue, 18, 82, 100);
-    Theme::vline(mRoot, 119, 84, 44);
-    Theme::label(mRoot, F::Italic18, "Time", 122, 58, 100);
-    mTime = Theme::label(mRoot, F::SemiBold35, "0:00", 122, 82, 100);
-    Theme::hline(mRoot, 35, 127, 170);
-    Theme::label(mRoot, F::Italic18, "Avg. Pace", 70, 137, 100);
-    // Full width: a slow pace such as "22:00" is wider than the design's 100 px box.
-    mPace = Theme::label(mRoot, F::SemiBold40, Strings::kNoValue, 0, 158, 240);
-    mTitle = std::make_unique<Widgets::Title>(mRoot, "Lap");
+    mSegment = Theme::label(mRoot, F::Italic18, Strings::kNoValue, 0, 86, 240);
+    mTime    = Theme::label(mRoot, F::SemiBold40, "0:00", 0, 116, 240);
+    mTitle   = std::make_unique<Widgets::Title>(mRoot, "Split");
 }
 
 void TrackLapScreen::onShow()
 {
     mModel.resetIdleTimer();
 
-    const bool imperial   = mModel.isUnitsImperial();
-    const Track::Data& d  = mModel.getTrackData();
-    char buf[16];
+    const Track::SplitEvent& s = mModel.getLastSplit();
+    char buf[Race::kMaxLabelLen];
 
-    snprintf(buf, sizeof(buf), "Lap %lu", static_cast<unsigned long>(d.lapNum + 1));
-    mTitle->setText(buf);
-    Fmt::distanceLap(buf, sizeof(buf), Fmt::distUnits(d.lapDistance, imperial));
-    lv_label_set_text(mDistance, buf);
-    Fmt::shortTime(buf, sizeof(buf), d.lapTime);
+    // The segment that just ENDED, not the one now open: that is what the
+    // athlete wants confirmed.
+    Race::RaceModel::label(s.desc, buf, sizeof(buf));
+    lv_label_set_text(mSegment, buf);
+
+    Fmt::shortTime(buf, sizeof(buf),
+                   static_cast<std::time_t>(s.activeMs / 1000u));
     lv_label_set_text(mTime, buf);
-    Fmt::pace(buf, sizeof(buf), Fmt::paceUnits(d.lapPace, imperial));
-    lv_label_set_text(mPace, buf);
 
     mDismiss = lv_timer_create(&TrackLapScreen::dismissCb, kDismissMs, this);
     lv_timer_set_repeat_count(mDismiss, 1);
 }
 
+void TrackLapScreen::onKey(uint8_t code)
+{
+    namespace Btn = SDK::GUI::Button;
+    // Any click dismisses early; R2 in particular must not be swallowed.
+    if (code == Btn::L1 || code == Btn::L2 || code == Btn::R1 || code == Btn::R2) {
+        backToRace();
+    }
+}
+
+void TrackLapScreen::backToRace()
+{
+    ScreenManager::instance().goTo(ScreenId::Race);
+}
+
 void TrackLapScreen::dismissCb(lv_timer_t* t)
 {
     auto* self = static_cast<TrackLapScreen*>(lv_timer_get_user_data(t));
-    self->mDismiss = nullptr;   // one-shot: LVGL deletes the timer after this call
-    ScreenManager::instance().goTo(ScreenId::Track);
+    self->mDismiss = nullptr;  // one-shot: LVGL deletes the timer after this call
+    self->backToRace();
 }

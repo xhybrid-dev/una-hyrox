@@ -31,7 +31,8 @@ public:
 
     // ModelListener
     void onIdleTimeout() override;
-    void onGpsFix(bool acquired) override;
+    void onSettings(const Settings& settings) override;
+    void onSummary(const ActivitySummary& summary) override;
     void onAccessoryStatus(uint8_t state, const char* name) override;
 
 protected:
@@ -41,9 +42,9 @@ private:
     using Menu = App::MenuNav::Root;
 
     void confirm();
+    void cycleFormat();
     void updateBackground();
 
-    bool mGpsFix = false;
 
     std::unique_ptr<Widgets::Title>           mTitle;
     std::unique_ptr<Widgets::SensorStatusRow> mSensorRow;

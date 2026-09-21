@@ -9,18 +9,8 @@
 
 #include "RaceModel.hpp"
 
-#include <cstdio>
-
 namespace Race
 {
-
-namespace
-{
-
-/// UTF-8 middle dot, the separator in every label (brief 7.2).
-constexpr const char *kSep = "\xC2\xB7";
-
-}  // namespace
 
 // -- Template -----------------------------------------------------------------
 
@@ -59,42 +49,6 @@ uint8_t RaceModel::buildTemplate(Format format, bool roxzone, SegmentDesc *out,
     }
 
     return n;
-}
-
-void RaceModel::label(const SegmentDesc &desc, char *buf, size_t size)
-{
-    if (buf == nullptr || size == 0u) {
-        return;
-    }
-
-    switch (desc.type) {
-    case SegmentType::Run:
-        snprintf(buf, size, "RUN %u/%u %s %s", static_cast<unsigned>(desc.round),
-                 static_cast<unsigned>(kRunCount), kSep, kRunWork);
-        break;
-
-    case SegmentType::RoxIn:
-        snprintf(buf, size, "%s", "ROXZONE IN");
-        break;
-
-    case SegmentType::Station:
-        // stationId is 1-based; guard it because there is no MMU.
-        if (desc.stationId >= 1u && desc.stationId <= kStationCount) {
-            const Station &s = kStations[desc.stationId - 1u];
-            snprintf(buf, size, "%s %s %s", s.name, kSep, s.work);
-        } else {
-            snprintf(buf, size, "%s", "STATION");
-        }
-        break;
-
-    case SegmentType::RoxOut:
-        snprintf(buf, size, "%s", "ROXZONE OUT");
-        break;
-
-    default:
-        buf[0] = '\0';
-        break;
-    }
 }
 
 // -- Internals ----------------------------------------------------------------

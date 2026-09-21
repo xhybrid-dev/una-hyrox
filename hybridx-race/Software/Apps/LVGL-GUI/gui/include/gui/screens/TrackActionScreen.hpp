@@ -1,12 +1,15 @@
 /**
  ******************************************************************************
  * @file    TrackActionScreen.hpp
- * @brief   Paused-activity menu: Resume / Summary / Save & End / Discard, with a
- *          rotating stats panel above and the paused time below.
+ * @brief   In-race action menu (brief 8.2 item 5).
  *
- * Port of the Run app's TrackActionView/Presenter. Entering pauses the track.
- * Save & End and Discard start a hold-to-confirm on R1 press; Resume and
- * Summary act on a click.
+ * Opened with R1 from the race screen. Unlike RunLVGL's equivalent it does NOT
+ * pause the race on entry: brief 8.1 is explicit that the clock keeps running
+ * while the menu is open, and pausing would corrupt a race whose athlete only
+ * wanted to look at the options.
+ *
+ * It closes itself back to the race after ten seconds of no input, and never
+ * exits the app on idle.
  ******************************************************************************
  */
 
@@ -24,33 +27,23 @@ class TrackActionScreen : public Screen
 public:
     explicit TrackActionScreen(Model& model);
 
-    // Screen
     void onShow() override;
     void onHide() override;
     void onKey(uint8_t code) override;
-
-    // ModelListener
-    void onTrackData(const Track::Data& data) override;
+    void onIdleTimeout() override;
 
 protected:
     void build() override;
 
 private:
-    using Menu = App::MenuNav::TrackView::Action;
+    using Menu = App::MenuNav::RaceView::Action;
 
-    static void carouselCb(void* user, int16_t index);
-    void updateCarousel(int16_t index);
+    void confirm();
+    void refreshItems();
 
-    bool  mIsImperial   = false;
-    float mAvgPaceConv  = 0.0f;
-    float mDistanceConv = 0.0f;
-    float mAvgHr        = 0.0f;
-    float mElevationConv = 0.0f;
-
-    std::unique_ptr<WheelMenu>               mMenu;
-    std::unique_ptr<Widgets::Buttons>        mButtons;
-    std::unique_ptr<Widgets::PauseIndicator> mPause;
-    std::unique_ptr<Widgets::InfoCarousel>   mCarousel;
+    std::unique_ptr<Widgets::Title>   mTitle;
+    std::unique_ptr<Widgets::Buttons> mButtons;
+    std::unique_ptr<WheelMenu>        mMenu;
 };
 
 #endif // TRACK_ACTION_SCREEN_HPP

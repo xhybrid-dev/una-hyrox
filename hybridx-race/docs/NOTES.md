@@ -593,3 +593,124 @@ Phase 3 can wire it in without touching the build.
 Still inherited from RunLVGL and due for removal in Phase 3: GPS connections and
 map building, distance and time auto-laps, the interval phase machine and its
 settings and screens.
+
+---
+
+## Phase 3 — Service and GUI integration (21 September 2026)
+
+### 3.1 Status
+
+Complete. Both builds green, 66 host tests pass, and **Gate 3 is met**: a full
+16-segment race driven in the simulator produces a FIT file that decodes with
+the right laps. Gate 4's on-watch tests stay deferred (`ON_WATCH_TESTS.md`).
+
+Done in two commits because the tree was red in between: the service changes
+the message set out from under the GUI, so there is no ordering that keeps both
+ends compiling. Part 1 was the service, part 2 the GUI.
+
+### 3.2 Gate 3 evidence
+
+A scripted race — Xvfb, `xdotool` for the buttons, 16 splits four seconds apart
+— then decoded with `fitdecode`:
+
+```
+decoded cleanly: 67 records, 16 laps
+ordering last-record 80 < first-lap 81 < session 97: True
+
+  lap  0  RUN      r1                         6.0s
+  lap  1  STATION  r1 SkiErg                  4.0s
+  ...
+  lap 15  STATION  r8 Wall Balls              4.0s
+
+session: laps=16 sport=training sub=generic format=0 roxzone=0 completed=1 timer=67.0s
+message_index sequential 0..15: True
+```
+
+Station names in that listing are resolved *from the developer fields*, not from
+anything the decoder knows about HYROX — which is the point of §10.1. The
+batched-lap ordering Phase 0 proved in isolation now holds in the real app.
+
+Service log for the same run:
+```
+Service::startRace  : Race started: format 0, roxzone 0, 16 segments
+Service::finishRace : Race finished: 16 of 16 segments, completed 1
+Service::saveRace   : Race saved: 16 laps
+```
+
+### 3.3 The middle dot does not exist in the fonts
+
+Brief §7.2 writes labels as `RUN 3/8 · 1 km`. The first simulator run rendered
+that as **`RUN 1/8 □ 1 km`** — an empty box. The shipped Poppins subsets are
+ASCII only (`ASCII = "0x20-0x7E"` in `LVGL-GUI/assets/gen_assets.py`), so
+U+00B7 has no glyph.
+
+Changed to a hyphen: `RUN 3/8 - 1 km`, `SLED PULL - 50 m`. One constant,
+`Race::kLabelSep` in `RaceData.hpp`.
+
+To restore the real middle dot, add `0xB7` to the font ranges and regenerate
+with `lv_font_conv` (`Utilities/Scripts/lvgl_assets/lvgl_assets.py`, pinned
+1.5.3). That is a Node toolchain and an asset job rather than a code change, so
+it belongs with Phase 4's visual pass. **Open for Jon:** hyphen, restored middle
+dot, or something else.
+
+This is a good argument for the screenshot pipeline existing: the bug is
+invisible in the source and obvious on screen.
+
+### 3.4 Design decisions worth knowing
+
+**The action menu does not pause the race.** RunLVGL's equivalent calls
+`trackPause()` in `onShow()`. Brief §8.1 is explicit that the race clock keeps
+running when the menu opens, and an athlete who opens it to look would otherwise
+have their race silently paused. Ours leaves the clock alone; Pause is an item
+in the menu.
+
+**The summary is paged, and the GUI owns its copy.** `SUMMARY_META` resets the
+accumulator, then `SUMMARY_PAGE` messages fill it eight segments at a time.
+RunLVGL instead sends a raw pointer into service memory
+(`CustomMessage::Summary`), which works only because the two processes share an
+address space and leaves the GUI holding a lifetime it does not control.
+
+**`label()` is inline in the header.** Both processes need it — the service for
+the summary, the GUI for every screen — and the GUI ELF does not link
+`RaceModel.cpp`. Found by a linker error, fixed in the right place rather than
+by adding the source to the GUI build.
+
+**Screens deleted rather than adapted**: the interval and alert screens
+(`MenuIntervals*`, `MenuAlerts*`, `TrackIntervals*`, `IntervalsPicker`,
+`AlertSaved`) and the `IntervalsTimer`, `TwoTonePicker` and `Map` widgets. Pace
+and distance formatters went with them: a race has neither.
+
+### 3.5 Measured
+
+| Item | Value |
+|---|---|
+| `.uapp` | 365 428 bytes (RunLVGL was 419 740) |
+| `RaceDataUpd` | 72 bytes |
+| `SummaryPage` | 140 bytes, 8 segments |
+| `SummaryMeta` | 64 bytes |
+| `SettingsUpd` | 52 bytes |
+| LVGL pool peak | 50 % of 35 936 B |
+
+Every message is `static_assert`ed against the 256-byte pool at compile time.
+The app is ~54 KB smaller than RunLVGL, consistent with dropping GPS, the map,
+the interval machine and nine screens.
+
+### 3.6 Layout issues for Phase 4's visual pass
+
+Phase 3's screens are functional, not designed — that is Phase 4's job. Two
+things the screenshots already show:
+
+- On the race screen the "Next:" line runs underneath the heart-rate zone arc.
+  Both are at the bottom of a 240 px circle and neither was placed with the
+  other in mind.
+- The status face is a bare clock and battery percentage; brief §8.2 says to
+  reuse RunLVGL's status face, which has proper widgets.
+
+### 3.7 Still to do
+
+- **F14 target pacing and F15 splits face** — P1, and F14 needs Jon's data (D6).
+- **F16 workout-step names** — P1; the plumbing exists (`NOTES.md` 0.10).
+- **D2 sport/sub-sport**: currently `training`/`generic`. `ActivityWriter::TrackData`
+  carries `sport` and `subSport` as parameters, so candidate files are a
+  one-line change when Jon wants to compare them on Strava and Garmin.
+- The **splits face** on the race screen: only Main and Status exist today.
