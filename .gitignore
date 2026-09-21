@@ -1,0 +1,8 @@
+# The UNA Watch SDK is an external, read-only clone (see CLAUDE.md).
+# It is pulled in with `git clone --recurse-submodules` and is never committed here.
+una-sdk/
+
+# Build output
+build/
+hybridx-race/build/
+hybridx-race/Output/
