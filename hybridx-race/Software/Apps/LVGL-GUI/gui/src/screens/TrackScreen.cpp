@@ -21,24 +21,59 @@ TrackScreen::TrackScreen(Model& model)
 {
 }
 
+namespace
+{
+/// Accent per segment type (brief 8.2 item 3). The display is 2 bits per
+/// channel, so these are picked for separation at arm's length rather than
+/// subtlety: cool for running, bright for work, magenta for the transition.
+lv_color_t accentFor(Race::SegmentType type)
+{
+    switch (type) {
+    case Race::SegmentType::Station: return Theme::rgb(Color::LEMON);
+    case Race::SegmentType::RoxIn:
+    case Race::SegmentType::RoxOut:  return Theme::rgb(Color::ORCHID);
+    case Race::SegmentType::Run:
+    default:                         return Theme::rgb(Color::CYAN);
+    }
+}
+
+}  // namespace
+
 void TrackScreen::build()
 {
     using F = Theme::Font;
 
     mMainRoot = Theme::container(mRoot, 0, 0, 240, 240);
-    // Segment identity: what am I doing, and how far through am I.
-    mSegment     = Theme::label(mMainRoot, F::Italic18, Strings::kNoValue, 0, 44, 240);
-    mSegmentNum  = Theme::label(mMainRoot, F::Medium18, "", 0, 66, 240);
-    // The number the athlete actually looks at mid-effort, in the largest face.
-    mSegmentTime = Theme::label(mMainRoot, F::SemiBold40, "0:00", 0, 92, 240);
-    mTotalTime   = Theme::label(mMainRoot, F::Medium18, "0:00:00", 0, 136, 240);
-    mNextUp      = Theme::label(mMainRoot, F::Italic18, "", 0, 198, 240);
-    mHr          = Theme::label(mMainRoot, F::Medium18, Strings::kNoValue, 0, 162, 240);
-    mHrZone      = std::make_unique<Widgets::HeartRateZone>(mMainRoot, 95, 182);
+
+    // Identity: what am I doing, and how far through.
+    mSegment    = Theme::label(mMainRoot, F::Italic18, Strings::kNoValue, 0, 42, 240);
+    mSegmentNum = Theme::label(mMainRoot, F::Medium18, "", 0, 64, 240,
+                               LV_TEXT_ALIGN_CENTER, Color::GRAY);
+
+    // The number the athlete reads mid-effort, in the largest face that still
+    // leaves room for the four lines brief 8.2 puts under it.
+    mSegmentTime = Theme::label(mMainRoot, F::SemiBold40, "0:00", 0, 80, 240);
+
+    mTotalTime = Theme::label(mMainRoot, F::Medium18, "0:00:00", 0, 124, 240,
+                              LV_TEXT_ALIGN_CENTER, Color::WHITE);
+
+    // Brief 8.2 calls this the "small" line, and small is what buys the heart
+    // rate the clearance it needs above the arc.
+    mNextUp = Theme::label(mMainRoot, F::Regular14, "", 0, 148, 240,
+                           LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    mHr     = Theme::label(mMainRoot, F::Medium18, Strings::kNoValue, 0, 160, 240);
+
+    // The zone bar is 210 x 69, so x = 15 centres it. Its arc is the bottom of
+    // a circle centred at (120, 302) with radius 113, so its topmost pixel is
+    // y = 185: anything drawn below that is painted over. The first layout put
+    // the heart rate at y = 166 and the arc swallowed the bottom of the text.
+    mHrZone = std::make_unique<Widgets::HeartRateZone>(mMainRoot, 15, 186);
 
     mStatusRoot = Theme::container(mRoot, 0, 0, 240, 240);
-    mClock      = Theme::label(mStatusRoot, F::SemiBold40, "--:--", 0, 90, 240);
-    mBattery    = Theme::label(mStatusRoot, F::Medium18, "--%", 0, 140, 240);
+    mClock      = Theme::label(mStatusRoot, F::SemiBold40, "--:--", 0, 84, 240);
+    mBatteryPct = Theme::label(mStatusRoot, F::Medium18, "--%", 0, 136, 240,
+                               LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    mBattery    = std::make_unique<Widgets::Battery>(mStatusRoot, 75, 166);
 
     mTitle   = std::make_unique<Widgets::Title>(mRoot, "Race");
     mButtons = std::make_unique<Widgets::Buttons>(mRoot);
@@ -106,11 +141,31 @@ void TrackScreen::redraw()
     const Track::Data& d = mModel.getRaceData();
     char buf[Race::kMaxLabelLen];
 
-    Race::RaceModel::label(d.current, buf, sizeof(buf));
+    // Brief 7.2's one-line form ("BURPEE BROAD JUMPS \xC2\xB7 80 m") is 25
+    // characters and runs off both sides of a round 240 px display, so the race
+    // face splits it: the name carries the accent, the work joins the counter on
+    // the grey line below. RaceModel::label() is unchanged and still what the
+    // summary, the toast and the FIT lap names use.
+    Race::RaceModel::name(d.current, buf, sizeof(buf));
     lv_label_set_text(mSegment, buf);
+    lv_obj_set_style_text_color(mSegment, accentFor(d.current.type), LV_PART_MAIN);
 
-    snprintf(buf, sizeof(buf), "%u of %u", static_cast<unsigned>(d.segmentIndex + 1u),
-             static_cast<unsigned>(d.segmentCount));
+    // A paused clock must never be mistaken for a slow one.
+    lv_obj_set_style_text_color(mSegmentTime,
+                                mModel.isRacePaused() ? Theme::rgb(Color::GRAY)
+                                                      : Theme::rgb(Color::WHITE),
+                                LV_PART_MAIN);
+
+    const char *work = Race::RaceModel::work(d.current);
+    if (work[0] != '\0') {
+        snprintf(buf, sizeof(buf), "%s %s %u of %u", work, Race::kLabelSep,
+                 static_cast<unsigned>(d.segmentIndex + 1u),
+                 static_cast<unsigned>(d.segmentCount));
+    } else {
+        snprintf(buf, sizeof(buf), "%u of %u",
+                 static_cast<unsigned>(d.segmentIndex + 1u),
+                 static_cast<unsigned>(d.segmentCount));
+    }
     lv_label_set_text(mSegmentNum, buf);
 
     Fmt::shortTime(buf, sizeof(buf), Fmt::msToSec(d.segmentMs));
@@ -120,9 +175,11 @@ void TrackScreen::redraw()
     lv_label_set_text(mTotalTime, buf);
 
     if (d.hasNext) {
-        char next[Race::kMaxLabelLen];
-        Race::RaceModel::label(d.next, next, sizeof(next));
-        snprintf(buf, sizeof(buf), "Next: %s", next);
+        // Name only: brief 8.2 writes this as "Next: Sled Pull", and the work as
+        // well would run past the edge of the display.
+        char name[Race::kMaxNameLen];
+        Race::RaceModel::name(d.next, name, sizeof(name));
+        snprintf(buf, sizeof(buf), "Next: %s", name);
         lv_label_set_text(mNextUp, buf);
     } else {
         lv_label_set_text(mNextUp, "Last segment");
@@ -176,5 +233,6 @@ void TrackScreen::onBatteryLevel(uint8_t level)
 {
     char buf[8];
     snprintf(buf, sizeof(buf), "%u%%", static_cast<unsigned>(level));
-    lv_label_set_text(mBattery, buf);
+    lv_label_set_text(mBatteryPct, buf);
+    mBattery->setLevel(level);
 }

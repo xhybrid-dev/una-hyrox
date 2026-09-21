@@ -60,11 +60,12 @@ private:
     // Status face
     lv_obj_t* mStatusRoot = nullptr;
     lv_obj_t* mClock      = nullptr;
-    lv_obj_t* mBattery    = nullptr;
+    lv_obj_t* mBatteryPct = nullptr;
 
     std::unique_ptr<Widgets::Title>          mTitle;
     std::unique_ptr<Widgets::Buttons>        mButtons;
     std::unique_ptr<Widgets::HeartRateZone>  mHrZone;
+    std::unique_ptr<Widgets::Battery>        mBattery;
 };
 
 #endif // TRACK_SCREEN_HPP

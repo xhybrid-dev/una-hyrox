@@ -38,6 +38,8 @@ private:
 
     Result      mResult;
     lv_obj_t*   mTotal = nullptr;
+    lv_obj_t*   mHint  = nullptr;
+    bool        mCanUndo = false;
     uint32_t    mAutoSaveTicks = 0;
     lv_timer_t* mDismiss = nullptr;
     std::unique_ptr<Widgets::Title>   mTitle;

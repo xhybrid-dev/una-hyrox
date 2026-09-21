@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate the RunLVGL GUI's font and image C files.
+"""Regenerate the HybridX Race GUI's font and image C files.
 
 Fonts:  Poppins faces -> LVGL fonts through lv_font_conv, run via npx so Node is
         the only prerequisite. 2 bits per pixel like the TouchGFX build, and
@@ -27,7 +27,14 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SDK_ROOT = os.path.abspath(os.path.join(HERE, *([".."] * 7)))
+
+# The SDK comes from UNA_SDK. The upstream script walked seven directories up
+# from here, which only works while the app lives inside the SDK tree; ours does
+# not, and the relative walk landed on /home.
+SDK_ROOT = os.environ.get("UNA_SDK")
+if not SDK_ROOT:
+    sys.exit("UNA_SDK is not set: point it at the una-sdk checkout")
+SDK_ROOT = os.path.abspath(SDK_ROOT)
 RUN_ASSETS = os.path.join(SDK_ROOT, "Examples", "Apps", "Running", "Software", "Apps",
                           "TouchGFX-GUI", "assets")
 
@@ -39,7 +46,10 @@ RUN_ASSETS = os.path.join(SDK_ROOT, "Examples", "Apps", "Running", "Software", "
 # and the committed files must regenerate byte for byte.
 LV_FONT_CONV_VERSION = "1.5.3"
 
-ASCII = "0x20-0x7E"
+# 0xB7 is the middle dot that separates a segment name from its work
+# ("SLED PULL \u00b7 50 m", brief 7.2). It is outside printable ASCII, so
+# without it here the label renders as an empty box on the watch.
+ASCII = "0x20-0x7E,0xB7"
 NUMERIC = "0x20-0x3A"
 BIG = "0x20-0x3A,0x41,0x4D,0x4F,0x50,0x65,0x6E,0x70"
 

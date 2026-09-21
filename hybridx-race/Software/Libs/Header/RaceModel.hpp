@@ -116,8 +116,21 @@ public:
      * @param format  Race format.
      * @param roxzone True when Roxzone splitting is on.
      * @retval 16 or 31 for a full race, 8 or 15 for a half.
+     *
+     * Defined here, like label(), because the GUI needs it to say how long the
+     * race will be before one exists, and the GUI binary does not link
+     * RaceModel.cpp.
      */
-    static uint8_t plannedCount(Format format, bool roxzone);
+    static constexpr uint8_t plannedCount(Format format, bool roxzone)
+    {
+        const uint8_t rounds =
+                static_cast<uint8_t>(lastRound(format) - firstRound(format) + 1u);
+
+        // Roxzone on is four segments a round, less the ROX_OUT that never
+        // follows the final station.
+        return roxzone ? static_cast<uint8_t>(rounds * 4u - 1u)
+                       : static_cast<uint8_t>(rounds * 2u);
+    }
 
     /**
      * @brief Build the segment list for a format.
@@ -147,21 +160,21 @@ public:
      * @param size Size of @p buf.
      */
     static inline void label(const SegmentDesc &desc, char *buf, size_t size)
-{
+    {
         if (buf == nullptr || size == 0u) {
             return;
         }
-    
+
         switch (desc.type) {
         case SegmentType::Run:
             snprintf(buf, size, "RUN %u/%u %s %s", static_cast<unsigned>(desc.round),
                      static_cast<unsigned>(kRunCount), kLabelSep, kRunWork);
             break;
-    
+
         case SegmentType::RoxIn:
             snprintf(buf, size, "%s", "ROXZONE IN");
             break;
-    
+
         case SegmentType::Station:
             // stationId is 1-based; guard it because there is no MMU.
             if (desc.stationId >= 1u && desc.stationId <= kStationCount) {
@@ -171,15 +184,82 @@ public:
                 snprintf(buf, size, "%s", "STATION");
             }
             break;
-    
+
         case SegmentType::RoxOut:
             snprintf(buf, size, "%s", "ROXZONE OUT");
             break;
-    
+
         default:
             buf[0] = '\0';
             break;
         }
+    }
+
+    /**
+     * @brief Format a segment name, without its work.
+     *
+     * "RUN 3/8", "ROXZONE IN", "SLED PULL", "ROXZONE OUT". The one-line form of
+     * label() is up to 25 characters and runs off both sides of a round 240 px
+     * display, so the race face and the split toast use this and show the work
+     * separately, or not at all (brief 8.2 item 4 writes the toast as
+     * "SkiErg 4:12").
+     *
+     * Inline for the same reason as label(): the GUI binary does not link
+     * RaceModel.cpp.
+     *
+     * @param desc Segment to describe.
+     * @param buf  Caller-owned buffer, at least @c kMaxNameLen bytes.
+     * @param size Size of @p buf.
+     */
+    static inline void name(const SegmentDesc &desc, char *buf, size_t size)
+    {
+        if (buf == nullptr || size == 0u) {
+            return;
+        }
+
+        switch (desc.type) {
+        case SegmentType::Run:
+            snprintf(buf, size, "RUN %u/%u", static_cast<unsigned>(desc.round),
+                     static_cast<unsigned>(kRunCount));
+            break;
+
+        case SegmentType::RoxIn:
+            snprintf(buf, size, "%s", "ROXZONE IN");
+            break;
+
+        case SegmentType::Station:
+            snprintf(buf, size, "%s",
+                     (desc.stationId >= 1u && desc.stationId <= kStationCount)
+                             ? kStations[desc.stationId - 1u].name
+                             : "STATION");
+            break;
+
+        case SegmentType::RoxOut:
+            snprintf(buf, size, "%s", "ROXZONE OUT");
+            break;
+
+        default:
+            buf[0] = '\0';
+            break;
+        }
+    }
+
+    /**
+     * @brief The work shown beside a segment name, or "" when it has none.
+     *
+     * @param desc Segment to describe.
+     * @retval A string literal; never nullptr.
+     */
+    static inline const char *work(const SegmentDesc &desc)
+    {
+        if (desc.type == SegmentType::Run) {
+            return kRunWork;
+        }
+        if (desc.type == SegmentType::Station && desc.stationId >= 1u &&
+            desc.stationId <= kStationCount) {
+            return kStations[desc.stationId - 1u].work;
+        }
+        return "";
     }
 
 

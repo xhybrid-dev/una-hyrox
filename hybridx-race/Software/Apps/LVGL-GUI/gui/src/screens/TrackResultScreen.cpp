@@ -39,11 +39,10 @@ void TrackResultScreen::build()
         // Brief 8.2 item 6: total time large, R1 saves, L2 undoes.
         Theme::label(mRoot, F::Italic18, "Race time", 0, 62, 240);
         mTotal = Theme::label(mRoot, F::SemiBold40, "0:00:00", 0, 92, 240);
-        Theme::label(mRoot, F::Medium18, "R1 Save    L2 Undo", 0, 160, 240);
+        mHint = Theme::label(mRoot, F::Medium18, "R1 Save", 0, 160, 240,
+                             LV_TEXT_ALIGN_CENTER, SDK::GUI::Color::GRAY);
         mTitle = std::make_unique<Widgets::Title>(mRoot, "Finished");
         mButtons = std::make_unique<Widgets::Buttons>(mRoot);
-        mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::WHITE,
-                      Widgets::Buttons::GREEN, Widgets::Buttons::NONE);
         return;
     }
 
@@ -66,6 +65,15 @@ void TrackResultScreen::onShow()
                  static_cast<std::time_t>(mModel.getRaceData().totalMs / 1000u));
         lv_label_set_text(mTotal, buf);
         mAutoSaveTicks = App::Config::kAutoSaveSteps;
+
+        // Undo is only offered when there is a finishing press to take back.
+        // A race ended early was stopped from the menu, and brief 7.3 refuses
+        // UNDO_FINISH for it -- so do not advertise a button that does nothing.
+        mCanUndo = mModel.raceCompleted();
+        lv_label_set_text(mHint, mCanUndo ? "R1 Save    L2 Undo" : "R1 Save");
+        mButtons->set(Widgets::Buttons::NONE,
+                      mCanUndo ? Widgets::Buttons::WHITE : Widgets::Buttons::NONE,
+                      Widgets::Buttons::GREEN, Widgets::Buttons::NONE);
         return;
     }
 
@@ -93,8 +101,10 @@ void TrackResultScreen::onKey(uint8_t code)
 
     case Btn::L2:
         // Undo the finishing press and carry on racing (brief 7.3, F5).
-        mModel.raceUndoFinish();
-        ScreenManager::instance().goTo(ScreenId::Race);
+        if (mCanUndo) {
+            mModel.raceUndoFinish();
+            ScreenManager::instance().goTo(ScreenId::Race);
+        }
         break;
 
     default:

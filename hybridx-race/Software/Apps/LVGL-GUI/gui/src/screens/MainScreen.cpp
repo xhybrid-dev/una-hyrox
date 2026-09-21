@@ -147,11 +147,9 @@ void MainScreen::updateBackground()
 void MainScreen::onIdleTimeout()
 {
     // Every menu screen exits on idle (brief 8.4). The RunLVGL review found ten
-    // screens missing this; Start is exempt so a hesitating athlete is not
-    // thrown out of the app.
-    if (mMenu->selected() != Menu::ID_START) {
-        mModel.exitApp();
-    }
+    // screens missing this, so there is no exemption here: an athlete waiting
+    // for the gun waits on the "On your marks" screen, which has no timeout.
+    mModel.exitApp();
 }
 
 void MainScreen::onSettings(const Settings& /*settings*/)

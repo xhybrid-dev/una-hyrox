@@ -714,3 +714,169 @@ things the screenshots already show:
   carries `sport` and `subSport` as parameters, so candidate files are a
   one-line change when Jon wants to compare them on Strava and Garmin.
 - The **splits face** on the race screen: only Main and Status exist today.
+
+---
+
+## Phase 4 — Visual pass (21 September 2026)
+
+### 4.1 Status
+
+Done in this container: every screen in brief §8.2 laid out against the round
+display's real geometry, the §8.4 idle and suspend rules audited screen by
+screen, and the whole flow captured to `docs/screens/`. Not done: looking at any
+of it on a watch. Gate 4 needs Jon's eye on the screenshots and T1-T8 on
+hardware (`ON_WATCH_TESTS.md`).
+
+Host tests 71 pass. Watch target and simulator both build clean.
+
+### 4.2 The middle dot, properly fixed
+
+`NOTES.md` 3.3 recorded that U+00B7 was missing from the fonts and that the
+labels had fallen back to a hyphen. Node v22 turned out to be available in the
+container, so the subsets were regenerated rather than worked around:
+
+- `assets/gen_assets.py`: `ASCII = "0x20-0x7E,0xB7"`, and `SDK_ROOT` now comes
+  from `$UNA_SDK` instead of counting seven directories up from the script —
+  out of tree that arithmetic landed on `/home` and the script found nothing.
+- Eleven text faces regenerated with `npx lv_font_conv@1.5.3`, 2 bpp,
+  uncompressed, matching the flags the SDK's own script uses.
+- `Race::kLabelSep` is back to `"\xC2\xB7"` and `RaceTemplateTest` asserts the
+  labels byte for byte.
+
+### 4.3 What a round 240 px display actually allows
+
+This is the finding that drove most of Phase 4, and it is worth writing down
+because nothing in the SDK docs says it: **the usable width is a chord, not
+240 px**, and it collapses fast towards the bottom of the screen.
+
+| Text baseline | Usable width |
+|---|---|
+| y = 60 | 226 px |
+| y = 100 | 239 px |
+| y = 160 | 222 px |
+| y = 180 | 208 px |
+| y = 200 | 178 px |
+| y = 210 | 161 px |
+
+Three things were overrunning it, all invisible until the screenshots were
+looked at properly:
+
+- **The race screen's segment label.** `BURPEE BROAD JUMPS \xC2\xB7 80 m` is 25
+  characters and ran off both sides. The race face now splits it: the name takes
+  the accent colour on one line, the work joins the segment counter on the grey
+  line below (`1000 m \xC2\xB7 2 of 16`). `RaceModel::label()` is unchanged and is
+  still what the FIT lap names and the summary use.
+- **The summary's HR row.** `HR 146 avg 156 max` was clipped at both ends. It is
+  now two rows, `Avg HR` and `Max HR`, in a proper two-column table inset to
+  x = 34..206 — the width the display still has at the bottom row.
+- **The heart rate above the zone arc.** The arc is the bottom of a circle of
+  radius 113 centred below the screen; its topmost pixel is at y = 185. The
+  heart rate was at y = 166 and the arc painted over the bottom of the digits.
+
+### 4.4 Station short names — Jon to sign off at Gate 4
+
+The summary's split rows sit where the display is at its narrowest, and a full
+station name plus a time does not fit in 178 px at any face we have. So
+`Station` gained a third field, `brief`, used **only** on that row:
+
+| Station | Split row |
+|---|---|
+| SKIERG | SKIERG |
+| SLED PUSH | SLED PUSH |
+| SLED PULL | SLED PULL |
+| BURPEE BROAD JUMPS | **BURPEES** |
+| ROW | ROW |
+| FARMERS CARRY | **CARRY** |
+| SANDBAG LUNGES | **LUNGES** |
+| WALL BALLS | WALL BALLS |
+
+These three abbreviations are display text I chose, not HYROX terminology.
+**Jon: say if you would write any of them differently** — it is a one-line edit
+in `RaceData.hpp`, and `RaceTemplateTest` pins the width budget
+(`kMaxBriefLen`) so a longer replacement fails the build rather than clipping on
+the watch.
+
+### 4.5 Three bugs the visual pass found
+
+- **The split list showed no names at all.** `TrackSummaryScreen::redraw()`
+  formatted the label into a local and then printed only the index and the time.
+  The compiler had nothing to warn about: the variable was written, just never
+  read.
+- **The start screen still asked "Start before signal acquired?"** — RunLVGL's
+  GPS gate, inherited whole, on an app that brief §8.2 says has no GPS gating at
+  all. It is now an "On your marks" screen that states the format, the segment
+  count and whether Roxzone is split, which is what an athlete on the line wants
+  to confirm.
+- **The split toast showed the work as well as the name.** Brief §8.2 item 4
+  writes the toast as `SkiErg 4:12`; it now uses the name alone.
+
+### 4.6 Idle and suspend, screen by screen (§8.4)
+
+| Screen | On idle | Correct because |
+|---|---|---|
+| Main menu | Exits the app | §8.4, every menu screen |
+| Settings | Saves, then exits the app | §8.4; losing an edit to a timeout would be worse |
+| On your marks | **Nothing** | Where an athlete waits for the gun |
+| Race | Nothing (no timer running) | §8.4 |
+| Split toast | Nothing; its own 2 s timer dismisses it | §8.2 item 4 |
+| Action menu | Back to the race after 10 s | §8.2 item 5, never out of the app |
+| Hold-confirm | Cancels the hold | §8.4 third bullet |
+| Finished | Auto-saves after 60 s | Decision D4 |
+| Saved / Discarded | Nothing | Nothing left to lose |
+| Summary | Nothing | A race may still be unsaved behind it |
+
+The base `onIdleTimeout()` is empty, so a screen that wants no timeout simply
+does not override it — the safe default is the do-nothing one, which is the
+opposite of RunLVGL, where ten menu screens got the do-nothing behaviour by
+accident.
+
+One change of mind since Phase 3: `MainScreen` used to exempt the `Start race`
+row from the idle exit, so that a hesitating athlete was not thrown out. That
+re-created exactly the gap §8.4 names, and it exempted the menu's *default*
+selection, so in practice the main screen never timed out at all. The exemption
+is gone; the "On your marks" screen is the place to wait instead.
+
+Suspend during a hold-to-confirm was already handled —
+`TrackHoldConfirmScreen::onSuspend()` calls `cancel()` — and is unchanged.
+
+### 4.7 Screens captured
+
+`docs/screens/phase4-*.png` are straight captures of the simulator driven by a
+scripted key sequence (`Xvfb` + `xdotool` + ImageMagick `import`, the rig built
+in Phase 0). They are 480x480 because the simulator draws at 2x; the watch is
+240x240.
+
+Twenty-one screens, the whole flow end to end: the main menu on each row
+(01-04, 07), Settings (05-06), "On your marks" (08), the race face running and
+on a station (09, 11), the split toast (10), every action-menu row (12-14, 20),
+the finished screen after a complete race and after ending early (15, 21),
+Saved (16), and the summary overview and both split pages (17-19).
+
+Two of these are worth looking at side by side. `phase4-15-finished.png` offers
+`R1 Save` and `L2 Undo`; `phase4-21-finished-early.png` offers only `R1 Save`,
+because brief §7.3 refuses `UNDO_FINISH` on a race that was ended early rather
+than finished by a split. Phase 3 advertised the Undo in both.
+
+`phase4-03-main-lastrace.png` shows `Last race` greyed with no R1 hint. Brief
+§8.2 item 1 says the row appears "only if a summary exists"; greying it rather
+than hiding it keeps the menu the same length every launch and tells a new user
+the feature is there. `MainScreen::confirm()` makes it genuinely inert, not just
+grey.
+
+The colours are the ones the watch will show: the simulator applies the same
+2-bit-per-channel quantisation, which is why the accent colours were picked for
+separation rather than subtlety.
+
+The capture rig itself needed hardening. Two runs overlapped on display `:97`,
+one killed the other's `Xvfb`, and the surviving simulator kept writing 166-byte
+blank frames while its log filled with `Queue is full` — a lost display looks
+exactly like a working one if you only check the exit code. `shot.sh` now aborts
+when no window is found and warns on any capture under 500 bytes.
+
+### 4.8 Still to do
+
+- **Gate 4 is not met in this container.** Jon reviews the screenshots and runs
+  T1-T8; the font glyph, the short names and the arm's-length readability of the
+  race face all need a real screen.
+- **Splits face (P1)** — the race screen still has Main and Status only.
+- **F14 target pacing** still waits on Jon's data (D6).

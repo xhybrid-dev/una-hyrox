@@ -25,6 +25,13 @@ std::string labelOf(const SegmentDesc &desc)
     return std::string(buf);
 }
 
+std::string nameOf(const SegmentDesc &desc)
+{
+    char buf[Race::kMaxNameLen] = {};
+    RaceModel::name(desc, buf, sizeof(buf));
+    return std::string(buf);
+}
+
 }  // namespace
 
 // -- Counts (brief 7.5 invariant 7) -------------------------------------------
@@ -124,7 +131,7 @@ TEST(RaceTemplateTest, HalfBKeepsRealRoundNumbers)
     // The athlete is doing rounds 5 to 8, and the watch must say so.
     EXPECT_EQ(plan[0].round, 5u);
     EXPECT_EQ(plan[0].type, SegmentType::Run);
-    EXPECT_EQ(labelOf(plan[0]), "RUN 5/8 - 1 km");
+    EXPECT_EQ(labelOf(plan[0]), "RUN 5/8 \xC2\xB7 1 km");
 
     EXPECT_EQ(plan[1].stationId, 5u) << "first station of the second half is Row";
     EXPECT_EQ(plan[7].round, 8u);
@@ -135,9 +142,9 @@ TEST(RaceTemplateTest, HalfBKeepsRealRoundNumbers)
 
 TEST(RaceTemplateTest, LabelsReadAsSpecified)
 {
-    EXPECT_EQ(labelOf({ SegmentType::Run, 3u, 0u }), "RUN 3/8 - 1 km");
+    EXPECT_EQ(labelOf({ SegmentType::Run, 3u, 0u }), "RUN 3/8 \xC2\xB7 1 km");
     EXPECT_EQ(labelOf({ SegmentType::RoxIn, 3u, 0u }), "ROXZONE IN");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 3u, 3u }), "SLED PULL - 50 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 3u, 3u }), "SLED PULL \xC2\xB7 50 m");
     EXPECT_EQ(labelOf({ SegmentType::RoxOut, 3u, 0u }), "ROXZONE OUT");
 }
 
@@ -145,14 +152,66 @@ TEST(RaceTemplateTest, EveryStationLabelsWithItsConfirmedWork)
 {
     // Jon confirmed this table on 21 September 2026; it is the reason the app
     // exists, so it gets an explicit test rather than a loop over kStations.
-    EXPECT_EQ(labelOf({ SegmentType::Station, 1u, 1u }), "SKIERG - 1000 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 2u, 2u }), "SLED PUSH - 50 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 3u, 3u }), "SLED PULL - 50 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 4u, 4u }), "BURPEE BROAD JUMPS - 80 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 5u, 5u }), "ROW - 1000 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 6u, 6u }), "FARMERS CARRY - 200 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 7u, 7u }), "SANDBAG LUNGES - 100 m");
-    EXPECT_EQ(labelOf({ SegmentType::Station, 8u, 8u }), "WALL BALLS - 100 reps");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 1u, 1u }), "SKIERG \xC2\xB7 1000 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 2u, 2u }), "SLED PUSH \xC2\xB7 50 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 3u, 3u }), "SLED PULL \xC2\xB7 50 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 4u, 4u }), "BURPEE BROAD JUMPS \xC2\xB7 80 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 5u, 5u }), "ROW \xC2\xB7 1000 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 6u, 6u }), "FARMERS CARRY \xC2\xB7 200 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 7u, 7u }), "SANDBAG LUNGES \xC2\xB7 100 m");
+    EXPECT_EQ(labelOf({ SegmentType::Station, 8u, 8u }), "WALL BALLS \xC2\xB7 100 reps");
+}
+
+TEST(RaceTemplateTest, NamesDropTheWorkAndTheSeparator)
+{
+    // The race face and the split toast show the name alone; label() is what
+    // the FIT lap and the summary heading keep.
+    EXPECT_EQ(nameOf({ SegmentType::Run, 3u, 0u }), "RUN 3/8");
+    EXPECT_EQ(nameOf({ SegmentType::RoxIn, 3u, 0u }), "ROXZONE IN");
+    EXPECT_EQ(nameOf({ SegmentType::Station, 3u, 3u }), "SLED PULL");
+    EXPECT_EQ(nameOf({ SegmentType::RoxOut, 3u, 0u }), "ROXZONE OUT");
+    EXPECT_EQ(nameOf({ SegmentType::Station, 9u, 9u }), "STATION")
+            << "a corrupt index must not read past kStations";
+}
+
+TEST(RaceTemplateTest, WorkIsTheHalfOfTheLabelNameLeavesOut)
+{
+    EXPECT_STREQ(RaceModel::work({ SegmentType::Run, 3u, 0u }), "1 km");
+    EXPECT_STREQ(RaceModel::work({ SegmentType::Station, 8u, 8u }), "100 reps");
+    EXPECT_STREQ(RaceModel::work({ SegmentType::RoxIn, 3u, 0u }), "")
+            << "a Roxzone segment has no work";
+    EXPECT_STREQ(RaceModel::work({ SegmentType::Station, 9u, 9u }), "")
+            << "and neither does a segment that does not exist";
+}
+
+TEST(RaceTemplateTest, NameToleratesAZeroSizedBuffer)
+{
+    char buf[1] = { 'x' };
+    RaceModel::name({ SegmentType::Run, 1u, 0u }, buf, 0u);
+    EXPECT_EQ(buf[0], 'x') << "nothing should be written";
+
+    RaceModel::name({ SegmentType::Run, 1u, 0u }, nullptr, Race::kMaxNameLen);
+}
+
+TEST(RaceTemplateTest, LongestStationNameFitsTheDeclaredBuffer)
+{
+    // kMaxNameLen sizes the race face's accent line, which shows the name
+    // without its work. Overrunning it would truncate a station mid-word.
+    for (uint8_t id = 0u; id < Race::kStationCount; ++id) {
+        EXPECT_LT(std::strlen(Race::kStations[id].name), Race::kMaxNameLen)
+                << "station " << int(id + 1u) << " name fills the buffer";
+    }
+}
+
+TEST(RaceTemplateTest, EveryStationHasABriefNameThatFitsTheSplitRow)
+{
+    // The summary's split rows are the narrowest text on the watch. If a brief
+    // name outgrows the budget it is the bottom row that silently clips.
+    for (uint8_t id = 0u; id < Race::kStationCount; ++id) {
+        ASSERT_NE(Race::kStations[id].brief, nullptr) << "station " << int(id + 1u);
+        EXPECT_LT(std::strlen(Race::kStations[id].brief), Race::kMaxBriefLen)
+                << "station " << int(id + 1u) << " brief name is too wide";
+    }
 }
 
 TEST(RaceTemplateTest, LongestLabelFitsTheDeclaredBuffer)

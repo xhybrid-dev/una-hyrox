@@ -14,17 +14,6 @@ namespace Race
 
 // -- Template -----------------------------------------------------------------
 
-uint8_t RaceModel::plannedCount(Format format, bool roxzone)
-{
-    const uint8_t rounds =
-            static_cast<uint8_t>(lastRound(format) - firstRound(format) + 1u);
-
-    // Roxzone on is four segments a round, less the ROX_OUT that never follows
-    // the final station.
-    return roxzone ? static_cast<uint8_t>(rounds * 4u - 1u)
-                   : static_cast<uint8_t>(rounds * 2u);
-}
-
 uint8_t RaceModel::buildTemplate(Format format, bool roxzone, SegmentDesc *out,
                                  uint8_t capacity)
 {

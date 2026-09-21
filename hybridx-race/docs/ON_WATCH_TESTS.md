@@ -46,6 +46,10 @@ on a mismatch.
 | T13 | Real gym simulation | Usable with sweaty hands; no missed or phantom splits |
 | T14 | Battery over 90 minutes | Drain recorded in `NOTES.md` |
 | T15 | Exit with no race | No leaked service — sensors disconnected, service gone |
+| T16 | Read the race face at arm's length, mid-effort | Segment time legible without squinting; accent colour tells run from station from Roxzone at a glance (the display is 2 bits per channel — see `NOTES.md` 4.3) |
+| T17 | The middle dot | `RUN 3/8 · 1 km` shows a dot, not an empty box. The fonts were regenerated for it in Phase 4 but have never been rendered on a real panel |
+| T18 | Nothing clipped by the bezel | Every screen, especially the summary's bottom split row and the heart rate above the zone arc. `NOTES.md` 4.3 has the widths these were laid out to |
+| T19 | "On your marks" left open | The screen has no idle timeout by design; check the watch's own backlight and sleep behaviour makes that acceptable rather than a battery leak |
 
 ### T9 deserves special attention
 

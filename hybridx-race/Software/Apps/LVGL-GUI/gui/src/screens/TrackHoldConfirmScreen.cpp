@@ -111,9 +111,17 @@ void TrackHoldConfirmScreen::animReadyCb(lv_anim_t* a)
         return;
     }
     self->mFired = true;
-    ScreenManager::instance().goTo(self->mMode == Model::HoldConfirmMode::Finish
-                                       ? ScreenId::RaceSaved
-                                       : ScreenId::RaceDiscarded);
+
+    if (self->mMode == Model::HoldConfirmMode::Finish) {
+        // "End race" is FINISH_EARLY (brief 7.3): it closes the segment that is
+        // still open and stops the clock. It is NOT a save -- the athlete still
+        // sees their total on the finished screen and decides there. Going
+        // straight to Saved would drop the open segment and skip that screen.
+        self->mModel.raceFinishEarly();
+        ScreenManager::instance().goTo(ScreenId::RaceFinished);
+    } else {
+        ScreenManager::instance().goTo(ScreenId::RaceDiscarded);
+    }
 }
 
 void TrackHoldConfirmScreen::setCountdown(uint32_t number)

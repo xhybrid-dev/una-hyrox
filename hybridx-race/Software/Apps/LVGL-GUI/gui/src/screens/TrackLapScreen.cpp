@@ -48,8 +48,10 @@ void TrackLapScreen::onShow()
     char buf[Race::kMaxLabelLen];
 
     // The segment that just ENDED, not the one now open: that is what the
-    // athlete wants confirmed.
-    Race::RaceModel::label(s.desc, buf, sizeof(buf));
+    // athlete wants confirmed. Brief 8.2 item 4 writes this toast as
+    // "SkiErg 4:12" -- name and time, no work -- and the name alone is also the
+    // only form that fits the width at a glance.
+    Race::RaceModel::name(s.desc, buf, sizeof(buf));
     lv_label_set_text(mSegment, buf);
 
     Fmt::shortTime(buf, sizeof(buf),

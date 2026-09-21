@@ -9,3 +9,6 @@ hybridx-race/build-tests/
 hybridx-race/Output/
 hybridx-race/Software/Apps/LVGL-GUI/simulator/build/
 hybridx-race/Software/Output/
+
+# Python bytecode from the asset generator
+__pycache__/

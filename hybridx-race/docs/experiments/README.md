@@ -48,3 +48,37 @@ touched. See `NOTES.md` 0.4.
 **Not a solution.** The supported toolchain is ST's, from STM32CubeIDE or
 STM32CubeCLT, and any build destined for a watch must use it
 (`ON_WATCH_TESTS.md` W1).
+
+---
+
+# Phase 4
+
+## `capture_screens.sh`
+
+Not throwaway: this is how `docs/screens/phase4-*.png` were made, and how they
+should be remade whenever a screen changes.
+
+The SDK's simulator has no screenshot capability of its own — `LV_USE_SNAPSHOT`
+is 0 in its LVGL config — so the rig drives it from outside: `Xvfb` for a
+display, `xdotool` to press the four buttons (keys 1-4 are L1, L2, R1, R2),
+ImageMagick's `import` to grab the frame.
+
+```bash
+UNA_SDK=/path/to/una-sdk ./capture_screens.sh          # into docs/screens
+UNA_SDK=/path/to/una-sdk ./capture_screens.sh /tmp/x   # somewhere else
+```
+
+It deletes `Software/Output` first so the run starts with no saved race, which
+is what makes `phase4-03-main-lastrace.png` show the greyed row.
+
+Two things it will not do for you:
+
+- **`phase4-21-finished-early.png`** comes from a separate short run — start a
+  race, open the action menu, hold R1 on `End race` — because the finished
+  screen differs there: brief §7.3 refuses `UNDO_FINISH` after an early end, so
+  only `R1 Save` is offered.
+- **Run one at a time.** Two runs on the same display kill each other's `Xvfb`,
+  and the orphaned simulator carries on writing blank 166-byte frames while its
+  log fills with `Queue is full`. The script now aborts when it cannot find a
+  window and warns on any capture under 500 bytes, but it cannot stop you
+  starting the second run.
