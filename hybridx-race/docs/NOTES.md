@@ -492,3 +492,104 @@ No `Software/Apps/` tree, no messages, sensors, FIT or GUI — those are Phases 
 and 3. CLAUDE.md's "build the watch target and the simulator after every change"
 had nothing to build here, but `RaceModel.cpp` was cross-compiled for
 `cortex-m33` with the app's real flags to prove it is embedded-clean.
+
+---
+
+## Phase 2 — App scaffold (21 September 2026)
+
+### 2.1 Status
+
+Complete. RunLVGL copied into `hybridx-race/`, renamed throughout, and building
+for **both** targets with its behaviour unchanged under the new name. Gate 2's
+watch install is deferred (`ON_WATCH_TESTS.md` W3); everything testable here is
+verified.
+
+### 2.2 What was copied and renamed
+
+| From (SDK, read-only) | To | Note |
+|---|---|---|
+| `RunLVGL/Software/Apps/LVGL-GUI/` | `Software/Apps/LVGL-GUI/` | GUI, assets, simulator |
+| `RunLVGL/Software/Libs/` | `Software/Libs/` | service, merged alongside our `RaceModel` |
+| `RunLVGL/Software/Apps/RunLVGL-CMake/` | `Software/Apps/HybridXRace-CMake/` | renamed directory |
+| `RunLVGL/Resources/*.png` | `Resources/` | **replaced**, see 2.4 |
+
+Identity now:
+
+```
+APP_NAME       HybridXRace          (no spaces, drives file names)
+APP_USER_NAME  HybridX Race         (what the watch shows)
+APP_FILE_NAME  HybridXRace
+APP_TYPE       Activity
+DEV_ID         HybridX
+APP_ID         8C345EF26E3350E7     (development only, see 2.3)
+```
+
+The simulator's own `target_compile_definitions` carry the same `APP_ID`, because
+`Docs/writing-a-clockface.md:80` warns that a mismatch makes the simulator write
+a different `developer_data_id` into the FIT file than the watch does.
+
+`RUNLVGL_FRAME_STATS` became `HYBRIDXRACE_FRAME_STATS`; the underlying SDK define
+`UNA_LVGL_FRAME_STATS` is the SDK's and was left alone.
+
+### 2.3 APP_ID
+
+`8C345EF26E3350E7` = first 16 hex of `md5("HybridXRace")`, uppercased, per
+`Docs/sdk-setup.md:314-319`. **Deliberately not RunLVGL's `A1B8E3F04C7D925E`.**
+Before publishing, this must be replaced by the ID the portal issues (brief
+§11.1) in *both* `HybridXRace-CMake/CMakeLists.txt` and the simulator's
+`CMakeLists.txt`.
+
+### 2.4 Icons replaced rather than reused
+
+RunLVGL's icons were copied in and then **replaced with plain "HX" placeholders**
+(teal, white text). Shipping UNA's artwork under our own app would sit badly with
+brief §11.6 ("do not use the UNA name or logo"), and the MIT licence grants no
+trademark rights. They are placeholders until Jon supplies HybridX artwork (D1).
+
+`app_merging.py` validates them: exactly 60x60 and 30x30, square, converted to
+ABGR2222. Build log confirms both were accepted.
+
+### 2.5 Version number confirms the Phase 0 finding
+
+The configure log reads `Detected BUILD_VERSION: 0.0.0-dev`. That is 0.6 item 4
+observed live: `cmake/una-app.cmake:149` greps `apps-v*` tags, our repo has none,
+so the fallback applies. Harmless now; **must be settled before Phase 5** by
+tagging `apps-v0.1.0` or passing `-DBUILD_VERSION=0.1.0`.
+
+### 2.6 Verification
+
+```
+$ cmake -G "Unix Makefiles" -S hybridx-race/Software/Apps/HybridXRace-CMake \
+    -B hybridx-race/build -DCMAKE_EXE_LINKER_FLAGS=<stubs.o>
+$ cmake --build hybridx-race/build -j4
+-> hybridx-race/Output/HybridXRace_0.0.0-dev.uapp   (419 732 bytes)
+
+$ cmake -S .../LVGL-GUI/simulator -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+$ cmake --build build -j4
+-> build/bin/HybridXRaceSimulator
+
+$ SDL_VIDEODRIVER=dummy timeout 12 ./HybridXRaceSimulator
+  LvglPort::init  : LVGL 9.5.0 ready, 240x240, stripe 30 rows
+  ScreenManager   : LVGL pool: 18216/35936 B used, peak 50%, frag 1%
+  Service::run    : GUI is now running
+
+$ ./hybridx-race/build-tests/hybridx-race-host-tests
+  [  PASSED  ] 66 tests.
+```
+
+Screenshot under the new name: `docs/screens/phase2-renamed-scaffold.png` —
+the wheel reads **HYBRIDX RACE** with RunLVGL's Start/Intervals menu intact,
+which is exactly what "behaviour unchanged under the new name" should look like.
+
+The `.uapp` is 8 bytes smaller than RunLVGL's, consistent with a pure rename.
+
+### 2.7 Worth knowing for Phase 3
+
+`Software/Libs/libs.cmake` globs `Sources/*.cpp`, so **`RaceModel.cpp` is already
+compiled into both the service and the simulator** — it just is not called yet.
+That is free proof it builds in the real app context, ARM included, and it is why
+Phase 3 can wire it in without touching the build.
+
+Still inherited from RunLVGL and due for removal in Phase 3: GPS connections and
+map building, distance and time auto-laps, the interval phase machine and its
+settings and screens.

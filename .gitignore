@@ -7,3 +7,4 @@ build/
 hybridx-race/build/
 hybridx-race/build-tests/
 hybridx-race/Output/
+hybridx-race/Software/Apps/LVGL-GUI/simulator/build/
