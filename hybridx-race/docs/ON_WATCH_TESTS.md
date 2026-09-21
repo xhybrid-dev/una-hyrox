@@ -35,7 +35,7 @@ on a mismatch.
 | T2 | Short Full race (20-30 s per segment) | 16 segments, correct labels, haptics per type |
 | T3 | Roxzone on | 31 segments, no `ROX_OUT` after the final station |
 | T4 | Double press R2 | One split only; second press inside the lockout recorded nowhere |
-| T5 | Undo last split | Segments merged exactly, total time unchanged |
+| T5 | Undo last split | Segments merged exactly, total time unchanged. Also try undoing **while paused**: brief §7.3 allows undo from RUNNING only, so it is currently refused (`NOTES.md` 1.5) — confirm that is not annoying in practice |
 | T6 | Pause and resume | Pause excluded from active time, included in elapsed |
 | T7 | Finish, undo finish, finish again | Single correct finish |
 | T8 | End early, then Discard | Correct summary; discarded file removed |
@@ -56,7 +56,11 @@ happens on hardware:
 
 1. Leave the app mid-race → service stays resident and keeps timing.
 2. Re-enter the app → race still running, elapsed time correct and continuous.
-3. Kill the app from the launcher mid-race → the FIT is either finalised or
+3. Leave the app mid-race and do **not** come back → after the 5-minute grace
+   window the race autosaves and the service exits: no leaked service, no lost
+   race. `NOTES.md` 1.2 explains why there is a window rather than an immediate
+   save.
+4. Kill the app from the launcher mid-race → the FIT is either finalised or
    recoverable, never silently lost.
 
 ### T11 deserves special attention

@@ -400,3 +400,95 @@ can define it ourselves. Still P1 — report before implementing.
 | D6 | Pacing share table | F14 | feature stays hidden |
 | — | Version tagging mechanism (0.6 item 4) | Phase 5 | `-DBUILD_VERSION=` |
 | — | Mid-race GUI close behaviour (0.7) | Phase 3 | stay resident, keep timing |
+
+---
+
+## Phase 1 — RaceModel core (21 September 2026)
+
+### 1.1 Status
+
+Complete. `RaceData.hpp`, `RaceModel.hpp/.cpp` and four host suites, **66 tests,
+all passing**, no warnings under `-Wall -Wextra -Wpedantic`. Gate 1 met.
+
+### 1.2 Decisions taken
+
+**Time is passed in, not read from an injected clock.** CLAUDE.md says "pure C++
+with an injected clock"; the brief's own §7.3 event table already passes `t` into
+every event, and §7.4 requires the split to be stamped at the button press in the
+GUI. A model that called its own clock would re-time every split by up to one GUI
+tick (100 ms), which is exactly the bias §7.4 exists to prevent. The SDK's own
+pure-logic example takes the same shape
+(`Examples/Apps/Stopwatch/Software/Libs/Header/Stopwatch.hpp`: `elapsed(state, nowMs)`).
+Jon chose timestamps-as-parameters. **CLAUDE.md's wording should be amended.**
+
+**Mid-race GUI close: stay resident, then autosave after 5 minutes.** Jon's
+instinct was straight autosave — an athlete leaving the app has probably
+finished. The counter-argument that changed it: R2 is Back/exit almost everywhere
+else in the UI and the launcher button is top right, so the person most likely to
+leave the app mid-race is the one fumbling for the split button with sweaty hands
+at 180 bpm. Straight autosave would end their race irrecoverably on one bad press,
+against design principle 2 ("mistakes are recoverable") and F5. The costs are
+lopsided: autosaving wrongly bins a 40-minute simulation; staying resident wrongly
+costs battery and a leaked service, which is recoverable. So: keep timing, and
+autosave + exit if the GUI does not return within **5 minutes**. Implemented in
+Phase 3; the window is one constant, and T13 is the chance to tune it.
+
+### 1.3 A bug the tests caught
+
+`LapAccumulatorTest.UndoFinishMergesTheFinalSegmentToo` failed on first run with
+a doubled heart-rate sum. Cause: `split()` banks the open segment and, on the
+**finishing** split, never opens another — so the per-segment accumulators were
+left populated. A later `undoFinish()` then merged that segment's heart rate and
+paused time in a second time. Fixed by clearing the accumulators in
+`closeCurrent()` (where the banking happens) rather than in `openSegment()`.
+
+Worth recording because it is invisible on every path except undo-after-finish,
+which is precisely test T7 on the watch.
+
+### 1.4 Measured
+
+| Item | Value |
+|---|---|
+| `sizeof(SegmentDesc)` | 3 bytes |
+| `sizeof(SegmentResult)` | 24 bytes |
+| `sizeof(RaceModel)` | **888 bytes** |
+| 31 results | 744 bytes |
+| ARM object (`cortex-m33`, `-Os`) | 1511 text, 64 data, 0 bss |
+
+`RaceModel` is comfortable against the service's 500K budget. The 744-byte
+segment list confirms 0.9's warning: **the summary cannot travel in one kernel
+message** (256-byte pool cap). Phase 3 must page it or use RunLVGL's
+pointer-passing trick deliberately.
+
+### 1.5 Deviations from the brief, and why
+
+- **`UNDO_SPLIT` is refused while paused.** Brief §7.3 lists it from `RUNNING`
+  only, and the tests assert that. Our action menu does not auto-pause (§8.1 says
+  the race clock keeps running when it opens), so this should never bite in
+  practice. If T5 on the watch says otherwise it is a one-line change.
+- **Heart-rate samples taken while paused are dropped.** Not specified. A pause is
+  rest, and counting it would drag the segment average down and misreport the
+  effort. `LapAccumulatorTest.SamplesTakenWhilePausedAreDropped` pins it.
+- **The lockout also guards the race start.** `START` seeds the lockout reference,
+  so a double press on "Start race" cannot split straight out of segment 0. Falls
+  out of §7.3's "t − lastSplitTime" with `lastSplitTime` initialised to the start.
+
+### 1.6 Test coverage
+
+| Suite | Tests | Covers |
+|---|---|---|
+| `RaceTemplateTest` | 14 | §7.2 counts, ordering, half-race round numbering, every station label, buffer bounds |
+| `RaceStateTest` | 22 | every §7.3 transition, and the illegal ones |
+| `RaceTimingTest` | 18 | §7.5 invariants 1-7 by name, clock wrap, lockout boundary, pause accounting |
+| `LapAccumulatorTest` | 12 | heart-rate merge on undo, average-of-averages trap, paused-sample handling |
+
+All seven §7.5 invariants have a test named after them, so a failure says which
+promise to the athlete broke. The 90-minute race in
+`RaceTimingTest.AFullRaceOfNinetyMinutesAddsUp` runs in under a millisecond.
+
+### 1.7 Not done in this phase
+
+No `Software/Apps/` tree, no messages, sensors, FIT or GUI — those are Phases 2
+and 3. CLAUDE.md's "build the watch target and the simulator after every change"
+had nothing to build here, but `RaceModel.cpp` was cross-compiled for
+`cortex-m33` with the app's real flags to prove it is embedded-clean.

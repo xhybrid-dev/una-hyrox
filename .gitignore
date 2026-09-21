@@ -5,4 +5,5 @@ una-sdk/
 # Build output
 build/
 hybridx-race/build/
+hybridx-race/build-tests/
 hybridx-race/Output/
