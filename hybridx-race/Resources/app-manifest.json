@@ -1,0 +1,66 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "activity"
+  ],
+  "name": "HybridX Race",
+  "icon": "icon.png",
+  "binary": "HybridXRace.uapp",
+  "previews": "previews/",
+  "appVersion": "0.1.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [
+    "HR",
+    "ACCELEROMETER"
+  ],
+  "description": "Race and simulation timer for HYROX-format events. One button per split, every run and station recorded as a lap.",
+  "supportsLaps": true,
+  "supportsDistance": false,
+  "supportsTrack": false,
+  "supportsHeartbeat": true,
+  "supportsElevation": false,
+  "supportsStep": false,
+  "supportsSpeed": "none",
+  "customMeasures": [],
+  "stravaExport": true,
+  "id": "8C345EF26E3350E7",
+  "configFile": "app_config.json",
+  "configFields": [
+    {
+      "id": "roxzoneSplits",
+      "type": "bool",
+      "label": "Roxzone splits",
+      "description": "Record Roxzone in and out as separate laps.",
+      "default": false
+    },
+    {
+      "id": "splitLockoutSec",
+      "type": "int",
+      "label": "Split lock",
+      "description": "Ignore the split button for this many seconds after a split.",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "unit": "s",
+      "validationMessage": "Between 1 and 10 seconds."
+    },
+    {
+      "id": "vibrateOnSplit",
+      "type": "bool",
+      "label": "Vibrate on split",
+      "description": "Vibrate when a new segment starts.",
+      "default": true
+    },
+    {
+      "id": "targetFinishMin",
+      "type": "int",
+      "label": "Target finish",
+      "description": "Target race time in minutes. 0 turns targets off.",
+      "default": 0,
+      "min": 0,
+      "max": 240,
+      "unit": "min",
+      "validationMessage": "Between 0 and 240 minutes."
+    }
+  ]
+}

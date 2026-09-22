@@ -689,7 +689,7 @@ and distance formatters went with them: a race has neither.
 | `SummaryPage` | 140 bytes, 8 segments |
 | `SummaryMeta` | 64 bytes |
 | `SettingsUpd` | 52 bytes |
-| LVGL pool peak | 50 % of 35 936 B |
+| LVGL pool peak | 50 % of 35 936 B -- **superseded, see 5.6**: this was the first screen switch only, and the real peak across the flow is 91 % |
 
 Every message is `static_assert`ed against the 256-byte pool at compile time.
 The app is ~54 KB smaller than RunLVGL, consistent with dropping GPS, the map,
@@ -749,14 +749,30 @@ This is the finding that drove most of Phase 4, and it is worth writing down
 because nothing in the SDK docs says it: **the usable width is a chord, not
 240 px**, and it collapses fast towards the bottom of the screen.
 
-| Text baseline | Usable width |
+The display is a 240 px circle centred at (120, 120), so at height y the usable
+width is `2 * sqrt(120^2 - (y - 120)^2)`:
+
+| y | Usable width |
 |---|---|
-| y = 60 | 226 px |
-| y = 100 | 239 px |
-| y = 160 | 222 px |
-| y = 180 | 208 px |
-| y = 200 | 178 px |
-| y = 210 | 161 px |
+| 44 | 186 px |
+| 60 | 208 px |
+| 100 | 237 px |
+| 120 | 240 px |
+| 160 | 226 px |
+| 180 | 208 px |
+| 200 | 179 px |
+| 210 | 159 px |
+
+What binds a line of text is its **lowest** pixel, not its baseline: a label at
+y = 180 in an 18 px face is still inside 208 px, but its descenders are down at
+y = 198 where only 182 px are left. Laying out to the top of a line is how the
+heart rate ended up under the arc.
+
+An earlier version of this table was wrong at both ends -- 226 px at y = 60 and
+222 px at y = 160, which are each other's values, near enough. The layout was
+done against the screenshots rather than the table, so nothing shipped wrong,
+but the table is design guidance for later work and is now computed rather than
+eyeballed.
 
 Three things were overrunning it, all invisible until the screenshots were
 looked at properly:
@@ -880,3 +896,237 @@ when no window is found and warns on any capture under 500 bytes.
   race face all need a real screen.
 - **Splits face (P1)** — the race screen still has Main and Status only.
 - **F14 target pacing** still waits on Jon's data (D6).
+
+---
+
+## Phase 5 — Packaging and documentation (22 September 2026)
+
+### 5.1 Status
+
+Gate 5 is **met in full in this container**: the manifest validates, the C++
+field table and the manifest agree under `--check-bounds`, and the zip matches
+the layout `Docs/deploy.md` specifies. None of it needed a watch.
+
+Host tests 71 pass; the watch target and the simulator both build clean.
+
+### 5.2 §11 compliance checklist, completed
+
+Replaces the half-ticked list in 0.11. Every line has its evidence.
+
+**§11.1 Project and build**
+
+- [x] **App lives outside the SDK.** `Software/Apps/HybridXRace-CMake/CMakeLists.txt`
+      resolves everything through `$ENV{UNA_SDK}` and explicit path variables;
+      no SDK file is modified.
+- [x] **`CMakeLists.txt` variables.** `APP_NAME=HybridXRace`,
+      `APP_ID=8C345EF26E3350E7`, `DEV_ID=HybridX`, `APP_TYPE=Activity`,
+      `APP_AUTOSTART` off, and the four path variables.
+- [x] ~~**Linker script renamed**~~ — not applicable; see 0.6 item 2. The SDK's
+      `una-app.cmake` generates the service linker script from `APP_NAME`, so
+      there is no file to rename.
+- [x] **`APP_ID` is ours, not RunLVGL's.** RunLVGL is `A1B8E3F04C7D925E`; ours is
+      `8C345EF26E3350E7`, generated locally by the SDK's documented md5 method.
+      It is a **development** ID and must be replaced by the portal's before
+      publishing — said again in `README.md` and printed by the packaging script
+      on every run.
+- [x] **Memory**, measured on this build (5.3).
+- [x] **Versioning** resolved (5.4).
+- [x] **Icons** present: `Resources/icon_30x30.png` and `icon_60x60.png`.
+      Placeholders, decision D1 open.
+- [x] **`.uapp` in `Output/`**: `HybridXRace_0.0.0-dev.uapp`, 367 476 bytes.
+
+**§11.2 Manifest**
+
+- [x] **Written** at `Resources/app-manifest.json`. Deviation: brief §11.2 puts
+      it at `Output/app-manifest.json`, but the root `.gitignore` excludes
+      `hybridx-race/Output/` wholesale, so nothing there can be reviewed in git.
+      The tracked source of truth is in `Resources/`; `pack-store-zip.sh` emits
+      the stamped copy into `Output/Release/`.
+- [x] **`minKernelVersion` derived, not typed**: `min_kernel_version.py --stamp`
+      then `--check` give `1.4.0` from ABI 3.
+- [x] **Field table matches** (`--check-bounds`):
+      `4 configuration field(s) OK, field table matches (4 entries)`.
+
+**§11.3 Store package**
+
+- [x] **Zip built and structure verified.** `Utilities/pack-store-zip.sh`
+      produces `Output/HybridXRace-<version>.zip` containing the `.uapp`,
+      `app-manifest.json`, `icon.png` and `previews/` with six screenshots --
+      the content list `Docs/deploy.md` gives.
+- [ ] **Upload** — Jon's step, needs the portal.
+
+**§11.5 Documentation**
+
+- [x] `docs/NOTES.md` (this file), `docs/ARCHITECTURE.md`, `README.md`,
+      `CHANGELOG.md`.
+
+**§11.6 Licensing and naming**
+
+- [x] `LICENSE` (MIT) and `THIRD-PARTY-LICENSES.md`, with one open item for Jon
+      (5.5).
+- [x] The UNA name and logo appear nowhere in the app name or icon.
+- [x] "HYROX" is not in the app name or icon. Its use in the store description
+      is D1, still Jon's.
+
+### 5.3 Measured on this build
+
+| Item | GUI | Service |
+|---|---|---|
+| `.text` | 265 816 B | 87 920 B |
+| `.data` + `.got` | 4 008 B | 1 440 B |
+| `.bss` | 114 748 B | 6 864 B |
+| `.stack` | 24 576 B | 10 240 B |
+| **Image total** | **409 148 B** | **106 464 B** |
+
+The app is position-independent and loaded whole into RAM, so the image total is
+what the kernel must find. The GUI's linker region is `GUI_RAM_LENGTH = 900K`,
+raised from the SDK default of 600K in Phase 2 because an LVGL image is larger
+than a TouchGFX one — so the GUI occupies **44 %** of its ceiling, with room for
+the splits face and target pacing later. `GUI_STACK_SIZE` is 24 KB, also raised
+in Phase 2: LVGL's software renderer recurses deeper than TouchGFX's.
+
+`.uapp`: 367 476 bytes, against RunLVGL's 419 740.
+
+LVGL's own static pool needs its own section: see 5.6.
+
+### 5.4 Version tagging — resolved
+
+0.6 item 4 left this open. The answer: `una-app.cmake` calls
+`Utilities/Scripts/build-cube/una-version.sh` with the tag-family prefix
+`apps-`, and the script then matches only `apps-v*`. **A plain `v0.1.0` tag is
+not seen** and the build stays `0.0.0-dev` — which is exactly what the current
+binary is.
+
+CLAUDE.md says to tag `vX.Y.Z`. The SDK is the source of truth where the two
+conflict, but here they need not: tag **both** on the same commit. `v0.1.0` is
+what CLAUDE.md asks for and what a GitHub release wants; `apps-v0.1.0` is what
+stamps the binary. Phase 6 does this.
+
+`pack-store-zip.sh` will not let the two drift: it reads the version out of the
+`.uapp` filename rather than trusting the manifest, and `--expect-version 0.1.0`
+makes it refuse to package a binary that is not actually 0.1.0 — which is what
+catches a forgotten tag.
+
+### 5.5 A licensing gap in the SDK, for Jon
+
+We redistribute `assets/fonts/*.c`: LVGL bitmap fonts generated from the Poppins
+TTFs the SDK ships. That is redistribution of a derivative of the font, not just
+a build artifact, so the font's licence travels with it.
+
+Poppins is published under the SIL Open Font License 1.1, which permits this and
+requires the notice to accompany it. But:
+
+- The SDK ships the Poppins TTFs (under `Docs/Tutorials/Buttons/.../assets/fonts/`)
+  **with no licence file beside them**.
+- The SDK's own `THIRD-PARTY-LICENSES.md` lists TouchGFX, coreJSON and tinycbor,
+  and names **neither LVGL nor Poppins** — though LVGL is a submodule under
+  `ThirdParty/lvgl` with its own MIT `LICENCE.txt`, and our GUI links it
+  heavily.
+
+So our `THIRD-PARTY-LICENSES.md` rests on Poppins' public licensing rather than
+on anything in the checkout. **Jon: before publishing under either route,
+confirm the licence covering the TTFs the SDK distributes**, and if OFL, add
+`OFL.txt` beside our generated fonts. Worth reporting upstream as an SDK issue
+either way.
+
+Confirmed by inspection, not assumed: `HybridXRaceGUI.elf.elf.map` contains **no
+TouchGFX symbols**. That matters, because SLA0048 forbids subjecting TouchGFX to
+open-source terms, and it means the MIT licence on our own code is unobstructed.
+
+### 5.6 The LVGL pool peaks at 91 % — the top risk going into Gate 6
+
+§11.1 asks for the pool peak to be logged. Doing it properly, rather than
+glancing at the first screen as Phase 3 did, turned up the most significant
+finding of this phase.
+
+`ScreenManager::switchNow()` logs `lv_mem_monitor()` after every screen switch.
+Walking the entire app — every menu row, Settings, "on your marks", the race
+face, sixteen splits with their toasts, the action menu, finished, saved and
+both summary pages:
+
+| | Value |
+|---|---|
+| Pool size (`LV_MEM_SIZE`) | 40 KB, of which ~36 KB is usable after LVGL's own bookkeeping |
+| Steady-state use | 4.4 KB (a confirm screen) to 18 KB (the race face) |
+| **Peak** | **91 %**, about 32.7 KB |
+| Fragmentation at peak | up to 69 % |
+
+The peak is **structural, not incidental**. `switchNow()` creates and loads the
+new screen before deleting the old one, so both widget trees are alive for the
+duration of the switch, and the pool must hold the largest such pair. The first
+switch of the run logs 50 % — that is the one with no predecessor to hold on to.
+The second logs 90 %, and it never comes down, because `max_used` is a
+high-water mark.
+
+**Why this matters more than the number suggests.** There is no MMU. An LVGL
+allocation that fails does not raise anything; it returns null and a widget
+quietly fails to be created, which on the watch is a null dereference at the
+next render. Roughly 3 KB of headroom, against a pool that is 69 % fragmented
+at the worst moment, is not much of a margin — and every screen we add later
+(the splits face, target pacing) spends some of it.
+
+**We cannot make the pool bigger.** `LV_MEM_SIZE` is set in
+`una-sdk/Libs/Header/SDK/Port/LVGL/lv_conf.h`, which is SDK-owned and read-only
+for us. It applies to every LVGL app on the platform.
+
+**Not changed in this phase, deliberately.** Two fixes look plausible and both
+are GUI-architecture changes that want a watch to verify:
+
+1. **Free the old screen before building the new one.** Halves the peak
+   directly. The risk is the window where the display's active screen has been
+   deleted and its replacement not yet loaded; it is all inside one
+   `lv_async_call` so nothing should render in between, but "should" is doing
+   real work in that sentence and the current order is the one the SDK's own
+   TouchGFX app uses.
+2. **`lv_mem_add_pool()`** with a static buffer of our own. The symbol is
+   already linked, and the GUI image uses only 44 % of its 900K region, so the
+   memory exists. This adds to the heap rather than restructuring anything.
+
+Changing how screens are torn down, in a packaging phase, against a device I
+cannot test on, is how a well-behaved app starts crashing in a race. It goes to
+Jon as the first thing to decide after Gate 4.
+
+**On the watch this needs watching anyway.** The simulator's LVGL is the same
+code with the same pool size, so the figure should carry over, but fragmentation
+depends on allocation order and the watch's renderer may differ in detail.
+`ON_WATCH_TESTS.md` T21 covers it.
+
+### 5.7 D2 — FIT sport candidates, ready to upload
+
+`docs/experiments/build-fit-candidates.sh` writes the same simulated Full race
+three times, differing only in the session's `sport` and `sub_sport`, and decodes
+each with the independent `fitdecode` library:
+
+| File | sport | sub_sport | Decode |
+|---|---|---|---|
+| `race-training-generic.fit` | training (10) | generic (0) | 4144 records, 16 laps, ordering and all developer fields correct |
+| `race-running-generic.fit` | running (1) | generic (0) | same |
+| `race-running-track.fit` | running (1) | track (4) | same |
+
+**Jon: upload each to Strava and Garmin Connect and see which gets labelled most
+usefully.** Whichever wins becomes the default in `ActivityWriter::TrackData`,
+which already takes both as parameters — a one-line change.
+
+**A constraint worth knowing.** These are the only combinations available to us.
+`SDK/Fit/FitProfile.hpp` declares `Sport { Generic, Running, Cycling, Training,
+Walking, Hiking }` and `SubSport { Generic, Treadmill, Street, Trail, Track,
+IndoorCycling }`. The public FIT profile has values that would arguably suit a
+HYROX race better — `fitness_equipment`, `hiit`, `cardio_training` — but their
+numbers are not in this SDK, and CLAUDE.md forbids inventing FIT profile
+numbers. If those are worth testing, Jon needs to confirm the numbers first.
+
+The Phase 0 experiment `batched_laps.cpp` now takes the output name and the two
+enums as arguments rather than being copied; with no arguments it behaves
+exactly as it did in Phase 0, so the original evidence is unchanged.
+
+### 5.8 Still to do
+
+- **The LVGL pool (5.6) is the first thing to decide after Gate 4.** It is the
+  only finding in this phase that could stop the app working rather than just
+  look wrong.
+- **Gate 4 is still open**: Jon's review of the Phase 4 screenshots, the three
+  station abbreviations (4.4), and T1–T8 on a watch.
+- **Gate 5's last line is Jon's**: uploading the package to the portal.
+- **D1** icon artwork, **D2** the sport choice above, **D5** the publishing
+  route. MIT is in place, so either route stays open.
+- Phase 6: T9–T15 in the field, then tag `v0.1.0` **and** `apps-v0.1.0`.

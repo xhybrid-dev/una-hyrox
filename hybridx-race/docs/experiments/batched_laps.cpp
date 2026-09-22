@@ -16,6 +16,7 @@
 #include "support/KernelTestDoubles.hpp"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -66,8 +67,19 @@ static void writeFieldDescription(fit::FitWriter& w, uint8_t num, const char* na
         .write();
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    // Phase 5 reuses this program for the D2 sport/sub-sport candidates, so the
+    // output name and the two session enums are now arguments. With none, it
+    // behaves exactly as it did in Phase 0: race.fit, Training / Generic.
+    const char* outName = (argc > 1) ? argv[1] : "race.fit";
+    const uint8_t sport = (argc > 2)
+            ? static_cast<uint8_t>(std::atoi(argv[2]))
+            : static_cast<uint8_t>(fit::Sport::Training);
+    const uint8_t subSport = (argc > 3)
+            ? static_cast<uint8_t>(std::atoi(argv[3]))
+            : static_cast<uint8_t>(fit::SubSport::Generic);
+
     // A Full race, Roxzone off: RUN(r), STATION(r) for r = 1..8 => 16 segments.
     static const char* kStations[8] = {
         "SkiErg", "Sled Push", "Sled Pull", "Burpee Broad Jumps",
@@ -80,7 +92,7 @@ int main()
     }
 
     SDK::TestSupport::KernelFixture fx;
-    auto file = fx.fileSystem.file("race.fit");
+    auto file = fx.fileSystem.file(outName);
     if (!file || !file->open(true, true)) { std::fprintf(stderr, "open failed\n"); return 1; }
 
     fit::FitWriter w(*file);
@@ -191,8 +203,8 @@ int main()
         .u32(totalS * 1000u)
         .u16(0)
         .u16(lapIndex)
-        .u8(10)   // sport = training  (D2 candidate)
-        .u8(0)    // sub_sport = generic
+        .u8(sport)     // D2 candidate, from argv
+        .u8(subSport)
         .u8(158).u8(184)
         .u8(0).u8(0).u8(1)   // race_format=full, roxzone=off, completed=yes
         .write();
@@ -209,13 +221,15 @@ int main()
 
     if (!finished || !w.ok()) { std::fprintf(stderr, "finish failed\n"); return 1; }
 
-    const std::string bytes = fx.fileSystem.readFile("race.fit");
-    std::FILE* out = std::fopen("race.fit", "wb");
-    if (!out) { std::fprintf(stderr, "cannot write race.fit\n"); return 1; }
+    const std::string bytes = fx.fileSystem.readFile(outName);
+    std::FILE* out = std::fopen(outName, "wb");
+    if (!out) { std::fprintf(stderr, "cannot write %s\n", outName); return 1; }
     std::fwrite(bytes.data(), 1, bytes.size(), out);
     std::fclose(out);
 
-    std::printf("wrote race.fit: %zu bytes, %u records, %u laps, %u s of race\n",
-                bytes.size(), recordCount, lapIndex, totalS);
+    std::printf("wrote %s: %zu bytes, %u records, %u laps, %u s of race, "
+                "sport=%u sub_sport=%u\n",
+                outName, bytes.size(), recordCount, lapIndex, totalS,
+                static_cast<unsigned>(sport), static_cast<unsigned>(subSport));
     return 0;
 }

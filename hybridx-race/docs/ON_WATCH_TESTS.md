@@ -88,3 +88,10 @@ undone, and restrict undo accordingly.
   find out whether it is right for sweaty hands mid-race.
 - **Haptic legibility.** Whether one strong pulse vs two is actually
   distinguishable through a sweaty wrist at high heart rate, mid-sled-push.
+
+### Added in Phase 5
+
+| ID | Test | Pass criteria |
+|---|---|---|
+| T20 | Install from the store zip rather than by copying the `.uapp` | The package built by `Utilities/pack-store-zip.sh` installs through the portal and the companion app, the icon and previews appear, and the four AppConfig settings are editable from the phone and reach the watch (T12 covers the value arriving; this covers the packaging around it) |
+| T21 | **LVGL pool headroom.** Walk the whole app on the watch — every menu row, a race with splits and toasts, the action menu, finished, saved, both summary pages — with the debug UART attached | `ScreenManager` logs `LVGL pool: .../... B used, peak N%` after every screen switch. In the simulator the peak is **91 %** of a 40 KB pool we cannot enlarge (`NOTES.md` 5.6). Record what the watch reports. Anything at or above 90 % means the fix must land before more screens are added; any rendering glitch or hang during a screen switch is this until proved otherwise |
