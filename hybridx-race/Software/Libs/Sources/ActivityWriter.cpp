@@ -81,6 +81,7 @@ void ActivityWriter::start(const AppInfo& info)
     writeFieldDescription(DF_STATION_ID, "station_id", nullptr, fit::BaseType::UInt8);
     writeFieldDescription(DF_RACE_FORMAT, "race_format", nullptr, fit::BaseType::UInt8);
     writeFieldDescription(DF_ROXZONE_MODE, "roxzone_mode", nullptr, fit::BaseType::UInt8);
+    writeFieldDescription(DF_RUN_DISTANCE_M, "run_distance_m", "m", fit::BaseType::UInt16);
     writeFieldDescription(DF_COMPLETED, "completed", nullptr, fit::BaseType::UInt8);
 
     // event
@@ -109,7 +110,8 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Session::MessageIndex, fit::field::Session::NumLaps,
          fit::field::Session::Sport, fit::field::Session::SubSport,
          fit::field::Session::AvgHeartRate, fit::field::Session::MaxHeartRate},
-        {{DF_RACE_FORMAT, 1, 0}, {DF_ROXZONE_MODE, 1, 0}, {DF_COMPLETED, 1, 0}});
+        {{DF_RACE_FORMAT, 1, 0}, {DF_ROXZONE_MODE, 1, 0}, {DF_COMPLETED, 1, 0},
+         {DF_RUN_DISTANCE_M, 2, 0}});
     mFit->defineMessage(L_ACTIVITY, fit::mesgNum(fit::MesgNum::Activity),
         {fit::field::Activity::Timestamp, fit::field::Activity::TotalTimerTime,
          fit::field::Activity::LocalTimestamp, fit::field::Activity::NumSessions});
@@ -349,6 +351,7 @@ bool ActivityWriter::stop(const TrackData& track)
         .u8(track.raceFormat)
         .u8(track.roxzoneMode)
         .u8(track.completed)
+        .u16(track.runDistanceM)
         .write() && ok;
 
     ok = mFit->data(L_ACTIVITY)

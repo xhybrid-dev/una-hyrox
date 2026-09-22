@@ -18,6 +18,7 @@ namespace RaceConfig
 // with validate_app_config.py --check <app-manifest.json> --check-bounds <this file>.
 const AppConfig::Field kFields[] = {
     AppConfig::boolField("roxzoneSplits", false),
+    AppConfig::intField("runDistanceM", 1000, 100, 1000),
     AppConfig::intField("splitLockoutSec", 3, 1, 10),
     AppConfig::boolField("vibrateOnSplit", true),
     AppConfig::intField("targetFinishMin", 0, 0, 240),

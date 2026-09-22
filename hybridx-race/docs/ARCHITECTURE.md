@@ -84,7 +84,7 @@ Workout example.
 
 `RaceModel` (`Libs/Header/RaceModel.hpp`, `Sources/RaceModel.cpp`) is **pure
 C++** — `<cstdint>` and `<cstddef>`, no SDK headers, no heap, no floats, no
-`std::string`. That is what lets 73 host tests simulate a 90-minute race
+`std::string`. That is what lets 78 host tests simulate a 90-minute race
 instantly, on any machine, with no watch and no ARM toolchain.
 
 It takes time as a parameter rather than reading a clock. Brief §7.4 requires a
@@ -215,8 +215,9 @@ a sled push without parsing lap names:
 | `roxzone_mode` | session | whether Roxzone was split out |
 | `completed` | session | whether the race finished or was ended early |
 
-**Distance is written from the format, not measured.** A run is 1 km, each
-station carries the metres the format states, and a Full race totals 10 480 m.
+**Distance is written from the format, not measured.** A run is however long the
+sim is set to (1 km by default), each station carries the metres the format
+states, and a Full race at the race distance totals 10 480 m.
 Nothing on the watch measures it — there is no GPS and no foot pod — but without
 it Garmin Connect and Strava show `--` for Distance, Pace and Moving Time, which
 is what the first round of candidate files did (`NOTES.md` 5.9). Average speed
@@ -245,8 +246,8 @@ Two sources that must not fight:
 
 - **On the watch**: the race format, chosen on the main menu, kept in the app's
   own settings file.
-- **From the phone**: Roxzone splits, split lock, vibrate on split and target
-  finish, through `SDK::AppConfig`.
+- **From the phone**: Roxzone splits, run length, split lock, vibrate on split
+  and target finish, through `SDK::AppConfig`.
 
 The AppConfig fields are declared twice — in C++ at
 `Libs/Sources/AppConfigFields.cpp` and in `Resources/app-manifest.json` — because
@@ -258,8 +259,9 @@ package if a default or a bound has drifted.
 ### Reference data
 
 `Libs/Header/RaceData.hpp` is the only place the race format is defined — station
-order, distances, reps, segment counts, label text. A rule change is a one-file
-edit. Station weights are deliberately absent: the app never shows them.
+order, distances, reps, segment counts, label text, and the bounds on the
+adjustable run length. A rule change is a one-file edit. Station weights are
+deliberately absent: the app never shows them.
 
 ## Build
 

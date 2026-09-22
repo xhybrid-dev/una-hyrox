@@ -10,6 +10,8 @@ undifferentiated 90-minute blob.
   numbers in both.
 - **Roxzone:** off by default; turn it on and each station is wrapped by a
   Roxzone-in and Roxzone-out lap (31 segments instead of 16).
+- **Run length:** 1 km is the race, but a sim can be run at anything from 100 m
+  to 1 km in 100 m steps. Shorten it and the app calls the session a sim.
 - **Split lock:** a configurable 1–10 s window after each split, so a fumbled
   double press at the SkiErg cannot cost you a segment.
 - **Undo:** the last split, or the finish, can be taken back without disturbing
@@ -44,7 +46,7 @@ hybridx-race/
     Libs/                       RaceModel (pure C++), Service, FIT writing
     Apps/HybridXRace-CMake/     the watch build
     Apps/LVGL-GUI/              the GUI process, and its PC simulator
-  Tests/Host/                   73 GoogleTest cases, no watch needed
+  Tests/Host/                   78 GoogleTest cases, no watch needed
   Utilities/pack-store-zip.sh   builds the portal upload package
   docs/                         the brief, NOTES, ARCHITECTURE, screenshots
 una-sdk/                        the UNA Watch SDK (not committed; see below)

@@ -649,7 +649,7 @@ void Service::emitRaceWorkout()
 
     ActivityWriter::WorkoutStepData steps[Race::kMaxSegments] = {};
     for (uint8_t i = 0u; i < n; ++i) {
-        const uint16_t metres = Race::RaceModel::distanceM(plan[i]);
+        const uint16_t metres = Race::RaceModel::distanceM(plan[i], mSettings.runDistanceM);
         Race::RaceModel::name(plan[i], names[i], sizeof(names[i]));
         steps[i].name = names[i];
         steps[i].intensity = SDK::Fit::Intensity::Active;
@@ -663,12 +663,22 @@ void Service::emitRaceWorkout()
         }
     }
 
-    const char *name = "HYROX Race";
+    const char *shape = "HYROX Full Race";
     switch (mSettings.format) {
-    case Race::Format::HalfA: name = "HYROX Half, rounds 1-4"; break;
-    case Race::Format::HalfB: name = "HYROX Half, rounds 5-8"; break;
+    case Race::Format::HalfA: shape = "HYROX Half, rounds 1-4"; break;
+    case Race::Format::HalfB: shape = "HYROX Half, rounds 5-8"; break;
     case Race::Format::Full:
-    default:                  name = "HYROX Full Race"; break;
+    default:                  break;
+    }
+
+    // A shortened run makes this a simulation rather than the race, and the
+    // file should say so plainly.
+    char name[48];
+    if (mSettings.runDistanceM == Race::kRunDistanceDefaultM) {
+        snprintf(name, sizeof(name), "%s", shape);
+    } else {
+        snprintf(name, sizeof(name), "%s, %u m runs", shape,
+                 static_cast<unsigned>(mSettings.runDistanceM));
     }
 
     mActivityWriter.addWorkout(name, steps, n);
@@ -714,7 +724,7 @@ void Service::saveRace(bool discard)
         lap.segmentType = static_cast<uint8_t>(seg->desc.type);
         lap.round = seg->desc.round;
         lap.stationId = seg->desc.stationId;
-        lap.distanceM = Race::RaceModel::distanceM(seg->desc);
+        lap.distanceM = Race::RaceModel::distanceM(seg->desc, mSettings.runDistanceM);
         // The plan and the laps run in step, so segment i is step i. A race
         // ended early simply stops referencing the rest of the plan.
         lap.wktStepIndex = i;
@@ -738,6 +748,7 @@ void Service::saveRace(bool discard)
     track.roxzoneMode = mSettings.roxzoneSplits ? 1u : 0u;
     track.completed = mRace.completed() ? 1u : 0u;
     track.distanceM = raceDistanceM;
+    track.runDistanceM = mSettings.runDistanceM;
 
     const bool ok = mActivityWriter.stop(track);
     mFitOpen = false;

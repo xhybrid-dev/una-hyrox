@@ -18,6 +18,7 @@
 //         which is what the app does; 1 credits the runs only, for comparing
 //         what the two look like in Garmin and Strava before committing.
 //         days-ago (default 0) moves the race back that many days.
+//         run-metres (default 1000) shortens the runs, as a sim often is.
 //
 // The race always ENDS at the moment the program runs, so two files made in the
 // same run differ in start time. That matters more than it sounds: every
@@ -69,14 +70,17 @@ int main(int argc, char **argv)
                                         : static_cast<uint8_t>(fit::SubSport::Generic);
     const bool runsOnly = (argc > 4) && (std::atoi(argv[4]) == 1);
     const int daysAgo = (argc > 5) ? std::atoi(argv[5]) : 0;
+    const uint16_t runM = Race::clampRunDistanceM(
+            (argc > 6) ? static_cast<uint16_t>(std::atoi(argv[6]))
+                       : Race::kRunDistanceDefaultM);
 
     // The app always uses RaceModel::distanceM(); the policy switch exists only
     // so the two can be compared side by side in a consumer app.
-    auto distanceOf = [runsOnly](const Race::SegmentDesc &d) -> uint16_t {
+    auto distanceOf = [runsOnly, runM](const Race::SegmentDesc &d) -> uint16_t {
         if (runsOnly && d.type != Race::SegmentType::Run) {
             return 0u;
         }
-        return Race::RaceModel::distanceM(d);
+        return Race::RaceModel::distanceM(d, runM);
     };
 
     // A Full race with Roxzone off: sixteen segments.
@@ -124,7 +128,14 @@ int main(int argc, char **argv)
             steps[i].durationValue = 0u;
         }
     }
-    writer.addWorkout("HYROX Full Race", steps, n);
+    char wktName[48];
+    if (runM == Race::kRunDistanceDefaultM) {
+        snprintf(wktName, sizeof(wktName), "HYROX Full Race");
+    } else {
+        snprintf(wktName, sizeof(wktName), "HYROX Full Race, %u m runs",
+                 static_cast<unsigned>(runM));
+    }
+    writer.addWorkout(wktName, steps, n);
 
     // 1 Hz heart-rate records for the whole race.
     for (uint32_t t = 0u; t < totalS; ++t) {
@@ -184,6 +195,7 @@ int main(int argc, char **argv)
     track.sport = sport;
     track.subSport = subSport;
     track.distanceM = distanceM;
+    track.runDistanceM = runM;
 
     if (!writer.stop(track)) {
         std::fprintf(stderr, "writer.stop() failed\n");

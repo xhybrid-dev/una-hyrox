@@ -35,8 +35,12 @@ Everything below becomes 0.1.0 once it has run on a watch (Gate 6).
   is what makes undo possible.
 - **Summary**: total, runs total, stations total, Roxzone total, average and
   maximum heart rate, then the full split list five rows a page.
-- **Phone-editable settings** through AppConfig: Roxzone splits, split lock,
-  vibrate on split, target finish.
+- **Adjustable run length.** A HYROX run is 1 km, but a test run-through is
+  often 500 m or 800 m, so the run distance is settable in 100 m steps from
+  100 m to 1 km. Shorten it and the app calls the session a sim rather than a
+  race, on the watch and in the FIT file.
+- **Phone-editable settings** through AppConfig: Roxzone splits, run length,
+  split lock, vibrate on split, target finish.
 - **Haptics** by segment type, and backlight on every split.
 - **Store packaging**: `Utilities/pack-store-zip.sh` builds a validated portal
   zip and refuses to build an invalid one.

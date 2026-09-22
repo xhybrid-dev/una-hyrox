@@ -21,11 +21,15 @@ using Style = WheelMenu::Item::Style;
 // then the wheel is refreshed.
 WheelMenu::Item kItems[App::MenuNav::Root::Settings::ID_COUNT] = {
     { Style::Toggle, "Roxzone\nsplits" },
+    // One line, and no longer than "Split lock": a Tip row draws its title over
+    // its value, so a wrapped title lands on top of the number.
+    { Style::Tip,    "Run length" },
     { Style::Tip,    "Split lock" },
     { Style::Toggle, "Vibrate\non split" },
 };
 
 char kLockoutTip[8] = "3 s";
+char kRunDistanceTip[8] = "1 km";
 }  // namespace
 
 MenuSettingsScreen::MenuSettingsScreen(Model& model)
@@ -65,6 +69,12 @@ void MenuSettingsScreen::refreshItems()
              static_cast<unsigned>(mSettings.splitLockoutSec));
     kItems[Menu::ID_LOCKOUT].tip = kLockoutTip;
 
+    // The table already words 1000 m as "1 km", which is how the format writes
+    // the race distance.
+    snprintf(kRunDistanceTip, sizeof(kRunDistanceTip), "%s",
+             Race::runWork(mSettings.runDistanceM));
+    kItems[Menu::ID_RUN_DISTANCE].tip = kRunDistanceTip;
+
     mMenu->refresh();
 }
 
@@ -89,6 +99,16 @@ void MenuSettingsScreen::confirm()
     switch (mMenu->selected()) {
     case Menu::ID_ROXZONE:
         mSettings.roxzoneSplits = !mSettings.roxzoneSplits;
+        break;
+
+    case Menu::ID_RUN_DISTANCE:
+        // Cycles 100 m to 1 km in 100 m steps, in place, like the lockout.
+        // A sim is often run short -- 500 m or 800 m (NOTES.md 5.13).
+        mSettings.runDistanceM = static_cast<uint16_t>(
+                mSettings.runDistanceM + Race::kRunDistanceStepM);
+        if (mSettings.runDistanceM > Race::kRunDistanceMaxM) {
+            mSettings.runDistanceM = Race::kRunDistanceMinM;
+        }
         break;
 
     case Menu::ID_LOCKOUT:

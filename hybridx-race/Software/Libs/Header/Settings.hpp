@@ -49,6 +49,10 @@ struct Settings
     /// Record Roxzone in and out as separate segments. Decision D3: off.
     bool roxzoneSplits = false;
 
+    /// How long each run is, in metres. 1 km is the race; a shorter sim is a
+    /// common test piece (NOTES.md 5.13). Bounds live in RaceData.hpp.
+    uint16_t runDistanceM = Race::kRunDistanceDefaultM;
+
     /// Ignore the split button for this many seconds after a split. Decision D8.
     uint8_t splitLockoutSec = kLockoutDefaultSec;
 

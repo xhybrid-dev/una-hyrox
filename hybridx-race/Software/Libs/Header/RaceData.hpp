@@ -71,22 +71,78 @@ constexpr uint8_t kStationCount = 8;
 /// Number of runs in a full race; also the denominator in "RUN 3/8".
 constexpr uint8_t kRunCount = 8;
 
-/// Work shown for every run.
-constexpr const char *kRunWork = "1 km";
+/**
+ * @brief Run distance bounds, in metres.
+ *
+ * A HYROX run is 1 km and that is the default, but a training sim is often run
+ * shorter -- 500 m or 800 m is a common test piece -- so the distance is
+ * adjustable in 100 m steps (Jon's request, 23 September 2026). The ceiling is
+ * the race distance: this exists to make a sim shorter, not to invent a longer
+ * HYROX.
+ */
+constexpr uint16_t kRunDistanceStepM = 100u;
+constexpr uint16_t kRunDistanceMinM = 100u;
+constexpr uint16_t kRunDistanceMaxM = 1000u;
+constexpr uint16_t kRunDistanceDefaultM = 1000u;
+
+/// Number of selectable run distances: 100 m to 1000 m inclusive.
+constexpr uint8_t kRunDistanceCount =
+        static_cast<uint8_t>((kRunDistanceMaxM - kRunDistanceMinM) / kRunDistanceStepM + 1u);
 
 /**
- * @brief Metres credited to a run lap in the FIT file.
+ * @brief Work shown for a run, indexed by hundreds of metres.
  *
- * Jon's decision, 22 September 2026: the FIT file carries every distance the
- * format states, so a race totals 10 480 m -- eight kilometres of running plus
- * the stations' own metres, the SkiErg's and the Row's included even though
- * those are machine metres rather than ground covered. Wall Balls are reps and
- * carry nothing.
+ * A table rather than a formatter: the watch formats with integers only
+ * (brief 14.4), every caller wants a @c const @c char* it does not own, and
+ * there are only ten of them. @c kRunWorkByHundreds[10] is the race distance and
+ * reads "1 km" rather than "1000 m", which is how the format writes it.
+ */
+constexpr const char *kRunWorkByHundreds[kRunDistanceCount + 1u] = {
+    "",      "100 m", "200 m", "300 m", "400 m",
+    "500 m", "600 m", "700 m", "800 m", "900 m", "1 km",
+};
+
+/**
+ * @brief Clamp a run distance to the selectable range, rounded down to a step.
+ *
+ * @param metres Requested distance.
+ * @retval A value between kRunDistanceMinM and kRunDistanceMaxM, on a step.
+ */
+constexpr uint16_t clampRunDistanceM(uint16_t metres)
+{
+    if (metres < kRunDistanceMinM) {
+        return kRunDistanceMinM;
+    }
+    if (metres > kRunDistanceMaxM) {
+        return kRunDistanceMaxM;
+    }
+    return static_cast<uint16_t>((metres / kRunDistanceStepM) * kRunDistanceStepM);
+}
+
+/**
+ * @brief The work text for a run of @p metres.
+ *
+ * @param metres Run distance; clamped, so a corrupt value cannot index out.
+ * @retval A string literal, never nullptr.
+ */
+constexpr const char *runWork(uint16_t metres)
+{
+    return kRunWorkByHundreds[clampRunDistanceM(metres) / kRunDistanceStepM];
+}
+
+/**
+ * @brief How the FIT file credits distance.
+ *
+ * Jon's decision, 22 September 2026: the file carries every distance the format
+ * states, so a full race at the default run distance totals 10 480 m -- eight
+ * kilometres of running plus the stations' own metres, the SkiErg's and the
+ * Row's included even though those are machine metres rather than ground
+ * covered. Wall Balls are reps and carry nothing.
  *
  * This is what fills in Distance and Avg Pace on Garmin Connect and Strava;
- * without it every one of those fields reads "--" (NOTES.md 5.9).
+ * without it every one of those fields reads "--" (NOTES.md 5.9). The run part
+ * of it moves with the configured run distance (NOTES.md 5.13).
  */
-constexpr uint16_t kRunDistanceM = 1000u;
 
 /**
  * @brief Separator between a segment's name and its work, as brief 7.2 writes it:

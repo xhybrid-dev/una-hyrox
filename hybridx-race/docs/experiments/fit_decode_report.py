@@ -99,6 +99,8 @@ def report(path):
          session.get("total_calories") is None),
         ("race_format", session.get("race_format"), False),
         ("roxzone_mode", session.get("roxzone_mode"), False),
+        ("run_distance_m", session.get("run_distance_m"),
+         session.get("run_distance_m") is None),
         ("completed", session.get("completed"), False),
     ):
         flag = "   <-- absent, shows as '--'" if warn else ""

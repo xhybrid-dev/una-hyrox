@@ -54,7 +54,8 @@ void TrackStartConfirmScreen::onShow()
     const Settings &s = mModel.getSettings();
 
     char buf[32];
-    const char *format = "Full race";
+    const char *format = (s.runDistanceM == Race::kRunDistanceDefaultM)
+                                 ? "Full race" : "Full sim";
     switch (s.format) {
     case Race::Format::HalfA: format = "Half: rounds 1-4"; break;
     case Race::Format::HalfB: format = "Half: rounds 5-8"; break;
@@ -64,9 +65,19 @@ void TrackStartConfirmScreen::onShow()
     snprintf(buf, sizeof(buf), "%s", format);
     lv_label_set_text(mFormat, buf);
 
-    snprintf(buf, sizeof(buf), "%u segments",
-             static_cast<unsigned>(
-                     Race::RaceModel::plannedCount(s.format, s.roxzoneSplits)));
+    // The run distance earns its place here only when it is not the race
+    // distance: seeing "8 x 500 m" before you start is the difference between
+    // a deliberate sim and a mis-set watch.
+    if (s.runDistanceM == Race::kRunDistanceDefaultM) {
+        snprintf(buf, sizeof(buf), "%u segments",
+                 static_cast<unsigned>(
+                         Race::RaceModel::plannedCount(s.format, s.roxzoneSplits)));
+    } else {
+        snprintf(buf, sizeof(buf), "%u segments %s %s runs",
+                 static_cast<unsigned>(
+                         Race::RaceModel::plannedCount(s.format, s.roxzoneSplits)),
+                 Race::kLabelSep, Race::runWork(s.runDistanceM));
+    }
     lv_label_set_text(mSegments, buf);
 
     lv_label_set_text(mRoxzone, s.roxzoneSplits ? "Roxzone split" : "Roxzone merged");

@@ -156,7 +156,7 @@ void TrackScreen::redraw()
                                                       : Theme::rgb(Color::WHITE),
                                 LV_PART_MAIN);
 
-    const char *work = Race::RaceModel::work(d.current);
+    const char *work = Race::RaceModel::work(d.current, mModel.getSettings().runDistanceM);
     if (work[0] != '\0') {
         snprintf(buf, sizeof(buf), "%s %s %u of %u", work, Race::kLabelSep,
                  static_cast<unsigned>(d.segmentIndex + 1u),

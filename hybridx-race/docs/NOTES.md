@@ -1324,3 +1324,62 @@ no name of its own, and a named workout step is the only mechanism the format
 offers. The fallbacks are already built: the developer fields, which HybridX
 reads directly, and the watch's own summary, which names every split on the
 wrist.
+
+---
+
+## Amendment — adjustable run distance (23 September 2026)
+
+### 5.13 Why, and what it touches
+
+Jon's request: a HYROX run is 1 km, but a test run-through is often done at 500 m
+or 800 m, and the app had no way to say so. So the run distance is now a
+setting, adjustable in **100 m steps from 100 m to 1 km**, defaulting to the
+race distance.
+
+The ceiling is deliberate. This exists to make a sim shorter, not to invent a
+longer HYROX; anyone wanting more moves one constant in `RaceData.hpp`.
+
+Nothing about the change was architectural, because the plan was always
+generated from parameters rather than hard-coded. `buildTemplate()` is untouched.
+
+| Where | What changed |
+|---|---|
+| `RaceData.hpp` | Bounds, `clampRunDistanceM()`, and `kRunWorkByHundreds` |
+| `RaceModel.hpp` | `distanceM()`, `label()` and `work()` take the run distance, defaulted to 1 km so nothing else had to change at once |
+| `Settings` | `runDistanceM`, persisted and clamped on load |
+| AppConfig | A fifth field, so a coach can set it from the phone; the manifest and the C++ table still agree under `--check-bounds` |
+| GUI | A "Run length" row in Settings, and the race face's work line |
+| FIT | Run laps carry the shortened distance, and the session gains `run_distance_m` (developer field 13) |
+
+**`kRunWorkByHundreds` is a table, not a formatter.** Ten strings indexed by
+hundreds of metres: the watch formats with integers only (brief 14.4), every
+caller wants a `const char*` it does not own, and `[10]` can then read "1 km"
+rather than "1000 m", which is how the format writes the race distance.
+
+### 5.14 Two things the change made visible
+
+**A shortened run makes it a sim, and the app now says so.** "On your marks"
+reads *"Full sim — 16 segments · 500 m runs"* instead of *"Full race"*, and the
+FIT workout is named *"HYROX Full Race, 500 m runs"*. An athlete who left the
+setting at 500 m by accident finds out before the gun rather than afterwards.
+The session's `run_distance_m` means HybridX never has to infer it from the lap
+distances either.
+
+**A `Style::Tip` row draws its title over its value.** The first version of the
+Settings row was titled "Run distance", which wrapped to two lines and landed on
+top of the "500 m" underneath it — legible in neither direction. Caught in the
+simulator, not by a build. It is now "Run length", exactly as long as "Split
+lock", so if one fits the other does.
+
+Screens: `screens/phase5-settings-run-length.png`,
+`phase5-on-your-marks-sim.png`, `phase5-race-500m.png`.
+
+### 5.15 Verified
+
+- 78 host tests, five of them new: the work table, the clamp (swept over every
+  value from 0 to 1200 m, asserting the result always indexes the table), the
+  per-segment distance, sim totals, and labels.
+- A 500 m sim written through the real `ActivityWriter`:
+  `fit-candidates/K-sim-500m-runs.fit`. 6 480 m total, run laps at 500 m,
+  stations untouched, `run_distance_m = 500`.
+- Watch target and simulator build clean.

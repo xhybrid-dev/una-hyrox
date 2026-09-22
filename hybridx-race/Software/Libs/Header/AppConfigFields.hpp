@@ -34,6 +34,7 @@ constexpr const char *kFileName = "app_config.json";
 
 /// Field ids, so the service never spells one out twice.
 constexpr const char *kRoxzoneSplits = "roxzoneSplits";
+constexpr const char *kRunDistanceM = "runDistanceM";
 constexpr const char *kSplitLockoutSec = "splitLockoutSec";
 constexpr const char *kVibrateOnSplit = "vibrateOnSplit";
 constexpr const char *kTargetFinishMin = "targetFinishMin";

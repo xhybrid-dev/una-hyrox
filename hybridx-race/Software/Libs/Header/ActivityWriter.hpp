@@ -103,6 +103,7 @@ public:
         uint8_t     sport              = 1;    // FIT sport: running
         uint8_t     subSport           = 0;    // FIT sub_sport: generic
         uint32_t    distanceM          = 0;    // total metres; drives Distance and Avg Pace
+        uint16_t    runDistanceM       = 1000;  // metres per run; 1000 is the race
     };
 
     /**
@@ -185,6 +186,10 @@ private:
         DF_RACE_FORMAT      = 10,
         DF_ROXZONE_MODE     = 11,
         DF_COMPLETED        = 12,
+        // How long a run was in this sim, in metres. 1000 on a real race; a
+        // shortened sim says so rather than leaving an importer to infer it
+        // from the lap distances (NOTES.md 5.13).
+        DF_RUN_DISTANCE_M   = 13,
     };
 
     /// Flush + marker-refresh cadence during recording (seconds of record time).

@@ -274,6 +274,76 @@ TEST(RaceTemplateTest, ARaceTotalsTheDistanceItIsSupposedTo)
     EXPECT_EQ(plannedDistanceM(Format::Full, true), 10480u);
 }
 
+// -- Adjustable run distance (Jon's request, 23 September 2026) ---------------
+
+TEST(RaceTemplateTest, RunWorkReadsAsTheDistanceAsked)
+{
+    EXPECT_STREQ(Race::runWork(1000u), "1 km") << "the race distance keeps its own wording";
+    EXPECT_STREQ(Race::runWork(800u), "800 m");
+    EXPECT_STREQ(Race::runWork(500u), "500 m");
+    EXPECT_STREQ(Race::runWork(100u), "100 m");
+}
+
+TEST(RaceTemplateTest, RunDistanceIsClampedAndSnappedToAStep)
+{
+    EXPECT_EQ(Race::clampRunDistanceM(800u), 800u);
+    EXPECT_EQ(Race::clampRunDistanceM(0u), Race::kRunDistanceMinM);
+    EXPECT_EQ(Race::clampRunDistanceM(60000u), Race::kRunDistanceMaxM);
+    EXPECT_EQ(Race::clampRunDistanceM(849u), 800u) << "rounded down to a 100 m step";
+
+    // Whatever comes back must index the work table, which is what makes
+    // runWork() safe on a corrupt setting.
+    for (uint32_t m = 0u; m <= 1200u; ++m) {
+        const uint16_t clamped = Race::clampRunDistanceM(static_cast<uint16_t>(m));
+        EXPECT_GE(clamped, Race::kRunDistanceMinM) << "at " << m;
+        EXPECT_LE(clamped, Race::kRunDistanceMaxM) << "at " << m;
+        EXPECT_EQ(clamped % Race::kRunDistanceStepM, 0u) << "at " << m;
+        EXPECT_STRNE(Race::runWork(static_cast<uint16_t>(m)), "") << "at " << m;
+    }
+}
+
+TEST(RaceTemplateTest, AShortenedRunChangesOnlyTheRuns)
+{
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Run, 3u, 0u }, 800u), 800u);
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 1u, 1u }, 800u), 1000u)
+            << "the SkiErg is the SkiErg whatever the runs are";
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 8u, 8u }, 800u), 0u);
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::RoxIn, 3u, 0u }, 800u), 0u);
+}
+
+TEST(RaceTemplateTest, ASimTotalsTheRightDistance)
+{
+    auto total = [](Format format, bool roxzone, uint16_t runM) {
+        SegmentDesc plan[Race::kMaxSegments] = {};
+        const uint8_t n = RaceModel::buildTemplate(format, roxzone, plan, Race::kMaxSegments);
+        uint32_t sum = 0u;
+        for (uint8_t i = 0u; i < n; ++i) {
+            sum += RaceModel::distanceM(plan[i], runM);
+        }
+        return sum;
+    };
+
+    // 8 runs plus 2480 m of stations.
+    EXPECT_EQ(total(Format::Full, false, 1000u), 10480u);
+    EXPECT_EQ(total(Format::Full, false, 800u), 8880u);
+    EXPECT_EQ(total(Format::Full, false, 500u), 6480u);
+
+    // Half A is 4 runs plus SkiErg, sled push, sled pull and burpees.
+    EXPECT_EQ(total(Format::HalfA, false, 500u), 2000u + 1180u);
+}
+
+TEST(RaceTemplateTest, LabelsFollowTheRunDistance)
+{
+    char buf[Race::kMaxLabelLen] = {};
+    RaceModel::label({ SegmentType::Run, 3u, 0u }, buf, sizeof(buf), 800u);
+    EXPECT_EQ(std::string(buf), "RUN 3/8 \xC2\xB7 800 m");
+
+    RaceModel::label({ SegmentType::Station, 3u, 3u }, buf, sizeof(buf), 800u);
+    EXPECT_EQ(std::string(buf), "SLED PULL \xC2\xB7 50 m") << "a station is untouched";
+
+    EXPECT_STREQ(RaceModel::work({ SegmentType::Run, 1u, 0u }, 500u), "500 m");
+}
+
 // -- Defensive behaviour (no MMU, brief 14.14) --------------------------------
 
 TEST(RaceTemplateTest, BuildTemplateRefusesTooSmallABuffer)

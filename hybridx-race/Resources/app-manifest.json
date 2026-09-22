@@ -34,6 +34,17 @@
       "default": false
     },
     {
+      "id": "runDistanceM",
+      "type": "int",
+      "label": "Run distance",
+      "description": "How long each run is in a simulation. 1000 m is the race distance.",
+      "default": 1000,
+      "min": 100,
+      "max": 1000,
+      "unit": "m",
+      "validationMessage": "Between 100 and 1000 metres, in 100 m steps."
+    },
+    {
       "id": "splitLockoutSec",
       "type": "int",
       "label": "Split lock",

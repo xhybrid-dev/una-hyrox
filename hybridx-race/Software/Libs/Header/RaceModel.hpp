@@ -158,8 +158,11 @@ public:
      * @param desc Segment to describe.
      * @param buf  Caller-owned buffer, at least @c kMaxLabelLen bytes.
      * @param size Size of @p buf.
+     * @param runDistanceM Configured run distance; a run reads "500 m" on a
+     *                     shortened sim rather than "1 km".
      */
-    static inline void label(const SegmentDesc &desc, char *buf, size_t size)
+    static inline void label(const SegmentDesc &desc, char *buf, size_t size,
+                             uint16_t runDistanceM = kRunDistanceDefaultM)
     {
         if (buf == nullptr || size == 0u) {
             return;
@@ -168,7 +171,7 @@ public:
         switch (desc.type) {
         case SegmentType::Run:
             snprintf(buf, size, "RUN %u/%u %s %s", static_cast<unsigned>(desc.round),
-                     static_cast<unsigned>(kRunCount), kLabelSep, kRunWork);
+                     static_cast<unsigned>(kRunCount), kLabelSep, runWork(runDistanceM));
             break;
 
         case SegmentType::RoxIn:
@@ -247,17 +250,19 @@ public:
     /**
      * @brief Metres this segment contributes to the FIT file.
      *
-     * A run is 1 km; a station is whatever the format states; a Roxzone
-     * transition and Wall Balls are nothing. Inline for the same reason label()
-     * is: the GUI binary does not link RaceModel.cpp.
+     * A run is whatever the sim is set to; a station is what the format states;
+     * a Roxzone transition and Wall Balls are nothing. Inline for the same
+     * reason label() is: the GUI binary does not link RaceModel.cpp.
      *
      * @param desc Segment to measure.
+     * @param runDistanceM Configured run distance, clamped before use.
      * @retval Metres, or 0 when the segment has no distance.
      */
-    static inline uint16_t distanceM(const SegmentDesc &desc)
+    static inline uint16_t distanceM(const SegmentDesc &desc,
+                                     uint16_t runDistanceM = kRunDistanceDefaultM)
     {
         if (desc.type == SegmentType::Run) {
-            return kRunDistanceM;
+            return clampRunDistanceM(runDistanceM);
         }
         if (desc.type == SegmentType::Station && desc.stationId >= 1u &&
             desc.stationId <= kStationCount) {
@@ -270,12 +275,14 @@ public:
      * @brief The work shown beside a segment name, or "" when it has none.
      *
      * @param desc Segment to describe.
+     * @param runDistanceM Configured run distance.
      * @retval A string literal; never nullptr.
      */
-    static inline const char *work(const SegmentDesc &desc)
+    static inline const char *work(const SegmentDesc &desc,
+                                   uint16_t runDistanceM = kRunDistanceDefaultM)
     {
         if (desc.type == SegmentType::Run) {
-            return kRunWork;
+            return runWork(runDistanceM);
         }
         if (desc.type == SegmentType::Station && desc.stationId >= 1u &&
             desc.stationId <= kStationCount) {
