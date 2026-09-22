@@ -64,10 +64,10 @@ submodule; without `--recurse-submodules` the GUI will not build.
 
 ```bash
 git clone --recurse-submodules https://github.com/UNAWatch/una-sdk.git
-cd una-sdk && git checkout b0f8955e && git submodule update --init --recursive
+cd una-sdk && git checkout a7a995a1 && git submodule update --init --recursive
 ```
 
-`b0f8955e` (`apps-v1.5.0-rc4-3-gb0f8955e`) is the commit this app is built and
+`a7a995a1` (`apps-v1.5.0-rc4-8-ga7a995a1`) is the commit this app is built and
 tested against. The SDK ABI it carries is 3, which means the watch needs kernel
 firmware **1.4.0 or newer**.
 

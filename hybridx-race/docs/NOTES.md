@@ -1383,3 +1383,81 @@ Screens: `screens/phase5-settings-run-length.png`,
   `fit-candidates/K-sim-500m-runs.fit`. 6 480 m total, run laps at 500 m,
   stations untouched, `run_distance_m = 500`.
 - Watch target and simulator build clean.
+
+---
+
+## Amendment — SDK pin bumped to a7a995a1 (23 September 2026)
+
+### 5.16 Why
+
+Jon asked whether development had tracked the latest SDK. It had not: the pin
+set in Phase 0 (0.2) was `b0f8955e`, and by 23 September `main` had moved five
+commits ahead. Checked properly rather than assumed stale-and-fine.
+
+`git log --stat HEAD..origin/main` showed four fixes plus the docs commit that
+describes them, all landed the same day (21 September, 18:51-21:57), all in the
+message-lifetime area:
+
+- **`fix(simulator): destroy messages the way the watch does, and stop leaking
+  them`** -- the simulator called `delete msg` (a virtual dispatch); the watch
+  destroys messages non-virtually, because a message is constructed inside the
+  allocating app's own image and the kernel frees that image on unload. A
+  message type with a declared destructor would previously run it in the
+  simulator and silently not on the device -- exactly the divergence a
+  simulator exists to catch, inverted.
+- **`fix(simulator): zero message storage on allocation, as the watch does`**
+  -- the kernel's allocator memsets a block; the simulator's did not, so an
+  uninitialised field read as garbage in the simulator and zero on the watch.
+- **`fix(port): return queued custom messages before the GUI exits`** -- the
+  GUI process used to exit holding up to ten pool blocks in its own queue,
+  which the kernel's drain cannot see and which are then lost for the life of
+  the boot. Now each queued message is answered FAIL and released on exit.
+- **`docs(sdk): message lifetime rules...`** -- writes the above down where an
+  app author can find it (`sdk-overview.md`,
+  `Docs/TouchGFX-Port-Architecture.md`), and fixes several of the SDK's own
+  tutorial examples that violated the rules as written (IDs outside the
+  application-specific range, a `std::string` member on a message type, a
+  payload four times the pool ceiling).
+
+### 5.17 Checked before bumping, not after
+
+Every rule the docs commit states, this app already followed -- checked by
+reading `Commands.hpp`, not assumed: no message type declares a destructor, and
+every field of every message struct has an explicit in-class default (`= 0u`,
+`{}`), so none of them was depending on the old simulator's un-zeroed memory to
+happen to work. Nothing here was a latent bug the fixes exposed.
+
+Then verified rather than inferred: fetched `origin/main`, checked it out in a
+scratch worktree (`git worktree add`, not touching the working `una-sdk/`
+until this was through), and built all three targets against it with zero
+changes to our code --
+
+```
+host tests:  78/78 pass
+simulator:   builds clean, linked
+watch:       builds clean, .uapp produced
+```
+
+then ran a short race through the simulator against the new pin specifically
+to exercise message traffic under the changed destroy/zero/drain behaviour --
+split, undo menu, exit -- and watched the log: settings load warning (expected,
+first run), then at exit the GUI's queue draining exactly as the new fix
+describes (`clearGuiQueue`, `clearCommonQueue`, `Queues cleared`). No crash, no
+assert, screens identical to before.
+
+### 5.18 Bumped
+
+`una-sdk/` now checked out at `a7a995a1` (`apps-v1.5.0-rc4-8-ga7a995a1`), five
+commits past the Phase 0 pin. `README.md` and `THIRD-PARTY-LICENSES.md`
+updated; §0.2's table is left as the historical record of what Phase 0
+actually pinned, not rewritten.
+
+Worth doing rather than leaving alone: the two simulator fixes make the
+simulator match the watch *more* closely, which matters more here than on a
+project that can just test on hardware -- our entire verification strategy
+through Phase 5 has been "prove it in the simulator, because there is no
+watch." A simulator that now destroys and zeroes messages the way the device
+does is strictly less likely to pass something that then fails on hardware.
+
+No code changes were needed anywhere in `hybridx-race/`. This is a pin bump,
+not a phase.
