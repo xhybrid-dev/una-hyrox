@@ -1213,11 +1213,49 @@ absent ones, so "is it missing or unreadable?" is never an open question again.
 - **The LVGL pool (5.6) is the first thing to decide after Gate 4.** It is the
   only finding in this phase that could stop the app working rather than just
   look wrong.
-- **D2 is now two questions**, and four candidate files answer both: sport
-  training or running, and distance all-stated or runs-only (5.9).
+- **D2, round three.** Distance is settled (every stated metre, 10 480 m) and
+  every step is now named; what remains is whether a race should call itself
+  Running, Cardio or HIIT. Candidates E, F and G (5.11).
 - **Gate 4 is still open**: Jon's review of the Phase 4 screenshots, the three
   station abbreviations (4.4), and T1–T8 on a watch.
 - **Gate 5's last line is Jon's**: uploading the package to the portal.
 - **D1** icon artwork, **D2** the sport choice above, **D5** the publishing
   route. MIT is in place, so either route stays open.
 - Phase 6: T9–T15 in the field, then tag `v0.1.0` **and** `apps-v0.1.0`.
+
+### 5.11 Labelled laps, and two gaps in the SDK's FIT profile
+
+Round 2 worked: Jon confirmed 10.48 km, 6:35/km avg pace and sixteen laps with
+per-lap distance and pace in Garmin Connect. Two questions came back from it --
+can the laps be labelled, and would "Cardio" suit the race better than "Running"
+-- and both turn on numbers `SDK/Fit/FitProfile.hpp` does not declare.
+
+**Where the numbers came from.** Not from memory, and not invented. `fitdecode`
+ships profile tables generated from Garmin's published FIT SDK, so the data
+dictionary is readable locally and, better, *checkable*: we write a field and
+the same library reads it back under its proper name. That is the standard this
+project needs for a FIT constant, and it is met here.
+
+| What we needed | Where the SDK stops | The dictionary says |
+|---|---|---|
+| A name on a workout step | `field::WorkoutStep` declares message_index, duration, target and intensity -- every field **except** the name | `wkt_step_name` is field **0**, base type string |
+| `sub_sport` for a cardio or HIIT session | `enum class SubSport` stops at `IndoorCycling = 6` | `cardio_training` = **26**, `hiit` = **70**, `strength_training` = 20, `indoor_running` = 45 |
+
+**Lap labels: only one route exists.** The FIT `lap` message has no name field
+at all -- it carries `sport`, `sub_sport` and `wkt_step_index`, and that is the
+lot. So a lap can only be named by pointing it at a named workout step, which is
+what the app now does: a workout of one step per planned segment, each step
+named from `RaceModel::name()` ("RUN 1/8", "SKIERG", "SLED PUSH"), and
+`wkt_step_index` on every lap. Whether Garmin Connect and Strava actually
+*surface* that name is what candidates E, F and G are for.
+
+**Worth taking to UNA**, alongside the other findings: `FitProfile.hpp` omits
+`wkt_step_name`, which blocks any app on the platform from labelling a lap, and
+its `SubSport` enum covers six of the profile's values, which rules out every
+studio and gym sport an app might record. Both are one-line additions. The app
+works around them by passing raw numbers to `FitWriter`, which is
+profile-agnostic by design -- but an app should not have to.
+
+**The default is now running/generic**, because that is the combination Jon
+confirmed reads well. `TrackData` keeps sport and sub_sport as parameters, so
+whichever of E/F/G wins is a one-line change.

@@ -276,8 +276,22 @@ void ActivityWriter::addWorkout(const char* name, const WorkoutStepData* steps,
         {fit::field::Workout::MessageIndex,
          {fit::field::Workout::kWktNameNum, fit::BaseType::String, nameLen},
          fit::field::Workout::NumValidSteps, fit::field::Workout::Sport});
+    // kWktStepNameNum is NOT in SDK/Fit/FitProfile.hpp: its WorkoutStep
+    // namespace declares every field of workout_step except the one that names
+    // a step. The number below is the public FIT data dictionary's, read from
+    // the profile tables the fitdecode library generates from Garmin's FIT SDK
+    // (docs/experiments/fit_decode_report.py decodes what we write and reads
+    // the name back, which is the check that it is right).
+    //
+    // Without it a lap cannot be labelled at all: the lap message has no name
+    // field of its own, and neither Garmin Connect nor Strava shows developer
+    // fields. Worth asking UNA to add it to FitProfile.hpp -- it blocks every
+    // app on the platform, not just this one (NOTES.md 5.11).
+    constexpr uint8_t kWktStepNameNum = 0;
     mFit->defineMessage(L_WORKOUT_STEP, fit::mesgNum(fit::MesgNum::WorkoutStep),
-        {fit::field::WorkoutStep::MessageIndex, fit::field::WorkoutStep::DurationType,
+        {fit::field::WorkoutStep::MessageIndex,
+         {kWktStepNameNum, fit::BaseType::String, kStepNameBytes},
+         fit::field::WorkoutStep::DurationType,
          fit::field::WorkoutStep::DurationValue, fit::field::WorkoutStep::TargetType,
          fit::field::WorkoutStep::TargetValue, fit::field::WorkoutStep::Intensity});
 
@@ -291,6 +305,7 @@ void ActivityWriter::addWorkout(const char* name, const WorkoutStepData* steps,
     for (uint8_t i = 0u; i < count; ++i) {
         mFit->data(L_WORKOUT_STEP)
             .u16(i)
+            .str(steps[i].name ? steps[i].name : "", kStepNameBytes)
             .u8(static_cast<uint8_t>(steps[i].durationType))
             .u32(steps[i].durationValue)
             .u8(static_cast<uint8_t>(fit::WktStepTarget::Open))

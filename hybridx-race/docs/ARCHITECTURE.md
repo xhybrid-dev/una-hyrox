@@ -222,10 +222,13 @@ it Garmin Connect and Strava show `--` for Distance, Pace and Moving Time, which
 is what the first round of candidate files did (`NOTES.md` 5.9). Average speed
 per lap and for the session is derived from it.
 
-The laps also reference a **workout**: one named workout for the race and one
-step per planned segment, with `wkt_step_index` on each lap. The SDK's profile
-declares no name on a step, so a step says only how long it is and that it is
-work; what each lap *was* stays in the developer fields.
+The laps also reference a **workout**: one workout for the race and one step per
+planned segment, each step named from `RaceModel::name()` and pointed at by the
+lap's `wkt_step_index`. That is the only way to label a lap — the FIT lap message
+has no name field of its own, and neither Garmin nor Strava displays developer
+fields. `wkt_step_name` is not in the SDK's `FitProfile.hpp`, so its field number
+is written directly, taken from the published FIT data dictionary and verified by
+decoding what we wrote (`NOTES.md` 5.11).
 
 Calories are **not** written. The app has no source for them, and a fabricated
 number in a FIT file is worse than an absent one. Both platforms therefore show

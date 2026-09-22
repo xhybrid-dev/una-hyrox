@@ -94,10 +94,15 @@ public:
         uint8_t     raceFormat         = 0;    // 0 full, 1 half A, 2 half B
         uint8_t     roxzoneMode        = 0;    // 1 when Roxzone splitting was on
         uint8_t     completed          = 0;    // 1 finished normally, 0 ended early
-        // Decision D2 is still open, so the session sport is a parameter rather
-        // than a constant: Phase 3 can emit candidate files for Jon to upload.
-        uint8_t     sport              = 10;   // FIT sport, default training
-        uint8_t     subSport           = 0;    // FIT sub_sport, default generic
+        // Decision D2. Jon compared candidate files in Garmin Connect on 22
+        // September 2026 and running/generic read best, so that is the default;
+        // cardio_training (10/26) and hiit (10/70) are still being compared
+        // (NOTES.md 5.11). A parameter rather than a constant so a candidate
+        // costs one argument, and because FitWriter is profile-agnostic: any
+        // published FIT value goes here, including the ones SDK/Fit/FitProfile.hpp
+        // does not declare.
+        uint8_t     sport              = 1;    // FIT sport: running
+        uint8_t     subSport           = 0;    // FIT sub_sport: generic
         uint32_t    distanceM          = 0;    // total metres; drives Distance and Avg Pace
     };
 
@@ -112,7 +117,15 @@ public:
         SDK::Fit::Intensity       intensity     = SDK::Fit::Intensity::Active;
         SDK::Fit::WktStepDuration durationType  = SDK::Fit::WktStepDuration::Open;
         uint32_t                  durationValue = 0;  // DISTANCE: cm; TIME: ms; OPEN: 0
+        /// What to call this step, e.g. "SKIERG". Caller-owned; copied on write.
+        /// Truncated to kStepNameBytes - 1 characters.
+        const char               *name          = nullptr;
     };
+
+    /// Bytes reserved for a step name, terminator included. Every step shares
+    /// one message definition, so the field is fixed width and padded with
+    /// zeroes; the longest name we produce is "BURPEE BROAD JUMPS" at 18.
+    static constexpr uint8_t kStepNameBytes = 24;
 
     ActivityWriter(const SDK::Kernel& kernel, const char* pathToDir);
 

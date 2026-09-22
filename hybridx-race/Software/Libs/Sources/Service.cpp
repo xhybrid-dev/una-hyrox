@@ -630,11 +630,11 @@ void Service::finishRace(bool completed)
 void Service::emitRaceWorkout()
 {
     // A structured workout describing the race the athlete just started. The
-    // FIT profile the SDK declares carries no name on a step, so a step says
-    // only how long it is and that it is work; WHICH segment it was travels in
-    // the lap's developer fields (NOTES.md 5.9). What this buys is that a
-    // consumer app sees a planned structure behind the laps rather than
-    // sixteen unexplained splits.
+    // Each step carries the segment's name, its distance and that it is work,
+    // and each lap points at its step by index. That name is the only route to
+    // a labelled lap: the FIT lap message has no name field, and neither Garmin
+    // Connect nor Strava displays the developer fields that also identify the
+    // segment (NOTES.md 5.9, 5.11).
     Race::SegmentDesc plan[Race::kMaxSegments] = {};
     const uint8_t n = Race::RaceModel::buildTemplate(mSettings.format,
                                                      mSettings.roxzoneSplits,
@@ -643,9 +643,15 @@ void Service::emitRaceWorkout()
         return;
     }
 
+    // The names have to outlive addWorkout(), which copies them into the file,
+    // so they live here rather than in the loop.
+    static char names[Race::kMaxSegments][Race::kMaxNameLen];
+
     ActivityWriter::WorkoutStepData steps[Race::kMaxSegments] = {};
     for (uint8_t i = 0u; i < n; ++i) {
         const uint16_t metres = Race::RaceModel::distanceM(plan[i]);
+        Race::RaceModel::name(plan[i], names[i], sizeof(names[i]));
+        steps[i].name = names[i];
         steps[i].intensity = SDK::Fit::Intensity::Active;
         if (metres > 0u) {
             steps[i].durationType = SDK::Fit::WktStepDuration::Distance;

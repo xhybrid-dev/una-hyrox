@@ -67,8 +67,14 @@ def report(path):
           f"{'' if ('timer', 'stop') in ev else '   <-- NO STOP EVENT'}")
 
     if workout:
+        named = sum(1 for st in steps if st.get("wkt_step_name"))
         print(f"  workout: {workout.get('wkt_name')!r}, "
-              f"{workout.get('num_valid_steps')} steps, {len(steps)} written")
+              f"{workout.get('num_valid_steps')} steps, {len(steps)} written, "
+              f"{named} named"
+              f"{'' if named == len(steps) else '   <-- laps cannot be labelled'}")
+        if named:
+            print("    step names: "
+                  + ", ".join(str(st.get("wkt_step_name")) for st in steps[:4]) + " ...")
     else:
         print("  workout: none")
 

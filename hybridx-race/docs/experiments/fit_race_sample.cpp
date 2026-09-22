@@ -91,9 +91,12 @@ int main(int argc, char **argv)
     writer.start(info);
 
     // The workout, exactly as Service::emitRaceWorkout() builds it.
+    static char names[Race::kMaxSegments][Race::kMaxNameLen];
     ActivityWriter::WorkoutStepData steps[Race::kMaxSegments] = {};
     for (uint8_t i = 0u; i < n; ++i) {
         const uint16_t metres = distanceOf(plan[i]);
+        Race::RaceModel::name(plan[i], names[i], sizeof(names[i]));
+        steps[i].name = names[i];
         steps[i].intensity = fit::Intensity::Active;
         if (metres > 0u) {
             steps[i].durationType = fit::WktStepDuration::Distance;
