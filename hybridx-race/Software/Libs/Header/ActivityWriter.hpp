@@ -94,13 +94,12 @@ public:
         uint8_t     raceFormat         = 0;    // 0 full, 1 half A, 2 half B
         uint8_t     roxzoneMode        = 0;    // 1 when Roxzone splitting was on
         uint8_t     completed          = 0;    // 1 finished normally, 0 ended early
-        // Decision D2. Jon compared candidate files in Garmin Connect on 22
-        // September 2026 and running/generic read best, so that is the default;
-        // cardio_training (10/26) and hiit (10/70) are still being compared
-        // (NOTES.md 5.11). A parameter rather than a constant so a candidate
-        // costs one argument, and because FitWriter is profile-agnostic: any
-        // published FIT value goes here, including the ones SDK/Fit/FitProfile.hpp
-        // does not declare.
+        // Decision D2, closed 23 September 2026: running/generic. Cardio and
+        // HIIT changed nothing Garmin displayed, and running gives per-lap pace
+        // and the richest analysis (NOTES.md 5.12). Still a parameter rather
+        // than a constant, because candidates cost one argument that way and
+        // because FitWriter is profile-agnostic: any published FIT value goes
+        // here, including ones SDK/Fit/FitProfile.hpp does not declare.
         uint8_t     sport              = 1;    // FIT sport: running
         uint8_t     subSport           = 0;    // FIT sub_sport: generic
         uint32_t    distanceM          = 0;    // total metres; drives Distance and Avg Pace

@@ -17,6 +17,14 @@
 //         distance-policy 0 (default) credits every distance the format states,
 //         which is what the app does; 1 credits the runs only, for comparing
 //         what the two look like in Garmin and Strava before committing.
+//         days-ago (default 0) moves the race back that many days.
+//
+// The race always ENDS at the moment the program runs, so two files made in the
+// same run differ in start time. That matters more than it sounds: every
+// candidate up to 23 September 2026 carried a hard-coded start of
+// 2026-09-21 14:13:20, so Garmin Connect saw one activity being re-uploaded
+// rather than several to compare, and the sport it was first filed under stuck
+// (NOTES.md 5.12).
 
 #include "ActivityWriter.hpp"
 #include "RaceData.hpp"
@@ -27,6 +35,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <string>
 #include <vector>
 
@@ -59,6 +68,7 @@ int main(int argc, char **argv)
     const uint8_t subSport = (argc > 3) ? static_cast<uint8_t>(std::atoi(argv[3]))
                                         : static_cast<uint8_t>(fit::SubSport::Generic);
     const bool runsOnly = (argc > 4) && (std::atoi(argv[4]) == 1);
+    const int daysAgo = (argc > 5) ? std::atoi(argv[5]) : 0;
 
     // The app always uses RaceModel::distanceM(); the policy switch exists only
     // so the two can be compared side by side in a consumer app.
@@ -78,10 +88,18 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    // Total race time, needed before the start time so the race can end "now".
+    uint32_t totalS = 0u;
+    for (uint8_t i = 0u; i < n; ++i) {
+        totalS += segmentSeconds(plan[i]);
+    }
+
     SDK::TestSupport::KernelFixture fx;
     ActivityWriter writer(fx.kernel, ".");
 
-    const std::time_t startUtc = 1790000000;
+    const std::time_t startUtc = std::time(nullptr)
+                                 - static_cast<std::time_t>(totalS)
+                                 - static_cast<std::time_t>(daysAgo) * 86400;
 
     ActivityWriter::AppInfo info {};
     info.timestamp = startUtc;
@@ -109,10 +127,6 @@ int main(int argc, char **argv)
     writer.addWorkout("HYROX Full Race", steps, n);
 
     // 1 Hz heart-rate records for the whole race.
-    uint32_t totalS = 0u;
-    for (uint8_t i = 0u; i < n; ++i) {
-        totalS += segmentSeconds(plan[i]);
-    }
     for (uint32_t t = 0u; t < totalS; ++t) {
         ActivityWriter::RecordData rec {};
         rec.timestamp = startUtc + static_cast<std::time_t>(t);
@@ -200,8 +214,13 @@ int main(int argc, char **argv)
     std::fwrite(bytes.data(), 1, bytes.size(), out);
     std::fclose(out);
 
-    std::printf("wrote %s: %zu bytes, %u laps, %u s, %u m, sport=%u sub_sport=%u\n",
+    char when[32] = {};
+    std::tm utc {};
+    gmtime_r(&startUtc, &utc);
+    std::strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%SZ", &utc);
+    std::printf("wrote %s: %zu bytes, %u laps, %u s, %u m, sport=%u sub_sport=%u, "
+                "starts %s\n",
                 outName, bytes.size(), static_cast<unsigned>(n), totalS, distanceM,
-                static_cast<unsigned>(sport), static_cast<unsigned>(subSport));
+                static_cast<unsigned>(sport), static_cast<unsigned>(subSport), when);
     return 0;
 }

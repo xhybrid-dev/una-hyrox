@@ -395,7 +395,7 @@ can define it ourselves. Still P1 — report before implementing.
 | ID | Decision | Needed by | Current default |
 |---|---|---|---|
 | D1 | App name; whether "HYROX" may appear | Phase 5 | "HybridX Race", placeholder icon |
-| D2 | FIT sport / sub_sport | Phase 3 | `Training(10)` / `Generic(0)` — the best named pair in `FitProfile.hpp`; arbitrary bytes are writable, so candidates are cheap |
+| ~~D2~~ | ~~FIT sport / sub_sport~~ | ~~Phase 3~~ | **Decided 23 September 2026: `Running(1)` / `Generic(0)`** — see 5.12 |
 | D5 | Publishing route | Phase 6 | build for either |
 | D6 | Pacing share table | F14 | feature stays hidden |
 | — | Version tagging mechanism (0.6 item 4) | Phase 5 | `-DBUILD_VERSION=` |
@@ -1259,3 +1259,68 @@ profile-agnostic by design -- but an app should not have to.
 **The default is now running/generic**, because that is the combination Jon
 confirmed reads well. `TrackData` keeps sport and sub_sport as parameters, so
 whichever of E/F/G wins is a one-line change.
+
+### 5.12 D2 closed, and a flaw in how it was tested
+
+**Jon's decision, 23 September 2026: `sport = Running(1)`, `sub_sport =
+Generic(0)`.** That is already the default in `ActivityWriter::TrackData`, so
+nothing needed to change, and it is the combination he had confirmed reads well
+in Garmin Connect: 10.48 km, 6:35/km, sixteen laps each with their own distance
+and pace.
+
+What he reported of candidates E, F and G was that **none of them changed the
+activity type Garmin displayed**, which is what made Running the pragmatic
+choice: if the field makes no difference, take the one that already works.
+
+#### The test could not have shown a difference
+
+Every candidate file ever sent — three in round one, four in round two, three in
+round three — carried the same hard-coded start:
+
+```cpp
+const std::time_t startUtc = 1790000000;   // 2026-09-21 14:13:20 UTC
+```
+
+Jon's screenshots say **"21 Sept @ 2:13 pm"** in every round. That is this
+constant. Ten files, one timestamp, one duration, ten uploads of what Garmin
+Connect had every reason to treat as the same activity.
+
+Consumer platforms de-duplicate on start time, and an activity's type is
+generally fixed when it is first filed. So the likely explanation for "none of
+them take any activity type through" is not that `sport` is ignored — it is that
+**Garmin never created a second activity to apply it to**. The first upload of
+all, back in round one, was `race-running-generic.fit`; everything since has
+been landing on the activity that created, which is filed as Running.
+
+This is a flaw in the test rig, not in the file, and it is mine. Fixed:
+`fit_race_sample.cpp` now ends the race at the moment it is written and takes a
+"days ago" argument, so candidates are inherently distinct and can be spaced
+apart.
+
+#### Whether it changes the answer
+
+Probably not, and Jon should not feel obliged to re-run it. Running is defensible
+on its own terms — a HYROX race is eight kilometres of running plus stations, it
+gives per-lap pace, and Garmin's running analysis is the richest it has. But the
+evidence for it is currently "the alternative did not visibly fail", which is
+weaker than it looked.
+
+Two files exist if he wants ten minutes of certainty: `H-running-fresh.fit` and
+`J-cardio-fresh.fit`, a day apart and both after the old fixed date. If J files
+as anything other than Running, the sport field does reach Garmin and the choice
+was a real one; if it still says Running, the field genuinely is ignored and the
+decision stands on firmer ground either way.
+
+#### Still unknown: whether the lap names surface
+
+The names are in the file — `fit_decode_report.py` reads all sixteen back as
+`wkt_step_name`, "RUN 1/8", "SKIERG", "SLED PUSH". Whether Garmin Connect *shows*
+them in its Laps tab has not been confirmed, and the same collision would have
+prevented it: a re-upload onto an existing activity need not rebuild its lap
+table.
+
+If they do not surface, there is nothing further to try. The FIT lap message has
+no name of its own, and a named workout step is the only mechanism the format
+offers. The fallbacks are already built: the developer fields, which HybridX
+reads directly, and the watch's own summary, which names every split on the
+wrist.
