@@ -84,7 +84,7 @@ Workout example.
 
 `RaceModel` (`Libs/Header/RaceModel.hpp`, `Sources/RaceModel.cpp`) is **pure
 C++** — `<cstdint>` and `<cstddef>`, no SDK headers, no heap, no floats, no
-`std::string`. That is what lets 71 host tests simulate a 90-minute race
+`std::string`. That is what lets 73 host tests simulate a 90-minute race
 instantly, on any machine, with no watch and no ARM toolchain.
 
 It takes time as a parameter rather than reading a clock. Brief §7.4 requires a
@@ -215,8 +215,21 @@ a sled push without parsing lap names:
 | `roxzone_mode` | session | whether Roxzone was split out |
 | `completed` | session | whether the race finished or was ended early |
 
+**Distance is written from the format, not measured.** A run is 1 km, each
+station carries the metres the format states, and a Full race totals 10 480 m.
+Nothing on the watch measures it — there is no GPS and no foot pod — but without
+it Garmin Connect and Strava show `--` for Distance, Pace and Moving Time, which
+is what the first round of candidate files did (`NOTES.md` 5.9). Average speed
+per lap and for the session is derived from it.
+
+The laps also reference a **workout**: one named workout for the race and one
+step per planned segment, with `wkt_step_index` on each lap. The SDK's profile
+declares no name on a step, so a step says only how long it is and that it is
+work; what each lap *was* stays in the developer fields.
+
 Calories are **not** written. The app has no source for them, and a fabricated
-number in a FIT file is worse than an absent one.
+number in a FIT file is worse than an absent one. Both platforms therefore show
+a blank calorie figure.
 
 The session's `sport` and `sub_sport` are parameters of
 `ActivityWriter::TrackData`, defaulting to training/generic. Which values make

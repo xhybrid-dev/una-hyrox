@@ -91,15 +91,21 @@ void ActivityWriter::start(const AppInfo& info)
     defineRecordMessages();
 
     // lap / session / activity
+    // TotalDistance, AvgSpeed and WktStepIndex are what make the file readable
+    // to a consumer app rather than merely valid: the first candidate files
+    // carried neither, and Garmin Connect showed "--" for distance and pace on
+    // every lap and on the activity (NOTES.md 5.9).
     mFit->defineMessage(L_LAP, fit::mesgNum(fit::MesgNum::Lap),
         {fit::field::Lap::Timestamp, fit::field::Lap::StartTime,
          fit::field::Lap::TotalElapsedTime, fit::field::Lap::TotalTimerTime,
-         fit::field::Lap::MessageIndex, fit::field::Lap::AvgHeartRate,
-         fit::field::Lap::MaxHeartRate},
+         fit::field::Lap::TotalDistance, fit::field::Lap::AvgSpeed,
+         fit::field::Lap::MessageIndex, fit::field::Lap::WktStepIndex,
+         fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate},
         {{DF_SEGMENT_TYPE, 1, 0}, {DF_ROUND, 1, 0}, {DF_STATION_ID, 1, 0}});
     mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
         {fit::field::Session::Timestamp, fit::field::Session::StartTime,
          fit::field::Session::TotalElapsedTime, fit::field::Session::TotalTimerTime,
+         fit::field::Session::TotalDistance, fit::field::Session::AvgSpeed,
          fit::field::Session::MessageIndex, fit::field::Session::NumLaps,
          fit::field::Session::Sport, fit::field::Session::SubSport,
          fit::field::Session::AvgHeartRate, fit::field::Session::MaxHeartRate},
@@ -224,7 +230,10 @@ void ActivityWriter::addLap(const LapData& lap)
         .u32(unixToFitTimestamp(lap.timeStart))
         .u32(static_cast<uint32_t>(lap.elapsed * 1000))
         .u32(static_cast<uint32_t>(lap.duration * 1000))
+        .u32(static_cast<uint32_t>(lap.distanceM) * 100u)  // scale 100, m
+        .u16(avgSpeedMms(lap.distanceM, lap.duration))     // scale 1000, m/s
         .u16(mLapCounter)  // message_index: 0-based, incremented after this write
+        .u16(lap.wktStepIndex)
         .u8(static_cast<uint8_t>(lap.hrAvg))
         .u8(static_cast<uint8_t>(lap.hrMax))
         // Developer fields: which HYROX segment this lap was (brief 10.1).
@@ -242,11 +251,65 @@ void ActivityWriter::addLap(const LapData& lap)
     }
 }
 
+uint16_t ActivityWriter::avgSpeedMms(uint32_t metres, std::time_t seconds)
+{
+    if (metres == 0u || seconds <= 0) {
+        return 0u;
+    }
+    // Integer only (brief 14.4). Rounded rather than truncated so a 1 km run in
+    // 301 s reads back as 5:01/km and not 5:02.
+    const uint64_t mms = (static_cast<uint64_t>(metres) * 1000u +
+                          static_cast<uint64_t>(seconds) / 2u) /
+                         static_cast<uint64_t>(seconds);
+    return (mms > 0xFFFFu) ? 0xFFFFu : static_cast<uint16_t>(mms);
+}
+
+void ActivityWriter::addWorkout(const char* name, const WorkoutStepData* steps,
+                                uint8_t count)
+{
+    if (!mFit || steps == nullptr || count == 0u) {
+        return;
+    }
+
+    const uint8_t nameLen = name ? static_cast<uint8_t>(std::strlen(name) + 1) : 1u;
+    mFit->defineMessage(L_WORKOUT, fit::mesgNum(fit::MesgNum::Workout),
+        {fit::field::Workout::MessageIndex,
+         {fit::field::Workout::kWktNameNum, fit::BaseType::String, nameLen},
+         fit::field::Workout::NumValidSteps, fit::field::Workout::Sport});
+    mFit->defineMessage(L_WORKOUT_STEP, fit::mesgNum(fit::MesgNum::WorkoutStep),
+        {fit::field::WorkoutStep::MessageIndex, fit::field::WorkoutStep::DurationType,
+         fit::field::WorkoutStep::DurationValue, fit::field::WorkoutStep::TargetType,
+         fit::field::WorkoutStep::TargetValue, fit::field::WorkoutStep::Intensity});
+
+    mFit->data(L_WORKOUT)
+        .u16(0)
+        .str(name ? name : "", nameLen)
+        .u16(count)
+        .u8(static_cast<uint8_t>(fit::Sport::Training))
+        .write();
+
+    for (uint8_t i = 0u; i < count; ++i) {
+        mFit->data(L_WORKOUT_STEP)
+            .u16(i)
+            .u8(static_cast<uint8_t>(steps[i].durationType))
+            .u32(steps[i].durationValue)
+            .u8(static_cast<uint8_t>(fit::WktStepTarget::Open))
+            .u32(0u)
+            .u8(static_cast<uint8_t>(steps[i].intensity))
+            .write();
+    }
+}
+
 bool ActivityWriter::stop(const TrackData& track)
 {
     if (!mFit) {
         return false;
     }
+
+    // The timer started at start(); close the pair before the session. The
+    // first candidate files never stopped it, which leaves a decoder to infer
+    // where recording ended.
+    addMessageEvent(track.timestamp, fit::EventType::Stop);
 
     bool ok = mFit->ok();
 
@@ -255,6 +318,8 @@ bool ActivityWriter::stop(const TrackData& track)
         .u32(unixToFitTimestamp(track.timeStart))
         .u32(static_cast<uint32_t>(track.elapsed * 1000))
         .u32(static_cast<uint32_t>(track.duration * 1000))
+        .u32(track.distanceM * 100u)                        // scale 100, m
+        .u16(avgSpeedMms(track.distanceM, track.duration))  // scale 1000, m/s
         .u16(0)  // message_index
         .u16(mLapCounter)
         // Decision D2 is open; the caller chooses, so candidate files can be

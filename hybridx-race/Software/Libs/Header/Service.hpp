@@ -170,6 +170,9 @@ private:
     void publishRaceData();
     void onSegmentOpened(bool raceStarting);
     void finishRace(bool completed);
+    /// Emit the workout and workout_step messages for the race just started.
+    void emitRaceWorkout();
+
     void saveRace(bool discard);
     void buildSummary();
     void sendSummary();

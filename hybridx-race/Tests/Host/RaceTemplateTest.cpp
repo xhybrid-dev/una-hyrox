@@ -226,6 +226,54 @@ TEST(RaceTemplateTest, LongestLabelFitsTheDeclaredBuffer)
     }
 }
 
+// -- Distance (brief 10.1, Jon's decision of 22 September 2026) ----------------
+
+TEST(RaceTemplateTest, EverySegmentCreditsTheDistanceTheFormatStates)
+{
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Run, 3u, 0u }), 1000u);
+
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 1u, 1u }), 1000u) << "SkiErg";
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 2u, 2u }), 50u) << "Sled push";
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 3u, 3u }), 50u) << "Sled pull";
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 4u, 4u }), 80u) << "Burpees";
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 5u, 5u }), 1000u) << "Row";
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 6u, 6u }), 200u) << "Carry";
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 7u, 7u }), 100u) << "Lunges";
+
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 8u, 8u }), 0u)
+            << "Wall Balls are reps, not metres";
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::RoxIn, 3u, 0u }), 0u);
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::RoxOut, 3u, 0u }), 0u);
+    EXPECT_EQ(RaceModel::distanceM({ SegmentType::Station, 9u, 9u }), 0u)
+            << "a corrupt index must not read past kStations";
+}
+
+namespace
+{
+uint32_t plannedDistanceM(Format format, bool roxzone)
+{
+    SegmentDesc plan[Race::kMaxSegments] = {};
+    const uint8_t n = RaceModel::buildTemplate(format, roxzone, plan, Race::kMaxSegments);
+    uint32_t total = 0u;
+    for (uint8_t i = 0u; i < n; ++i) {
+        total += RaceModel::distanceM(plan[i]);
+    }
+    return total;
+}
+}  // namespace
+
+TEST(RaceTemplateTest, ARaceTotalsTheDistanceItIsSupposedTo)
+{
+    // This number is what Garmin Connect and Strava will show, so it is worth
+    // pinning: eight kilometres of running plus every station's stated metres.
+    EXPECT_EQ(plannedDistanceM(Format::Full, false), 10480u);
+    EXPECT_EQ(plannedDistanceM(Format::HalfA, false), 5180u);
+    EXPECT_EQ(plannedDistanceM(Format::HalfB, false), 5300u);
+
+    // Roxzone splitting adds segments but no distance.
+    EXPECT_EQ(plannedDistanceM(Format::Full, true), 10480u);
+}
+
 // -- Defensive behaviour (no MMU, brief 14.14) --------------------------------
 
 TEST(RaceTemplateTest, BuildTemplateRefusesTooSmallABuffer)

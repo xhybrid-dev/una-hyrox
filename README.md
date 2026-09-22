@@ -44,7 +44,7 @@ hybridx-race/
     Libs/                       RaceModel (pure C++), Service, FIT writing
     Apps/HybridXRace-CMake/     the watch build
     Apps/LVGL-GUI/              the GUI process, and its PC simulator
-  Tests/Host/                   71 GoogleTest cases, no watch needed
+  Tests/Host/                   73 GoogleTest cases, no watch needed
   Utilities/pack-store-zip.sh   builds the portal upload package
   docs/                         the brief, NOTES, ARCHITECTURE, screenshots
 una-sdk/                        the UNA Watch SDK (not committed; see below)

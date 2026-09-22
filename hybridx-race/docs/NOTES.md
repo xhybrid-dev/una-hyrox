@@ -727,7 +727,7 @@ screen, and the whole flow captured to `docs/screens/`. Not done: looking at any
 of it on a watch. Gate 4 needs Jon's eye on the screenshots and T1-T8 on
 hardware (`ON_WATCH_TESTS.md`).
 
-Host tests 71 pass. Watch target and simulator both build clean.
+Host tests 71 pass at the time of writing (73 after 5.9). Watch target and simulator both build clean.
 
 ### 4.2 The middle dot, properly fixed
 
@@ -907,7 +907,7 @@ Gate 5 is **met in full in this container**: the manifest validates, the C++
 field table and the manifest agree under `--check-bounds`, and the zip matches
 the layout `Docs/deploy.md` specifies. None of it needed a watch.
 
-Host tests 71 pass; the watch target and the simulator both build clean.
+Host tests 71 pass at the time of writing (73 after 5.9); the watch target and the simulator both build clean.
 
 ### 5.2 §11 compliance checklist, completed
 
@@ -1091,7 +1091,7 @@ code with the same pool size, so the figure should carry over, but fragmentation
 depends on allocation order and the watch's renderer may differ in detail.
 `ON_WATCH_TESTS.md` T21 covers it.
 
-### 5.7 D2 — FIT sport candidates, ready to upload
+### 5.7 D2 — FIT sport candidates, first round (superseded by 5.9)
 
 `docs/experiments/build-fit-candidates.sh` writes the same simulated Full race
 three times, differing only in the session's `sport` and `sub_sport`, and decodes
@@ -1103,8 +1103,8 @@ each with the independent `fitdecode` library:
 | `race-running-generic.fit` | running (1) | generic (0) | same |
 | `race-running-track.fit` | running (1) | track (4) | same |
 
-**Jon: upload each to Strava and Garmin Connect and see which gets labelled most
-usefully.** Whichever wins becomes the default in `ActivityWriter::TrackData`,
+**Jon did, and all three came back bare. What was wrong with them, and what
+replaced them, is 5.9.** Whichever wins becomes the default in `ActivityWriter::TrackData`,
 which already takes both as parameters — a one-line change.
 
 **A constraint worth knowing.** These are the only combinations available to us.
@@ -1119,11 +1119,102 @@ The Phase 0 experiment `batched_laps.cpp` now takes the output name and the two
 enums as arguments rather than being copied; with no arguments it behaves
 exactly as it did in Phase 0, so the original evidence is unchanged.
 
-### 5.8 Still to do
+### 5.9 The first candidate files came back empty-looking, and why
+
+Jon uploaded the three D2 candidates to Garmin Connect and Strava on 22
+September 2026. All three rendered almost identically, and almost bare: no
+distance, no pace, Moving Time 0:00, no calories, and sixteen laps numbered 1 to
+16 with nothing to say which was the SkiErg.
+
+**The question was whether the data was missing or unreadable. It was missing.**
+Decoding the file answers it exactly: Garmin displayed every single field we
+wrote and nothing else.
+
+| What we wrote | What Garmin showed |
+|---|---|
+| `heart_rate` on 4144 records | avg 158, max 184, zones, the chart |
+| 16 laps with elapsed/timer time | 16 laps, times correct to the second |
+| `segment_type`, `round`, `station_id` per lap | **nothing** -- see below |
+| *no distance, anywhere* | Distance `--`, Avg Pace `--:--` |
+| *no speed, anywhere* | Moving Time 0:00 |
+| *no calories* (deliberate) | Total Calories `--` |
+
+So three separate causes, not one:
+
+1. **Distance and speed were never written.** The brief's decision D9 said not to
+   write nominal distances, and `ActivityWriter` duly wrote none -- but nothing
+   had connected that decision to the fact that distance is what Garmin and
+   Strava hang Distance, Pace, and (through speed) Moving Time on. Without it an
+   activity looks broken rather than minimal.
+2. **The developer fields work perfectly and are invisible anyway.**
+   `segment_type`, `round` and `station_id` decode correctly on every lap.
+   Neither Garmin Connect nor Strava displays arbitrary developer fields in a
+   lap list. They are worth keeping -- they are how HybridX will map a lap back
+   to a segment -- but they will never label a lap for a human.
+3. **The timer was never stopped.** We wrote a timer-start event and no
+   timer-stop. Harmless in practice but not well-formed.
+
+#### What changed
+
+Jon's decisions, 22 September 2026:
+
+- **Distance: every metre the format states.** Runs 1 km each, plus each
+  station's own figure, the SkiErg's and the Row's machine metres included.
+  Wall Balls are reps and carry none. A Full race totals **10 480 m**.
+  `Station` gained a `distanceM` field and `RaceModel::distanceM()` reads it;
+  `RaceTemplateTest` pins every value and all three format totals.
+- **Lap names: not yet.** Naming a lap needs the FIT profile's
+  `wkt_step_name`, which `SDK/Fit/FitProfile.hpp` does not declare, and
+  CLAUDE.md forbids inventing FIT field numbers. Instead the app now writes a
+  named **workout** ("HYROX Full Race") with one **workout_step** per segment
+  and a `wkt_step_index` on every lap, which is as far as the declared fields
+  go. Worth raising with UNA: their `WorkoutStep` namespace omits the one field
+  that would let any app name a lap.
+
+Also written now: `Lap::TotalDistance`, `Lap::AvgSpeed`,
+`Session::TotalDistance`, `Session::AvgSpeed`, and the missing timer-stop event.
+Calories stay absent -- there is still no honest source for them.
+
+#### The cost of "every metre the format states"
+
+Distance divided by time is pace, and a consumer app will show it per lap:
+
+| Lap | Distance | Time | Pace shown |
+|---|---|---|---|
+| RUN 1 | 1000 m | 5:01 | 5:01 /km |
+| SKIERG | 1000 m | 3:23 | 3:23 /km |
+| SLED PUSH | 50 m | 3:26 | **68:35 /km** |
+| SLED PULL | 50 m | 3:29 | **69:44 /km** |
+| WALL BALLS | 0 m | 3:44 | -- |
+| **Session** | 10 480 m | 1:09:04 | 6:35 /km |
+
+The runs read perfectly. The sleds read as nonsense, because 50 m in three and a
+half minutes IS nonsense as a pace even though it is exactly what happened.
+Flagged to Jon with candidate C as the alternative (runs only, 8 km, stations
+show no pace at all); it is a one-line change to the `kStations` table either
+way.
+
+#### The experiment that caused it
+
+`batched_laps.cpp` was a hand-written stand-in for the writer, built in Phase 0
+to answer one narrow question about lap ordering. It answered it. But the files
+Jon uploaded came from the stand-in, not from the app, so nobody could tell
+whether the app would behave the same -- and the stand-in had been copied from
+`ActivityWriter` at a point where neither wrote distance.
+
+It is superseded by `fit_race_sample.cpp`, which drives the **real**
+`ActivityWriter` and the **real** `RaceModel` over the SDK's kernel test
+doubles. What Jon uploads is now what the watch writes, and
+`fit_decode_report.py` prints every field a consumer app reads, flagging the
+absent ones, so "is it missing or unreadable?" is never an open question again.
+
+### 5.10 Still to do
 
 - **The LVGL pool (5.6) is the first thing to decide after Gate 4.** It is the
   only finding in this phase that could stop the app working rather than just
   look wrong.
+- **D2 is now two questions**, and four candidate files answer both: sport
+  training or running, and distance all-stated or runs-only (5.9).
 - **Gate 4 is still open**: Jon's review of the Phase 4 screenshots, the three
   station abbreviations (4.4), and T1–T8 on a watch.
 - **Gate 5's last line is Jon's**: uploading the package to the portal.

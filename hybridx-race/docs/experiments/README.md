@@ -3,7 +3,14 @@
 Throwaway code kept because it is evidence, and because the container it ran in
 is ephemeral. None of it is part of the app.
 
-## `batched_laps.cpp` + `batched_laps_decode.py`
+## `batched_laps.cpp` + `batched_laps_decode.py` — superseded
+
+**Kept as Phase 0 evidence; do not build candidate files with it.** It is a
+hand-written stand-in for `ActivityWriter`, and when it was used to make files
+for Jon to upload, the gap between it and the real writer went unnoticed until
+Garmin Connect showed an empty-looking activity (`NOTES.md` 5.9).
+`fit_race_sample.cpp` below drives the real writer and replaces it for that job.
+
 
 Answers the question brief §10.1 raises: **can we write every Lap message in one
 batch at save time**, after all the Records and before the Session, rather than
@@ -82,3 +89,23 @@ Two things it will not do for you:
   log fills with `Queue is full`. The script now aborts when it cannot find a
   window and warns on any capture under 500 bytes, but it cannot stop you
   starting the second run.
+
+## `fit_race_sample.cpp` + `build-fit-candidates.sh` + `fit_decode_report.py`
+
+How candidate FIT files are made now, and the answer to "is the data missing or
+just unreadable?".
+
+`fit_race_sample.cpp` drives the app's **own** `ActivityWriter` and `RaceModel`
+over the SDK's kernel test doubles, so the `.fit` it writes is what the watch
+writes. `build-fit-candidates.sh` emits four of them — sport training or
+running, distance all-stated or runs-only — and `fit_decode_report.py` prints
+every field a consumer app reads, flagging the absent ones.
+
+```bash
+UNA_SDK=/path/to/una-sdk ./build-fit-candidates.sh
+python3 fit_decode_report.py fit-candidates/A-training-all-distances.fit
+```
+
+The report is the thing to reach for whenever an upload looks wrong: it
+distinguishes a field we never wrote from one the platform declined to show.
+That distinction cost a round trip on 22 September 2026.

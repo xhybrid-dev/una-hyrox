@@ -1,23 +1,16 @@
 #!/bin/bash
 #
-# D2: which FIT sport / sub_sport should a HYROX race carry?
+# Build the candidate FIT files for Jon to upload to Garmin Connect and Strava.
 #
-# Strava and Garmin Connect decide what to call an activity, what icon to give
-# it and which of their own charts to show from these two enums, and nothing in
-# the file tells them what a HYROX race is. The only way to answer it is to
-# upload the same race several ways and look, which is what this produces.
+# These come out of the app's OWN ActivityWriter and RaceModel, driven over the
+# SDK's kernel test doubles, so the file is what the watch writes rather than a
+# stand-in that might differ (which is exactly how the first round went wrong:
+# see NOTES.md 5.9).
 #
-# Every file below is the SAME simulated race -- a Full race, Roxzone off, 16
-# segments, 1 Hz heart rate, the three segment developer fields -- differing
-# only in the session's sport and sub_sport.
+# Two questions are still open, so four files, one per combination:
 #
-# The values come from SDK/Fit/FitProfile.hpp and nowhere else. That header
-# declares Sport { Generic 0, Running 1, Cycling 2, Training 10, Walking 11,
-# Hiking 17 } and SubSport { Generic 0, Treadmill 1, Street 2, Trail 3, Track 4,
-# IndoorCycling 6 }. The public FIT profile has values that might suit a race
-# better -- fitness_equipment, hiit, cardio_training -- but their numbers are
-# not in this SDK, and CLAUDE.md forbids inventing FIT profile numbers. If Jon
-# wants those tested he needs to confirm the numbers first.
+#   sport     training (10) or running (1)
+#   distance  every metre the format states (10 480 m), or the runs only (8 km)
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./build-fit-candidates.sh
 # Needs:  g++, python3, pip install fitdecode
@@ -25,6 +18,7 @@
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
+LIBS=$(cd "$HERE/../../Software/Libs" && pwd)
 OUT="$HERE/fit-candidates"
 
 if [ -z "${UNA_SDK:-}" ]; then
@@ -33,44 +27,45 @@ if [ -z "${UNA_SDK:-}" ]; then
 fi
 
 mkdir -p "$OUT"
-BIN="$OUT/lapbatch"
+BIN="$OUT/fitsample"
 
 echo "== building =="
-g++ -std=c++17 -O1 -o "$BIN" "$HERE/batched_laps.cpp" \
+# -w: the SDK's own JsonStreamWriter.cpp has printf-format warnings we neither
+# own nor may fix; our sources are built warning-clean by the real build.
+g++ -std=c++17 -O1 -w -o "$BIN" "$HERE/fit_race_sample.cpp" \
+    "$LIBS/Sources/ActivityWriter.cpp" \
+    "$LIBS/Sources/RaceModel.cpp" \
     "$UNA_SDK/Libs/Source/Fit/FitWriter.cpp" \
     "$UNA_SDK/Libs/Source/Fit/FitCrc.cpp" \
+    "$UNA_SDK/Libs/Source/Fit/RecordingMarker.cpp" \
+    "$UNA_SDK/Libs/Source/JSON/JsonStreamWriter.cpp" \
     "$UNA_SDK/Tests/Host/support/KernelTestDoubles.cpp" \
     "$UNA_SDK/Libs/Source/UnaLogger/Logger.cpp" \
-    -I"$UNA_SDK/Libs/Header" -I"$UNA_SDK/Tests/Host"
+    -I"$LIBS/Header" -I"$UNA_SDK/Libs/Header" -I"$UNA_SDK/Tests/Host"
 
-# name                        sport  sub_sport
-# Sport::Training=10, Sport::Running=1, SubSport::Generic=0, SubSport::Track=4
+#          file                             sport sub runs-only
 CANDIDATES=(
-    "race-training-generic.fit 10 0"
-    "race-running-generic.fit   1 0"
-    "race-running-track.fit     1 4"
+    "A-training-all-distances.fit  10 0 0"
+    "B-running-all-distances.fit    1 0 0"
+    "C-training-runs-only.fit      10 0 1"
+    "D-running-runs-only.fit        1 0 1"
 )
 
 echo
 echo "== writing =="
+rm -f "$OUT"/*.fit
 for spec in "${CANDIDATES[@]}"; do
     # shellcheck disable=SC2086
     set -- $spec
-    (cd "$OUT" && "$BIN" "$1" "$2" "$3")
+    (cd "$OUT" && "$BIN" "$1" "$2" "$3" "$4")
 done
 
 echo
 echo "== decoding =="
-for spec in "${CANDIDATES[@]}"; do
-    # shellcheck disable=SC2086
-    set -- $spec
-    echo "-- $1"
-    python3 "$HERE/batched_laps_decode.py" "$OUT/$1"
-    echo
-done
+python3 "$HERE/fit_decode_report.py" "$OUT"/*.fit
 
 rm -f "$BIN"
-echo "Candidates in $OUT -- upload each to Strava and Garmin Connect and see"
-echo "which one they label most usefully. Whichever wins becomes the default in"
-echo "ActivityWriter::TrackData (sport, subSport), which already takes them as"
-echo "parameters."
+echo
+echo "Upload each to Garmin Connect and Strava. What to compare:"
+echo "  A vs B  does sport=training or sport=running label the race better?"
+echo "  A vs C  are the stations' metres worth having, given what they do to pace?"

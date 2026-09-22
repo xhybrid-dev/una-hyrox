@@ -492,6 +492,7 @@ void Service::startRace(Race::Format format)
     info.appID = APP_ID;
     mActivityWriter.start(info);
     mFitOpen = true;
+    emitRaceWorkout();
 
     mTrackState = Track::State::ACTIVE;
     SDK::send_msg<CustomMessage::RaceStateUpd>(mKernel, mTrackState);
@@ -626,6 +627,47 @@ void Service::finishRace(bool completed)
              mRace.plannedCount(), mRace.completed());
 }
 
+void Service::emitRaceWorkout()
+{
+    // A structured workout describing the race the athlete just started. The
+    // FIT profile the SDK declares carries no name on a step, so a step says
+    // only how long it is and that it is work; WHICH segment it was travels in
+    // the lap's developer fields (NOTES.md 5.9). What this buys is that a
+    // consumer app sees a planned structure behind the laps rather than
+    // sixteen unexplained splits.
+    Race::SegmentDesc plan[Race::kMaxSegments] = {};
+    const uint8_t n = Race::RaceModel::buildTemplate(mSettings.format,
+                                                     mSettings.roxzoneSplits,
+                                                     plan, Race::kMaxSegments);
+    if (n == 0u) {
+        return;
+    }
+
+    ActivityWriter::WorkoutStepData steps[Race::kMaxSegments] = {};
+    for (uint8_t i = 0u; i < n; ++i) {
+        const uint16_t metres = Race::RaceModel::distanceM(plan[i]);
+        steps[i].intensity = SDK::Fit::Intensity::Active;
+        if (metres > 0u) {
+            steps[i].durationType = SDK::Fit::WktStepDuration::Distance;
+            steps[i].durationValue = static_cast<uint32_t>(metres) * 100u;  // cm
+        } else {
+            // Wall Balls are reps and a Roxzone is however long it takes.
+            steps[i].durationType = SDK::Fit::WktStepDuration::Open;
+            steps[i].durationValue = 0u;
+        }
+    }
+
+    const char *name = "HYROX Race";
+    switch (mSettings.format) {
+    case Race::Format::HalfA: name = "HYROX Half, rounds 1-4"; break;
+    case Race::Format::HalfB: name = "HYROX Half, rounds 5-8"; break;
+    case Race::Format::Full:
+    default:                  name = "HYROX Full Race"; break;
+    }
+
+    mActivityWriter.addWorkout(name, steps, n);
+}
+
 void Service::saveRace(bool discard)
 {
     if (!mFitOpen) {
@@ -646,6 +688,7 @@ void Service::saveRace(bool discard)
     // session message -- proven to decode in Phase 0 (NOTES.md 0.8).
     const std::time_t startUtc = mRaceStartUtc;
     uint32_t cursorMs = 0u;
+    uint32_t raceDistanceM = 0u;
 
     for (uint8_t i = 0u; i < mRace.recordedCount(); ++i) {
         const Race::SegmentResult *seg = mRace.recorded(i);
@@ -665,6 +708,11 @@ void Service::saveRace(bool discard)
         lap.segmentType = static_cast<uint8_t>(seg->desc.type);
         lap.round = seg->desc.round;
         lap.stationId = seg->desc.stationId;
+        lap.distanceM = Race::RaceModel::distanceM(seg->desc);
+        // The plan and the laps run in step, so segment i is step i. A race
+        // ended early simply stops referencing the rest of the plan.
+        lap.wktStepIndex = i;
+        raceDistanceM += lap.distanceM;
 
         mActivityWriter.addLap(lap);
         cursorMs += wallMs;
@@ -683,6 +731,7 @@ void Service::saveRace(bool discard)
     track.raceFormat = static_cast<uint8_t>(mSettings.format);
     track.roxzoneMode = mSettings.roxzoneSplits ? 1u : 0u;
     track.completed = mRace.completed() ? 1u : 0u;
+    track.distanceM = raceDistanceM;
 
     const bool ok = mActivityWriter.stop(track);
     mFitOpen = false;

@@ -59,9 +59,10 @@ enum class Format : uint8_t
  */
 struct Station
 {
-    const char *name;   ///< Display name, British English, upper case
-    const char *work;   ///< Work as shown, e.g. "50 m" or "100 reps"
-    const char *brief;  ///< Name for the split list, where 240 px is round
+    const char *name;       ///< Display name, British English, upper case
+    const char *work;       ///< Work as shown, e.g. "50 m" or "100 reps"
+    const char *brief;      ///< Name for the split list, where 240 px is round
+    uint16_t    distanceM;  ///< Metres credited to the FIT lap; 0 when the work is reps
 };
 
 /// Number of stations in a full race.
@@ -72,6 +73,20 @@ constexpr uint8_t kRunCount = 8;
 
 /// Work shown for every run.
 constexpr const char *kRunWork = "1 km";
+
+/**
+ * @brief Metres credited to a run lap in the FIT file.
+ *
+ * Jon's decision, 22 September 2026: the FIT file carries every distance the
+ * format states, so a race totals 10 480 m -- eight kilometres of running plus
+ * the stations' own metres, the SkiErg's and the Row's included even though
+ * those are machine metres rather than ground covered. Wall Balls are reps and
+ * carry nothing.
+ *
+ * This is what fills in Distance and Avg Pace on Garmin Connect and Strava;
+ * without it every one of those fields reads "--" (NOTES.md 5.9).
+ */
+constexpr uint16_t kRunDistanceM = 1000u;
 
 /**
  * @brief Separator between a segment's name and its work, as brief 7.2 writes it:
@@ -90,14 +105,14 @@ constexpr const char *kLabelSep = "\xC2\xB7";
  * @c kStations[id - 1].
  */
 constexpr Station kStations[kStationCount] = {
-    { "SKIERG",             "1000 m",   "SKIERG"     },
-    { "SLED PUSH",          "50 m",     "SLED PUSH"  },
-    { "SLED PULL",          "50 m",     "SLED PULL"  },
-    { "BURPEE BROAD JUMPS", "80 m",     "BURPEES"    },
-    { "ROW",                "1000 m",   "ROW"        },
-    { "FARMERS CARRY",      "200 m",    "CARRY"      },
-    { "SANDBAG LUNGES",     "100 m",    "LUNGES"     },
-    { "WALL BALLS",         "100 reps", "WALL BALLS" },
+    { "SKIERG",             "1000 m",   "SKIERG",     1000u },
+    { "SLED PUSH",          "50 m",     "SLED PUSH",    50u },
+    { "SLED PULL",          "50 m",     "SLED PULL",    50u },
+    { "BURPEE BROAD JUMPS", "80 m",     "BURPEES",      80u },
+    { "ROW",                "1000 m",   "ROW",        1000u },
+    { "FARMERS CARRY",      "200 m",    "CARRY",       200u },
+    { "SANDBAG LUNGES",     "100 m",    "LUNGES",      100u },
+    { "WALL BALLS",         "100 reps", "WALL BALLS",    0u },
 };
 
 /**

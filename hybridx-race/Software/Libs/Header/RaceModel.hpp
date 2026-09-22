@@ -245,6 +245,28 @@ public:
     }
 
     /**
+     * @brief Metres this segment contributes to the FIT file.
+     *
+     * A run is 1 km; a station is whatever the format states; a Roxzone
+     * transition and Wall Balls are nothing. Inline for the same reason label()
+     * is: the GUI binary does not link RaceModel.cpp.
+     *
+     * @param desc Segment to measure.
+     * @retval Metres, or 0 when the segment has no distance.
+     */
+    static inline uint16_t distanceM(const SegmentDesc &desc)
+    {
+        if (desc.type == SegmentType::Run) {
+            return kRunDistanceM;
+        }
+        if (desc.type == SegmentType::Station && desc.stationId >= 1u &&
+            desc.stationId <= kStationCount) {
+            return kStations[desc.stationId - 1u].distanceM;
+        }
+        return 0u;
+    }
+
+    /**
      * @brief The work shown beside a segment name, or "" when it has none.
      *
      * @param desc Segment to describe.

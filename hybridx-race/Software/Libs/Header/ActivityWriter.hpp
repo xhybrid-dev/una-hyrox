@@ -24,6 +24,9 @@
  */
 class ActivityWriter {
 public:
+    /// LapData::wktStepIndex when a lap describes no workout step.
+    static constexpr uint16_t kNoWorkoutStep = SDK::Fit::kMessageIndexInvalid;
+
     struct AppInfo {
         std::time_t timestamp  = 0;  // UTC
         uint32_t    appVersion = 0;  // Application version 4 bytes LE [patch, minor, major, 0]
@@ -72,6 +75,13 @@ public:
         uint8_t     segmentType      = 0;     // 0 run, 1 roxzone in, 2 station, 3 roxzone out
         uint8_t     round            = 0;     // 1 to 8
         uint8_t     stationId        = 0;     // 1 to 8, 0 when not a station
+        // Metres this segment covers. Without it Garmin Connect and Strava show
+        // "--" for distance and pace on the lap and on the whole activity, which
+        // is what the first candidate files did (NOTES.md 5.9). Average speed is
+        // derived from this and the lap's active time, not passed in.
+        uint16_t    distanceM        = 0;
+        // Which workout step describes this lap, or kNoWorkoutStep.
+        uint16_t    wktStepIndex     = kNoWorkoutStep;
     };
 
     struct TrackData {
@@ -88,6 +98,20 @@ public:
         // than a constant: Phase 3 can emit candidate files for Jon to upload.
         uint8_t     sport              = 10;   // FIT sport, default training
         uint8_t     subSport           = 0;    // FIT sub_sport, default generic
+        uint32_t    distanceM          = 0;    // total metres; drives Distance and Avg Pace
+    };
+
+    /**
+     * @brief One step of the structured workout that describes the race.
+     *
+     * The FIT profile the SDK declares has no name on a workout step, so a step
+     * carries its shape and nothing else; what each lap WAS travels in the
+     * developer fields instead (NOTES.md 5.9).
+     */
+    struct WorkoutStepData {
+        SDK::Fit::Intensity       intensity     = SDK::Fit::Intensity::Active;
+        SDK::Fit::WktStepDuration durationType  = SDK::Fit::WktStepDuration::Open;
+        uint32_t                  durationValue = 0;  // DISTANCE: cm; TIME: ms; OPEN: 0
     };
 
     ActivityWriter(const SDK::Kernel& kernel, const char* pathToDir);
@@ -97,6 +121,8 @@ public:
     void resume(std::time_t timestamp);
     void addRecord(const RecordData& record);
     void addLap(const LapData& lap);
+    /// Emit the workout and workout_step messages describing the planned race.
+    void addWorkout(const char* name, const WorkoutStepData* steps, uint8_t count);
     /// Finalize the current activity. The return value is the FIT-durability
     /// contract: true iff the FIT stream + its finish()/flush/close succeeded, so
     /// the .fit is safely on disk (the kernel auto-registers it on close, and
@@ -127,6 +153,8 @@ private:
         L_LAP,
         L_SESSION,
         L_ACTIVITY,
+        L_WORKOUT,
+        L_WORKOUT_STEP,
     };
 
     /// Developer field definition numbers (UNA-assigned).
@@ -163,6 +191,8 @@ private:
     void writeFieldDescription(uint8_t devFieldNum, const char* name,
                                const char* units, SDK::Fit::BaseType baseType);
     void addMessageEvent(std::time_t t, SDK::Fit::EventType type);
+    /// Metres per second, scaled by 1000 as the FIT profile wants it.
+    static uint16_t avgSpeedMms(uint32_t metres, std::time_t seconds);
 
     bool createAndOpenFile(std::time_t utc);
     bool saveSummary(const TrackData& track);
