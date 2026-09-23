@@ -44,9 +44,11 @@ licence to travel with the derivative.
 
 ## Icons and artwork
 
-`hybridx-race/Resources/icon_30x30.png` and `icon_60x60.png` are HybridX
-placeholders (decision D1). The UNA name and logo are **not** used in the app
-name or icon: the MIT licence grants no trademark rights.
+`hybridx-race/Resources/icon_30x30.png` and `icon_60x60.png` are HybridX's own
+mark (decision D1, closed — `hybridx-race/docs/NOTES.md` 5.19), a white
+knockout of Jon's brand artwork for legibility on the watch's black UI. The
+UNA name and logo are **not** used in the app name or icon: the MIT licence
+grants no trademark rights.
 
 "HYROX" is a third-party trademark. It does not appear in the app name or icon;
 its use in the store description is Jon's decision (D1).

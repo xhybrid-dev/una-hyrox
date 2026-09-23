@@ -394,7 +394,7 @@ can define it ourselves. Still P1 — report before implementing.
 
 | ID | Decision | Needed by | Current default |
 |---|---|---|---|
-| D1 | App name; whether "HYROX" may appear | Phase 5 | "HybridX Race", placeholder icon |
+| ~~D1~~ | ~~App name; whether "HYROX" may appear~~ | ~~Phase 5~~ | **Icon decided 23 September 2026: Jon's X mark, white knockout on transparent** — see 5.19. App name/HYROX wording unchanged: "HybridX Race", no HYROX in name or icon |
 | ~~D2~~ | ~~FIT sport / sub_sport~~ | ~~Phase 3~~ | **Decided 23 September 2026: `Running(1)` / `Generic(0)`** — see 5.12 |
 | D5 | Publishing route | Phase 6 | build for either |
 | D6 | Pacing share table | F14 | feature stays hidden |
@@ -1461,3 +1461,47 @@ does is strictly less likely to pass something that then fails on hardware.
 
 No code changes were needed anywhere in `hybridx-race/`. This is a pin bump,
 not a phase.
+
+### 5.19 D1 closed — real icon from Jon's artwork
+
+Jon supplied three brand files: the X mark on white (`1402x1122` PNG, no
+alpha), the same mark on black (JPEG, lower-res, same dark ink — not a
+separate light variant), and a "HYBRIDX.CLUB" wordmark lockup (`1400x785`,
+genuinely transparent, too wide for a square icon). Used the white-background
+PNG as the extraction source: highest resolution, no compression artefacts,
+unambiguous background to key out.
+
+Pipeline (ImageMagick, not committed as a script — one-off, see the command
+history below rather than `docs/experiments/`): key the white background to
+transparent (`-fuzz 12% -transparent white`), trim to the mark's bounding box,
+resize to fit inside a 44x44 / 22x22 inner box preserving aspect, then centre
+on a transparent 60x60 / 30x30 canvas (`-gravity center -extent`). Matches the
+platform's own convention, confirmed by inspecting
+`una-sdk/Examples/Apps/{Running,RunLVGL,Workout}/Resources/icon_60x60.png`:
+transparent background, a single-colour glyph, not an opaque tile.
+
+**Colour is not the brand's literal black.** The watch UI background is
+black (confirmed from `docs/screens/*.png`, corner pixel `srgb(0,0,0)`), and
+Jon's mark is near-black ink (`srgb(19,20,20)`) — composited together the X
+is essentially invisible (see the comparison below). None of the three
+supplied files had a light-coloured variant: the "on black" JPEG is the same
+dark mark rephotographed on a black backdrop, not a reversed lockup. Recoloured
+the extracted mark's fill to white, keeping its alpha (shape) exactly as
+supplied — a standard knockout/reversed treatment for a dark background, not a
+redraw. This is a judgement call Jon didn't get to weigh in on before it
+shipped; flagging it here and in my reply to him so he can ask for a straight
+black version, or a proper reversed lockup of his own, if he'd rather.
+
+Verified: composited both the black and the white version over a black square
+at 60x60 — black-on-black reads as a faint charcoal ghost, white-on-black
+reads as a clean mark. Ran the SDK's real `app_merging.py` icon path (not a
+reimplementation) via a full watch build: `validate_icon_size` accepted both
+dimensions, `App icons are ON`, merge completed, `.uapp` produced. Simulator
+and host tests rebuilt clean (icon-only change, no code touched, 1/1 tests
+still pass). `pack-store-zip.sh` re-run clean; `icon.png` in the resulting zip
+is now 743 B (was the old opaque teal placeholder) and both validators still
+pass.
+
+Updated `THIRD-PARTY-LICENSES.md`'s icon note and §0.12's D1 default (below)
+to drop "placeholder"; left 2.4's placeholder note as the historical record of
+what Phase 2 actually shipped, same convention as 5.18 above.
