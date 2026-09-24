@@ -169,8 +169,103 @@ right, with a `Glance` companion (E.1).
 
 | Brief says | SDK says | Resolution |
 |---|---|---|
-| §2.2 Tier B "only works if app storage isn't sandboxed" | It is sandboxed, but there is a sanctioned shared folder (`../SharedData/`), and reading another app's folder is unverified | Tier B is re-planned as three routes (PLAN §6); the dependable one needs no unverified behaviour |
+| §2.2 Tier B "only works if app storage isn't sandboxed" | It is sandboxed by default, `..` demonstrably leaves it, and reading another app's folder is unverified | Superseded by Jon's clarification below: automatic detection is now the core, gated on the S0 probe (PLAN §3) |
 | §4 Q1 "complication, widget, or glance" as one idea | Three different things. Only the glance fits, and it must be its own `.uapp` | Two packages: main app plus glance |
 | §2.2 Tier A "optionally time it with a simple start/stop" | Possible without a resident service: persist the start UTC and derive elapsed time (lifecycle §9) | Timing is deferred to P1, **with** the duration threshold it exists to serve; alone it has no purpose |
 | §4 Q2 hopes for a scheduled wake | There is none | Lazy evaluation throughout; any reminder is P1, opt-in, and costs a resident service |
 | `CLAUDE.md` "starting from `RunLVGL`" | `RunLVGL` is an `Activity` app; the streak app is a `Utility` | Start from `hybridx-race`'s own LVGL scaffolding (itself derived from RunLVGL and already fixed on our toolchain), stripped of race screens. Needs `CLAUDE.md` updated when the project starts |
+
+---
+
+## Jon's clarification, and what it changes (24 September 2026)
+
+> "This is to take all activities recorded by the watch and automatically
+> contribute towards the streak counter. This needs to operate independently
+> from the HybridX Race app — but if we can have added benefit between the two
+> that's a bonus."
+
+The brief had automatic detection as a stretch (Tier B) and manual logging as
+the MVP (Tier A). **That is now reversed.** Automatic counting of every
+activity the watch records, from any app, is the product. Manual logging is the
+fallback for training the watch did not record. HybridX Race gets no special
+treatment: its activities are counted like any other app's, and anything extra
+between the two apps is optional in both directions.
+
+That makes one question decide whether the product can exist at all: **can an
+app read other apps' activity files on a real watch?** E.9 gathers everything
+the SDK can say about it without hardware.
+
+### E.9 Automatic detection — what the SDK shows
+
+**Every activity app writes to the same layout.** All seven SDK activity apps
+and HybridX Race construct their writer with the same folder name,
+`ActivityWriter(mKernel, "Activity")`: Cycling, HRMonitor, Hiking, Running,
+RunLVGL, Treadmill, Workout (each `Examples/Apps/<App>/Software/Libs/Sources/Service.cpp`)
+and `hybridx-race/Software/Libs/Sources/Service.cpp:49`. Files land at
+`/Apps/<App>/Activity/YYYYMM/activity_YYYYMMDDTHHMMSS.fit`, named with the
+**local** start time (E.3). These examples came from UNA's own `una-apps`
+repository, "Apps release" tags and all (E.7), so they are very likely the
+apps the watch ships with. The S0 probe confirms it by listing `/Apps/`.
+
+**Every one of them writes a FIT `session` with a sport.** All eight
+`ActivityWriter.cpp`s set `Session::Sport`. What they write:
+
+| App | sport / sub_sport |
+|---|---|
+| Running, RunLVGL | Running / Generic |
+| Treadmill | Running / Treadmill |
+| Cycling | Cycling / Generic |
+| Hiking | Hiking / Generic (its code also references Running, Walking, Cycling and Training) |
+| Workout, HRMonitor | Generic / Generic |
+| HybridX Race | Running / Generic (D2) |
+
+The fields a reader needs are all declared in the SDK's own profile, so no
+number is invented: `session` StartTime = 2, Sport = 5, SubSport = 6,
+TotalElapsedTime = 7, TotalTimerTime = 8 (scale 1000, seconds)
+(`Libs/Header/SDK/Fit/FitProfile.hpp:132-137`). The `Sport` enum values come
+from the same file. A third-party app's sport outside that enum maps to
+"Other" unless we source its number from the public profile, as with
+`wkt_step_name` in Race NOTES 5.11.
+
+**Generic needs a second signal.** Workout and HRMonitor both write Generic.
+The app folder name tells them apart (Workout → a workout; HybridXRace →
+HYROX), so the classifier uses the sport first and the folder second.
+
+**In-progress recordings are marked.** Each activity folder holds a fixed
+`.recording` file naming the `.fit` currently being written
+(`Libs/Header/SDK/Fit/RecordingMarker.hpp`, `kFileName = ".recording"`). The
+scanner skips that exact file. An incomplete file has no `session` message and
+its header size isn't back-patched, so the reader would reject it anyway.
+
+**There is no FIT reader in the SDK (E.3), so we write a small one.** It is a
+bounded, streaming parse: keep the definition table for the 16 local message
+types, decode only `session`, check the header and CRC, and use a fixed
+buffer with no heap. Race's host rig (`docs/experiments/fit_race_sample.cpp`)
+already produces byte-faithful FIT from the real writer, so the reader is
+tested against real output from the start, and `fitdecode` cross-checks it.
+
+**Cross-app reads: the evidence, and its limits.**
+
+| Evidence | Points to |
+|---|---|
+| The SDK's own shared file lives at `../SharedData/`, outside every app's folder, written by one app and read by another (E.3) | `..` traversal works on the device, at least into `SharedData` |
+| The kernel's file-access flow is: path valid? → select volume → lock → FatFs call. It has **no per-app permission step**, and the apps volume is labelled "Media/Apps" (`Docs/architecture-deep-dive.md:1104-1218`) | No enforcement, but the diagram is descriptive, not a contract |
+| The simulator's file system just prefixes the app's folder onto the path, so `..` reaches sibling apps (`Libs/Source/Simulator/Kernel/Mock/FileSystem.cpp:45-48`) | Development and simulator testing will work. **Says nothing about the watch** |
+| No SDK code reads another app's own folder | Unproven either way |
+
+The evidence points towards "allowed", but only the S0 probe on Jon's watch
+settles it. It stays a go/no-go gate.
+
+**Retention is a second unknown.** The phone's file-transfer protocol has a
+DELETE command (`Docs/BLE-File-Transfer-Service.md:67`, 181-183). Nothing says
+whether UNA's phone app deletes activities from the watch after syncing them.
+If it does, an activity recorded and synced between two looks by the streak
+would be missed. Mitigations are in PLAN §5.6; the probe and UNA both need
+asking.
+
+**Crash-safe saves have a reference implementation to copy.**
+`RecordingMarker::write()` stages to `.tmp`, flushes, rotates the current file
+to `.bak`, then renames the temp file into place, "a good copy present at
+every crash point" (`Libs/Source/Fit/RecordingMarker.cpp:70-110`). It mirrors a
+`Settings::ManagerBase` that the SDK does not ship. The streak's state file uses
+the same sequence.
