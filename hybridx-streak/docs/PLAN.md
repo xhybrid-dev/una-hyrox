@@ -132,7 +132,7 @@ which is a workaround:
 
 - Ask UNA for read access, or for an activity-list API. The kernel already
   "auto-registers the .fit the moment its FileGuard::close() fires"
-  (`hybridx-race/Software/Libs/Sources/ActivityWriter.cpp:383-384`, a comment
+  (`hybridx-race/Software/Libs/Sources/ActivityWriter.cpp:384-385`, a comment
   inherited from the SDK template), so exposing that list would be enough.
 - Ship manual-only, plus automatic counting of HybridX apps that opt in by
   writing to `../SharedData/` (proven to work, NOTES E.3).
