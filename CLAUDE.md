@@ -26,3 +26,30 @@ This workspace holds two folders:
 
 ## About Jon
 Chartered engineer, runs HybridX (Hyrox coaching platform). Comfortable with TypeScript/Next.js, new to embedded C++. Explain build or toolchain steps he must do himself clearly and one at a time.
+
+## HybridX Streak (`hybridx-streak/`)
+A second app in this repo: a weekly-target streak that counts every activity
+the watch records, from any app. It is independent of HybridX Race.
+- **Docs:**
+  - brief: `hybridx-streak/docs/UNA_STREAK_TRACKER_BRIEF.md`;
+  - plan and phases: `PLAN.md`, §11 (S0-S6);
+  - findings: `NOTES.md`;
+  - look and voice: `DESIGN.md`;
+  - the Gate 0 probe: `PROBE.md`.
+  Read `PLAN.md` and `NOTES.md` at the start of each Streak phase, and work
+  only on that phase.
+- **Rules:** the same standing rules as Race apply: plan mode, gates, SDK as
+  the source of truth, pure core with host tests, embedded rules, British
+  English.
+- **Starting points:** the LVGL GUI started from Race's scaffold. The app,
+  its glance (`Apps/HybridXStreakGlance-CMake`) and the probe
+  (`Tools/Probe`) are separate CMake projects.
+- **Releases:** tag them `streak-vX.Y.Z`; `Software/cmake/streak-version.cmake`
+  strips the prefix.
+- **Watch builds come from CI** (`.github/workflows/watch-builds.yml`, artifact
+  `watch-apps`). Local container builds use Ubuntu's compiler plus syscall
+  stubs, so they are compile checks only and never go on a watch.
+- **Commands:**
+  - host tests: `cmake -S hybridx-streak/Tests/Host -B hybridx-streak/build-tests && cmake --build hybridx-streak/build-tests && hybridx-streak/build-tests/hybridx-streak-host-tests`;
+  - simulator: `hybridx-streak/Software/Apps/LVGL-GUI/simulator` (see its CMakeLists);
+  - captures: `RECORD=1 hybridx-streak/docs/experiments/capture_screens.sh`.

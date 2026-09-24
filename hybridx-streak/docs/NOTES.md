@@ -269,3 +269,143 @@ to `.bak`, then renames the temp file into place, "a good copy present at
 every crash point" (`Libs/Source/Fit/RecordingMarker.cpp:70-110`). It mirrors a
 `Settings::ManagerBase` that the SDK does not ship. The streak's state file uses
 the same sequence.
+
+---
+
+## Phase S0: scaffold, probe, watch-safe builds, first look (24 September 2026)
+
+### S0.1 Jon's decisions
+
+| | Decision |
+|---|---|
+| Look | **Summit climb**: every achieved week is a step up a mountain; badges are summits |
+| Colours | Teal and lime |
+| Voice | Encouraging coach |
+| Rules | Every PLAN §12 recommendation, S1-S15, as written |
+
+The design that follows from them is in `DESIGN.md`.
+
+### S0.2 Watch-safe builds come from CI
+
+The container's only ARM compiler is Ubuntu's, which the SDK calls
+incompatible. Container builds link only with injected syscall stubs, so they
+are **compile checks only** and must not go on a watch (hybridx-race NOTES 0.4
+and 5.20).
+
+`.github/workflows/watch-builds.yml` builds every target the way UNA's own
+`apps-ci.yml` does: the same `xanderhendriks/stm32cubeide:16.0` image, ST's
+toolchain, no stubs. It uploads them as one artifact, **watch-apps**, holding:
+
+- HybridX Race;
+- HybridX Streak (the demo build);
+- the Streak glance;
+- the Streak Probe.
+
+A second job runs both apps' host tests.
+
+A fresh clone has no `Output/` (it is git-ignored), and the linker writes its
+`.map` there. Every CMake project therefore now creates it; the first CI run
+failed on exactly that.
+
+### S0.3 Versioning
+
+`una-version.sh` strips only `apps-v`, `sdk-v` and `v`, so a bare
+`streak-v1.2.0` tag would reach `app_merging.py` unparsed.
+`Software/cmake/streak-version.cmake` handles this without an SDK edit:
+
+1. It runs the script with the `streak-` prefix.
+2. It strips `streak-v`.
+3. It falls back to `0.0.0-dev` when the result is not X.Y.Z.
+4. It sets `BUILD_VERSION` before `una_app_setup_version()`, which honours it.
+
+The probe has a fixed `0.1.0`.
+
+### S0.4 Structure
+
+**Libs split.** It is Core (pure, header-only), App (the service) and Glance
+(the glance's service). Two reasons:
+
+- The SDK's service entry point includes exactly one `Service.hpp`, so the
+  app and the glance each need their own.
+- The GUI ELF links no Libs sources, so anything the GUI shares with the
+  service must be header-only.
+
+**The glance** is its own CMake project:
+- `APP_TYPE Glance`, no GUI and no icons;
+- output to `Output/Glance/`.
+
+The simulator cannot run glances. The S0 glance therefore reports the real
+glance area on the watch, in a small line of its own.
+
+**Haptics.** No SDK GUI drives the motor; only services do. The GUI sends
+`Celebrate{moment}` and the service plays it (DESIGN §6).
+
+### S0.5 The probe
+
+- **What it is.** `Tools/Probe/` is a Utility app, "Streak Probe"
+  (`HXStreakProbe`, `APP_ID DE9CF1F8FFF3776D`).
+- **Code.** The checks are pure C++ (`Probe::Runner`) over `IFileSystem`.
+- **Output.** It writes `probe.txt` and appends to `probe-history.txt`.
+- **Screen.** One screen shows the verdict.
+- **Instructions.** Jon's steps are in `PROBE.md`.
+
+**Tests.** The host tests run the probe against a new `TreeFileSystem` fake,
+in `Tests/Host/support/`. The SDK's two fakes cannot list directories: the
+directories of `InMemoryFileSystem` are always empty, and `FakeFileSystem` has
+none. The new fake:
+- resolves `..`, `.`, absolute paths and `2:` drive prefixes;
+- models FatFs's refusal to rename onto an existing file;
+- can block access outside the sandbox, to model a firmware that forbids it.
+
+The same fake will serve the S1 scanner tests.
+
+**Simulator run** (seeded scratch tree with two fake apps): GO. That covers:
+- 3 activity files found;
+- the newest opened, with its `.FIT` signature confirmed;
+- a 300 KB read;
+- the SharedData write, read and remove;
+- history appended on the second run;
+- the probe closing on R2.
+
+The simulator reports rename as "replaces" because it uses POSIX `rename`.
+The watch uses FatFs and is expected to refuse. The probe will say which.
+
+**Two simulator facts, for S2's fixtures:**
+- Its reported glance area is 240×60 with 32 controls. That is the
+  simulator's value; the watch's is still to be measured.
+- Its file system root is `../../../../../Output/` from the working directory.
+
+### S0.6 First look: evidence and measurements
+
+- **Screens.** 24 simulator captures, round-masked, are in `screens/`, and
+  `streak-demo.mp4` (38 s) shows the animations. All 8 demo scenarios and
+  every moment are covered.
+- **LVGL pool.** The peak is **47%** of 37.5 KB across every screen and
+  moment, against Race's 91%.
+- **Design fixes made from the captures:**
+  - The headline clipped at the bezel. It was redesigned as a number plus
+    words on one baseline.
+  - Coach lines longer than 21 characters clipped. They were rewritten.
+  - The shield body ran under the R2 cross. It was narrowed.
+  - STEEL_DARK read as purple. The far range is now GRAY_DARK.
+  - "Summit!" sat too near the edge. It was moved down.
+- **Host tests.** 39 pass:
+  - `WeekMath`: every week-start day, across 29 February and two year-ends;
+  - the ladder;
+  - the summit geometry: every step inside the mountain and the safe circle,
+    each step higher than the last, and a visible move per step;
+  - the coach's line lengths;
+  - `TreeFileSystem`;
+  - `ProbeRunner`.
+- **Local builds**, compile checks only:
+  - app `.uapp`: 230 KB;
+  - glance: 21 KB;
+  - probe: 176 KB.
+
+### S0.7 Open, for Gate S0
+
+- **Gate 0 itself.** Jon runs the probe (`PROBE.md`).
+- **Retention.** Does the phone's sync delete activities from the watch? The
+  probe's two runs, before and after a sync, answer it.
+- **The glance area on the watch.** The probe line and the glance itself will
+  both report it.

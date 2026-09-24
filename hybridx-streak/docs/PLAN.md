@@ -7,10 +7,19 @@ the watch records, from any app, automatically**. This plan turns Jon's brief
 actually offers. The evidence for every platform claim is in `NOTES.md`,
 §E.1-E.9.
 
-**Status: proposal, revised 24 September 2026. Nothing is built.** Decisions
-for Jon are in §12. The project starts with a probe on Jon's watch (§3), because
-one unverified platform behaviour decides whether it can exist. HybridX Race's
-Gate 6 hardware testing is not touched by any of this.
+**Status: Phase S0 built, 24 September 2026; waiting on Gate 0.** Jon accepted
+every §12 recommendation and chose the **Summit climb** look, teal and lime,
+and an encouraging-coach voice (`DESIGN.md`). S0 delivered:
+- the scaffold;
+- the pure core with host tests;
+- a first look at every screen, in the simulator with demo data;
+- the glance scaffold;
+- the probe (§3; Jon's steps in `PROBE.md`);
+- watch-safe builds from GitHub Actions.
+
+The probe on Jon's watch decides whether the product can exist as planned
+(NOTES S0). HybridX Race's Gate 6 hardware testing is not touched by any of
+this.
 
 ---
 
@@ -427,7 +436,7 @@ after every change, and a stop at each gate.
 
 | Phase | Work | Gate |
 |---|---|---|
-| **S0** Probe and scaffold | The §3 probe; `hybridx-streak/` skeleton; both CMake projects; `streak-v*` versioning; `CLAUDE.md` section | **Go/no-go**: Jon runs the probe and sends the log |
+| **S0** Probe and scaffold | The §3 probe; `hybridx-streak/` skeleton; both CMake projects; `streak-v*` versioning; `CLAUDE.md` section. **Built**, plus the Summit first look and CI builds (NOTES S0) | **Go/no-go**: Jon runs the probe and sends the log |
 | **S1** Pure core | `FitSessionReader`, `StreakModel`, the classifier, and the scanner over an injected file system. Can start before Gate 0 reports | Host tests (§6.6) green |
 | **S2** Service | Scanning, persistence, the public summary, AppConfig fields | Simulator, with fixture app folders beside its sandbox holding real `.fit` files from Race's rig and the SDK writers: open Streak, see them counted, dated and classified |
 | **S3** GUI | §7; screenshots of every screen; LVGL pool peak | Jon reviews |
@@ -439,6 +448,8 @@ after every change, and a stop at each gate.
 ---
 
 ## 12. Decisions for Jon, and questions for UNA
+
+**All accepted by Jon, 24 September 2026.**
 
 | ID | Decision | Recommendation |
 |---|---|---|

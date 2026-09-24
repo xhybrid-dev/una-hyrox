@@ -9,6 +9,16 @@ hybridx-race/build-tests/
 hybridx-race/Output/
 hybridx-race/Software/Apps/LVGL-GUI/simulator/build/
 hybridx-race/Software/Output/
+hybridx-streak/build-*/
+hybridx-streak/Output/
+hybridx-streak/Software/Output/
+hybridx-streak/Software/Apps/LVGL-GUI/simulator/build/
+hybridx-streak/Tools/Probe/build/
+hybridx-streak/Tools/Probe/Output/
+hybridx-streak/Tools/Probe/Software/Output/
+hybridx-streak/Tools/Probe/Software/Apps/Probe-GUI/simulator/build/
+# Square simulator frames; the committed screens are the round-masked copies.
+hybridx-streak/docs/screens/raw/
 
 # Python bytecode from the asset generator
 __pycache__/

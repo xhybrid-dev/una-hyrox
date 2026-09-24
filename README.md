@@ -142,7 +142,8 @@ builds its apps, with ST's toolchain. To download the result:
 1. On GitHub, open the repository and choose the **Actions** tab.
 2. Pick the newest **Watch builds** run with a green tick on your branch.
 3. At the bottom of the run page, under **Artifacts**, download **watch-apps**.
-   It is a zip holding one `.uapp` per app.
+   It is a zip holding one `.uapp` per app: HybridX Race, plus HybridX
+   Streak's app, glance and probe (see `hybridx-streak/docs/PROBE.md`).
 
 Until the app is on the store, installing is a file copy:
 
