@@ -1,0 +1,100 @@
+name: Watch builds
+
+# Builds every app in this repository the way UNA's own CI builds its apps
+# (una-sdk/.github/workflows/apps-ci.yml, job cmake-build): inside the same
+# STM32CubeIDE image, with ST's arm-none-eabi-gcc, and no syscall stubs.
+#
+# These .uapp artifacts are the only ones that should go on a watch. Local
+# builds in a container with Ubuntu's arm-none-eabi-gcc only link because of
+# injected stubs (hybridx-race/docs/NOTES.md 0.4, 5.20) and are compile checks.
+
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  # The SDK commit these apps are built and tested against (README "Getting set up").
+  UNA_SDK_REF: a7a995a17e3425629bd169a4736e255b419c71ad
+
+jobs:
+  watch-apps:
+    runs-on: ubuntu-latest
+    container: xanderhendriks/stm32cubeide:16.0
+    # Same backstop as UNA's job: bounds a degraded apt mirror, not the build.
+    timeout-minutes: 30
+    steps:
+      - name: Setup build tools
+        run: |
+          # Copied from apps-ci.yml: the Azure mirror and By-Hash indexes,
+          # which UNA adopted after archive.ubuntu.com outages.
+          find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
+            -exec sed -i -E 's#(https?://)(security|archive)\.ubuntu\.com/ubuntu#\1azure.archive.ubuntu.com/ubuntu#g' {} +
+          apt-get -o Acquire::By-Hash=yes update
+          apt-get install -y git python3-full python3-pip python-is-python3 cmake
+
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          # Tags feed the version stamped into each .uapp.
+          fetch-depth: 0
+
+      - name: Fetch the UNA SDK at the pinned commit
+        run: |
+          git clone https://github.com/UNAWatch/una-sdk.git una-sdk
+          git -C una-sdk checkout "$UNA_SDK_REF"
+          git -C una-sdk submodule update --init --recursive
+
+      - name: Install packer requirements
+        run: python3 -m pip install --break-system-packages -r una-sdk/Utilities/Scripts/app_packer/requirements.txt
+
+      - name: Build
+        run: |
+          export PATH=`find /opt/st/stm32cubeide_* -type f -name arm-none-eabi-objcopy | head -n 1 | xargs dirname`:$PATH
+          export PATH=`find /opt/st/stm32cubeide_* -type f -name make | head -n 1 | xargs dirname`:$PATH
+          chmod +x $(find /opt/st/stm32cubeide_* -type f -name make | head -n 1)
+          chmod +x $(find /opt/st/stm32cubeide_* -type f -name arm-none-eabi-gcc | head -n 1)
+          chmod +x $(find /opt/st/stm32cubeide_* -type f -name arm-none-eabi-g++ | head -n 1)
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          # The checkout is owned by another uid inside the container.
+          git config --global --add safe.directory '*'
+          arm-none-eabi-gcc --version | head -n 1
+
+          build() {
+            echo "::group::$1"
+            cmake -G "Unix Makefiles" -S "$1" -B "ci-build/$2"
+            make -C "ci-build/$2" -j"$(nproc)"
+            echo "::endgroup::"
+          }
+          build hybridx-race/Software/Apps/HybridXRace-CMake race
+
+      - name: Collect
+        run: |
+          mkdir -p watch-apps
+          cp hybridx-race/Output/*.uapp watch-apps/
+          ls -l watch-apps
+
+      - name: Upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: watch-apps
+          path: watch-apps/*.uapp
+          if-no-files-found: error
+
+  host-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Fetch the UNA SDK at the pinned commit
+        run: |
+          git clone https://github.com/UNAWatch/una-sdk.git una-sdk
+          git -C una-sdk checkout "$UNA_SDK_REF"
+
+      - name: HybridX Race host tests
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S hybridx-race/Tests/Host -B ci-build/race-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/race-tests -j"$(nproc)"
+          ctest --test-dir ci-build/race-tests --output-on-failure

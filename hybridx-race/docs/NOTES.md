@@ -1505,3 +1505,32 @@ pass.
 Updated `THIRD-PARTY-LICENSES.md`'s icon note and §0.12's D1 default (below)
 to drop "placeholder"; left 2.4's placeholder note as the historical record of
 what Phase 2 actually shipped, same convention as 5.18 above.
+
+### 5.20 Watch-safe builds come from CI; a correction (24 September 2026)
+
+**The correction.** On 23 September Jon was sent `HybridXRace_0.0.0-dev.uapp`
+from this container "for hardware testing". It was linked with the 0.4
+workaround: `build/CMakeCache.txt` has
+`CMAKE_EXE_LINKER_FLAGS=…/syscall_stubs.o`. 0.4 and W1 both say such a build
+must not go on a watch, and that should have been said when the file was sent.
+Jon has been told not to install it.
+
+**The fix.** UNA's own CI builds every example app inside the public image
+`xanderhendriks/stm32cubeide:16.0`, putting ST's `arm-none-eabi-gcc` and `make`
+from the bundled STM32CubeIDE on `PATH` (`una-sdk/.github/workflows/apps-ci.yml:80-153`).
+`.github/workflows/watch-builds.yml` does the same for this repository:
+- same image and tag;
+- same apt mirror setup;
+- same pinned action SHAs;
+- the SDK cloned at the pinned `a7a995a1`;
+- plain `cmake` + `make` with **no stubs**.
+
+It uploads one artifact, `watch-apps`, with a `.uapp` per app. A second job runs
+the host tests on a plain runner.
+
+**From now on:**
+- CI artifacts are the only builds that go on a watch. This satisfies W1
+  without Jon installing STM32CubeCLT.
+- Container builds (`hybridx-race/build`) remain useful as fast compile checks,
+  and are labelled as such.
+- README "Installing on a watch" now starts with where to download the artifact.

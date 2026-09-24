@@ -18,7 +18,7 @@ on a mismatch.
 
 | # | Check | Pass condition | Why it is deferred |
 |---|---|---|---|
-| **W1** | **Rebuild with ST's toolchain.** Install STM32CubeIDE or STM32CubeCLT, put its `arm-none-eabi-gcc` on `PATH`, and rebuild **without** the `-DCMAKE_EXE_LINKER_FLAGS=<stubs.o>` workaround. | Links with no `_write`/`_close`/`_read`/`_lseek` errors, and produces a `.uapp`. | The container has only the distro toolchain, which the SDK documents as incompatible. See `NOTES.md` 0.4. **Do this before W2 — nothing built here should go on a watch.** |
+| **W1** | **Rebuild with ST's toolchain.** Install STM32CubeIDE or STM32CubeCLT, put its `arm-none-eabi-gcc` on `PATH`, and rebuild **without** the `-DCMAKE_EXE_LINKER_FLAGS=<stubs.o>` workaround. | Links with no `_write`/`_close`/`_read`/`_lseek` errors, and produces a `.uapp`. | The container has only the distro toolchain, which the SDK documents as incompatible. See `NOTES.md` 0.4. **Do this before W2 — nothing built here should go on a watch.** **Now done by CI** (`NOTES.md` 5.20): the *Watch builds* workflow builds with ST's toolchain in UNA's own CI image, without the stubs. Install its `watch-apps` artifact, not a container build. |
 | **W2** | **Gate 0.** Install the *unmodified* RunLVGL `.uapp` and run it. | App appears, main menu renders, full Run flow works. | Needs hardware. If it fails and no firmware update exists, the LVGL decision reverts to TouchGFX (brief §5.1) and Phases 2-4 need rework. |
 | **W3** | **Gate 2.** Install HybridX Race and see it on the watch under its own name. | App launches, shows "HybridX Race". | Needs hardware. |
 | **W4** | **Gate 4.** Run T1-T8 below. | All pass. | Needs hardware. |

@@ -134,7 +134,17 @@ hybridx-race/docs/experiments/capture_screens.sh
 
 ## Installing on a watch
 
-Until the app is on the store this is a file copy:
+**Only install a `.uapp` built by GitHub**, never one built in a container with
+Ubuntu's compiler (see step 3 of "Getting set up"). Every push runs the
+**Watch builds** workflow, which builds the apps exactly the way UNA's own CI
+builds its apps, with ST's toolchain. To download the result:
+
+1. On GitHub, open the repository and choose the **Actions** tab.
+2. Pick the newest **Watch builds** run with a green tick on your branch.
+3. At the bottom of the run page, under **Artifacts**, download **watch-apps**.
+   It is a zip holding one `.uapp` per app.
+
+Until the app is on the store, installing is a file copy:
 
 1. Connect the watch by USB and wait for mass storage to appear. It can take a
    while — running apps flush their data first.
