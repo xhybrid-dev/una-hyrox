@@ -54,6 +54,30 @@ constexpr int32_t daysFromCivil(int32_t year, uint32_t month, uint32_t day)
     return era * 146097 + static_cast<int32_t>(doe) - 719468;
 }
 
+/// A calendar date.
+struct Civil {
+    int32_t  year  = 1970;
+    uint32_t month = 1;   ///< 1-12
+    uint32_t day   = 1;   ///< 1-31
+};
+
+/// The date of a day number: Howard Hinnant's civil_from_days, the inverse of
+/// daysFromCivil.
+constexpr Civil civilFromDays(int32_t days)
+{
+    days += 719468;
+    const int32_t  era = floorDiv(days, 146097);
+    const uint32_t doe = static_cast<uint32_t>(days - era * 146097);                // [0, 146096]
+    const uint32_t yoe = (doe - doe / 1460u + doe / 36524u - doe / 146096u) / 365u; // [0, 399]
+    const uint32_t doy = doe - (365u * yoe + yoe / 4u - yoe / 100u);                // [0, 365]
+    const uint32_t mp  = (5u * doy + 2u) / 153u;                                    // [0, 11]
+    Civil c;
+    c.day   = doy - (153u * mp + 2u) / 5u + 1u;
+    c.month = mp < 10u ? mp + 3u : mp - 9u;
+    c.year  = static_cast<int32_t>(yoe) + era * 400 + (c.month <= 2u ? 1 : 0);
+    return c;
+}
+
 /// Weekday of a local day number (0 = Sunday).
 constexpr uint8_t weekdayOf(int32_t localDay)
 {

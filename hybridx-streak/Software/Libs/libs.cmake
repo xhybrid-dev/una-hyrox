@@ -12,6 +12,9 @@
 set(STREAK_CORE_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/Core/Header)
 file(GLOB_RECURSE STREAK_CORE_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_LIST_DIR}/Core/Sources/*.cpp)
+# The FIT reader checks CRCs with the SDK's own function. (The JSON classes the
+# state file uses come with UNA_SDK_SOURCES_SERVICE.)
+list(APPEND STREAK_CORE_SOURCES "$ENV{UNA_SDK}/Libs/Source/Fit/FitCrc.cpp")
 
 file(GLOB_RECURSE STREAK_APP_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_LIST_DIR}/App/Sources/*.cpp)
