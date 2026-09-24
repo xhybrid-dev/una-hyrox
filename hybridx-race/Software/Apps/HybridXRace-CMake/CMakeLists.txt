@@ -17,6 +17,9 @@ set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")
 set(GUI_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../LVGL-GUI")
+# Output/ is git-ignored, so a fresh clone has none, and the linker cannot
+# create the .map files it writes there (NOTES 5.20).
+file(MAKE_DIRECTORY "${OUTPUT_PATH}")
 
 if("$ENV{UNA_SDK}" STREQUAL "")
     message(FATAL_ERROR "UNA_SDK environment variable is not set. Run SDK/Utilities/Scripts/set-una-sdk-env.ps1 or set UNA_SDK to the SDK root.")

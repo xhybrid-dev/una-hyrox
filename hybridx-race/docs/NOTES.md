@@ -1534,3 +1534,10 @@ the host tests on a plain runner.
 - Container builds (`hybridx-race/build`) remain useful as fast compile checks,
   and are labelled as such.
 - README "Installing on a watch" now starts with where to download the artifact.
+
+The first CI run compiled everything with ST's GNU Tools for STM32 13.3.1
+and then failed to link: `ld: cannot open map file …/Output/HybridXRaceGUI.elf.elf.map`.
+`Output/` is git-ignored, so a fresh clone has none. Locally it had always
+existed, so this was never seen. The CMakeLists now creates it
+(`file(MAKE_DIRECTORY "${OUTPUT_PATH}")`), which also fixes a first build from a
+fresh clone on Jon's machine.
