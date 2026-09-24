@@ -15,9 +15,11 @@ Jon's choices, 24 September 2026:
 | Rules | Every PLAN §12 recommendation (S1-S15) |
 
 Screens as they stand are in `screens/`, captured from the simulator and cut to
-the watch's round face. `screens/streak-demo.mp4` shows the animations. To
-capture them again:
-`UNA_SDK=… RECORD=1 docs/experiments/capture_screens.sh`.
+the watch's round face. `screens/streak-walkthrough.mp4` is a captioned
+walkthrough of how it works, and `screens/streak-demo.mp4` shows the
+animations without captions. To capture them again:
+`UNA_SDK=… RECORD=1 docs/experiments/capture_screens.sh` and
+`docs/experiments/walkthrough.sh`.
 
 ---
 
