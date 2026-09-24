@@ -32,7 +32,11 @@ Everything below becomes 0.1.0 once it has run on a watch (Gate 6).
 - **FIT output**: one lap per segment, carrying `segment_type`, `round` and
   `station_id` as developer fields, plus `race_format`, `roxzone_mode` and
   `completed` on the session. Laps are written in one batch at save time, which
-  is what makes undo possible.
+  is what makes undo possible. Each lap and the session also carry a real
+  distance and average speed (station distances plus the configured run
+  length), and each lap points at a named `workout_step` — "RUN 1/8",
+  "SKIERG", "SLED PUSH" — so Garmin Connect and Strava show a labelled split
+  rather than an anonymous lap number (F16).
 - **Summary**: total, runs total, stations total, Roxzone total, average and
   maximum heart rate, then the full split list five rows a page.
 - **Adjustable run length.** A HYROX run is 1 km, but a test run-through is
@@ -54,5 +58,7 @@ Everything below becomes 0.1.0 once it has run on a watch (Gate 6).
 - Every inter-process message is `static_assert`ed against the kernel's 256-byte
   pool, because an oversized send returns null and is dropped in silence on the
   watch while working fine in the simulator.
-- Target pacing (F14), the splits face (F15) and FIT workout-step names (F16)
-  are deliberately not in this release.
+- Target pacing (F14) and the splits face (F15) are deliberately not in this
+  release; FIT workout-step names (F16) were added later in Phase 5 and are
+  now covered by the FIT output bullet above — see `docs/NOTES.md` 5.11–5.12
+  and `docs/ROADMAP.md` §4.

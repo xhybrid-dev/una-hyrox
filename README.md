@@ -185,6 +185,7 @@ refuses to package if the binary is not actually that version.
 | [`docs/ARCHITECTURE.md`](hybridx-race/docs/ARCHITECTURE.md) | how the app is put together, and why |
 | [`docs/NOTES.md`](hybridx-race/docs/NOTES.md) | the running log: findings, measurements, decisions, and every place the SDK and the brief disagree |
 | [`docs/ON_WATCH_TESTS.md`](hybridx-race/docs/ON_WATCH_TESTS.md) | everything that still needs real hardware |
+| [`docs/ROADMAP.md`](hybridx-race/docs/ROADMAP.md) | what's next past v0.1.0, and what's already scoped versus just proposed |
 | [`docs/experiments/`](hybridx-race/docs/experiments/) | the throwaway programs that answered a question, kept because they are the evidence |
 | [`CHANGELOG.md`](CHANGELOG.md) | what changed, per release |
 
