@@ -19,6 +19,11 @@ hybridx-streak/Tools/Probe/Software/Output/
 hybridx-streak/Tools/Probe/Software/Apps/Probe-GUI/simulator/build/
 # Square simulator frames; the committed screens are the round-masked copies.
 hybridx-streak/docs/screens/raw/
+hybridx-intervals/build-tests/
+hybridx-intervals/Tools/Probe/build/
+hybridx-intervals/Tools/Probe/Output/
+hybridx-intervals/Tools/Probe/Software/Output/
+hybridx-intervals/Tools/Probe/Software/Apps/Probe-GUI/simulator/build/
 
 # Python bytecode from the asset generator
 __pycache__/

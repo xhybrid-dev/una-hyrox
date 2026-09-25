@@ -71,6 +71,9 @@ jobs:
           build hybridx-streak/Software/Apps/HybridXStreak-CMake streak
           build hybridx-streak/Software/Apps/HybridXStreakGlance-CMake streak-glance
           build hybridx-streak/Tools/Probe/Software/Apps/Probe-CMake streak-probe
+          # HybridX Intervals: the throwaway Phase P0 probe app only -- see
+          # hybridx-intervals/docs/PROBE.md.
+          build hybridx-intervals/Tools/Probe/Software/Apps/Probe-CMake intervals-probe
 
       - name: Collect
         run: |
@@ -79,6 +82,7 @@ jobs:
           cp hybridx-streak/Output/*.uapp watch-apps/
           cp hybridx-streak/Output/Glance/*.uapp watch-apps/
           cp hybridx-streak/Tools/Probe/Output/*.uapp watch-apps/
+          cp hybridx-intervals/Tools/Probe/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -121,3 +125,14 @@ jobs:
           cmake -S hybridx-streak/Tests/Host -B ci-build/streak-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/streak-tests -j"$(nproc)"
           ctest --test-dir ci-build/streak-tests --output-on-failure
+
+      - name: HybridX Intervals Probe host tests
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S hybridx-intervals/Tools/Probe/Tests/Host -B ci-build/intervals-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/intervals-tests -j"$(nproc)"
+          ctest --test-dir ci-build/intervals-tests --output-on-failure
+
+      - name: HybridX Intervals BLE protocol tests
+        # Pure packet encode/decode, no BLE hardware -- Docs/BLE-File-Transfer-Service.md.
+        run: python3 -m unittest discover -s hybridx-intervals/Tools/Probe/pc -p "test_*.py" -v
