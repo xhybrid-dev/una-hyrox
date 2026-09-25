@@ -409,3 +409,160 @@ The watch uses FatFs and is expected to refuse. The probe will say which.
   probe's two runs, before and after a sync, answer it.
 - **The glance area on the watch.** The probe line and the glance itself will
   both report it.
+
+---
+
+## Phases S1–S4: counting, the service, the screens, the glance (24–25 September 2026)
+
+Built in one run to Gate 3/4, with Gates 1 and 2 checked automatically along
+the way (plan approved by Jon, 24 September). **Gate 0 has still to report:**
+everything below works in the simulator and host tests; whether the watch lets
+one app read another's `Activity/` files is the probe's question
+(`PROBE.md`). Manual logging, the rules, the screens and the glance work
+either way.
+
+### S1.1 The FIT reader
+
+- **A small parser of our own, since the SDK has none.** `Core/FitSessionReader`
+  is a bounded streaming parser with one 512-byte buffer and no heap.
+- **What it checks:**
+  - the header;
+  - a table of the 16 local definitions, honouring byte order, developer
+    fields and compressed-timestamp headers;
+  - the whole-file CRC, using the SDK's own `fitCrcUpdate`.
+- **What it reads:** only the `session` message (mesg 18), fields 2, 5, 6, 7
+  and 8, all numbered as in FitProfile.hpp.
+- **Evidence:**
+  - on HybridX Race's three real ActivityWriter files it reads exactly what
+    `fitdecode` reads, for start, sport, sub-sport and timer;
+  - a fixture writer drives the **SDK's real `FitWriter`** with
+    ActivityWriter's message layout (developer fields and field descriptions
+    included), and `fitdecode` reads its output with CRC checking on;
+  - hand-built files cover big-endian definitions, compressed timestamps, a
+    missing session and undefined local types.
+
+### S1.2 The scan window: a change from PLAN 5.1
+
+PLAN 5.1 had a single high-water mark. It is replaced by **a window**: the
+previous week and the current week, stretched back to the week of the last
+open (at most 8 weeks). A **dedup ring** decides what is new.
+
+The reason: a file skipped while it was still recording (named in
+`.recording`), or recovered after a crash, can carry an older start than one
+already counted, and a high-water mark would pass it by for ever.
+
+The ring holds 64 keys, each an FNV-1a hash of the app folder plus the local
+start second. When it evicts a key, everything at least that old counts as
+seen, so nothing inside the window is counted twice.
+
+### S1.3 The rules: two choices made while building
+
+1. **A week is achieved the moment it meets its target.** The climber steps
+   up then and there, as DESIGN 4 and 6 show. Streak, weeks and lifetime are
+   the committed figures plus the live week; closing the week commits them.
+   An undo below the target takes the step back down.
+2. **A week-start change applies at once** (S8). The current week closes:
+   achieved if it met the target, otherwise void. Its sessions on days the new
+   week covers move over. Target, scope, minimum and one-per-day wait for next
+   week, and a new target or scope makes that week a trial.
+
+**Order of news.** A shield offer or reset is played before this week's
+sessions: the past first.
+
+### S1.4 The state file
+
+- **Encoding:** JSON through the SDK's `JsonStreamWriter`/`JsonStreamReader`,
+  about 3 KB when full.
+- **Saving:** the SDK's tmp → flush → .bak → rename sequence; loading falls
+  back to `.bak`.
+- **Loading:** every value is clamped.
+- **Day numbers are stored as unsigned bit patterns.** The SDK writer formats
+  `int32_t` with `%ld`, which is right on the watch (32-bit `long`) and wrong
+  on a 64-bit host, and "no week yet" is `INT32_MIN`. **Worth telling UNA:**
+  `JsonStreamWriter` has the same issue for any negative `int32_t` on 64-bit
+  hosts, such as the simulator.
+
+### S2.1 The service
+
+- **On open:**
+  1. clock (floor 1 Jan 2026);
+  2. load;
+  3. AppConfig goal;
+  4. scan (at most 32 files);
+  5. credit and judge;
+  6. save `state.json` and the public `../SharedData/HybridX/streak.json`;
+  7. views to the GUI on `GUI_RUN`.
+- **Memory:** the model, scanner and buffers (about 15 KB) are statics placed
+  at start-up, off the 10 KB service stack.
+- **Messages:** there are six service → GUI views, all under 256 B. Views are
+  payload structs inside the messages, because `MessageBase` cannot be copied.
+- **Phone settings:** `Resources/app-manifest.json` declares 5 `configFields`.
+  `validate_app_config.py` passes locally and in CI.
+- **Gate 2:** `docs/experiments/sim_fixtures.sh` builds a pretend watch of real
+  FIT files around today.
+  - The first open counted Run (Running), Hybrid (a HybridX Race file) and Ride
+    (Cycling).
+  - It listed a 6-minute walk as too short, and skipped the file being
+    recorded and a broken one.
+  - A second open changed nothing.
+  - The public copy was byte-identical.
+  - The scan took under 1 ms in the simulator.
+
+### S3.1 The screens
+
+Home plays the service's moments, starting from the view as it was before
+them.
+
+New screens use the SDK's `WheelMenu`, as the UNA apps' menus do:
+- Menu;
+- This week (with "6 min · under 10" and similar reasons);
+- leave out / count again / undo;
+- Log a session;
+- Trophy case;
+- Settings and a value picker;
+- Clock unset.
+
+**LVGL pool.** Two menu screens alive at once during a switch peaked the pool
+at **89%** (Race: 91%). The ScreenManager now deletes the old screen before
+building the new one, via a placeholder. Peak **62%**, fragmentation 2%, across
+every screen and moment.
+
+**Evidence:**
+- `screens/real/`: 20 round screenshots from the real app on a pretend watch
+  (`capture_real.sh`).
+- `screens/streak-real-walkthrough.mp4` (52 s, captioned; `walkthrough_real.sh`).
+  It opens onto 11 weeks with last week missed:
+  1. the shield offer;
+  2. three sessions from three apps;
+  3. "Week complete!", which is the top of Snowdon.
+- `make_state` writes such histories.
+
+Video capture now stamps frames with wall-clock time. x11grab had been
+compressing time under load, so captions slid off their scenes.
+
+### S4.1 The glance
+
+- **Projection:** it reads the public copy, scans at most 4 new files, and
+  projects the week to now **without saving** (the single-writer rule).
+- **Layout:** `Glance/GlanceLayout` is pure and host-tested. The layout is
+  chosen from the area and control budget the watch reports:
+  - **full:** a line-drawn mountain with a flag, plus three lines;
+  - **compact:** two lines;
+  - **tiny:** one line.
+  Every control is inside the area and within the budget, and every text is
+  at most 32 bytes, for 8 areas × 6 budgets × 7 states.
+- **Colour:** the glance has 16 colours and no lime, so GREEN stands in.
+- **Preview:** the simulator cannot run glances, so `glance_preview` +
+  `docs/experiments/glance_preview.py` draw the layout's real output
+  (`screens/glance-preview.png`, with a stand-in font).
+
+### Open, for Gates 3 and 4
+
+- **Gate 0:** the probe on the watch, as before.
+- **Gate 3:** Jon's review of the real screens and the walkthrough.
+- **Gate 4:** the app and glance on the watch, from CI.
+  - The glance logs its area: `Glance area WxH, N controls`.
+  - Does the full layout appear?
+- **Not built yet:** the reminder/background scan (P1, and only if the probe
+  shows the phone deletes synced files). Also not built: a reset-streak option
+  and Race's streak line (PLAN 9).

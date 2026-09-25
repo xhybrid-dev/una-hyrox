@@ -134,6 +134,27 @@ motor, so the GUI sends `Celebrate{moment}` and the service plays it.
 Buttons follow UNA's convention: R1 means yes or go (a tick beside it), R2
 means no or back (a cross beside it). L1 and L2 move between things.
 
+## 6a. The menus (phase S3)
+
+The screens behind Home use the SDK's `WheelMenu`, the same widget as the UNA
+apps' menus. The selected line is in SemiBold 25 (the activity apps use 30,
+which is too wide for "Log a session"), the lines around it in Medium 18,
+and hints in Italic 18. An Italic 18 title sits over a short rule.
+
+| Screen | What it holds | Keys |
+|---|---|---|
+| Home | as §4; plays the service's moments in order | L1/L2/R1 menu · R2 exit |
+| Menu | This week ("3 of 3 counted") · Log a session · Trophy case · Settings | L1/L2 move · R1 open · R2 home |
+| This week | each session: kind, then minutes and app ("35 min · Running"), or why it doesn't count ("6 min · under 10", "Goal: Runs only", "One a day · Tue", "Excluded · Cycling"). Counting hints are lime, others grey | R1: leave out / count again / undo |
+| Leave out? | "Leave this out?" / "Count it again?" / "Undo this log?", with a tick and a cross | R1 yes · R2 no |
+| Log a session | Run, Strength, Ride, Walk, Row, Hybrid, Workout, Other, then Today / Yesterday (Yesterday only while it is this week) | R1 next · R2 back |
+| Trophy case | the five summits ("Climbed · 12 weeks" or "7 of 12 weeks"), the four badges, best week, longest streak, all sessions | L1/L2 · R2 back |
+| Settings | Weekly target ("3 now · 4 next week" while a change waits), Week starts, What counts, Shortest, One per day (toggle) | R1 choose · R2 back |
+| Set the time | shown when the clock is unset | R2 exit |
+
+App folders are named as the athlete knows them. `HybridXRace` is "HybridX",
+because "HybridX Race" clips on the wheel's lower line.
+
 ## 7. Voice: the encouraging coach
 
 - **Warm, short, on your side.** "Week banked. Rest up." not "Target
@@ -152,15 +173,25 @@ means no or back (a cross beside it). L1 and L2 move between things.
 
 ## 8. The glance
 
-Phase S0 has placeholder content. It shows a line-drawn mountain with a lime
-flag, "7 week streak" and "2 of 3 this week", plus a tiny line reporting the
-glance area the watch actually gives. It falls back to text alone if fewer
-than 8 controls are available. The real layout is Phase S4, once the probe has
-reported the area.
+It reads the app's public copy and brings the week up to now. It never saves.
+What it shows depends on the area the watch gives it (`screens/glance-preview.png`
+is a mock-up drawn from the real layout code):
+
+| Layout | When | What |
+|---|---|---|
+| Full | 8+ controls, 170+ px wide, 59+ px tall | a line-drawn mountain with a green flag; "7 week streak" (SemiBold 20, green); "2 of 3 this week" (Medium 18, white; green when met); a coach line (Medium 10): "Snowdon: 5 weeks to go", "2 more in 2 days" (amber), "Week banked. Rest up." (green), "Open to use a shield" (amber) |
+| Compact | fewer controls, or a narrow area | the first two lines, centred |
+| Tiny | under 46 px tall | "7 wk streak · 2/3" |
+
+Special states: "First week"; "New streak"; before the app is first opened,
+"HybridX Streak / Open it to start"; with the clock unset, "Set the time / in
+the UNA app". The glance has only 16 colours and no lime, so green stands in.
 
 ## 9. Budgets
 
-- The LVGL pool (40 KB) peaks at **47%** across every demo screen, against
-  Race's 91%.
+- The LVGL pool (40 KB) peaks at **62%** across every real screen, against
+  Race's 91% (47% for the S0 demo). A screen is deleted before the next is
+  built, so two menus are never in the pool together; together they reached
+  89%.
 - No screen allocates in the 1 Hz path. Animations use `lv_anim` on existing
   objects, and the scene redraws only when its data changes.

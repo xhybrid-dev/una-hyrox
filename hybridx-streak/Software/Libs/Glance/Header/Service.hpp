@@ -7,11 +7,13 @@
  * configure and draw on EVENT_GLANCE_START, push the form on the tick when it
  * has changed, and exit on EVENT_GLANCE_STOP or COMMAND_APP_STOP.
  *
- * Phase S0 shows demonstration content (the S0 first look) plus one small
- * line reporting the glance area the watch actually gives an app: the PC
- * simulator cannot run glances, so this is how the real width, height and
- * control budget are measured (PLAN S0). Phase S4 replaces the content with
- * the real summary from ../SharedData/HybridX/streak.json.
+ * On start it reads the public ../SharedData/HybridX/streak.json the app
+ * saves, runs the same scanner and model over at most kMaxNew activities newer
+ * than it, and projects the week to now -- WITHOUT saving: the app is the
+ * single writer (PLAN 4, 8). GlanceLayout decides what to draw for the area
+ * and control budget the watch reports; the service only turns its specs
+ * into SDK glance controls. It logs the area it was given, which the PC
+ * simulator cannot tell us (NOTES S0).
  ******************************************************************************
  */
 
@@ -28,12 +30,16 @@ class Service
 public:
     explicit Service(SDK::Kernel& kernel);
 
+    /// Activities the glance reads per look: the app does the full catch-up.
+    static constexpr size_t kMaxNew = 4;
+
     void run();
 
 private:
     bool configure();
     void build();
     void pushIfChanged();
+
 
     const SDK::Kernel& mKernel;
     SDK::Glance::Form  mForm;

@@ -53,6 +53,8 @@ add_executable(hybridx-streak-host-tests
     ActivityScannerTest.cpp
     StreakModelTest.cpp
     StateCodecTest.cpp
+    GlanceLayoutTest.cpp
+    "${STREAK_SOFTWARE}/Libs/Glance/Sources/GlanceLayout.cpp"
     support/TreeFileSystem.cpp
     support/FitFixture.cpp
     ${STREAK_CORE_TEST_SOURCES}
@@ -66,6 +68,7 @@ target_include_directories(hybridx-streak-host-tests PRIVATE
     "${STREAK_SOFTWARE}/Libs/Core/Header"
     "${STREAK_GUI}/include"
     "${STREAK_PROBE}/Header"
+    "${STREAK_SOFTWARE}/Libs/Glance/Header"
     "${CMAKE_CURRENT_LIST_DIR}/support"
     "${UNA_SDK_ROOT}/Libs/Header"
     "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
@@ -92,4 +95,12 @@ target_include_directories(make_state PRIVATE
     "${STREAK_SOFTWARE}/Libs/Core/Header"
     "${UNA_SDK_ROOT}/Libs/Header"
     "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
+)
+
+# glance_preview: the glance's controls as text, for docs/experiments/glance_preview.py.
+add_executable(glance_preview tools/glance_preview.cpp "${STREAK_SOFTWARE}/Libs/Glance/Sources/GlanceLayout.cpp")
+target_include_directories(glance_preview PRIVATE
+    "${STREAK_SOFTWARE}/Libs/Glance/Header"
+    "${STREAK_SOFTWARE}/Libs/Core/Header"
+    "${UNA_SDK_ROOT}/Libs/Header"
 )

@@ -8,9 +8,17 @@
 #include "Service.hpp"
 
 #include <cstdio>
+#include <ctime>
+#include <new>
 
 #include "SDK/Messages/CommandMessages.hpp"
 #include "SDK/Messages/MessageGuard.hpp"
+
+#include "ActivityScanner.hpp"
+#include "GlanceLayout.hpp"
+#include "StateCodec.hpp"
+#include "StreakModel.hpp"
+#include "WeekMath.hpp"
 
 #define LOG_MODULE_PRX   "Glance"
 #define LOG_MODULE_LEVEL LOG_LEVEL_INFO
@@ -18,9 +26,8 @@
 
 namespace
 {
-/// Controls the full layout uses: the mountain (4 lines), its flag (1 rect),
-/// three text lines. Below this the glance falls back to text alone.
-constexpr uint32_t kFullLayoutControls = 8;
+constexpr const char* kPublicFile     = "../SharedData/HybridX/streak.json";
+constexpr int64_t     kClockFloorUtc  = 1767225600;   ///< 2026-01-01, as the app (PLAN 6.1)
 
 GlancePoint_t at(int32_t x, int32_t y)
 {
@@ -31,6 +38,13 @@ GlanceSize_t size(int32_t w, int32_t h)
 {
     return { static_cast<uint16_t>(w < 0 ? 0 : w), static_cast<uint16_t>(h < 0 ? 0 : h) };
 }
+
+// Placed at start-up: far larger than the glance service's stack.
+alignas(Streak::StreakModel) uint8_t     sModelStorage[sizeof(Streak::StreakModel)];
+alignas(Streak::ActivityScanner) uint8_t sScannerStorage[sizeof(Streak::ActivityScanner)];
+Streak::Found  sFound[Service::kMaxNew];
+char           sScratch[Streak::StateCodec::kMaxBytes];
+Glance::Layout sLayout;
 } // namespace
 
 Service::Service(SDK::Kernel& kernel)
@@ -95,43 +109,62 @@ bool Service::configure()
 void Service::build()
 {
     mBuilt = true;
+    auto* model   = new (sModelStorage) Streak::StreakModel();
+    auto* scanner = new (sScannerStorage) Streak::ActivityScanner();
 
-    // Demonstration content for the S0 first look (see the header).
-    const char* kStreak = "7 week streak";
-    const char* kWeek   = "2 of 3 this week";
-
-    char probe[32];
-    snprintf(probe, sizeof(probe), "area %dx%d, %u ctl", mWidth, mHeight, static_cast<unsigned>(mMaxControls));
-
-    if (mMaxControls < kFullLayoutControls) {
-        // Text alone: the streak, and this week.
-        mForm.createText().init(at(0, 0), size(mWidth, mHeight / 2), kStreak, GLANCE_FONT_POPPINS_SEMIBOLD_20,
-                                GLANCE_COLOR_GREEN, GLANCE_ALIGN_H_CENTER);
-        mForm.createText().init(at(0, mHeight / 2), size(mWidth, mHeight / 2), kWeek, GLANCE_FONT_POPPINS_MEDIUM_18,
-                                GLANCE_COLOR_WHITE, GLANCE_ALIGN_H_CENTER);
-        return;
+    // The app's public copy; none means the app has never been opened.
+    Glance::State        state = Glance::State::Normal;
+    Streak::HomeView     view;
+    const auto           source = Streak::StateCodec::load(mKernel.fs, kPublicFile, model->state(), sScratch,
+                                                           sizeof(sScratch));
+    if (source == Streak::StateCodec::Source::None) {
+        state = Glance::State::NoStreak;
+    } else {
+        const std::time_t utc = std::time(nullptr);
+        std::tm           local {};
+        localtime_r(&utc, &local);
+        const int32_t today = Streak::WeekMath::daysFromCivil(local.tm_year + 1900,
+                                                               static_cast<uint32_t>(local.tm_mon + 1),
+                                                               static_cast<uint32_t>(local.tm_mday));
+        if (static_cast<int64_t>(utc) < kClockFloorUtc) {
+            view       = model->view(today);
+            view.flags = static_cast<uint8_t>(view.flags | Streak::HomeView::kClockUnset);
+        } else {
+            // Project to now: what the app would show if opened, not saved.
+            int32_t from = 0, to = 0;
+            model->scanWindow(today, from, to);
+            const size_t   n = scanner->scan(mKernel.fs, "HybridXStreak", from, to, *model, sFound, kMaxNew);
+            Streak::Events ignored;
+            model->update(today, sFound, n, ignored);
+            view = model->view(today);
+            if (model->state().pendingMissed > 0) {
+                view.flags = static_cast<uint8_t>(view.flags | Streak::HomeView::kDecisionPending);
+            }
+            LOG_INFO("Projected with %u new activities\n", static_cast<unsigned>(n));
+        }
     }
 
-    // A little mountain on the left, drawn in lines: the two flanks, the snow
-    // line, and a flag on the top. The glance has no filled triangles.
-    const int32_t m    = mHeight < 60 ? mHeight : 60;       // the mountain's box
-    const int32_t x0   = 8;
-    const int32_t base = mHeight - 4;
-    const int32_t top  = mHeight - m + 14;
-    const int32_t apex = x0 + m / 2;
-    mForm.createLine().init(at(x0, base), at(apex, top), GLANCE_COLOR_TEAL);
-    mForm.createLine().init(at(apex, top), at(x0 + m, base), GLANCE_COLOR_TEAL);
-    mForm.createLine().init(at(apex - 6, top + 9), at(apex + 6, top + 9), GLANCE_COLOR_WHITE);
-    mForm.createLine().init(at(apex, top), at(apex, top - 11), GLANCE_COLOR_WHITE);
-    mForm.createRect().init(at(apex + 1, top - 11), size(9, 6), GLANCE_COLOR_GREEN, GLANCE_COLOR_GREEN, true);
+    Glance::layout(view, state, mWidth, mHeight, mMaxControls, sLayout);
+    LOG_INFO("Glance area %dx%d, %u controls: layout %u, %u controls\n", mWidth, mHeight,
+             static_cast<unsigned>(mMaxControls), static_cast<unsigned>(sLayout.kind),
+             static_cast<unsigned>(sLayout.count));
 
-    // The words on the right.
-    const int32_t tx = x0 + m + 10;
-    const int32_t tw = mWidth - tx;
-    mForm.createText().init(at(tx, 0), size(tw, 24), kStreak, GLANCE_FONT_POPPINS_SEMIBOLD_20, GLANCE_COLOR_GREEN);
-    mForm.createText().init(at(tx, 23), size(tw, 22), kWeek, GLANCE_FONT_POPPINS_MEDIUM_18, GLANCE_COLOR_WHITE);
-    mForm.createText().init(at(tx, mHeight - 13), size(tw, 13), probe, GLANCE_FONT_POPPINS_MEDIUM_10,
-                            GLANCE_COLOR_GRAY);
+    for (uint8_t i = 0; i < sLayout.count; ++i) {
+        const Glance::Spec& c = sLayout.items[i];
+        switch (c.type) {
+            case Glance::Spec::Type::Text:
+                mForm.createText().init(at(c.x, c.y), size(c.w, c.h), c.text, static_cast<GlanceFont_t>(c.font),
+                                        static_cast<GlanceColor_t>(c.colour), static_cast<GlanceAlignH_t>(c.align));
+                break;
+            case Glance::Spec::Type::Line:
+                mForm.createLine().init(at(c.x, c.y), at(c.x2, c.y2), static_cast<GlanceColor_t>(c.colour));
+                break;
+            case Glance::Spec::Type::Rect:
+                mForm.createRect().init(at(c.x, c.y), size(c.w, c.h), static_cast<GlanceColor_t>(c.colour),
+                                        static_cast<GlanceColor_t>(c.colour), c.fill);
+                break;
+        }
+    }
 }
 
 void Service::pushIfChanged()

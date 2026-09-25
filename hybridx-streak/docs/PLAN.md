@@ -7,16 +7,16 @@ the watch records, from any app, automatically**. This plan turns Jon's brief
 actually offers. The evidence for every platform claim is in `NOTES.md`,
 §E.1-E.9.
 
-**Status: Phase S0 built, 24 September 2026; waiting on Gate 0.** Jon accepted
-every §12 recommendation and chose the **Summit climb** look, teal and lime,
-and an encouraging-coach voice (`DESIGN.md`). S0 delivered:
-- the scaffold;
-- the pure core with host tests;
-- a first look at every screen, in the simulator with demo data;
-- the glance scaffold;
-- the probe (§3; Jon's steps in `PROBE.md`);
-- watch-safe builds from GitHub Actions.
+**Status: Phases S0–S4 built, 25 September 2026; waiting on Gates 0, 3 and 4.**
+Jon accepted every §12 recommendation and chose the **Summit climb** look,
+teal and lime, and an encouraging-coach voice (`DESIGN.md`). Built so far:
+- the pure core (FIT reader, scanner, rules, state file);
+- the service;
+- every MVP screen on real data;
+- the glance.
 
+It is all checked by host tests and simulator runs on a pretend watch of real
+FIT files (NOTES S0, S1–S4).
 The probe on Jon's watch decides whether the product can exist as planned
 (NOTES S0). HybridX Race's Gate 6 hardware testing is not touched by any of
 this.
@@ -186,6 +186,12 @@ Gate 0.**
 ## 5. Automatic detection
 
 ### 5.1 Discovery (`ActivityScanner`)
+
+> **As built (NOTES S1.2):** a scan **window** replaces the high-water mark:
+> the previous and current week, stretched back to the week of the last open
+> (at most 8 weeks). The dedup ring of §5.5 decides what is new. A file that
+> was still recording at one open, or was recovered after a crash, can start
+> earlier than one already counted, and a high-water mark would miss it.
 
 1. List `..` (that is, `/Apps/`). For each folder except our own and
    `SharedData`, look for `Activity/`.
@@ -437,10 +443,10 @@ after every change, and a stop at each gate.
 | Phase | Work | Gate |
 |---|---|---|
 | **S0** Probe and scaffold | The §3 probe; `hybridx-streak/` skeleton; both CMake projects; `streak-v*` versioning; `CLAUDE.md` section. **Built**, plus the Summit first look and CI builds (NOTES S0) | **Go/no-go**: Jon runs the probe and sends the log |
-| **S1** Pure core | `FitSessionReader`, `StreakModel`, the classifier, and the scanner over an injected file system. Can start before Gate 0 reports | Host tests (§6.6) green |
-| **S2** Service | Scanning, persistence, the public summary, AppConfig fields | Simulator, with fixture app folders beside its sandbox holding real `.fit` files from Race's rig and the SDK writers: open Streak, see them counted, dated and classified |
-| **S3** GUI | §7; screenshots of every screen; LVGL pool peak | Jon reviews |
-| **S4** Glance | §8, both layouts, projection | Simulator if it runs glances, otherwise hardware |
+| **S1** Pure core | `FitSessionReader`, `StreakModel`, the classifier, and the scanner over an injected file system. Can start before Gate 0 reports. **Built** | Host tests (§6.6) green: **passed** |
+| **S2** Service | Scanning, persistence, the public summary, AppConfig fields. **Built** | Simulator, with fixture app folders beside its sandbox holding real `.fit` files from Race's rig and the SDK writers: open Streak, see them counted, dated and classified: **passed** |
+| **S3** GUI | §7; screenshots of every screen; LVGL pool peak. **Built** (pool peak 62%) | Jon reviews |
+| **S4** Glance | §8, both layouts, projection. **Built** | Simulator if it runs glances, otherwise hardware (it doesn't: hardware) |
 | **S5** Packaging and docs | Two manifests, two zips, README, ARCHITECTURE, CHANGELOG | Both validate; zips match `deploy.md` |
 | **S6** Hardware and release | On-watch: activities from each built-in app, a real Monday roll-over, a time-zone change, a flat battery, a phone sync | Jon's pass; tag `streak-v0.1.0` |
 | **P1** | Race's streak line (§9); reminders / background scan if needed (§5.6, §10); excluded apps; multiple goals | Per item |

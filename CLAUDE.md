@@ -51,5 +51,14 @@ the watch records, from any app. It is independent of HybridX Race.
   stubs, so they are compile checks only and never go on a watch.
 - **Commands:**
   - host tests: `cmake -S hybridx-streak/Tests/Host -B hybridx-streak/build-tests && cmake --build hybridx-streak/build-tests && hybridx-streak/build-tests/hybridx-streak-host-tests`;
-  - simulator: `hybridx-streak/Software/Apps/LVGL-GUI/simulator` (see its CMakeLists);
-  - captures: `RECORD=1 hybridx-streak/docs/experiments/capture_screens.sh`.
+  - simulator: `hybridx-streak/Software/Apps/LVGL-GUI/simulator` (see its
+    CMakeLists). `build/` is the real app; `build-demo/` (`-DHYBRIDXSTREAK_DEMO=ON`)
+    is the S0 design demo.
+  - a pretend watch for the real simulator: `docs/experiments/sim_fixtures.sh
+    <dir>` (real FIT files from `build-tests/make_fit`), plus
+    `build-tests/make_state` for a history. Run the simulator from
+    `<dir>/a/b/c/d/e`.
+  - captures:
+    - real app: `docs/experiments/capture_real.sh`, `walkthrough_real.sh`;
+    - demo: `RECORD=1 capture_screens.sh`, `walkthrough.sh`;
+    - glance mock-up: `glance_preview.py build-tests/glance_preview <out.png>`.

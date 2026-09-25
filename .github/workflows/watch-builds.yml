@@ -66,8 +66,8 @@ jobs:
             echo "::endgroup::"
           }
           build hybridx-race/Software/Apps/HybridXRace-CMake race
-          # HybridX Streak: the app (the S0 design demo until real data, S2),
-          # its glance, and the Gate 0 probe.
+          # HybridX Streak: the app (real data since S2; the design demo is a
+          # simulator-only build), its glance, and the Gate 0 probe.
           build hybridx-streak/Software/Apps/HybridXStreak-CMake streak
           build hybridx-streak/Software/Apps/HybridXStreakGlance-CMake streak-glance
           build hybridx-streak/Tools/Probe/Software/Apps/Probe-CMake streak-probe
