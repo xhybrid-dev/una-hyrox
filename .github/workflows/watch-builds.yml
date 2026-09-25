@@ -107,6 +107,14 @@ jobs:
           cmake --build ci-build/race-tests -j"$(nproc)"
           ctest --test-dir ci-build/race-tests --output-on-failure
 
+      - name: HybridX Streak settings declaration
+        # The manifest's configFields and the app's AppConfig table must agree
+        # (una-sdk Docs/app-config-fields.md 5.1).
+        run: |
+          python3 una-sdk/Utilities/Scripts/app_packer/validate_app_config.py \
+            --check hybridx-streak/Resources/app-manifest.json \
+            --check-bounds hybridx-streak/Software/Libs/App/Sources/AppConfigFields.cpp
+
       - name: HybridX Streak host tests
         run: |
           export UNA_SDK=$GITHUB_WORKSPACE/una-sdk

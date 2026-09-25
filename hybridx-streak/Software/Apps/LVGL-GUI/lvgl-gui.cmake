@@ -12,9 +12,10 @@ set(GUI_APP_INCLUDE_DIRS
 )
 
 # The design demo: every screen driven by canned scenarios instead of the
-# service's real data, for design review and screenshot captures. On until the
-# service provides real data (phase S2).
-option(HYBRIDXSTREAK_DEMO "Drive the GUI from demo scenarios" ON)
+# service's real data, for design review and screenshot captures. Off since the
+# service provides real data (phase S2); the capture scripts build a separate
+# demo simulator with -DHYBRIDXSTREAK_DEMO=ON.
+option(HYBRIDXSTREAK_DEMO "Drive the GUI from demo scenarios" OFF)
 if(HYBRIDXSTREAK_DEMO)
     set(STREAK_GUI_DEFINES HYBRIDXSTREAK_DEMO=1)
 endif()

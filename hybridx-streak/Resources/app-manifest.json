@@ -1,0 +1,63 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "utility"
+  ],
+  "name": "HybridX Streak",
+  "icon": "icon.png",
+  "binary": "HybridXStreak.uapp",
+  "previews": "previews/",
+  "appVersion": "0.1.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [],
+  "description": "Keep a weekly training streak. Every activity your watch records counts automatically, and every week you hit your target is a step up a mountain.",
+  "id": "A75434BA114DFEBE",
+  "configFile": "app_config.json",
+  "configFields": [
+    {
+      "id": "weeklyTarget",
+      "type": "int",
+      "label": "Weekly target",
+      "description": "How many sessions make a week. Changes apply from next week.",
+      "default": 3,
+      "min": 1,
+      "max": 7,
+      "unit": "sessions"
+    },
+    {
+      "id": "weekStart",
+      "type": "int",
+      "label": "Week starts on",
+      "description": "0 is Sunday, 1 Monday, and so on to 6 for Saturday. Changing it closes the current week early.",
+      "default": 1,
+      "min": 0,
+      "max": 6
+    },
+    {
+      "id": "counts",
+      "type": "int",
+      "label": "What counts",
+      "description": "0 counts every session. Or just one kind: 1 run, 2 ride, 3 walk, 4 strength, 5 workout, 6 hybrid, 7 row, 8 other.",
+      "default": 0,
+      "min": 0,
+      "max": 8
+    },
+    {
+      "id": "minMinutes",
+      "type": "int",
+      "label": "Shortest session",
+      "description": "Recorded sessions shorter than this don't count, so an accidental start never does. 0 counts everything.",
+      "default": 10,
+      "min": 0,
+      "max": 120,
+      "unit": "min"
+    },
+    {
+      "id": "onePerDay",
+      "type": "bool",
+      "label": "One per day",
+      "description": "Count at most one session a day towards the target.",
+      "default": false
+    }
+  ]
+}

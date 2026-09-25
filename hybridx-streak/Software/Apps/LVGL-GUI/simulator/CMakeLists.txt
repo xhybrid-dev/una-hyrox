@@ -53,6 +53,7 @@ target_compile_definitions(HybridXStreakSimulator PRIVATE
     ${UNA_SDK_DEFINES_GUI_LVGL}
     ${STREAK_GUI_DEFINES}
     APP_ID="A75434BA114DFEBE"
+    APP_NAME="HybridXStreak"
     DEV_ID="HybridX Simulator"
     BUILD_VERSION="1.0.0-sim"
 )

@@ -20,7 +20,6 @@ namespace
 constexpr int32_t  kSecondsDay       = 86400;
 constexpr uint8_t  kShieldEvery      = 4;     ///< S3: one shield per 4 achieved weeks
 constexpr uint8_t  kMaxShields       = 2;     ///< S3
-constexpr uint8_t  kMaxMinMinutes    = 120;
 constexpr uint8_t  kBadgeCount       = sizeof(kSessionBadges) / sizeof(kSessionBadges[0]);
 
 template <typename T>
@@ -44,42 +43,6 @@ bool summitBetween(uint32_t before, uint32_t after, uint8_t& climb)
     return false;
 }
 } // namespace
-
-// -- Goal and Events ----------------------------------------------------------------
-
-Goal Goal::sane() const
-{
-    Goal g = *this;
-    g.target    = target < 1 ? 1 : (target > 7 ? 7 : target);
-    g.weekStart = static_cast<uint8_t>(weekStart % 7);
-    g.scope     = (scope == kScopeAny || scope < kKindCount) ? scope : kScopeAny;
-    g.minMinutes = minMinutes > kMaxMinMinutes ? kMaxMinMinutes : minMinutes;
-    return g;
-}
-
-void Events::add(EventKind kind, uint8_t a, uint16_t b)
-{
-    if (count < kMax) {
-        items[count++] = Event { kind, a, b };
-        return;
-    }
-    // Full: the newest session toast gives way to anything more important.
-    if (kind == EventKind::SessionFound) {
-        ++dropped;
-        return;
-    }
-    for (int i = kMax - 1; i >= 0; --i) {
-        if (items[i].kind == EventKind::SessionFound) {
-            for (int j = i; j < kMax - 1; ++j) {
-                items[j] = items[j + 1];
-            }
-            items[kMax - 1] = Event { kind, a, b };
-            ++dropped;
-            return;
-        }
-    }
-    ++dropped;
-}
 
 // -- Setup ------------------------------------------------------------------------------
 

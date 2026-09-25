@@ -46,28 +46,13 @@
 #include <cstdint>
 
 #include "ActivityScanner.hpp"
+#include "Goal.hpp"
+#include "StreakEvents.hpp"
 #include "StreakTypes.hpp"
 #include "StreakView.hpp"
 
 namespace Streak
 {
-
-struct Goal {
-    uint8_t target     = 3;           ///< sessions a week, 1..7 (S1)
-    uint8_t weekStart  = 1;           ///< 0 = Sunday .. 6; default Monday (S1)
-    uint8_t scope      = kScopeAny;   ///< kScopeAny or a Kind (S2)
-    uint8_t minMinutes = 10;          ///< 0 = off (S13)
-    bool    onePerDay  = false;       ///< S14
-
-    bool operator==(const Goal& o) const
-    {
-        return target == o.target && weekStart == o.weekStart && scope == o.scope && minMinutes == o.minMinutes
-               && onePerDay == o.onePerDay;
-    }
-    bool operator!=(const Goal& o) const { return !(*this == o); }
-    /// Clamp every field into range (settings can arrive from a hand-edited file).
-    Goal sane() const;
-};
 
 /// One session this week.
 struct Session {
@@ -161,34 +146,6 @@ struct State {
     uint8_t  historyCount     = 0;
 };
 
-/// Things the GUI plays, in order (DESIGN 6).
-enum class EventKind : uint8_t {
-    SessionFound,   ///< a: Kind, b: minutes (0 = manual)
-    StepUp,         ///< this week met its target; b: weeks achieved (live)
-    Summit,         ///< a: the climb reached (kClimbs index), b: weeks achieved
-    Badge,          ///< a: kSessionBadges index
-    BestWeek,       ///< a: sessions this week
-    ShieldEarned,   ///< a: shields now
-    WeekResult,     ///< last week closed; a: its count, b: target | outcome << 8
-    ShieldOffer,    ///< a: missed weeks, b: the streak at stake
-    StreakReset,    ///< b: the streak that ended
-};
-
-struct Event {
-    EventKind kind = EventKind::SessionFound;
-    uint8_t   a    = 0;
-    uint16_t  b    = 0;
-};
-
-struct Events {
-    static constexpr uint8_t kMax = 8;
-    Event   items[kMax] {};
-    uint8_t count   = 0;
-    uint8_t dropped = 0;   ///< session toasts dropped to make room
-
-    /// Add; when full, a session toast gives way to anything else.
-    void add(EventKind kind, uint8_t a = 0, uint16_t b = 0);
-};
 
 class StreakModel : public SeenSet
 {
