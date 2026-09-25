@@ -23,7 +23,7 @@ include($ENV{UNA_SDK}/cmake/una-simulator.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../../Libs/libs.cmake)   # STREAK_CORE_*, STREAK_APP_*
 include(${CMAKE_CURRENT_SOURCE_DIR}/../lvgl-gui.cmake)          # GUI_APP_SOURCES, GUI_APP_INCLUDE_DIRS, STREAK_GUI_DEFINES
 
-set(SIM_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build/bin")
+set(SIM_BIN_DIR "${CMAKE_BINARY_DIR}/bin")   # build/bin, or build-demo/bin for the design demo
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${SIM_BIN_DIR}")
 foreach(cfg Debug Release RelWithDebInfo MinSizeRel)
     string(TOUPPER ${cfg} CFG)

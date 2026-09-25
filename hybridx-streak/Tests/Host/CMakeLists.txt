@@ -85,3 +85,11 @@ target_include_directories(make_fit PRIVATE
 
 enable_testing()
 add_test(NAME hybridx-streak-host-tests COMMAND hybridx-streak-host-tests)
+
+# make_state: a saved history for the simulator (walkthrough, shield and summit flows).
+add_executable(make_state tools/make_state.cpp ${STREAK_CORE_TEST_SOURCES} ${SDK_FIT_SOURCES} ${SDK_JSON_SOURCES})
+target_include_directories(make_state PRIVATE
+    "${STREAK_SOFTWARE}/Libs/Core/Header"
+    "${UNA_SDK_ROOT}/Libs/Header"
+    "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
+)

@@ -14,11 +14,19 @@
 #include "SDK/UnaLogger/Logger.h"
 
 #include "gui/model/Model.hpp"
+#include "gui/screens/ClockScreen.hpp"
+#include "gui/screens/ConfirmScreen.hpp"
 #include "gui/screens/FreshStartScreen.hpp"
 #include "gui/screens/HomeScreen.hpp"
+#include "gui/screens/LogScreen.hpp"
+#include "gui/screens/MenuScreen.hpp"
 #include "gui/screens/Screen.hpp"
+#include "gui/screens/SettingsScreen.hpp"
 #include "gui/screens/ShieldScreen.hpp"
 #include "gui/screens/SummitScreen.hpp"
+#include "gui/screens/TrophyScreen.hpp"
+#include "gui/screens/ValueScreen.hpp"
+#include "gui/screens/WeekScreen.hpp"
 
 ScreenManager& ScreenManager::instance()
 {
@@ -59,18 +67,26 @@ void ScreenManager::switchNow(ScreenId id)
         return;
     }
 
+    // The old screen goes before the new one is built, so the two never share
+    // the 40 KB LVGL pool: two menu screens together peaked at 89% (NOTES S3).
+    // A bare placeholder is the active screen for the moment in between;
+    // nothing is drawn until this call returns, so it is never seen.
     Screen* old = mCurrent;
+    lv_obj_t* placeholder = nullptr;
     if (old) {
         old->onHide();
         mModel->bind(nullptr);
+        placeholder = lv_obj_create(nullptr);
+        lv_screen_load(placeholder);
+        delete old;
+        mCurrent = nullptr;
     }
 
     next->create();
     lv_screen_load(next->root());
     mCurrent = next;
-
-    if (old) {
-        delete old;
+    if (placeholder) {
+        lv_obj_delete(placeholder);
     }
 
     mModel->bind(next);
@@ -93,6 +109,14 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::Summit:     return new SummitScreen(m);
         case ScreenId::Shield:     return new ShieldScreen(m);
         case ScreenId::FreshStart: return new FreshStartScreen(m);
+        case ScreenId::Menu:       return new MenuScreen(m);
+        case ScreenId::Week:       return new WeekScreen(m);
+        case ScreenId::Confirm:    return new ConfirmScreen(m);
+        case ScreenId::Log:        return new LogScreen(m);
+        case ScreenId::Trophy:     return new TrophyScreen(m);
+        case ScreenId::Settings:   return new SettingsScreen(m);
+        case ScreenId::Value:      return new ValueScreen(m);
+        case ScreenId::Clock:      return new ClockScreen(m);
     }
     return nullptr;
 }

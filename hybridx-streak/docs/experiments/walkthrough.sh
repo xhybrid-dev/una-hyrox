@@ -8,11 +8,13 @@
 # ffmpeg (x11grab to film, drawtext for the captions).
 #
 # Usage:  ./walkthrough.sh [output.mp4]
-# Build the simulator first (a HYBRIDXSTREAK_DEMO build, the default).
+# Build the design-demo simulator first:
+#   cmake -S Software/Apps/LVGL-GUI/simulator -B Software/Apps/LVGL-GUI/simulator/build-demo -DHYBRIDXSTREAK_DEMO=ON
+#   cmake --build Software/Apps/LVGL-GUI/simulator/build-demo
 set -u
 
 APP=$(cd "$(dirname "$0")/../.." && pwd)
-BIN="$APP/Software/Apps/LVGL-GUI/simulator/build/bin"
+BIN="$APP/Software/Apps/LVGL-GUI/simulator/build-demo/bin"
 OUT=${1:-$APP/docs/screens/streak-walkthrough.mp4}
 DISP=:95
 FONT=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
@@ -36,8 +38,8 @@ if [ -z "$WID" ]; then
 fi
 eval "$(DISPLAY=$DISP xdotool getwindowgeometry --shell "$WID")"
 
-ffmpeg -y -loglevel error -f x11grab -draw_mouse 0 -framerate 25 -video_size "${WIDTH}x${HEIGHT}" \
-    -i "$DISP+$X,$Y" -c:v libx264 -preset veryfast -pix_fmt yuv420p "$WORK/raw.mp4" & FFPID=$!
+ffmpeg -y -loglevel error -use_wallclock_as_timestamps 1 -f x11grab -draw_mouse 0 -framerate 25 -video_size "${WIDTH}x${HEIGHT}" \
+    -i "$DISP+$X,$Y" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -fps_mode vfr "$WORK/raw.mp4" & FFPID=$!
 T0=$(date +%s.%N)
 
 # cap "<text>": the caption from now until the next cap (or the end).
@@ -148,7 +150,7 @@ for ((i = 0; i < N; i++)); do
     FILTER+=",drawtext=fontfile=$FONT:textfile=$WORK/cap_$i.txt:expansion=none:fontcolor=white:fontsize=31"
     FILTER+=":line_spacing=12:text_align=C:x=(w-text_w)/2:y=760:enable='between(t,$FROM,$TO)'"
 done
-FILTER+=",format=yuv420p"
+FILTER+=",fps=25,format=yuv420p"
 
 ffmpeg -y -loglevel error -i "$WORK/raw.mp4" -i "$WORK/bezel.png" -filter_complex "$FILTER" \
     -c:v libx264 -crf 26 -preset slow -movflags +faststart "$OUT"

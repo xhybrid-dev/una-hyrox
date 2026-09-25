@@ -16,6 +16,14 @@ public:
     /// The home view changed (a new message from the service, or the demo).
     virtual void onHomeView() {}
 
+    /// New moments to play arrived from the service.
+    virtual void onMoments() {}
+
+    /// This week's list, the trophies or the goal changed.
+    virtual void onWeek() {}
+    virtual void onTrophies() {}
+    virtual void onGoal() {}
+
     /// No button for the screen timeout (Model::kScreenTimeoutSteps).
     virtual void onIdleTimeout() {}
 

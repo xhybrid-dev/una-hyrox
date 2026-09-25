@@ -112,3 +112,39 @@ TEST(Coach, Toast)
     Coach::sessionToast(Coach::Sport::Run, 42, buf, sizeof(buf));
     EXPECT_STREQ(buf, "+1 Run \xC2\xB7 42 min");
 }
+
+TEST(Coach, EveryToastFitsTheCoachLine)
+{
+    char buf[64];
+    for (uint8_t k = 0; k < Streak::kKindCount; ++k) {
+        Coach::sessionToast(static_cast<Coach::Sport>(k), 999, buf, sizeof(buf));
+        EXPECT_LE(visibleChars(buf), Coach::kMaxCoachChars) << buf;
+        Coach::sessionToast(static_cast<Coach::Sport>(k), 0, buf, sizeof(buf));
+        EXPECT_LE(visibleChars(buf), Coach::kMaxCoachChars) << buf;
+    }
+    for (uint8_t b = 0; b < 4; ++b) {
+        Coach::badgeToast(b, buf, sizeof(buf));
+        EXPECT_LE(visibleChars(buf), Coach::kMaxCoachChars) << buf;
+    }
+    Coach::bestWeekToast(99, buf, sizeof(buf));
+    EXPECT_LE(visibleChars(buf), Coach::kMaxCoachChars) << buf;
+    Coach::shieldToast(2, buf, sizeof(buf));
+    EXPECT_LE(visibleChars(buf), Coach::kMaxCoachChars) << buf;
+    Coach::lastWeekToast(12, 7, buf, sizeof(buf));
+    EXPECT_LE(visibleChars(buf), Coach::kMaxCoachChars) << buf;
+    Coach::sessionToast(Coach::Sport::Row, 0, buf, sizeof(buf));
+    EXPECT_STREQ(buf, "+1 Row \xC2\xB7 logged");
+}
+
+TEST(Coach, NamesForTheScreens)
+{
+    char buf[24];
+    Coach::appName("HybridXRace", buf, sizeof(buf));
+    EXPECT_STREQ(buf, "HybridX");
+    Coach::appName("Running", buf, sizeof(buf));
+    EXPECT_STREQ(buf, "Running");
+    EXPECT_STREQ(Coach::scopeName(Streak::kScopeAny), "Everything");
+    EXPECT_STREQ(Coach::scopeName(static_cast<uint8_t>(Streak::Kind::Run)), "Runs only");
+    EXPECT_STREQ(Coach::dayShort(1), "Mon");
+    EXPECT_STREQ(Coach::dayLong(0), "Sunday");
+}

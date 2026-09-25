@@ -8,6 +8,7 @@
 #include "gui/copy/Coach.hpp"
 
 #include <cstdio>
+#include <cstring>
 
 #include "Summits.hpp"
 
@@ -88,7 +89,70 @@ const char* sportName(Sport sport)
 
 void sessionToast(Sport sport, uint16_t minutes, char* out, size_t size)
 {
+    if (minutes == 0) {
+        snprintf(out, size, "+1 %s %s logged", sportName(sport), kDot);
+        return;
+    }
     snprintf(out, size, "+1 %s %s %u min", sportName(sport), kDot, u(minutes));
+}
+
+const char* scopeName(uint8_t scope)
+{
+    switch (scope) {
+        case static_cast<uint8_t>(Sport::Run):      return "Runs only";
+        case static_cast<uint8_t>(Sport::Ride):     return "Rides only";
+        case static_cast<uint8_t>(Sport::Walk):     return "Walks only";
+        case static_cast<uint8_t>(Sport::Strength): return "Strength only";
+        case static_cast<uint8_t>(Sport::Workout):  return "Workouts only";
+        case static_cast<uint8_t>(Sport::Hybrid):   return "Hybrid only";
+        case static_cast<uint8_t>(Sport::Row):      return "Rows only";
+        case static_cast<uint8_t>(Sport::Other):    return "Other only";
+        default:                                    return "Everything";
+    }
+}
+
+void badgeToast(uint8_t badge, char* out, size_t size)
+{
+    const char* name = badge < sizeof(Streak::kSessionBadges) / sizeof(Streak::kSessionBadges[0])
+                           ? Streak::kSessionBadges[badge].name
+                           : "New";
+    snprintf(out, size, "%s badge!", name);
+}
+
+void bestWeekToast(uint8_t sessions, char* out, size_t size)
+{
+    snprintf(out, size, "Best week yet: %u!", u(sessions));
+}
+
+void shieldToast(uint8_t shields, char* out, size_t size)
+{
+    snprintf(out, size, "+1 shield %s %u held", kDot, u(shields));
+}
+
+void lastWeekToast(uint8_t count, uint8_t target, char* out, size_t size)
+{
+    snprintf(out, size, "Last week: %u of %u", u(count), u(target));
+}
+
+void appName(const char* folder, char* out, size_t size)
+{
+    if (std::strcmp(folder, "HybridXRace") == 0) {
+        snprintf(out, size, "HybridX");   // "HybridX Race" clips on the wheel's lower line
+    } else {
+        snprintf(out, size, "%s", folder);
+    }
+}
+
+const char* dayShort(uint8_t weekday)
+{
+    static const char* const kDays[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+    return kDays[weekday % 7];
+}
+
+const char* dayLong(uint8_t weekday)
+{
+    static const char* const kDays[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+    return kDays[weekday % 7];
 }
 
 } // namespace Coach

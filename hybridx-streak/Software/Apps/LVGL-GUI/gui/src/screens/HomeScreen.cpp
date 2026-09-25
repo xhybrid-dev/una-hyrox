@@ -63,7 +63,7 @@ Mood moodFor(const Streak::HomeView& v)
     if (v.sessions >= v.target) {
         return Mood::Done;
     }
-    if (v.mood == Mood::Trial) {
+    if (v.mood == Mood::Trial || (v.flags & Streak::HomeView::kTrialWeek)) {
         return Mood::Trial;
     }
     return (v.target - v.sessions) >= v.daysLeft ? Mood::AtRisk : Mood::Climbing;
@@ -106,7 +106,8 @@ void HomeScreen::build()
     mButtons->set(Widgets::Buttons::WHITE, Widgets::Buttons::WHITE, Widgets::Buttons::AMBER,
                   Widgets::Buttons::WHITE);
 #else
-    mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE, Widgets::Buttons::NONE,
+    // Any of L1, L2 or R1 opens the menu; R2 leaves.
+    mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE, Widgets::Buttons::AMBER,
                   Widgets::Buttons::WHITE);
 #endif
 
@@ -116,18 +117,44 @@ void HomeScreen::build()
 void HomeScreen::onShow()
 {
     mModel.resetIdleTimer();
+#if !HYBRIDXSTREAK_DEMO
+    if (mModel.clockUnset()) {
+        ScreenManager::instance().goTo(ScreenId::Clock);
+        return;
+    }
+    if (mModel.hasMoment()) {
+        startMoments();
+    }
+#endif
 }
 
 void HomeScreen::onHomeView()
 {
-    if (mStage == Stage::Idle) {
+#if !HYBRIDXSTREAK_DEMO
+    if (mModel.clockUnset()) {
+        ScreenManager::instance().goTo(ScreenId::Clock);
+        return;
+    }
+#endif
+    if (mStage == Stage::Idle && !mModel.hasMoment()) {
         render();
+    }
+}
+
+void HomeScreen::onMoments()
+{
+    if (mStage == Stage::Idle) {
+        startMoments();
     }
 }
 
 void HomeScreen::render()
 {
-    const Streak::HomeView&     v   = mModel.home();
+    render(mModel.home());
+}
+
+void HomeScreen::render(const Streak::HomeView& v)
+{
     const Streak::ClimbPosition pos = Streak::climbFor(v.weeksAchieved);
 
     mScene->setProgress(pos.climb, pos.stepsClimbed, pos.steps);
@@ -218,8 +245,13 @@ void HomeScreen::onKey(uint8_t code)
     if (code == Btn::R1) {
         if (mStage == Stage::Idle) {
             const Demo::Scenario& s = Demo::kScenarios[mModel.demoIndex()];
-            sessionArrives(s.sport, s.minutes);
+            sessionArrives(s.sport, s.minutes, true);
         }
+        return;
+    }
+#else
+    if ((code == Btn::R1 || code == Btn::L1 || code == Btn::L2) && mStage == Stage::Idle) {
+        ScreenManager::instance().goTo(ScreenId::Menu);
         return;
     }
 #endif
@@ -230,28 +262,123 @@ void HomeScreen::onKey(uint8_t code)
 
 // -- A session arrives ------------------------------------------------------------
 
-void HomeScreen::sessionArrives(Coach::Sport sport, uint16_t minutes)
+void HomeScreen::sessionArrives(Coach::Sport sport, uint16_t minutes, bool autoStep)
 {
-    const Streak::HomeView& now = mModel.home();
-    mPending = now;
+    const Streak::HomeView now = mPlaying ? mPending : mModel.home();
+    mPending          = now;
     mPending.sessions = static_cast<uint8_t>(now.sessions + 1);
     const bool banksTheWeek = mPending.sessions == now.target;
-    mPending.mood = moodFor(mPending);
+    mPending.mood     = moodFor(mPending);
 
     char buf[40];
     Coach::sessionToast(sport, minutes, buf, sizeof(buf));
-    lv_label_set_text(mCoach, buf);
-    Theme::setColor(mCoach, Palette::kWin);
+    toast(buf, Palette::kWin);
     layoutWeekRow(mPending);
     mPips->pop();
     mModel.celebrate(CustomMessage::Moment::SessionFound);
 
+    if (!autoStep) {
+        return;   // the caller schedules what comes next
+    }
     if (banksTheWeek) {
         mFrom = Streak::climbFor(now.weeksAchieved);
         schedule(Stage::StepUp, kBeatMs);
     } else {
         schedule(Stage::Settle, kToastMs);
     }
+}
+
+void HomeScreen::toast(const char* text, uint32_t colour)
+{
+    lv_label_set_text(mCoach, text);
+    Theme::setColor(mCoach, colour);
+}
+
+// -- The service's moments --------------------------------------------------------
+
+void HomeScreen::startMoments()
+{
+    // The view before them: the final view less what they add.
+    Streak::HomeView start = mModel.home();
+    const Streak::Events& q = mModel.moments();
+    uint8_t sessions = 0, steps = 0;
+    for (uint8_t i = mModel.momentAt(); i < q.count; ++i) {
+        sessions = static_cast<uint8_t>(sessions + (q.items[i].kind == Streak::EventKind::SessionFound ? 1 : 0));
+        steps    = static_cast<uint8_t>(steps + (q.items[i].kind == Streak::EventKind::StepUp ? 1 : 0));
+    }
+    start.sessions      = start.sessions > sessions ? static_cast<uint8_t>(start.sessions - sessions) : 0;
+    start.weeksAchieved = start.weeksAchieved > steps ? static_cast<uint16_t>(start.weeksAchieved - steps) : 0;
+    start.streakWeeks   = start.streakWeeks > steps ? static_cast<uint16_t>(start.streakWeeks - steps) : 0;
+    start.mood          = moodFor(start);
+
+    mPending = start;
+    mPlaying = true;
+    render(start);
+    schedule(Stage::Next, kBeatMs / 2);
+}
+
+void HomeScreen::playNext()
+{
+    if (!mModel.hasMoment()) {
+        mPlaying = false;
+        mStage   = Stage::Idle;
+        render();   // the service's final view
+        return;
+    }
+    const Streak::Event e = mModel.popMoment();
+    const bool stepNext = mModel.hasMoment() && mModel.peekMoment().kind == Streak::EventKind::StepUp;
+    char       buf[40];
+
+    switch (e.kind) {
+        case Streak::EventKind::SessionFound:
+            sessionArrives(static_cast<Coach::Sport>(e.a < Streak::kKindCount ? e.a : 7), e.b, false);
+            schedule(Stage::Next, stepNext ? kBeatMs : kToastMs);
+            return;
+
+        case Streak::EventKind::StepUp:
+            mFrom = Streak::climbFor(mPending.weeksAchieved);
+            schedule(Stage::StepUp, 1);
+            return;
+
+        case Streak::EventKind::Summit:
+            mModel.setSummited(e.a);
+            mStage = Stage::Idle;
+            ScreenManager::instance().goTo(ScreenId::Summit);
+            return;
+
+        case Streak::EventKind::ShieldOffer:
+            mModel.setOffer(e);
+            mStage = Stage::Idle;
+            ScreenManager::instance().goTo(ScreenId::Shield);
+            return;
+
+        case Streak::EventKind::StreakReset:
+            mModel.setLostStreak(e.b);
+            mStage = Stage::Idle;
+            ScreenManager::instance().goTo(ScreenId::FreshStart);
+            return;
+
+        case Streak::EventKind::Badge:
+            Coach::badgeToast(e.a, buf, sizeof(buf));
+            mModel.celebrate(CustomMessage::Moment::SessionFound);
+            break;
+        case Streak::EventKind::BestWeek:
+            Coach::bestWeekToast(e.a, buf, sizeof(buf));
+            mModel.celebrate(CustomMessage::Moment::SessionFound);
+            break;
+        case Streak::EventKind::ShieldEarned:
+            Coach::shieldToast(e.a, buf, sizeof(buf));
+            mPending.shields = e.a;
+            mModel.celebrate(CustomMessage::Moment::Shield);
+            break;
+        case Streak::EventKind::WeekResult:
+            Coach::lastWeekToast(e.a, static_cast<uint8_t>(e.b & 0xFF), buf, sizeof(buf));
+            toast(buf, Palette::kTextSoft);
+            schedule(Stage::Next, kToastMs);
+            return;
+    }
+    toast(buf, Palette::kWin);
+    schedule(Stage::Next, kToastMs);
 }
 
 void HomeScreen::schedule(Stage next, uint32_t ms)
@@ -283,6 +410,12 @@ void HomeScreen::advance()
         case Stage::Arrived: {
             mPending.weeksAchieved = static_cast<uint16_t>(mPending.weeksAchieved + 1);
             mPending.streakWeeks   = static_cast<uint16_t>(mPending.streakWeeks + 1);
+            if (mPlaying) {
+                // The service's moments say what comes next (a Summit, if this was the top).
+                const bool summit = mModel.hasMoment() && mModel.peekMoment().kind == Streak::EventKind::Summit;
+                schedule(Stage::Next, summit ? kToSummitMs : kSavourMs);
+                break;
+            }
             if (mFrom.stepsClimbed + 1 >= mFrom.steps) {
                 // The top: the summit screen takes it from here.
                 mModel.setSummited(mFrom.climb);
@@ -298,6 +431,10 @@ void HomeScreen::advance()
         case Stage::Settle:
             mStage = Stage::Idle;
             mModel.setHome(mPending);   // re-renders through onHomeView()
+            break;
+
+        case Stage::Next:
+            playNext();
             break;
 
         default:

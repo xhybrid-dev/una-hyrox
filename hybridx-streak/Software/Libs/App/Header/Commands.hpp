@@ -71,26 +71,35 @@ struct WeekItem {
     uint8_t  hour    = 0;
 };
 
-struct WeekList : public SDK::MessageBase {
+/// This week's list (payload; the message wraps it, messages can't be copied).
+struct WeekData {
     static constexpr uint8_t kMax = 16;
     WeekItem items[kMax] {};
     uint8_t  count      = 0;
     uint8_t  overflow   = 0;   ///< counted sessions beyond the list
     uint8_t  minMinutes = 0;   ///< for "6 min · under 10"
     uint8_t  scope      = Streak::kScopeAny;
+};
+
+struct WeekList : public SDK::MessageBase {
+    WeekData data {};
     WeekList() : SDK::MessageBase(WEEK_LIST) {}
 };
 
 /// App folder names the week list refers to.
-struct AppNames : public SDK::MessageBase {
+struct AppNamesData {
     static constexpr uint8_t kMax   = 8;
     static constexpr uint8_t kChars = 16;
     char names[kMax][kChars] {};
+};
+
+struct AppNames : public SDK::MessageBase {
+    AppNamesData data {};
     AppNames() : SDK::MessageBase(APP_NAMES) {}
 };
 
 /// The trophy case.
-struct Trophies : public SDK::MessageBase {
+struct TrophyData {
     static constexpr uint8_t kRecent = 12;
     uint16_t weeksAchieved = 0;   ///< live: the summits climbed follow from it
     uint16_t lifetime      = 0;   ///< qualifying sessions, live
@@ -99,14 +108,22 @@ struct Trophies : public SDK::MessageBase {
     uint8_t  badges        = 0;   ///< bit i = kSessionBadges[i]
     uint8_t  recent[kRecent] {};  ///< Streak::Outcome of the latest weeks, oldest first
     uint8_t  recentCount   = 0;
+};
+
+struct Trophies : public SDK::MessageBase {
+    TrophyData data {};
     Trophies() : SDK::MessageBase(TROPHIES) {}
 };
 
 /// The goal, and one waiting for next week.
-struct GoalView : public SDK::MessageBase {
+struct GoalData {
     Streak::Goal goal {};
     Streak::Goal pending {};
     uint8_t      hasPending = 0;
+};
+
+struct GoalView : public SDK::MessageBase {
+    GoalData data {};
     GoalView() : SDK::MessageBase(GOAL_VIEW) {}
 };
 

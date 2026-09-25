@@ -48,8 +48,21 @@ void ShieldScreen::build()
     // Worded so no number is split from its unit at a line break: LVGL breaks
     // lines at hyphens, and "9-" / "week" reads badly. The body stays clear of
     // the cross beside R2 (x 187).
-    snprintf(buf, sizeof(buf), "%u of %u last week. Use a shield to keep your streak of %u weeks?",
-             static_cast<unsigned>(v.lastWeek), static_cast<unsigned>(v.target), static_cast<unsigned>(v.streakWeeks));
+#if HYBRIDXSTREAK_DEMO
+    const unsigned missed = 1;
+    const unsigned streak = v.streakWeeks;
+#else
+    // The service's offer: how many weeks were missed, and the streak at stake.
+    const unsigned missed = mModel.offer().a > 0 ? mModel.offer().a : 1;
+    const unsigned streak = mModel.offer().b;
+#endif
+    if (missed == 1) {
+        snprintf(buf, sizeof(buf), "%u of %u last week. Use a shield to keep your streak of %u weeks?",
+                 static_cast<unsigned>(v.lastWeek), static_cast<unsigned>(v.target), streak);
+    } else {
+        snprintf(buf, sizeof(buf), "%u weeks missed. Use %u shields to keep your streak of %u weeks?", missed,
+                 missed, streak);
+    }
     mBody = Theme::label(mRoot, Theme::Font::Regular16, buf, 40, 122, 140, LV_TEXT_ALIGN_CENTER, Palette::kTextSoft);
     lv_label_set_long_mode(mBody, LV_LABEL_LONG_WRAP);
 
@@ -80,9 +93,14 @@ void ShieldScreen::onKey(uint8_t code)
         return;
     }
     if (code == Btn::R2) {
+#if HYBRIDXSTREAK_DEMO
         Streak::HomeView v = mModel.home();
         v.streakWeeks      = 0;
         mModel.setHome(v);
+#else
+        mModel.setLostStreak(mModel.offer().b);
+        mModel.decideShields(false);
+#endif
         ScreenManager::instance().goTo(ScreenId::FreshStart);
         return;
     }
@@ -99,13 +117,20 @@ void ShieldScreen::spend()
     mModel.celebrate(CustomMessage::Moment::Shield);
 
     const Streak::HomeView& v = mModel.home();
+#if HYBRIDXSTREAK_DEMO
+    const unsigned streak = v.streakWeeks;
+    const unsigned used   = 1;
+#else
+    const unsigned streak = mModel.offer().b;
+    const unsigned used   = mModel.offer().a > 0 ? mModel.offer().a : 1;
+    mModel.decideShields(true);
+#endif
     char buf[96];
     lv_label_set_text(mTitle, "Streak saved.");
     Theme::setColor(mTitle, Palette::kWin);
-    snprintf(buf, sizeof(buf), "Your streak of %u weeks climbs on. Rest well.",
-             static_cast<unsigned>(v.streakWeeks));
+    snprintf(buf, sizeof(buf), "Your streak of %u weeks climbs on. Rest well.", streak);
     lv_label_set_text(mBody, buf);
-    shieldsLeft(buf, sizeof(buf), v.shields > 0 ? v.shields - 1u : 0u);
+    shieldsLeft(buf, sizeof(buf), v.shields > used ? v.shields - used : 0u);
     lv_label_set_text(mCount, buf);
     Theme::setHidden(mTick, true);
     Theme::setHidden(mCross, true);
@@ -120,6 +145,7 @@ void ShieldScreen::doneCb(lv_timer_t* t)
     auto* self   = static_cast<ShieldScreen*>(lv_timer_get_user_data(t));
     self->mTimer = nullptr;
 
+#if HYBRIDXSTREAK_DEMO
     // A new week: the streak held, one shield fewer, nothing logged yet.
     Streak::HomeView v = self->mModel.home();
     v.shields   = v.shields > 0 ? static_cast<uint8_t>(v.shields - 1) : 0;
@@ -127,5 +153,7 @@ void ShieldScreen::doneCb(lv_timer_t* t)
     v.daysLeft  = 7;
     v.mood      = Streak::Mood::Climbing;
     self->mModel.setHome(v);
+#endif
+    // For real, the service has sent the new view already.
     ScreenManager::instance().goTo(ScreenId::Home);
 }

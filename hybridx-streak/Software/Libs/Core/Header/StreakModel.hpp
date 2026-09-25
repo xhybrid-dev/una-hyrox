@@ -195,6 +195,7 @@ public:
 private:
     void    startWeek(int32_t period, int32_t startDay, bool trial);
     void    closeWeek(Events& ev, bool isLast);
+    void    resolvePending(Events& ev);
     void    credit(const Found& f, Events& ev);
     void    remember(uint32_t appKey, uint32_t localStart);
     uint8_t appIndex(const char* name);

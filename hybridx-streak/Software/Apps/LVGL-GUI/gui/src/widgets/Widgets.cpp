@@ -330,4 +330,25 @@ void Sunrise::riseCb(void* var, int32_t v)
     lv_obj_invalidate(self->mObj);
 }
 
+// -- Menus -------------------------------------------------------------------------
+
+namespace
+{
+SDK::LVGL::WheelMenu::Fonts wheelFonts()
+{
+    return { Theme::font(Theme::Font::SemiBold25), Theme::font(Theme::Font::Medium18),
+             Theme::font(Theme::Font::Italic18) };
+}
+} // namespace
+
+Wheel::Wheel(lv_obj_t* parent, const Item* items, uint16_t count)
+    : SDK::LVGL::WheelMenu(parent, items, count, wheelFonts())
+{
+}
+
+Title::Title(lv_obj_t* parent, const char* text)
+    : SDK::LVGL::Title(parent, Theme::font(Theme::Font::Italic18), text)
+{
+}
+
 } // namespace Widgets

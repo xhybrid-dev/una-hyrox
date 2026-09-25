@@ -540,3 +540,21 @@ TEST(StreakModel, GoalIsMadeSane)
     EXPECT_EQ(s.scope, kScopeAny);
     EXPECT_EQ(s.minMinutes, 120);
 }
+
+TEST(StreakModel, TheShieldOfferComesBeforeThisWeeksNews)
+{
+    StreakModel m = achievedFirstWeek();
+    for (int w = 1; w < 4; ++w) {
+        achieveWeek(m, w);
+    }
+    // Week 4 missed; opened in week 5 with a session already recorded.
+    const Events ev = open(m, kMon + 36, {session(kMon + 35)});
+    int offer = -1, found = -1;
+    for (uint8_t i = 0; i < ev.count; ++i) {
+        if (ev.items[i].kind == EventKind::ShieldOffer && offer < 0) offer = i;
+        if (ev.items[i].kind == EventKind::SessionFound && found < 0) found = i;
+    }
+    ASSERT_GE(offer, 0);
+    ASSERT_GE(found, 0);
+    EXPECT_LT(offer, found);
+}

@@ -246,6 +246,11 @@ void StreakModel::update(int32_t nowDay, const Found* found, size_t count, Event
     while (true) {
         const int32_t weekEnd = mState.weekStartDay + 7;   // exclusive
         const bool    current = effNow < weekEnd;
+        if (current) {
+            // Every finished week is judged: any decision about them comes
+            // before this week's news (DESIGN 6: the past first).
+            resolvePending(ev);
+        }
         while (i < count && found[i].localDay < weekEnd) {
             const Found& f = found[i++];
             if (seen(f.appKey, f.localStart)) {
@@ -282,20 +287,25 @@ void StreakModel::update(int32_t nowDay, const Found* found, size_t count, Event
     }
     // Anything dated after "now" (a clock set back) is left for a later scan.
 
-    // A decision the catch-up needs.
-    if (mState.pendingMissed > 0) {
-        if (mState.shields >= mState.pendingMissed) {
-            ev.add(EventKind::ShieldOffer, mState.pendingMissed,
-                   static_cast<uint16_t>(mState.pendingStreak + mState.sinceLastMiss));
-        } else {
-            ev.add(EventKind::StreakReset, 0, static_cast<uint16_t>(mState.pendingStreak + mState.sinceLastMiss));
-            mState.streak        = mState.sinceLastMiss;
-            mState.pendingMissed = 0;
-            mState.pendingStreak = 0;
-            mState.sinceLastMiss = 0;
-        }
-    }
     afterChange(ev);
+}
+
+void StreakModel::resolvePending(Events& ev)
+{
+    if (mState.pendingMissed == 0) {
+        return;
+    }
+    const uint16_t atStake = static_cast<uint16_t>(mState.pendingStreak + mState.sinceLastMiss);
+    if (mState.shields >= mState.pendingMissed) {
+        ev.add(EventKind::ShieldOffer, mState.pendingMissed, atStake);
+        return;
+    }
+    // Not enough shields: the streak resets, and the athlete is told why (S6).
+    ev.add(EventKind::StreakReset, 0, atStake);
+    mState.streak        = mState.sinceLastMiss;
+    mState.pendingMissed = 0;
+    mState.pendingStreak = 0;
+    mState.sinceLastMiss = 0;
 }
 
 // -- Closing weeks ---------------------------------------------------------------------------
@@ -547,6 +557,9 @@ HomeView StreakModel::view(int32_t nowDay) const
     const int32_t left   = mState.weekStartDay + 7 - effNow;
     v.daysLeft           = static_cast<uint8_t>(left < 1 ? 1 : (left > 7 ? 7 : left));
     const uint8_t remaining = met ? 0 : static_cast<uint8_t>(mState.goal.target - q);
+    if (mState.trial) {
+        v.flags |= HomeView::kTrialWeek;
+    }
     if (met) {
         v.mood = Mood::Done;
     } else if (mState.trial) {

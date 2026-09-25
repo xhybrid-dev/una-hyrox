@@ -174,13 +174,14 @@ void Service::sendViews()
     }
 
     if (auto week = SDK::make_msg<CustomMessage::WeekList>(mKernel)) {
-        week->count      = s.sessionCount < CustomMessage::WeekList::kMax ? s.sessionCount : CustomMessage::WeekList::kMax;
-        week->overflow   = s.overflow;
-        week->minMinutes = s.goal.minMinutes;
-        week->scope      = s.goal.scope;
-        for (uint8_t i = 0; i < week->count; ++i) {
+        CustomMessage::WeekData& w = week->data;
+        w.count      = s.sessionCount < CustomMessage::WeekData::kMax ? s.sessionCount : CustomMessage::WeekData::kMax;
+        w.overflow   = s.overflow;
+        w.minMinutes = s.goal.minMinutes;
+        w.scope      = s.goal.scope;
+        for (uint8_t i = 0; i < w.count; ++i) {
             const Streak::Session& x    = s.sessions[i];
-            CustomMessage::WeekItem& it = week->items[i];
+            CustomMessage::WeekItem& it = w.items[i];
             it.kind    = static_cast<uint8_t>(x.kind);
             it.status  = static_cast<uint8_t>(m.status(i));
             it.manual  = (x.flags & Streak::Session::kManual) ? 1 : 0;
@@ -193,33 +194,34 @@ void Service::sendViews()
     }
 
     if (auto apps = SDK::make_msg<CustomMessage::AppNames>(mKernel)) {
-        for (uint8_t i = 0; i < CustomMessage::AppNames::kMax && i < Streak::State::kApps; ++i) {
-            std::strncpy(apps->names[i], s.apps[i], CustomMessage::AppNames::kChars - 1);
+        for (uint8_t i = 0; i < CustomMessage::AppNamesData::kMax && i < Streak::State::kApps; ++i) {
+            std::strncpy(apps->data.names[i], s.apps[i], CustomMessage::AppNamesData::kChars - 1);
         }
         apps.send();
     }
 
-    if (auto t = SDK::make_msg<CustomMessage::Trophies>(mKernel)) {
-        t->weeksAchieved = m.liveWeeks();
-        t->lifetime      = m.liveLifetime();
-        t->longest       = s.longest > m.liveStreak() ? s.longest : m.liveStreak();
-        const uint8_t q  = m.qualifying();
-        t->bestWeek      = (m.weekMet() && q > s.bestWeek) ? q : s.bestWeek;
-        t->badges        = s.badges;
-        const uint8_t n  = s.historyCount < CustomMessage::Trophies::kRecent ? s.historyCount
-                                                                             : CustomMessage::Trophies::kRecent;
+    if (auto msg = SDK::make_msg<CustomMessage::Trophies>(mKernel)) {
+        CustomMessage::TrophyData& t = msg->data;
+        t.weeksAchieved = m.liveWeeks();
+        t.lifetime      = m.liveLifetime();
+        t.longest       = s.longest > m.liveStreak() ? s.longest : m.liveStreak();
+        const uint8_t q = m.qualifying();
+        t.bestWeek      = (m.weekMet() && q > s.bestWeek) ? q : s.bestWeek;
+        t.badges        = s.badges;
+        const uint8_t n = s.historyCount < CustomMessage::TrophyData::kRecent ? s.historyCount
+                                                                              : CustomMessage::TrophyData::kRecent;
         for (uint8_t i = 0; i < n; ++i) {
             const uint8_t at = static_cast<uint8_t>((s.historyNext + Streak::State::kHistory - n + i) % Streak::State::kHistory);
-            t->recent[i]     = static_cast<uint8_t>(s.history[at].outcome);
+            t.recent[i]      = static_cast<uint8_t>(s.history[at].outcome);
         }
-        t->recentCount = n;
-        t.send();
+        t.recentCount = n;
+        msg.send();
     }
 
     if (auto g = SDK::make_msg<CustomMessage::GoalView>(mKernel)) {
-        g->goal       = s.goal;
-        g->pending    = s.pending;
-        g->hasPending = s.hasPending ? 1 : 0;
+        g->data.goal       = s.goal;
+        g->data.pending    = s.pending;
+        g->data.hasPending = s.hasPending ? 1 : 0;
         g.send();
     }
 }

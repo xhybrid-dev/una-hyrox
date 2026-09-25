@@ -15,11 +15,13 @@
 # <output-dir>/streak-demo.mp4, behind the same round bezel.
 #
 # Usage:  UNA_SDK=/path/to/una-sdk [RECORD=1] ./capture_screens.sh [output-dir]
-# Build the simulator first (a HYBRIDXSTREAK_DEMO build, the default).
+# Build the design-demo simulator first:
+#   cmake -S Software/Apps/LVGL-GUI/simulator -B Software/Apps/LVGL-GUI/simulator/build-demo -DHYBRIDXSTREAK_DEMO=ON
+#   cmake --build Software/Apps/LVGL-GUI/simulator/build-demo
 set -u
 
 APP=$(cd "$(dirname "$0")/../.." && pwd)
-BIN="$APP/Software/Apps/LVGL-GUI/simulator/build/bin"
+BIN="$APP/Software/Apps/LVGL-GUI/simulator/build-demo/bin"
 OUT=${1:-$APP/docs/screens}
 DISP=:97
 

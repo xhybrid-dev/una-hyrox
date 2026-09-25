@@ -35,10 +35,11 @@ struct HomeView {
     uint8_t  shields       = 0;   ///< 0..2
     uint8_t  lastWeek      = 0;   ///< qualifying sessions last week, for the boundary screens
     Mood     mood          = Mood::Climbing;
-    uint8_t  flags         = 0;   ///< kClockUnset | kDecisionPending
+    uint8_t  flags         = 0;   ///< kClockUnset | kDecisionPending | kTrialWeek
 
     static constexpr uint8_t kClockUnset     = 0x01;   ///< the watch has lost the time: nothing is judged
     static constexpr uint8_t kDecisionPending = 0x02;  ///< a shield offer is waiting for an answer
+    static constexpr uint8_t kTrialWeek       = 0x04;  ///< this week is a trial (S9), met or not
 };
 
 static_assert(std::is_trivially_copyable<HomeView>::value, "HomeView travels inside a kernel message");

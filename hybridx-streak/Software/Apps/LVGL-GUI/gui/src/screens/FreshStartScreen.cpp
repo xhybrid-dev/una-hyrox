@@ -50,12 +50,14 @@ void FreshStartScreen::onKey(uint8_t code)
 {
     namespace Btn = SDK::GUI::Button;
     if (code == Btn::R1) {
+#if HYBRIDXSTREAK_DEMO
         Streak::HomeView v = mModel.home();
         v.streakWeeks = 0;
         v.sessions    = 0;
         v.daysLeft    = 7;
         v.mood        = Streak::Mood::Climbing;
         mModel.setHome(v);
+#endif
         ScreenManager::instance().goTo(ScreenId::Home);
         return;
     }

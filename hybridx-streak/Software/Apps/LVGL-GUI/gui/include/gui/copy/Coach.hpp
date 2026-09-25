@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "StreakTypes.hpp"
 #include "StreakView.hpp"
 
 namespace Coach
@@ -41,13 +42,29 @@ void mountainLine(const Streak::HomeView& v, char* out, size_t size);
 /// "1 more · 3 days left", "Last day: 1 to go", "Week banked. Rest up."
 void coachLine(const Streak::HomeView& v, char* out, size_t size);
 
-/// The session types the demo and (from S2) the scanner name.
-enum class Sport : uint8_t { Run, Ride, Walk, Strength, Workout, Hybrid, Row, Other };
+/// The kinds of session (Core StreakTypes.hpp); the Coach names them.
+using Sport = Streak::Kind;
 
-/// "+1 Run · 42 min"
+/// "+1 Run · 42 min"; a manual log (0 minutes) is "+1 Row · logged".
 void sessionToast(Sport sport, uint16_t minutes, char* out, size_t size);
 
+/// "Run", "Strength", ... ("Session" for Other).
 const char* sportName(Sport sport);
+/// "Runs only", "Rides only", ... for the goal's scope; "Everything" for any.
+const char* scopeName(uint8_t scope);
+
+/// Toasts for the moments that are not a session (all within kMaxCoachChars).
+void badgeToast(uint8_t badge, char* out, size_t size);        ///< "Trailhead badge!"
+void bestWeekToast(uint8_t sessions, char* out, size_t size);   ///< "Best week yet: 5!"
+void shieldToast(uint8_t shields, char* out, size_t size);      ///< "+1 shield · 2 held"
+void lastWeekToast(uint8_t count, uint8_t target, char* out, size_t size);   ///< "Last week: 2 of 3"
+
+/// An app folder as the athlete knows it: "HybridXRace" -> "HybridX".
+void appName(const char* folder, char* out, size_t size);
+/// "Mon", "Tue", ... for a weekday (0 = Sunday).
+const char* dayShort(uint8_t weekday);
+/// "Monday", ... for a weekday (0 = Sunday).
+const char* dayLong(uint8_t weekday);
 
 } // namespace Coach
 

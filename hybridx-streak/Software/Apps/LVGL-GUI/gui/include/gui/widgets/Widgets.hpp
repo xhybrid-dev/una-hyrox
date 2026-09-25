@@ -18,6 +18,8 @@
 #include "lvgl.h"
 
 #include "SDK/GUI/LVGL/Buttons.hpp"
+#include "SDK/GUI/LVGL/Title.hpp"
+#include "SDK/GUI/LVGL/WheelMenu.hpp"
 
 #include "gui/summit/SummitGeometry.hpp"
 
@@ -25,6 +27,22 @@ namespace Widgets
 {
 
 using Buttons = SDK::LVGL::Buttons;
+
+/// The SDK's scroll-wheel menu (the UNA apps' menus) in the Streak's faces:
+/// SemiBold 25 selected (the activity apps' 30 is too wide for "Log a
+/// session"), Medium 18 around it, Italic 18 hints.
+class Wheel : public SDK::LVGL::WheelMenu
+{
+public:
+    Wheel(lv_obj_t* parent, const Item* items, uint16_t count);
+};
+
+/// The SDK's screen title (text over a short rule) in Italic 18, as RunLVGL.
+class Title : public SDK::LVGL::Title
+{
+public:
+    Title(lv_obj_t* parent, const char* text);
+};
 
 /// "You are here": a lime bead in a white ring, with a slow breathing halo.
 class Climber

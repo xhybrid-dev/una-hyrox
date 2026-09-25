@@ -37,22 +37,33 @@ public:
     void onShow() override;
     void onKey(uint8_t code) override;
     void onHomeView() override;
+    void onMoments() override;
 
 protected:
     void build() override;
 
 private:
-    enum class Stage : uint8_t { Idle, Toast, StepUp, Arrived, Settle };
+    enum class Stage : uint8_t { Idle, Toast, StepUp, Arrived, Settle, Next };
 
     void render();
+    void render(const Streak::HomeView& v);
     /// The headline: a big lime number beside smaller words, both on one
     /// baseline and centred as a group. Words alone are set larger.
     void setHeadline(const char* number, const char* words, uint32_t wordsColour);
     void layoutWeekRow(const Streak::HomeView& v);
     void setCoach(const Streak::HomeView& v);
 
-    /// A session has just been recorded (demo: R1).
-    void sessionArrives(Coach::Sport sport, uint16_t minutes);
+    /// A session has just been counted: the toast, the pip, the buzz. In the
+    /// demo (autoStep) it also steps up when it completes the week; for real
+    /// the service's StepUp moment follows it.
+    void sessionArrives(Coach::Sport sport, uint16_t minutes, bool autoStep);
+    /// A line of news in the coach's place, for a toast's time.
+    void toast(const char* text, uint32_t colour);
+
+    /// Play the service's moments (DESIGN 6), one after another, starting
+    /// from the view as it was before them.
+    void startMoments();
+    void playNext();
     void schedule(Stage next, uint32_t ms);
     void advance();
     void startGlide();
@@ -77,6 +88,7 @@ private:
     Stage                 mStage = Stage::Idle;
     Streak::HomeView      mPending {};   ///< the view once the moment has played out
     Streak::ClimbPosition mFrom {};      ///< where the glide starts
+    bool                  mPlaying = false;   ///< playing the service's moments
 };
 
 #endif // STREAK_HOME_SCREEN_HPP
