@@ -144,7 +144,8 @@ builds its apps, with ST's toolchain. To download the result:
 3. At the bottom of the run page, under **Artifacts**, download **watch-apps**.
    It is a zip holding one `.uapp` per app: HybridX Race, HybridX Streak's app,
    glance and probe (see `hybridx-streak/docs/PROBE.md`), and the throwaway
-   HybridX Intervals Gate P0 probe (see `hybridx-intervals/docs/PROBE.md`).
+   HybridX Intervals Gate P0 probe (see `hybridx-intervals/docs/PROBE.md`) and
+   HybridX Trail Gate T0 probe (see `hybridx-trail/docs/PROBE.md`).
 
 Until the app is on the store, installing is a file copy:
 

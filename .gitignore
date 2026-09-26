@@ -27,3 +27,8 @@ hybridx-intervals/Tools/Probe/Software/Apps/Probe-GUI/simulator/build/
 
 # Python bytecode from the asset generator
 __pycache__/
+hybridx-trail/build-tests/
+hybridx-trail/Tools/Probe/build/
+hybridx-trail/Tools/Probe/Output/
+hybridx-trail/Tools/Probe/Software/Output/
+hybridx-trail/Tools/Probe/Software/Apps/Probe-GUI/simulator/build/

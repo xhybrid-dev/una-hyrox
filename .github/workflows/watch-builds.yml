@@ -74,6 +74,9 @@ jobs:
           # HybridX Intervals: the throwaway Phase P0 probe app only -- see
           # hybridx-intervals/docs/PROBE.md.
           build hybridx-intervals/Tools/Probe/Software/Apps/Probe-CMake intervals-probe
+          # HybridX Trail: the throwaway Phase T0 probe app only -- see
+          # hybridx-trail/docs/PROBE.md.
+          build hybridx-trail/Tools/Probe/Software/Apps/Probe-CMake trail-probe
 
       - name: Collect
         run: |
@@ -83,6 +86,7 @@ jobs:
           cp hybridx-streak/Output/Glance/*.uapp watch-apps/
           cp hybridx-streak/Tools/Probe/Output/*.uapp watch-apps/
           cp hybridx-intervals/Tools/Probe/Output/*.uapp watch-apps/
+          cp hybridx-trail/Tools/Probe/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -144,3 +148,12 @@ jobs:
           cmake -S hybridx-intervals/Tests/Host -B ci-build/intervals-core-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/intervals-core-tests -j"$(nproc)"
           ctest --test-dir ci-build/intervals-core-tests --output-on-failure
+
+      - name: HybridX Trail host tests
+        # The route core (GPX reader, thinning, off-route distance) and the
+        # T0 probe's route check.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S hybridx-trail/Tests/Host -B ci-build/trail-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/trail-tests -j"$(nproc)"
+          ctest --test-dir ci-build/trail-tests --output-on-failure

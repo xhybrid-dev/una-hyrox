@@ -62,3 +62,26 @@ the watch records, from any app. It is independent of HybridX Race.
     - real app: `docs/experiments/capture_real.sh`, `walkthrough_real.sh`;
     - demo: `RECORD=1 capture_screens.sh`, `walkthrough.sh`;
     - glance mock-up: `glance_preview.py build-tests/glance_preview <out.png>`.
+
+## HybridX Trail (`hybridx-trail/`)
+A third app: breadcrumb route navigation for runners and trail runners. You
+load a GPX, follow the line, and get a buzz when you go off course. It is
+independent of Race and Streak.
+- **Docs:**
+  - brief, plan and phases (§6, T0-T5): `hybridx-trail/docs/HYBRIDX_TRAIL_BRIEF.md`;
+  - findings: `NOTES.md`;
+  - the Gate T0 probe: `PROBE.md`;
+  - the draft request to UNA about phone delivery: `UNA_GPX_REQUEST.md`.
+  Read the brief and `NOTES.md` at the start of each Trail phase, and work
+  only on that phase.
+- **Rules:** the same standing rules as Race apply.
+- **Layout:** the pure route core (GPX reader, thinning, route maths) is
+  `Software/Libs/Core`, shared by the probe (`Tools/Probe`) and the future app.
+  Routes go in the app's `Routes/` folder, over USB for v1.
+- **Watch builds come from CI**, as for Streak.
+- **Commands:**
+  - host tests: `cmake -S hybridx-trail/Tests/Host -B hybridx-trail/build-tests && cmake --build hybridx-trail/build-tests && hybridx-trail/build-tests/hybridx-trail-host-tests`;
+  - probe simulator: `hybridx-trail/Tools/Probe/Software/Apps/Probe-GUI/simulator`.
+    Put GPX files in `Tools/Probe/Software/Output/Routes/` and run it from
+    `build/bin`;
+  - test routes: `python3 hybridx-trail/Tools/TestRoutes/make_test_gpx.py <folder>`.
