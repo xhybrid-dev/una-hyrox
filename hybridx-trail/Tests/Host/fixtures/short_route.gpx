@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<gpx version='1.1' creator='make_fixtures.py' xmlns='http://www.topografix.com/GPX/1/1'>
+<wpt lat='54.46' lon='-3.05'><name>Summit cairn</name></wpt>
+<rte><name>Fell &amp; Back</name>
+  <rtept lat='54.4500000' lon='-3.0500000'></rtept>
+  <rtept lat='54.4508993' lon='-3.0500000'></rtept>
+  <rtept lat='54.4517986' lon='-3.0500000'></rtept>
+  <rtept lat='54.4526980' lon='-3.0500000'></rtept>
+  <rtept lat='54.4535973' lon='-3.0500000'></rtept>
+  <rtept lat='54.4544966' lon='-3.0500000'></rtept>
+  <rtept lat='54.4553959' lon='-3.0500000'></rtept>
+  <rtept lat='54.4562953' lon='-3.0500000'></rtept>
+  <rtept lat='54.4571946' lon='-3.0500000'></rtept>
+  <rtept lat='54.4580939' lon='-3.0500000'></rtept>
+  <rtept lat='54.4589932' lon='-3.0500000'></rtept>
+</rte></gpx>
