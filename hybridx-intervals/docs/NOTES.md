@@ -119,3 +119,105 @@ real-time target/pace-zone engine.
 
 **Not GO**: fall back to Option B, `AppConfig`'s compact single-preset path. No
 workaround attempted — same rule as Streak's Gate 0.
+
+## P1: the workout data model and pace/HR engine (26 September 2026)
+
+Built ahead of Gate P0's result, since it's useful whichever way that lands
+(a real phone app over BLE FTS, or the `AppConfig` fallback) — a pure C++
+workout model and real-time evaluation engine, no GUI, no phone app, no
+transport decision. `Software/Libs/Core/`, alongside `Tools/Probe/` (P0's
+disposable BLE check, which this doesn't touch).
+
+### P1.1 What's real and what's app-side-only
+
+Every FIT-related enum was checked directly against
+`una-sdk/Libs/Header/SDK/Fit/FitProfile.hpp` before use, not taken on trust:
+
+- `DurationKind` mirrors `WktStepDuration` (`FitProfile.hpp:65-67`) —
+  `Time=0, Distance=1, Open=5, RepeatUntilStepsComplete=6` — with the same
+  numeric values, so a later lowering to FIT is a plain cast.
+- `StepIntensity` mirrors `Intensity` (`FitProfile.hpp:56`) the same way.
+- **`TargetKind` (Pace/HeartRateZone/HeartRateBpm) is app-side only.**
+  `WktStepTarget` (`FitProfile.hpp:68`) defines only `Open=2` — there is no
+  FIT-encodable way to record a real pace/HR number today. `ActivityWriter::
+  addWorkout` (`Examples/Apps/Running/Software/Libs/Header/ActivityWriter.hpp:98-103`,
+  `.cpp:303-338`) already writes `Workout`/`WorkoutStep` FIT messages for an
+  arbitrary step array — that encode path is not a gap — but it always
+  writes `TargetType = Open`, because that's all the on-watch interval
+  feature currently produces. P1 keeps that unchanged: the FIT file
+  continues to record `Open` for every step; the real target lives only in
+  `Target`/`TargetKind`, evaluated live by `TargetEvaluator`. **Needs Jon's
+  sign-off before P2** — see Open questions below.
+- No `Power`/`Cadence` target kind: `Docs/ExternalSensors.md:14-30` — HR
+  only, cadence/power bits reserved and unimplemented.
+- `HrZones::zoneOf` generalises the Workout example's `Service::getHrZone`
+  (`Examples/Apps/Workout/Software/Libs/Sources/Service.cpp:904-916`) to the
+  SDK's real ceiling (`RequestSystemSettings::skMaxHearRateTh = 7`,
+  `Libs/Header/SDK/Messages/CommandMessages.hpp:201`) rather than that
+  example's own hardcoded 5-zone cap — Core takes thresholds as plain
+  arguments; sending `RequestSystemSettings` for real is a later,
+  watch-integration concern.
+- Repeat-step encoding (`Step::durationValue`/`repeatCount` for
+  `RepeatUntilStepsComplete`) copies `ActivityWriter::WorkoutStepData`'s
+  convention exactly (first-step index / iteration count as comments in
+  `ActivityWriter.hpp:98-103` state verbatim), so a later lowering to FIT is
+  a field copy, not a redesign.
+- Pace smoothing reuses `SDK::Metric::SpeedSmoother` directly — not
+  reimplemented; `TargetEvaluator::Sample` is meant to be filled from its
+  `getPace()`.
+
+### P1.2 What was built
+
+`Software/Libs/Core/{Header,Sources}/`: `WorkoutTypes.hpp` (`Workout`,
+`Step`, `Target`, the mirrored enums), `WorkoutValidation` (rejects an empty
+workout, a bad repeat index, `repeatCount == 0`, and nested repeat ranges —
+P1 supports one active range at a time), `HrZones`, `TargetEvaluator`
+(`classify()` — a pure function to `Under`/`InZone`/`Over`/`NoSample`/
+`NoTarget` — plus `CueDebouncer`, which only reports a state change after 3
+consecutive agreeing ticks), `WorkoutEvents` (modeled directly on
+`hybridx-streak`'s `StreakEvents.hpp`: a fixed 8-slot array, a
+`ZoneChanged`-yields-first drop policy), and `WorkoutEngine` (the
+step-sequencing cursor — no internal clock, `tick(nowMs, distanceCm,
+Events&)` takes both as arguments, unsigned subtraction for elapsed time
+across the wrapping ms clock, same rule as Race/Streak).
+
+45 host tests (`Tests/Host/`), all green — `Time`/`Distance` step completion
+exactly at the boundary, `Open` steps never auto-advancing, a repeat block
+visiting its steps in order exactly M times before falling through, a
+clock-wraparound case, and the debouncer's run-length/reset behaviour. Every
+Core source also compiles clean with the ARM cross-compiler
+(`arm-none-eabi-g++ -Wall -Wextra -Wpedantic`, no warnings) — a
+compile-check only, confirming no accidental SDK/heap dependency, since
+nothing calls Core yet.
+
+One GCC internal-compiler-error was hit and worked around during test
+writing: repeatedly reassigning an aggregate-initialised `Events{}` to the
+same local (`events = Events {};`) crashed this container's `g++` inside
+`gimplify.cc`. Fixed by giving each tick its own freshly-declared `Events`
+local instead of reusing one — not a bug in `Events` itself, just an ICE
+triggered by that specific reassignment pattern with this compiler.
+
+### Open questions for Jon
+
+1. **The target-representation question (P1.1 above).** Is "the real
+   target lives only in the app's own workout format, FIT keeps recording
+   `Open`" acceptable long-term, or should the recorded activity somehow
+   carry the intended target (e.g. via a `developer_data` field —
+   `FieldDescription`/`DeveloperDataId` exist in `FitProfile.hpp:174-183`,
+   real but unused by any app in this SDK so far)? Also confirm P1 must
+   **not** write a `TargetType` value beyond the defined `Open=2` member —
+   this plan assumes no.
+2. **Repeat-block nesting.** P1 supports one active range at a time
+   (`WorkoutValidation` rejects nesting). Is that enough, or is nesting (a
+   set of sets) a real requirement?
+3. **"Open" step termination.** The enum exists; nothing found says how an
+   Open-duration step ends on-watch. P1 assumes the standard "ends on a
+   manual lap/advance" convention — an assumption, not a confirmed platform
+   fact.
+4. **Pace target shape.** `Target.low`/`.high` models a band (fast/slow
+   bounds in sec/km). Garmin Connect sometimes expresses a pace target as
+   "value ± margin" instead — either fits the struct, but which does the
+   eventual builder UI expose?
+5. **Sizing constants.** `Workout::kMaxSteps` (20) and `kNameChars` (32) are
+   placeholder bounds with no spec behind them. Is there an expected upper
+   bound for how large a workout needs to be?

@@ -141,6 +141,14 @@ jobs:
         # Pure packet encode/decode, no BLE hardware -- Docs/BLE-File-Transfer-Service.md.
         run: python3 -m unittest discover -s hybridx-intervals/Tools/Probe/pc -p "test_*.py" -v
 
+      - name: HybridX Intervals Core host tests
+        # The P1 workout data model + pace/HR engine, SDK-free.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S hybridx-intervals/Tests/Host -B ci-build/intervals-core-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/intervals-core-tests -j"$(nproc)"
+          ctest --test-dir ci-build/intervals-core-tests --output-on-failure
+
       - name: HybridX Trail host tests
         # The route core (GPX reader, thinning, off-route distance) and the
         # T0 probe's route check.

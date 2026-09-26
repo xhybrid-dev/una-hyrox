@@ -566,3 +566,41 @@ compressing time under load, so captions slid off their scenes.
 - **Not built yet:** the reminder/background scan (P1, and only if the probe
   shows the phone deletes synced files). Also not built: a reset-streak option
   and Race's streak line (PLAN 9).
+
+## S5: packaging (25 September 2026)
+
+### S5.1 "Two manifests, two zips" is not a documented SDK pattern
+
+PLAN §11's original S5 row assumed the glance gets its own store listing,
+same as the main app. Two things found while building it say that assumption
+doesn't rest on anything documented:
+
+- `Docs/app-config-json.md:92-95` shows one manifest's `"type"` as an array
+  (e.g. `["activity","glance"]`) for a **single** `.uapp` serving both roles.
+  Separately, `una-app.cmake:389-414` / `app_merging.py:128-129` expose a
+  binary-level `-glance_capable` flag, letting a non-Glance app *also* serve
+  the glances screen from the *same* binary. Neither matches Streak's shape:
+  two independent `.uapp`s, two separate `APP_ID`s.
+- **None of the SDK's own six Glance examples** (GlanceHR, GlanceARHR,
+  GlanceSteps, GlanceActivity, GlanceBattery, GlanceFloors) ship an
+  `app-manifest.json` at all — their `Resources/` folders hold only an icon.
+  `deploy.md`'s whole upload flow assumes one `.uapp` → one manifest → one
+  zip → one store listing.
+
+This is exactly PLAN §12 Q4 ("Can one store listing install two `.uapp`s, a
+main app plus its glance?"), asked of UNA and still unanswered. Rather than
+build a store listing against an unconfirmed mechanism, **the glance stays
+side-load/CI-only** — installed the same way it already is today (copied
+from the CI `watch-apps` artifact), with no manifest and no zip of its own.
+S5 ships one manifest and one zip, for the main app, matching Race's already
+working pattern exactly. Revisit if/when UNA answers Q4.
+
+### S5.2 Docs and packaging built
+
+- `hybridx-streak/Utilities/pack-store-zip.sh`, adapted from Race's script:
+  same staging shape (`.uapp` + `icon.png` + `previews/` + manifest), same
+  version-from-binary + validator gate before zipping.
+- `hybridx-streak/README.md`, `docs/ARCHITECTURE.md`, `CHANGELOG.md` — new,
+  following Race's shape (the root `CHANGELOG.md` is explicitly scoped to
+  "HybridX Race" only, and the root `README.md` is Race's own; Streak has no
+  such shared role to inherit, so both are package-level here).
