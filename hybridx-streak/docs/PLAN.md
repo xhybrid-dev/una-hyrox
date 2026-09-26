@@ -447,7 +447,7 @@ after every change, and a stop at each gate.
 | **S2** Service | Scanning, persistence, the public summary, AppConfig fields. **Built** | Simulator, with fixture app folders beside its sandbox holding real `.fit` files from Race's rig and the SDK writers: open Streak, see them counted, dated and classified: **passed** |
 | **S3** GUI | §7; screenshots of every screen; LVGL pool peak. **Built** (pool peak 62%) | Jon reviews |
 | **S4** Glance | §8, both layouts, projection. **Built** | Simulator if it runs glances, otherwise hardware (it doesn't: hardware) |
-| **S5** Packaging and docs | Two manifests, two zips, README, ARCHITECTURE, CHANGELOG | Both validate; zips match `deploy.md` |
+| **S5** Packaging and docs | **As built (NOTES S5):** one manifest and one zip, for the main app only — "two manifests, two zips" assumed a store-listing mechanism for a standalone glance that no SDK doc or example confirms exists. README, ARCHITECTURE, CHANGELOG. Glance stays side-load/CI-only pending §12 Q4 | Validates; zip matches `deploy.md` |
 | **S6** Hardware and release | On-watch: activities from each built-in app, a real Monday roll-over, a time-zone change, a flat battery, a phone sync | Jon's pass; tag `streak-v0.1.0` |
 | **P1** | Race's streak line (§9); reminders / background scan if needed (§5.6, §10); excluded apps; multiple goals | Per item |
 
