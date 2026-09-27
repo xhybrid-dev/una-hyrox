@@ -32,3 +32,9 @@ hybridx-trail/Tools/Probe/build/
 hybridx-trail/Tools/Probe/Output/
 hybridx-trail/Tools/Probe/Software/Output/
 hybridx-trail/Tools/Probe/Software/Apps/Probe-GUI/simulator/build/
+
+# Promo films: dependencies, scratch, intermediate renders and WAVs
+promo/node_modules/
+promo/out/
+promo/scratch/
+promo/audio/out/
