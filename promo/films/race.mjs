@@ -8,7 +8,7 @@
 import { W, H, clamp, lerp, prog, ep, E, hash, spring, tempo, mss, hmss, window4, TAU } from '../lib/core.mjs';
 import { text, kinetic, measure, poly, rgba, light, group, roundRect, strokePart } from '../lib/gfx.mjs';
 import { C, T, xMark, sting, hud, chevronWipe, endCard } from '../lib/brand.mjs';
-import { watch, buttonPos, ripple, buzz, screenToFrame } from '../lib/watch.mjs';
+import { watch, setWatchModel, buttonPos, ripple, buzz, screenToFrame } from '../lib/watch.mjs';
 import * as UI from '../lib/ui-race.mjs';
 import { headline, wrap, callout, pressAt } from '../lib/film.mjs';
 
@@ -308,7 +308,7 @@ function skierg(ctx, t) {
   const slide = ep(lt, 1.8, 2.8, E.inOutQuint);
   const pressT = c.t1 - 0.12;
   const bz = buzz(t - pressT, 7);
-  const wo = { cx: lerp(W + 400, lerp(1260, 1200, slide), wIn) + bz[0], cy: 530 + bz[1], d: lerp(560, 600, slide), rot: lerp(0.25, -0.05, wIn) };
+  const wo = { cx: lerp(W + 400, lerp(1360, 1330, slide), wIn) + bz[0], cy: 530 + bz[1], d: lerp(560, 600, slide), rot: lerp(0.25, -0.05, wIn) };
   const dtp = t - pressT;
   const showToast = dtp > 0 && dtp < 0.9;
   const glowR2 = 0.5 + 0.5 * Math.sin(lt * TAU * 1.07);
@@ -319,7 +319,7 @@ function skierg(ctx, t) {
   });
   // Callout to R2.
   const bp = buttonPos(wo, 'r2', 1.34);
-  callout(ctx, bp, [bp[0] + 70, bp[1] + 120], 'R2 · SPLIT', prog(lt, 3.0, 3.9));
+  callout(ctx, bp, [bp[0] + 40, bp[1] + 130], 'R2 · SPLIT', prog(lt, 3.0, 3.9));
   if (dtp > -0.05) ripple(ctx, bp[0], bp[1], dtp, C.amber, { rings: 3, speed: 520, life: 0.8 });
   headline(ctx, lt, 'One button.', 'R2 ends every run and every station. Sixteen presses, sixteen splits.', 150, 470, { p0: 2.3, q0: dur - 0.55, size: 120, width: 700 });
   kinetic(ctx, 'EVERY RUN · EVERY STATION', 154, 760, T.label(20, C.amber), prog(lt, 5.4, 6.4), prog(lt, dur - 0.5, dur - 0.1), 'scramble', { t: lt });
@@ -867,6 +867,7 @@ function drawHud(ctx, t) {
 }
 
 function draw(ctx, t) {
+  setWatchModel('graphite');
   const scene = sceneFor(t);
   // A small push on each hard cut into a run: the split lands.
   const cc = chapterAt(t);

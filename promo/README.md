@@ -46,10 +46,18 @@ All three are 1920 × 1080 at 60 fps, H.264 with 48 kHz AAC, mastered to
   card says "Coming soon". The GPX numbers (5,001 points, 1,001 kept 10 m
   apart, 10.05 km, 80 m ascent) are the probe's simulator run on the test
   loop from `Tools/TestRoutes/make_test_gpx.py`.
-- **Trademarks.** UNA appears only as "for UNA Watch", the nominative use the
-  SDK's `TRADEMARK.md` allows; there is no UNA logo, and the watch drawn is a
-  generic round watch, not UNA's product. HYROX is not named. Strava, Garmin
-  Connect, OS Maps and Komoot are named in plain text, as the apps' docs do.
+- **The watch is UNA's own.** The watch shown is UNA's render from the SDK's
+  Figma UI Resource Pack (`una-sdk/Docs/Templates/Figma-UI-Kit`): graphite
+  for Race, teal for Streak, white for Trail. It carries the UNA logo, so the
+  renders are read from the SDK when a film is rendered (`tools/una_mockups.py`
+  caches them in `out/una/`) and are never committed here. The SDK's
+  `TRADEMARK.md` allows saying an app is "for UNA Watch" but grants no right
+  to UNA's logos, so **check with UNA before publishing** films that show
+  their product and logo. Without the SDK checked out, `lib/watch.mjs` falls
+  back to a generic round watch.
+- **Trademarks.** UNA is named only as "for UNA Watch". HYROX is not named.
+  Strava, Garmin Connect, OS Maps and Komoot are named in plain text, as the
+  apps' docs do.
 - **The address** on the end card, `hybridx.club`, comes from the wordmark
   lockup in Jon's brand files. Change it in `lib/brand.mjs` if it's wrong.
 
@@ -60,8 +68,9 @@ piped to ffmpeg; the soundtracks are synthesised from oscillators and noise
 with numpy and scipy, and placed from each film's own cue sheet, so every hit
 lands on its frame.
 
-You need Node 20+, Python 3 with `numpy` and `scipy`, and an ffmpeg with
-libx264 (`pip install imageio-ffmpeg` provides one; or set `FFMPEG`).
+You need Node 20+, Python 3 with `numpy`, `scipy` and `Pillow`, an ffmpeg with
+libx264 (`pip install imageio-ffmpeg` provides one; or set `FFMPEG`), and the
+SDK checked out at `../una-sdk` (or `UNA_SDK`) for the watch renders.
 
 ```bash
 cd promo
@@ -89,7 +98,8 @@ render.mjs            the renderer: stills, sheets, parallel video, muxing
 lib/core.mjs          frame constants, easing, springs, seeded noise, tempo
 lib/gfx.mjs           type, kinetic text, layers, glow, shapes
 lib/brand.mjs         palette, the X mark, sting, HUD, wipes, end card
-lib/watch.mjs         the watch, its buttons, presses, haptic shake
+lib/watch.mjs         UNA's watch (or a generic one), presses, haptic shake
+tools/una_mockups.py  extracts UNA's watch renders from the SDK's Figma pack
 lib/lvgl.mjs          240 x 240 screen primitives matching the SDK's LVGL helpers
 lib/ui-race.mjs       Race's screens
 lib/ui-streak.mjs     Streak's screens and the Summit scene

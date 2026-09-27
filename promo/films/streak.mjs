@@ -8,7 +8,7 @@
 import { W, H, clamp, lerp, prog, ep, E, hash, tempo, TAU, spring } from '../lib/core.mjs';
 import { text, kinetic, measure, poly, rgba, light, roundRect, strokePart } from '../lib/gfx.mjs';
 import { C, T, sting, hud, chevronWipe, endCard, xMark } from '../lib/brand.mjs';
-import { watch, buttonPos, ripple, buzz } from '../lib/watch.mjs';
+import { watch, setWatchModel, buttonPos, ripple, buzz } from '../lib/watch.mjs';
 import { headline, wrap, pressAt } from '../lib/film.mjs';
 import * as S from '../lib/ui-streak.mjs';
 
@@ -873,7 +873,7 @@ function everest(ctx, t) {
     const b = buzz(lt - p0, 8, 0.3);
     bz = [bz[0] + b[0], bz[1] + b[1]];
   });
-  const wo = { cx: 640 + bz[0], cy: H / 2 + 20 + bz[1], d: lerp(300, 560, wIn), rot: lerp(0.5, 0, wIn) };
+  const wo = { cx: 590 + bz[0], cy: H / 2 + 20 + bz[1], d: lerp(300, 560, wIn), rot: lerp(0.5, 0, wIn) };
   light(ctx, wo.cx, wo.cy, 700, rgba(C.lime, 0.18), wIn * (1 - out));
   watch(ctx, {
     ...wo,
@@ -882,11 +882,11 @@ function everest(ctx, t) {
   });
   // "Summit!" then the line to leave on, in the right-hand column.
   const swap = dur - 4.2;
-  kinetic(ctx, 'Summit!', 1000, 520, T.hero(190, C.white), prog(lt, 0.05, 0.6), prog(lt, swap, swap + 0.4), 'rise');
-  kinetic(ctx, 'EVEREST · 104 WEEKS', 1008, 600, T.label(24, C.lime), prog(lt, 1.0, 1.8), prog(lt, swap, swap + 0.4), 'scramble', { t: lt });
-  kinetic(ctx, 'NEXT: EVEREST AGAIN', 1008, 640, T.label(18, C.soft), prog(lt, 1.6, 2.4), prog(lt, swap, swap + 0.4), 'scramble', { t: lt + 1 });
-  kinetic(ctx, 'Every week', 1000, 470, T.hero(130, C.white), prog(lt, swap + 0.35, swap + 0.95), out, 'rise');
-  kinetic(ctx, 'counts.', 1000, 610, T.hero(130, C.lime), prog(lt, swap + 0.5, swap + 1.1), out, 'rise');
+  kinetic(ctx, 'Summit!', 1040, 520, T.hero(165, C.white), prog(lt, 0.05, 0.6), prog(lt, swap, swap + 0.4), 'rise');
+  kinetic(ctx, 'EVEREST · 104 WEEKS', 1048, 600, T.label(24, C.lime), prog(lt, 1.0, 1.8), prog(lt, swap, swap + 0.4), 'scramble', { t: lt });
+  kinetic(ctx, 'NEXT: EVEREST AGAIN', 1048, 640, T.label(18, C.soft), prog(lt, 1.6, 2.4), prog(lt, swap, swap + 0.4), 'scramble', { t: lt + 1 });
+  kinetic(ctx, 'Every week', 1040, 470, T.hero(120, C.white), prog(lt, swap + 0.35, swap + 0.95), out, 'rise');
+  kinetic(ctx, 'counts.', 1040, 600, T.hero(120, C.lime), prog(lt, swap + 0.5, swap + 1.1), out, 'rise');
   confetti(ctx, lt - 0.2, 170, 1 - out, 23);
 }
 
@@ -927,6 +927,7 @@ function sceneAt(t) {
 }
 
 function draw(ctx, t) {
+  setWatchModel('teal');
   let done = false;
   for (const tb of WIPES) {
     const p = prog(t, tb - 0.3, tb + 0.35);

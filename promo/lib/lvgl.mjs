@@ -244,8 +244,9 @@ export function wheel(ctx, items, sel, shift = 0, band = C.tealDark) {
     ctx.beginPath();
     if (inBand) ctx.rect(0, 87, 240, 66);
     else {
-      ctx.rect(0, 0, 240, 87);
-      ctx.rect(0, 153, 240, 87);
+      // The wheel shows one item either side of the band (kWheelH 132).
+      ctx.rect(0, 21, 240, 66);
+      ctx.rect(0, 153, 240, 66);
     }
     ctx.clip();
     draw(items[i], cy, inBand);

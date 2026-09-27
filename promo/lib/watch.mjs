@@ -1,13 +1,54 @@
-// A round watch with four buttons, drawn around a live 240 x 240 screen.
+// The watch around a live 240 x 240 screen.
 //
-// Deliberately generic: a round graphite case, a black glass border and a
-// strap. It is not a drawing of UNA's product and carries no UNA marks; the
-// four buttons sit where the SDK's button hints point (L1 10 o'clock, L2 8,
-// R1 2, R2 4).
+// By default it is UNA's own watch: the renders from the SDK's Figma UI
+// Resource Pack (una-sdk/Docs/Templates/Figma-UI-Kit), in graphite, teal or
+// white, with the screen showing through the cut-out in the render. Those
+// renders are UNA's artwork, so they are read from the SDK at render time
+// (tools/una_mockups.py caches them in out/una/) and never committed here.
+// Without the SDK, a generic round watch is drawn instead; its four buttons
+// sit where the SDK's button hints point (L1 10 o'clock, L2 8, R1 2, R2 4).
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { loadImage } from '@napi-rs/canvas';
 import { clamp, lerp, TAU } from './core.mjs';
 import { layer, addBloom, rgba, roundRect } from './gfx.mjs';
 import { BTN_ANGLE } from './lvgl.mjs';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+
+/** UNA's renders by strap colour: { img, cx, cy, r, w, h } in render pixels. */
+const UNA = await (async () => {
+  const cache = path.join(HERE, '..', 'out', 'una');
+  const metaFile = path.join(cache, 'meta.json');
+  if (!fs.existsSync(metaFile)) {
+    const sdk = process.env.UNA_SDK || path.join(HERE, '..', '..', 'una-sdk');
+    const fig = path.join(sdk, 'Docs', 'Templates', 'Figma-UI-Kit', 'UNA-Watch-UI-Resource-Pack.fig');
+    if (!fs.existsSync(fig)) return {};
+    execFileSync('python3', [path.join(HERE, '..', 'tools', 'una_mockups.py'), sdk, cache], { stdio: 'ignore' });
+  }
+  const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+  const out = {};
+  for (const [name, m] of Object.entries(meta)) {
+    out[name] = { ...m, img: await loadImage(fs.readFileSync(path.join(cache, `${name}.png`))) };
+  }
+  return out;
+})();
+
+let MODEL = 'graphite';
+/** Choose the strap for every watch drawn after this: graphite, teal or white. */
+export function setWatchModel(name) {
+  MODEL = name;
+}
+export const hasUnaWatch = () => Object.keys(UNA).length > 0;
+
+// UNA's case is larger around its screen than the generic one, so its screen
+// is drawn a little smaller to keep each film's layout.
+const UNA_SCREEN = 0.86;
+const unaOf = (opt) => (opt.generic ? null : UNA[opt.model || MODEL] || null);
+const screenD = (opt) => (unaOf(opt) ? opt.d * UNA_SCREEN : opt.d);
 
 const rad = (touchgfxDeg) => ((touchgfxDeg - 90) * Math.PI) / 180;
 
@@ -25,7 +66,7 @@ const rad = (touchgfxDeg) => ((touchgfxDeg - 90) * Math.PI) / 180;
  *  alpha         overall opacity
  *  on            0..1 screen brightness (0 = off)
  */
-export function watch(ctx, opt) {
+function genericWatch(ctx, opt) {
   const { cx, cy, d } = opt;
   const R = d / 2;
   const rot = opt.rot || 0;
@@ -195,16 +236,132 @@ export function watch(ctx, opt) {
   }
 }
 
+/**
+ * Draw the watch. opt:
+ *  cx, cy        centre of the display, in frame pixels
+ *  d             display size in pixels (the 240 px screen maps to about this)
+ *  rot           rotation in radians
+ *  screen(c, s)  draws the screen in 240-space; s is the pixel scale
+ *  press         { l1, l2, r1, r2 } 0..1, button presses (a glint on UNA's)
+ *  bloom         0..1 glow of the screen's bright content
+ *  strap, shadow, glass, alpha, on   as before; model overrides the strap
+ */
+export function watch(ctx, opt) {
+  const u = unaOf(opt);
+  if (!u) return genericWatch(ctx, opt);
+  const alpha = opt.alpha ?? 1;
+  if (alpha <= 0) return;
+  const d = screenD(opt);
+  const R = d / 2;
+  const rot = opt.rot || 0;
+  const k = R / u.r;
+  // Shadow.
+  if (opt.shadow !== false) {
+    ctx.save();
+    ctx.globalAlpha *= alpha;
+    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+    ctx.shadowBlur = R * 0.5;
+    ctx.shadowOffsetY = R * 0.08;
+    ctx.fillStyle = '#050505';
+    ctx.beginPath();
+    ctx.arc(opt.cx, opt.cy, R * 1.45, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+  // The screen, under the render's cut-out.
+  drawScreen(ctx, { ...opt, d }, alpha);
+  // The watch itself.
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.translate(opt.cx, opt.cy);
+  ctx.rotate(rot);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  if (opt.strap === false) {
+    // Crop to the case: a disc a little wider than the lugs.
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 1.62, 0, TAU);
+    ctx.clip();
+  }
+  ctx.drawImage(u.img, -u.cx * k, -u.cy * k, u.w * k, u.h * k);
+  // A glint on a pressed button.
+  const press = opt.press || {};
+  for (const key of ['l1', 'l2', 'r1', 'r2']) {
+    const p = clamp(press[key] || 0);
+    if (p <= 0) continue;
+    const a = rad(BTN_ANGLE[key]);
+    const bx = Math.cos(a) * R * 1.5, by = Math.sin(a) * R * 1.5;
+    const g = ctx.createRadialGradient(bx, by, 0, bx, by, R * 0.28);
+    g.addColorStop(0, `rgba(255,255,255,${0.45 * p})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(bx - R * 0.3, by - R * 0.3, R * 0.6, R * 0.6);
+  }
+  ctx.restore();
+}
+
+/** The screen in 240-space, clipped to its disc, with bloom and glass. */
+function drawScreen(ctx, opt, alpha) {
+  const { cx, cy, d } = opt;
+  const R = d / 2;
+  const s = d / 240;
+  const rot = opt.rot || 0;
+  const on = opt.on ?? 1;
+  const paint = (c) => {
+    c.save();
+    c.translate(cx, cy);
+    c.rotate(rot);
+    c.translate(-R, -R);
+    c.scale(s, s);
+    c.beginPath();
+    c.arc(120, 120, 121, 0, TAU);
+    c.clip();
+    c.fillStyle = '#000';
+    c.fillRect(0, 0, 240, 240);
+    if (opt.screen && on > 0) {
+      c.globalAlpha *= on;
+      opt.screen(c, s);
+    }
+    c.restore();
+  };
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  if (opt.bloom && opt.bloom > 0) {
+    const L = layer('watch-screen');
+    paint(L.ctx);
+    ctx.drawImage(L.canvas, 0, 0);
+    addBloom(ctx, L.canvas, opt.bloom * alpha, opt.bloomRadius || 22);
+  } else {
+    paint(ctx);
+  }
+  if (opt.glass !== false) {
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.clip();
+    const sg = ctx.createLinearGradient(-R, -R, R, R);
+    sg.addColorStop(0, 'rgba(255,255,255,0.07)');
+    sg.addColorStop(0.32, 'rgba(255,255,255,0.02)');
+    sg.addColorStop(0.33, 'rgba(255,255,255,0)');
+    sg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(-R, -R, R * 2, R * 2);
+  }
+  ctx.restore();
+}
+
 /** Where a button is on screen for a watch drawn with these options. */
 export function buttonPos(opt, k, out = 1.28) {
-  const R = opt.d / 2;
+  const R = screenD(opt) / 2;
+  if (unaOf(opt)) out *= 1.2; // UNA's buttons stand further out
   const a = rad(BTN_ANGLE[k]) + (opt.rot || 0);
   return [opt.cx + Math.cos(a) * R * out, opt.cy + Math.sin(a) * R * out];
 }
 
 /** Map a point in 240-space to frame pixels for a watch drawn with opt. */
 export function screenToFrame(opt, x, y) {
-  const s = opt.d / 240;
+  const s = screenD(opt) / 240;
   const rot = opt.rot || 0;
   const dx = (x - 120) * s, dy = (y - 120) * s;
   return [opt.cx + dx * Math.cos(rot) - dy * Math.sin(rot), opt.cy + dx * Math.sin(rot) + dy * Math.cos(rot)];

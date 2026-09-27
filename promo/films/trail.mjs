@@ -12,7 +12,7 @@ import { Path2D } from '@napi-rs/canvas';
 import { W, H, clamp, lerp, prog, ep, E, hash, tempo, TAU, noise2 } from '../lib/core.mjs';
 import { text, kinetic, measure, rgba, light, roundRect, strokePart, pointAt, polyLength } from '../lib/gfx.mjs';
 import { C, T, sting, hud, lineWipe, endCard } from '../lib/brand.mjs';
-import { watch, buttonPos, ripple, buzz } from '../lib/watch.mjs';
+import { watch, setWatchModel, buttonPos, ripple, buzz } from '../lib/watch.mjs';
 import { headline, pressAt } from '../lib/film.mjs';
 import { CONTOURS, ROUTE, routeAt, routeSlice, routePoint, height } from '../lib/terrain.mjs';
 import * as TR from '../lib/ui-trail.mjs';
@@ -771,6 +771,7 @@ function sceneAt(t) {
 }
 
 function draw(ctx, t) {
+  setWatchModel('white');
   let done = false;
   for (const tb of WIPES) {
     const p = prog(t, tb - 0.45, tb + 0.55);
