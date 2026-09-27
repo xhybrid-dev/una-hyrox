@@ -849,6 +849,9 @@ function cues() {
   return q.sort((a, b) => a.t - b.t);
 }
 
+// Pieces the portrait reel reuses.
+export { contours, routeLine, dot, shade, toScreen, OFF, offRunner, distToRoute, START };
+
 export default {
   id: 'trail',
   title: 'HybridX Trail',

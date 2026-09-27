@@ -4,8 +4,14 @@
 // its own and the film can be cut into parts that render in parallel. Nothing
 // here keeps state between frames.
 
-export const W = 1920;
-export const H = 1080;
+// The frame size. The films are 1920 x 1080; the reels set 1080 x 1920 with
+// setFrame() before drawing. Every use of W and H reads them at draw time.
+export let W = 1920;
+export let H = 1080;
+export function setFrame(w, h) {
+  W = w;
+  H = h;
+}
 export const FPS = 60;
 export const TAU = Math.PI * 2;
 

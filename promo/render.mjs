@@ -18,7 +18,7 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createCanvas } from '@napi-rs/canvas';
-import { W, H, FPS } from './lib/core.mjs';
+import { W, H, FPS, setFrame } from './lib/core.mjs';
 import { setupFonts } from './lib/gfx.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -45,6 +45,8 @@ function args() {
 
 async function loadFilm(id) {
   const mod = await import(path.join(HERE, 'films', `${id}.mjs`));
+  // The reels are portrait: each film says its own frame size.
+  setFrame(...(mod.default.frame || [1920, 1080]));
   return mod.default;
 }
 
@@ -113,7 +115,7 @@ async function sheet(film, step, file, from = 0, to = null) {
   const times = [];
   for (let t = from; t < end - 1e-6; t += step) times.push(+t.toFixed(3));
   const cols = 6;
-  const tw = 320, th = 180;
+  const tw = W > H ? 320 : 180, th = Math.round((tw * H) / W);
   const rows = Math.ceil(times.length / cols);
   const sh = createCanvas(cols * tw, rows * (th + 18));
   const sctx = sh.getContext('2d');
@@ -148,7 +150,7 @@ function run(cmd, argv) {
 async function main() {
   const o = args();
   if (!o.film) {
-    console.error('usage: node render.mjs <race|streak|trail> [--still t,t] [--sheet step] [--from s --to s] [--preview] [--cues]');
+    console.error('usage: node render.mjs <race|streak|trail|race-reel|streak-reel|trail-reel> [--still t,t] [--sheet step] [--from s --to s] [--preview] [--cues]');
     process.exit(1);
   }
   const film = await loadFilm(o.film);
@@ -208,7 +210,9 @@ async function main() {
   let final = silent;
   if (fs.existsSync(wav) && !o.noaudio) {
     fs.mkdirSync(VIDEOS, { recursive: true });
-    final = preview ? path.join(OUT, `${film.id}_preview.mp4`) : path.join(VIDEOS, `hybridx-${film.id}.mp4`);
+    const dir = film.frame ? path.join(VIDEOS, 'reels') : VIDEOS;
+    fs.mkdirSync(dir, { recursive: true });
+    final = preview ? path.join(OUT, `${film.id}_preview.mp4`) : path.join(dir, `hybridx-${film.id}.mp4`);
     await run(ffmpegPath(), ['-y', '-loglevel', 'error', '-i', silent, '-ss', String(from), '-t', String(to - from), '-i', wav,
       '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-shortest', '-movflags', '+faststart', final]);
   }

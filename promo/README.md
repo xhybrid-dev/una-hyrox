@@ -14,6 +14,26 @@ the same brand, the same grammar, a different character each.
 All three are 1920 × 1080 at 60 fps, H.264 with 48 kHz AAC, mastered to
 −14 LUFS. Stills from each are in [`videos/posters/`](videos/posters/).
 
+## The reels
+
+Three portrait cuts of the films for Instagram Reels and adverts, 30 to 40
+seconds each, in [`videos/reels/`](videos/reels/) with a cover still for
+each in [`videos/reels/covers/`](videos/reels/covers/).
+
+| Reel | File | Length | Cut |
+|---|---|---|---|
+| **Race** | [`hybridx-race-reel.mp4`](videos/reels/hybridx-race-reel.mp4) | 33.8 s, 18 bars | "8 runs. 8 stations. 1 button.", the sting on the gun, then one button, Roxzone, heart rate, undo and laps, two bars each, the finish and the end card. The top bar is the race's sixteen segments filling. |
+| **Streak** | [`hybridx-streak-reel.mp4`](videos/reels/hybridx-streak-reel.mp4) | 34.3 s, 16 bars | "Every workout counts." with sessions landing, the sting, week complete, a shield spent, then the camera climbs all five mountains, 104 weeks, to Everest's summit. |
+| **Trail** | [`hybridx-trail-reel.mp4`](videos/reels/hybridx-trail-reel.mp4) | 35.0 s, 14 bars | "Just the line." as the route draws itself, the sting, load a route, follow it, then going off course and back, the loop completed, "Coming soon". |
+
+All three are 1080 × 1920 at 60 fps with their own shortened scores
+(`audio/*_reel.py`), at −14 LUFS, and start moving and sounding on the first
+frame. Everything that must be read sits inside Instagram's safe area
+(`lib/reel.mjs`): below the header (y 250), above the caption (y 1540), and
+clear of the button column on the right of the lower half. The same
+"read before sharing" notes apply to them, and for paid adverts in
+particular UNA's watch and logo need UNA's clearance first.
+
 ## What they share
 
 - **Jon's X mark**, rebuilt as vector geometry (`lib/brand.mjs`) and fitted to
@@ -91,6 +111,14 @@ python3 audio/spectrum.py audio/out/race.wav        # the mix's octave balance
 
 A full film renders in five to six minutes on four cores (H.264 at CRF 18).
 
+The reels work the same way, with their own ids:
+
+```bash
+python3 audio/race_reel.py       # writes audio/out/race-reel.wav
+node render.mjs race-reel        # writes videos/reels/hybridx-race-reel.mp4
+node posters.mjs                 # film posters and the reels' covers
+```
+
 ## Where things are
 
 ```
@@ -107,9 +135,11 @@ lib/ui-trail.mjs      Trail's concept screens
 lib/terrain.mjs       Trail's height field, contours and route
 lib/film.mjs          headline, callout and press helpers
 films/*.mjs           the three films: scenes, timing, cue sheets
+films/*-reel.mjs      the three portrait reels
+lib/reel.mjs          the reels' safe area, top bar and closing card
 audio/synth.py        the synthesiser, effects and mix bus
 audio/common.py       the sonic logo, split sound, loudness normalisation
-audio/*.py            the three scores
+audio/*.py            the three scores, and the reels' (*_reel.py)
 videos/               the finished films and their posters
 ```
 

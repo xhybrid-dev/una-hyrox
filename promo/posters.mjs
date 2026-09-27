@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { W, H } from './lib/core.mjs';
+import { W, H, setFrame } from './lib/core.mjs';
 import { setupFonts } from './lib/gfx.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -41,3 +41,20 @@ for (const [id, t] of Object.entries(PICKS)) {
 }
 fs.writeFileSync(path.join(OUT, 'hybridx-films.jpg'), await strip.encode('jpeg', 88));
 console.log(path.join(OUT, 'hybridx-films.jpg'));
+
+// Covers for the reels: a portrait frame each, for Instagram's cover image.
+const REELS = { 'race-reel': 9.9, 'streak-reel': 28.6, 'trail-reel': 24.5 };
+const COVERS = path.join(HERE, 'videos', 'reels', 'covers');
+fs.mkdirSync(COVERS, { recursive: true });
+for (const [id, t] of Object.entries(REELS)) {
+  const film = (await import(path.join(HERE, 'films', `${id}.mjs`))).default;
+  setFrame(...film.frame);
+  const c = createCanvas(W, H);
+  const x = c.getContext('2d');
+  x.fillStyle = '#000';
+  x.fillRect(0, 0, W, H);
+  film.draw(x, t);
+  const f = path.join(COVERS, `hybridx-${id}.jpg`);
+  fs.writeFileSync(f, await c.encode('jpeg', 90));
+  console.log(f);
+}
