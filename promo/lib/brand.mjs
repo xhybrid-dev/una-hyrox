@@ -452,7 +452,12 @@ const FAMILY = [
 export function endCard(ctx, t, opt) {
   const { app, accent, accent2 = accent, name } = opt;
   const h = opt.h ?? 170;
-  const cy = H / 2 - 80;
+  // Positions default to the films' landscape card; the reels pass their own.
+  const cy = opt.cy ?? H / 2 - 80;
+  const fy = opt.familyY ?? H / 2 + 170;
+  const ruleY = opt.ruleY ?? H / 2 + 110;
+  const addrY = opt.addrY ?? H - 110;
+  const k = opt.k ?? 1; // small-type scale: the reels are read on a phone
   // Lockup (static version of the sting's final frame, rebuilt so it can be
   // animated independently here).
   const nameS = { size: h * 0.62, weight: 600, tracking: -0.02, color: C.white };
@@ -486,14 +491,13 @@ export function endCard(ctx, t, opt) {
   kinetic(ctx, name, wx + wHyb + wSp, baseY, prodS, prog(t, 0.5, 1.15), 0, 'rise');
 
   // "for UNA Watch": a nominative reference, set plainly (SDK TRADEMARK.md).
-  const sub = T.label(22, C.soft);
+  const sub = T.label(Math.round(22 * k), C.soft);
   kinetic(ctx, 'FOR UNA WATCH', wx + 2, baseY + h * 0.5, sub, prog(t, 0.9, 1.7), 0, 'scramble', { t });
 
   // The family.
-  const fy = H / 2 + 170;
-  const lab = T.label(18, C.mute);
+  const lab = T.label(Math.round(18 * k), C.mute);
   const items = FAMILY.map((f) => ({ ...f, w: measure(ctx, f.name.toUpperCase(), lab) }));
-  const dotW = 18, spacing = 64;
+  const dotW = 18 * k, spacing = 64 * k;
   const rowW = items.reduce((s, f) => s + f.w + dotW, 0) + spacing * (items.length - 1);
   let x = W / 2 - rowW / 2;
   items.forEach((f, i) => {
@@ -503,10 +507,10 @@ export function endCard(ctx, t, opt) {
     ctx.globalAlpha *= pa;
     const col = on ? f.color : C.rule;
     ctx.fillStyle = col;
-    ctx.fillRect(x, fy - 12, 8, 8);
+    ctx.fillRect(x, fy - 12 * k, 8 * k, 8 * k);
     if (f.color2) {
       ctx.fillStyle = on ? f.color2 : C.rule;
-      ctx.fillRect(x, fy - 3, 8, 8);
+      ctx.fillRect(x, fy - 3 * k, 8 * k, 8 * k);
       ctx.fillStyle = col;
     }
     text(ctx, f.name.toUpperCase(), x + dotW, fy, { ...lab, color: on ? C.white : C.mute });
@@ -514,15 +518,15 @@ export function endCard(ctx, t, opt) {
     x += f.w + dotW + spacing;
   });
   // A hairline between the lockup and the family.
-  const rl = ep(t, 1.0, 1.8, E.inOutQuart) * 520;
+  const rl = ep(t, 1.0, 1.8, E.inOutQuart) * 520 * Math.min(k, W / 1200);
   ctx.fillStyle = C.rule;
-  ctx.fillRect(W / 2 - rl / 2, H / 2 + 110, rl, 1);
+  ctx.fillRect(W / 2 - rl / 2, ruleY, rl, 1);
 
   // The address.
-  const addr = T.label(18, C.soft);
-  kinetic(ctx, 'HYBRIDX.CLUB', W / 2, H - 110, { ...addr, align: 'center' }, prog(t, 1.7, 2.5), 0, 'fade');
+  const addr = T.label(Math.round(18 * k), C.soft);
+  kinetic(ctx, 'HYBRIDX.CLUB', W / 2, addrY, { ...addr, align: 'center' }, prog(t, 1.7, 2.5), 0, 'fade');
   if (opt.note) {
-    kinetic(ctx, opt.note, W / 2, H - 80, { ...T.label(14, C.mute), align: 'center' }, prog(t, 2.0, 2.8), 0, 'fade');
+    kinetic(ctx, opt.note, W / 2, addrY + 30 * k, { ...T.label(Math.round(14 * k), C.mute), align: 'center' }, prog(t, 2.0, 2.8), 0, 'fade');
   }
 }
 
