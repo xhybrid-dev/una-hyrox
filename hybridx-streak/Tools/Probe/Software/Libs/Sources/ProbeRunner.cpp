@@ -180,6 +180,26 @@ void Runner::run(Result& r)
     say("[6] Rename onto an existing file");
     renameOver(r);
 
+    // [7] Exact paths, no listing ----------------------------------------------
+    say("[7] Other apps' summary.json, opened by name");
+    byName(r);
+
+    // On the watch, listing ".." reached another volume while files opened by
+    // name reached /Apps (NOTES, Gate 0), so [7] outranks the listing's answer.
+    // A listed .fit that opened (GO) or refused (NO READ) is a concrete answer
+    // and stands; otherwise [7] decides.
+    if (r.summariesRead > 0) {
+        r.verdict = Verdict::Go;
+    } else if (r.verdict != Verdict::Go && r.verdict != Verdict::NoOpen) {
+        if (r.summariesFound > 0) {
+            r.verdict = Verdict::NoOpen;
+        } else if (r.appsSeen > 0) {
+            r.verdict = Verdict::NoFiles;
+        } else {
+            r.verdict = Verdict::Blocked;
+        }
+    }
+
     say("Verdict: %s", verdictName(r.verdict));
 }
 
@@ -419,20 +439,275 @@ void Runner::renameOver(Result& r)
     mFs.remove(kRenameTo);
 }
 
+// -- [7] Exact paths ------------------------------------------------------------------
+
+bool Runner::jsonNumber(const char* text, const char* key, uint32_t& out)
+{
+    if (!text || !key) {
+        return false;
+    }
+    char   want[24];
+    const int n = snprintf(want, sizeof(want), "\"%s\"", key);
+    if (n <= 0 || static_cast<size_t>(n) >= sizeof(want)) {
+        return false;
+    }
+    const char* at = std::strstr(text, want);
+    if (!at) {
+        return false;
+    }
+    at += n;
+    while (*at == ' ' || *at == '\t' || *at == '\n' || *at == '\r') {
+        ++at;
+    }
+    if (*at != ':') {
+        return false;
+    }
+    ++at;
+    while (*at == ' ' || *at == '\t' || *at == '\n' || *at == '\r') {
+        ++at;
+    }
+    if (*at < '0' || *at > '9') {
+        return false;   // negative, a string, or missing: not what a summary holds
+    }
+    uint64_t v = 0;
+    while (*at >= '0' && *at <= '9') {
+        v = v * 10u + static_cast<uint64_t>(*at - '0');
+        if (v > 0xFFFFFFFFull) {
+            return false;
+        }
+        ++at;
+    }
+    out = static_cast<uint32_t>(v);
+    return true;
+}
+
+void Runner::monthOf(uint32_t utc, char out[7])
+{
+    // Civil-from-days (Howard Hinnant), for days since 1970-01-01.
+    const int64_t  z   = static_cast<int64_t>(utc / 86400u) + 719468;
+    const int64_t  era = z / 146097;
+    const uint32_t doe = static_cast<uint32_t>(z - era * 146097);
+    const uint32_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    const uint32_t doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    const uint32_t mp  = (5 * doy + 2) / 153;
+    const uint32_t m   = mp < 10 ? mp + 3 : mp - 9;
+    const int64_t  y   = static_cast<int64_t>(yoe) + era * 400 + (m <= 2 ? 1 : 0);
+    const uint32_t yy = static_cast<uint32_t>(y < 0 ? 0 : y % 10000);
+    out[0] = static_cast<char>('0' + yy / 1000);
+    out[1] = static_cast<char>('0' + yy / 100 % 10);
+    out[2] = static_cast<char>('0' + yy / 10 % 10);
+    out[3] = static_cast<char>('0' + yy % 10);
+    out[4] = static_cast<char>('0' + m / 10);
+    out[5] = static_cast<char>('0' + m % 10);
+    out[6] = '\0';
+}
+
+void Runner::addName(const char* name, size_t len)
+{
+    while (len > 0 && (name[0] == ' ' || name[0] == '\t')) {
+        ++name;
+        --len;
+    }
+    while (len > 0 && (name[len - 1] == ' ' || name[len - 1] == '\t' || name[len - 1] == '\r')) {
+        --len;
+    }
+    if (len == 0 || len >= kMaxAppName || name[0] == '#') {
+        return;
+    }
+    for (size_t i = 0; i < len; ++i) {
+        if (name[i] == '/' || name[i] == '\\' || name[i] == ':' || (name[i] == '.' && i + 1 < len && name[i + 1] == '.')) {
+            return;   // a folder name, never a path
+        }
+    }
+    if (len == std::strlen(kOwnApp) && std::strncmp(name, kOwnApp, len) == 0) {
+        return;
+    }
+    for (uint8_t i = 0; i < mNameCount; ++i) {
+        if (std::strlen(mNames[i]) == len && std::strncmp(mNames[i], name, len) == 0) {
+            return;
+        }
+    }
+    if (mNameCount >= kMaxNames) {
+        return;
+    }
+    std::memcpy(mNames[mNameCount], name, len);
+    mNames[mNameCount][len] = '\0';
+    ++mNameCount;
+}
+
+void Runner::loadNames()
+{
+    mNameCount = 0;
+    for (const char* known : kKnownApps) {
+        addName(known, std::strlen(known));
+    }
+    const uint8_t builtIn = mNameCount;
+    if (readText(kAppsFile, mBuf, sizeof(mBuf))) {
+        const char* start = mBuf;
+        for (const char* p = mBuf;; ++p) {
+            if (*p == '\n' || *p == ',' || *p == '\0') {
+                addName(start, static_cast<size_t>(p - start));
+                start = p + 1;
+            }
+            if (*p == '\0') {
+                break;
+            }
+        }
+        say("  %s: %u more name(s)", kAppsFile, static_cast<unsigned>(mNameCount - builtIn));
+    } else {
+        say("  no %s: built-in names only (add one name per line to try more)", kAppsFile);
+    }
+}
+
+void Runner::byName(Result& r)
+{
+    // Controls first: a file this probe knows is there, reached through "..".
+    if (mFs.exist(kSharedFile)) {
+        r.sharedByName = readText(kSharedFile, mBuf, sizeof(mBuf)) && mBuf[0] == '{' ? Check::Ok : Check::Failed;
+        say("  control: %s %s", kSharedFile, r.sharedByName == Check::Ok ? "opens" : "exists, OPEN FAIL");
+    } else {
+        say("  control: %s not there (open HybridX Streak once to create it)", kSharedFile);
+    }
+    char own[64];
+    if (makePath(own, sizeof(own), "../%s", kOwnApp)) {   // this probe's own folder, seen from outside
+        say("  control: %s %s", own, mFs.exist(own) ? "exists" : "not seen");
+    }
+
+    loadNames();
+    for (uint8_t i = 0; i < mNameCount; ++i) {
+        trySummary(mNames[i], r);
+    }
+    r.namesTried = mNameCount;
+    say("  %u names, %u folders seen, %u summaries found, %u read, %u .fit in their month",
+        static_cast<unsigned>(r.namesTried), static_cast<unsigned>(r.appsSeen),
+        static_cast<unsigned>(r.summariesFound), static_cast<unsigned>(r.summariesRead),
+        static_cast<unsigned>(r.fitByName));
+}
+
+void Runner::trySummary(const char* app, Result& r)
+{
+    static constexpr const char* kRoutes[] = { "..", "/Apps", "2:/Apps" };
+
+    const bool seen = makePath(mPath, sizeof(mPath), "../%s", app) && mFs.exist(mPath);
+    if (seen) {
+        ++r.appsSeen;
+    }
+
+    bool found = false;
+    for (const char* route : kRoutes) {
+        if (!makePath(mPath, sizeof(mPath), "%s/%s/Activity/summary.json", route, app)) {
+            continue;
+        }
+        const bool exists = mFs.exist(mPath);
+        // Open even when exist() says no: on the watch, what one call refuses
+        // another may allow, and trying costs nothing.
+        const bool read = readText(mPath, mBuf, sizeof(mBuf));
+        if (!exists && !read) {
+            continue;
+        }
+        if (!found) {
+            ++r.summariesFound;
+            found = true;
+        }
+        uint32_t utc = 0;
+        uint32_t secs = 0;
+        uint32_t metres = 0;
+        const bool parsed = read && jsonNumber(mBuf, "utc", utc);
+        if (!parsed) {
+            say("  %-14s %s: %s", app, route, read ? "opens, but no \"utc\"" : "exists, OPEN FAIL");
+            continue;
+        }
+        jsonNumber(mBuf, "time", secs);
+        jsonNumber(mBuf, "distance", metres);
+        ++r.summariesRead;
+        say("  %-14s %s: read %u B, utc %lu, %lu s, %lu m", app, route, static_cast<unsigned>(std::strlen(mBuf)),
+            static_cast<unsigned long>(utc), static_cast<unsigned long>(secs), static_cast<unsigned long>(metres));
+        if (utc >= r.summaryUtc) {
+            copyText(r.summaryApp, sizeof(r.summaryApp), app);
+            copyText(r.summaryRoute, sizeof(r.summaryRoute), route);
+            r.summaryUtc    = utc;
+            r.summarySecs   = secs;
+            r.summaryMetres = metres;
+        }
+        tryMonth(route, app, utc, r);
+        return;   // one route that works is enough
+    }
+    if (!found) {
+        say("  %-14s %s", app, seen ? "folder seen, no summary.json by any route" : "-");
+    }
+}
+
+void Runner::tryMonth(const char* route, const char* app, uint32_t utc, Result& r)
+{
+    // The activity's own .fit, if the phone hasn't synced it away yet. The
+    // month comes from the summary's UTC time, so one recorded just after a
+    // local midnight at a month's end may be missed: fine for a probe.
+    char month[7];
+    monthOf(utc, month);
+    char folder[IFileSystem::skMaxPathLen];
+    if (!makePath(folder, sizeof(folder), "%s/%s/Activity/%s", route, app, month)) {
+        return;
+    }
+    auto dir = mFs.dir(folder);
+    if (!dir || !dir->open()) {
+        say("  %-14s   %s/: cannot list", app, month);
+        return;
+    }
+    uint16_t seen  = 0;
+    uint16_t fits  = 0;
+    mCandidate[0]  = '\0';
+    while (seen < kMaxEntries && dir->readNext(mInfo)) {
+        ++seen;
+        if (!mInfo.isDir && isFit(mInfo.name)) {
+            ++fits;
+            if (mCandidate[0] == '\0') {
+                makePath(mCandidate, sizeof(mCandidate), "%s/%s", folder, mInfo.name);
+            }
+        }
+    }
+    dir->close();
+    r.fitByName = static_cast<uint8_t>(r.fitByName + (fits > 255 - r.fitByName ? 255 - r.fitByName : fits));
+
+    if (mCandidate[0] == '\0') {
+        say("  %-14s   %s/: %u entries, no .fit (synced away?)", app, month, static_cast<unsigned>(seen));
+        return;
+    }
+    auto file = mFs.file(mCandidate);
+    unsigned char head[12] = {};
+    size_t        got      = 0;
+    const bool    opened   = file && file->open(false, false);
+    const bool    ok       = opened && file->read(reinterpret_cast<char*>(head), sizeof(head), got) && got == sizeof(head)
+                    && std::memcmp(head + 8, ".FIT", 4) == 0;
+    if (opened) {
+        file->close();
+    }
+    if (r.fitByNameOpen != Check::Ok) {
+        r.fitByNameOpen = ok ? Check::Ok : Check::Failed;
+    }
+    say("  %-14s   %s/: %u .fit, first %s", app, month, static_cast<unsigned>(fits),
+        ok ? "opens (.FIT ok)" : (opened ? "opens, NOT FIT" : "OPEN FAIL"));
+}
+
 size_t Runner::historyLine(const Result& r, const char* stamp, char* out, size_t n)
 {
     if (n == 0) {
         return 0;
     }
     const int len = snprintf(out, n, "run %u | %s | %s | base %s | apps %u, with fit %u | fit %u (+%u) | newest %s | "
-                                     "read %u B %u ms | shared %s | rename %s | glance %dx%d %u",
+                                     "read %u B %u ms | shared %s | rename %s | glance %dx%d %u | by name %u/%u/%u/%u, fit %u %s, "
+                                     "newest %s %s utc %lu %lus",
                              static_cast<unsigned>(r.run), stamp ? stamp : "?", verdictName(r.verdict),
                              r.base[0] ? r.base : "-", static_cast<unsigned>(r.apps),
                              static_cast<unsigned>(r.appsWithFit), static_cast<unsigned>(r.fitFiles),
                              static_cast<unsigned>(r.otherFit), r.newest[0] ? r.newest : "-",
                              static_cast<unsigned>(r.readBytes), static_cast<unsigned>(r.readMs),
                              checkName(r.sharedData), renameName(r.renameRefused), r.glanceWidth, r.glanceHeight,
-                             static_cast<unsigned>(r.glanceControls));
+                             static_cast<unsigned>(r.glanceControls), static_cast<unsigned>(r.namesTried),
+                             static_cast<unsigned>(r.appsSeen), static_cast<unsigned>(r.summariesFound),
+                             static_cast<unsigned>(r.summariesRead), static_cast<unsigned>(r.fitByName),
+                             checkName(r.fitByNameOpen), r.summaryApp[0] ? r.summaryApp : "-",
+                             r.summaryRoute[0] ? r.summaryRoute : "-", static_cast<unsigned long>(r.summaryUtc),
+                             static_cast<unsigned long>(r.summarySecs));
     if (len < 0) {
         out[0] = '\0';
         return 0;

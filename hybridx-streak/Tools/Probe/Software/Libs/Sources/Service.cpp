@@ -215,7 +215,7 @@ void Service::save()
     }
 
     // probe-history.txt: one line per run, appended.
-    char   entry[320];
+    char   entry[448];
     size_t len = Probe::Runner::historyLine(mResult, mStamp, entry, sizeof(entry) - 1);
     entry[len++] = '\n';
     if (auto file = mKernel.fs.file(kHistoryFile); file && file->open(true, false)) {

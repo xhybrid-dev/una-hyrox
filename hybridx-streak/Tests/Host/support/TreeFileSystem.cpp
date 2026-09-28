@@ -145,7 +145,7 @@ public:
     {
         const std::string abs = mFs.resolve(mPath);
         const auto*       n   = mFs.find(abs);
-        if (!mFs.allowed(abs) || !n || !n->isDir) {
+        if (!mFs.allowed(abs) || !mFs.listable(abs) || !n || !n->isDir) {
             return false;
         }
         mAbs     = abs;
@@ -231,6 +231,17 @@ std::string TreeFileSystem::resolve(const std::string& path) const
 bool TreeFileSystem::allowed(const std::string& abs) const
 {
     if (!mBlockParent) {
+        return true;
+    }
+    auto under = [&abs](const std::string& root) {
+        return abs == root || abs.compare(0, root.size() + 1, root + "/") == 0;
+    };
+    return under(mSandbox) || under("/Apps/SharedData");
+}
+
+bool TreeFileSystem::listable(const std::string& abs) const
+{
+    if (!mBlockListing) {
         return true;
     }
     auto under = [&abs](const std::string& root) {

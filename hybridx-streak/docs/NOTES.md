@@ -604,3 +604,120 @@ working pattern exactly. Revisit if/when UNA answers Q4.
   following Race's shape (the root `CHANGELOG.md` is explicitly scoped to
   "HybridX Race" only, and the root `README.md` is Race's own; Streak has no
   such shared role to inherit, so both are package-level here).
+
+## Gate 0: first run on Jon's watch (28 September 2026)
+
+Jon installed the CI build, recorded a walk, and ran the probe five times
+(13:01-13:05, no phone sync between). Every run: **NO FILES**. The Streak app
+counted nothing either. Evidence: `probe.txt`, `probe-history.txt` and two
+photos, in the conversation.
+
+What the report shows:
+
+| Check | Result |
+|---|---|
+| `list ..` | ok, 4 entries. The scan found two folders: `System Volume Information` and `gps`. The other two entries were presumably `SharedData` (skipped by name) and a file or dot-entry. **No app folders**: not `HXStreakProbe` itself, not HybridX Race, not a built-in app |
+| `list /Apps`, `list 2:/Apps` | FAIL (cannot open) |
+| `list /` | ok, 3 entries (the probe's own folder, E.3) |
+| `list .` | FAIL |
+| SharedData | mkdir, write, read back, remove: all ok |
+| Rename onto an existing file | refused, destination kept (FatFs): §6.5's save sequence is right |
+| Clock | local 13:05, offset +60 min (BST): correct |
+| Glance config | 240 x 60, 32 controls |
+
+Reading:
+
+- `..` does **not** reach `/Apps` on the watch. It reaches a folder holding
+  `System Volume Information` (which Windows puts at a volume's root), `gps`
+  and, it seems, `SharedData`, but no app folders. The simulator's `..` is plain
+  host traversal (E.9), which is why S0-S2 could not see this.
+- Absolute paths out of the sandbox are refused.
+- So, **on the routes the probe tries, one app cannot see another's folder.**
+  The verdict should have been BLOCKED, not NO FILES: the probe says NO FILES
+  whenever listing `..` succeeds, without checking that what it listed looks
+  like apps. To fix in the probe if it is run again.
+- **A second probe fault:** `scanApp` reports "0 months" for
+  `System Volume Information` and `gps`, so opening
+  `../System Volume Information/Activity` returned success on the watch,
+  although that folder almost certainly doesn't exist. Either
+  `IDirectory::open()` on a missing path succeeds on the watch, or it created
+  the folder. Future code must check `exist()` before trusting `open()`. Jon to
+  check over USB whether stray `Activity` folders appeared.
+
+Not yet known, and needed before Gate 0 can be closed:
+
+1. The top level of the watch's USB drive (hidden files shown): is it the
+   same volume `..` listed?
+2. Where the walk's `.fit` actually is on the drive, and which app recorded it.
+3. Whether the phone sync step (PROBE.md step 4) changes anything.
+
+Provisional Gate 0 result: **not GO.** PLAN §3's three options apply; the choice
+waits for the answers above.
+
+### Gate 0, second look: the USB drive (28 September 2026)
+
+Jon's screenshots of the watch's USB drive, and the walk's `summary.json`:
+
+- **Drive root:** `Apps/` (30 items), `DailyHealth/`, `GPS_EPO/`,
+  `System Volume Information/`, `Update/`, `settings.json`,
+  `settings.json.bak`.
+- **So the probe's `..` is not this volume.** It listed `System Volume
+  Information` and `gps`, while this root has `GPS_EPO` and `Apps`. From inside
+  an app, `..` reaches some other volume (presumably the kernel's own), where
+  `SharedData` lives. Built-in apps (`Apps/Walking`, `Apps/Running`, …) are on
+  the USB volume, beside ours, but out of reach. **Cross-app reading is
+  blocked: confirmed.**
+- **Activity files are deleted after a phone sync.** `Apps/Walking/Activity/`
+  holds an empty `202609/` and a `summary.json`. The walk's `.fit` is gone;
+  Jon reports the same for Running and the others. This answers PLAN §3
+  question 4: even with read access, "scan when opened" would miss every
+  activity synced before Streak was opened (§5.6's risk, now real).
+- **`summary.json` survives, but holds one activity**: the latest, overwritten
+  each time (RunLVGL's `ActivitySummarySerializer` shape). Walk: `utc`
+  1790596689 (12:58 local), 346 s, 461 m, 622 steps, HR avg 82 / max 93, one
+  lap, plus a hex track map. Not a history, and unreachable anyway.
+
+**Gate 0: NOT GO, closed.** Two independent blockers: the sandbox, and the
+deletion on sync. Automatic counting of other apps' activities needs UNA:
+either an activity-list API or an "activity saved" event that a background
+service can receive. PLAN §3's options stand; Jon to choose.
+
+### Gate 0, third look: `..` works for files (28 September 2026)
+
+Jon found `streak.json` in `Apps/SharedData/` on the USB drive. The Streak app
+writes it as `../SharedData/HybridX/streak.json` (`Libs/App/Sources/Service.cpp:32`).
+So **for opening files, `..` from an app's folder is `/Apps`**, as the SDK's own
+`../SharedData/stride.json` assumes (E.3). Only *listing* `..` landed somewhere
+else (`gps`, `System Volume Information`). The listing result was therefore
+misleading, and cross-app reading is **not** yet shown to be blocked for a file
+opened by its exact path, e.g. `../Walking/Activity/summary.json`.
+
+Its content also shows the app ran on the watch and published a week with no
+sessions: `"d":[20724,…]` (day 20724 = 28 September 2026), all counts 0.
+
+Gate 0 reopens on one question: can an app open `../<OtherApp>/Activity/summary.json`
+by name? Next: a probe run that tries exact paths, without listing.
+
+### Probe 0.2.0: [7] exact-path reads (28 September 2026)
+
+Built for the reopened question above. **[7]** opens
+`<route>/<App>/Activity/summary.json` for each app name, through `..`, `/Apps`
+and `2:/Apps` in turn, **without listing a folder**; parses `utc`, `time` and
+`distance`; and, where one opens, looks for a `.fit` in that month's folder
+(`monthOf(utc)`) and checks its header. Names: a built-in list (Walking,
+Running, Cycling, Hiking, Treadmill, Workout, HybridXRace) plus an optional
+`apps.txt` in the probe's folder, which accepts folder names only (no `/`,
+`\`, `:` or `..`).
+
+[7] now decides the verdict: GO if any summary was read; a listed `.fit` that
+opened or refused still stands; otherwise NO READ if a summary was found but
+not read, NO FILES if app folders were seen, BLOCKED if nothing was reachable.
+This fixes the first run's misleading NO FILES.
+
+- `TreeFileSystem` gained `blockListingOutside()`: listing outside the sandbox
+  fails, files still open by name, as on Jon's watch.
+- 7 new host tests, including Jon's real walk `summary.json` as a fixture. All
+  Streak host tests pass; watch target and simulator build.
+- Simulator, with Jon's `summary.json` and `streak.json` in a fake tree: GO,
+  "Walking 346 s, 461 m".
+- Jon's steps: PROBE.md, "Second run".

@@ -266,11 +266,139 @@ TEST(ProbeRunner, HistoryLineIsBoundedAndComplete)
     EXPECT_EQ(n, std::strlen(line));
     EXPECT_NE(std::string(line).find("run 3 | 2026-09-24 19:05 | GO | base .."), std::string::npos);
     EXPECT_NE(std::string(line).find("read 812345 B 402 ms"), std::string::npos);
+    EXPECT_NE(std::string(line).find("| by name "), std::string::npos);
 
     char small[16];
     const auto m = Probe::Runner::historyLine(r, "x", small, sizeof(small));
     EXPECT_EQ(m, sizeof(small) - 1);
     EXPECT_EQ(small[sizeof(small) - 1], '\0');
+}
+
+// -- [7] Exact paths ---------------------------------------------------------------
+
+namespace
+{
+/// Jon's walk, as Apps/Walking/Activity/summary.json held it (28 Sep 2026).
+constexpr const char* kWalkSummary =
+    "{\"utc\":1790596689,\"time\":346,\"distance\":461.431,\"speed_avg\":1.33362,\"steps\":622,"
+    "\"elevation\":4.26807,\"pace_avg\":0.749841,\"hr_max\":93,\"hr_avg\":81.8596,\"map\":\"6F72756F\","
+    "\"lap_count\":1,\"laps\":[{\"dur\":346,\"dist\":461.431,\"steps\":622}]}";
+
+/// Jon's watch after the walk synced: the .fit gone, the summary left.
+TreeFileSystem watchAfterSync()
+{
+    TreeFileSystem fs(kSandbox);
+    fs.addFile("/Apps/Walking/Activity/summary.json", kWalkSummary);
+    fs.addDir("/Apps/Walking/Activity/202609");
+    fs.addDir("/Apps/Running/Activity/202609");
+    fs.addFile("/Apps/SharedData/HybridX/streak.json", "{\"v\":1}");
+    return fs;
+}
+} // namespace
+
+TEST(ProbeRunner, ListingRefusedButASummaryOpensByNameIsGo)
+{
+    TreeFileSystem fs = watchAfterSync();
+    fs.blockListingOutside(true);   // what Jon's watch did
+    FakeHost   host;
+    const auto r = runOn(fs, host);
+
+    EXPECT_EQ(r.listParent, Check::Failed);
+    EXPECT_EQ(r.verdict, Verdict::Go);
+    EXPECT_EQ(r.summariesRead, 1u);
+    EXPECT_EQ(r.summariesFound, 1u);
+    EXPECT_EQ(r.appsSeen, 2u);   // Walking and Running
+    EXPECT_STREQ(r.summaryApp, "Walking");
+    EXPECT_STREQ(r.summaryRoute, "..");
+    EXPECT_EQ(r.summaryUtc, 1790596689u);
+    EXPECT_EQ(r.summarySecs, 346u);
+    EXPECT_EQ(r.summaryMetres, 461u);
+    EXPECT_EQ(r.sharedByName, Check::Ok);
+    EXPECT_EQ(r.namesTried, 7u);
+    EXPECT_TRUE(host.said("202609/: cannot list"));
+    EXPECT_TRUE(host.said("Verdict: GO"));
+}
+
+TEST(ProbeRunner, SummaryAndItsFitBeforeTheSync)
+{
+    TreeFileSystem fs = watchAfterSync();
+    fs.addFile("/Apps/Walking/Activity/202609/activity_20260928T125809.fit", fit(300));
+    FakeHost   host;
+    const auto r = runOn(fs, host);
+
+    EXPECT_EQ(r.verdict, Verdict::Go);
+    EXPECT_EQ(r.fitByName, 1u);
+    EXPECT_EQ(r.fitByNameOpen, Check::Ok);
+    EXPECT_TRUE(host.said("1 .fit, first opens (.FIT ok)"));
+}
+
+TEST(ProbeRunner, BlockedWhenNothingOpensByNameEither)
+{
+    TreeFileSystem fs = watchAfterSync();
+    fs.blockParentAccess(true);
+    FakeHost   host;
+    const auto r = runOn(fs, host);
+
+    EXPECT_EQ(r.verdict, Verdict::Blocked);
+    EXPECT_EQ(r.appsSeen, 0u);
+    EXPECT_EQ(r.summariesFound, 0u);
+    EXPECT_EQ(r.sharedByName, Check::Ok);   // SharedData stays reachable
+}
+
+TEST(ProbeRunner, ASummaryWithoutAUtcIsNoRead)
+{
+    TreeFileSystem fs(kSandbox);
+    fs.addFile("/Apps/Running/Activity/summary.json", "not json");
+    FakeHost   host;
+    const auto r = runOn(fs, host);
+
+    EXPECT_EQ(r.summariesFound, 1u);
+    EXPECT_EQ(r.summariesRead, 0u);
+    EXPECT_EQ(r.verdict, Verdict::NoOpen);
+}
+
+TEST(ProbeRunner, AppsTxtAddsNamesButNeverPaths)
+{
+    TreeFileSystem fs = watchAfterSync();
+    fs.addFile("/Apps/Trail Run/Activity/summary.json", "{\"utc\":1790600000,\"time\":1200}");
+    fs.addFile(std::string(kSandbox) + "/apps.txt",
+               "Trail Run\r\n# a comment\n../Walking\nWalking\n  \nC:Evil,HXStreakProbe\n");
+    FakeHost   host;
+    const auto r = runOn(fs, host);
+
+    EXPECT_EQ(r.namesTried, 8u);          // 7 built in + "Trail Run"
+    EXPECT_EQ(r.summariesRead, 2u);
+    EXPECT_STREQ(r.summaryApp, "Trail Run");   // the newer of the two
+    EXPECT_EQ(r.summarySecs, 1200u);
+    EXPECT_TRUE(host.said("apps.txt: 1 more name(s)"));
+}
+
+TEST(ProbeRunner, JsonNumber)
+{
+    uint32_t v = 0;
+    EXPECT_TRUE(Probe::Runner::jsonNumber(kWalkSummary, "utc", v));
+    EXPECT_EQ(v, 1790596689u);
+    EXPECT_TRUE(Probe::Runner::jsonNumber(kWalkSummary, "distance", v));
+    EXPECT_EQ(v, 461u);
+    EXPECT_TRUE(Probe::Runner::jsonNumber("{ \"time\" :  12 }", "time", v));
+    EXPECT_EQ(v, 12u);
+    EXPECT_FALSE(Probe::Runner::jsonNumber("{\"utc\":-5}", "utc", v));
+    EXPECT_FALSE(Probe::Runner::jsonNumber("{\"utc\":\"x\"}", "utc", v));
+    EXPECT_FALSE(Probe::Runner::jsonNumber("{\"utc\":99999999999}", "utc", v));
+    EXPECT_FALSE(Probe::Runner::jsonNumber("{}", "utc", v));
+}
+
+TEST(ProbeRunner, MonthOf)
+{
+    char m[7];
+    Probe::Runner::monthOf(1790596689u, m);   // 2026-09-28 11:58 UTC
+    EXPECT_STREQ(m, "202609");
+    Probe::Runner::monthOf(0u, m);
+    EXPECT_STREQ(m, "197001");
+    Probe::Runner::monthOf(1772323199u, m);   // 2026-02-28 23:59:59 UTC
+    EXPECT_STREQ(m, "202602");
+    Probe::Runner::monthOf(1772323200u, m);   // 2026-03-01 00:00:00 UTC
+    EXPECT_STREQ(m, "202603");
 }
 
 TEST(ProbeRunner, NameMatchers)

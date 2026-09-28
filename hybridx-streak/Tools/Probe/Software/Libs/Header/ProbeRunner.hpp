@@ -10,7 +10,14 @@
  *   [3] whether the newest one opens and is a FIT file (".FIT" at byte 8),
  *       and how fast the largest one reads;
  *   [5] whether ../SharedData/ can be written, read back and cleaned up;
- *   [6] whether rename onto an existing file is refused, as FatFs's is.
+ *   [6] whether rename onto an existing file is refused, as FatFs's is;
+ *   [7] whether another app's Activity/summary.json opens by its exact path,
+ *       with no folder listing, through "..", "/Apps" or "2:/Apps"; and if
+ *       one does, whether that month's folder shows and opens a .fit. The
+ *       app names come from a built-in list plus an optional apps.txt in the
+ *       probe's own folder (one name per line). [7] decides the verdict when
+ *       it reads anything, because on the watch listing ".." went elsewhere
+ *       while "../SharedData/..." files landed in /Apps/SharedData.
  * (Question 4, files after a phone sync, is answered by comparing runs in
  * probe-history.txt. Question 5, the glance area, is the service's.)
  *
@@ -66,6 +73,15 @@ public:
     static constexpr const char* kSharedTmp  = "../SharedData/hxstreak-probe.tmp";
     static constexpr const char* kRenameFrom = "probe-a.tmp";
     static constexpr const char* kRenameTo   = "probe-b.tmp";
+    static constexpr const char* kAppsFile   = "apps.txt";
+    static constexpr const char* kOwnApp     = "HXStreakProbe";
+    static constexpr const char* kSharedFile = "../SharedData/HybridX/streak.json";
+    static constexpr uint8_t     kMaxNames   = 32;
+
+    /// The apps [7] tries without being told: UNA's built-in activity apps
+    /// seen on Jon's watch or in the SDK's examples, and HybridX Race.
+    static constexpr const char* kKnownApps[] = { "Walking", "Running", "Cycling", "Hiking",
+                                                  "Treadmill", "Workout", "HybridXRace" };
 
     Runner(SDK::Interface::IFileSystem& fs, Host& host);
 
@@ -76,6 +92,13 @@ public:
     /// One line for probe-history.txt (no newline). @p stamp is the local
     /// date and time. Returns the length written, always < @p n.
     static size_t historyLine(const Result& r, const char* stamp, char* out, size_t n);
+
+    /// The unsigned integer part of "key": <number> in a small JSON text, e.g.
+    /// "time":346 -> 346, "distance":461.431 -> 461. False if absent or negative.
+    static bool jsonNumber(const char* text, const char* key, uint32_t& out);
+
+    /// "YYYYMM" for a UTC time: the month folder an activity is filed under.
+    static void monthOf(uint32_t utc, char out[7]);
 
 private:
     void   say(const char* fmt, ...) __attribute__((format(printf, 2, 3)));
@@ -90,6 +113,11 @@ private:
     void   renameOver(Result& r);
     bool   writeText(const char* path, const char* text);
     bool   readText(const char* path, char* out, size_t n);
+    void   loadNames();
+    void   addName(const char* name, size_t len);
+    void   byName(Result& r);
+    void   trySummary(const char* app, Result& r);
+    void   tryMonth(const char* route, const char* app, uint32_t utc, Result& r);
 
     SDK::Interface::IFileSystem& mFs;
     Host&                        mHost;
@@ -107,6 +135,8 @@ private:
     char     mMonths[kMaxMonths][8] {};    ///< one app's month folders
     char     mLine[kLineChars] {};
     char     mBuf[512] {};
+    char     mNames[kMaxNames][kMaxAppName] {};
+    uint8_t  mNameCount = 0;
 };
 
 /// Does @p name end with ".fit" (any case)?

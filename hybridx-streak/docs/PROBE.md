@@ -80,6 +80,42 @@ Nothing else needs cleaning up. The probe's only temporary file, in
 
 ---
 
+## Second run: probe 0.2.0, reading by name (28 September 2026)
+
+The first run said NO FILES because it only tried to *list* other apps'
+folders, and on the watch that listing goes somewhere else. Version 0.2.0 adds
+check **[7]**: it opens each app's `Activity/summary.json` **by its exact
+name**, which is how the Streak app already reaches `SharedData`. About ten
+minutes:
+
+1. **Download:** the newest green **Watch builds** run, artifact
+   **watch-apps**. Inside is `HXStreakProbe_0.2.0.uapp`.
+2. **Replace the old probe:** connect by USB, delete the old `.uapp` in
+   `Apps/HXStreakProbe/`, and copy the new one in. Leave `probe.txt` and
+   `probe-history.txt`: the new runs add to the history.
+3. **Optional, `apps.txt`:** the probe tries Walking, Running, Cycling, Hiking,
+   Treadmill, Workout and HybridXRace. To try more, create a plain text file
+   `Apps/HXStreakProbe/apps.txt` with one folder name per line, spelt exactly
+   as in `Apps/` on the drive.
+4. Eject safely, unplug, power-cycle the watch.
+5. **Record a short walk** (a minute is enough), and **don't let the phone
+   sync** before step 6: turn the phone's Bluetooth off if it syncs by itself.
+   That keeps the walk's `.fit` on the watch, so the probe can try that too.
+6. **Open Streak Probe.** Photo the screen, close with R2.
+7. Turn the phone's Bluetooth back on, let it sync, then **open the probe
+   again**. Photo, close.
+8. Copy `probe.txt` and `probe-history.txt` off the watch and send them with
+   both photos.
+
+| Verdict | Meaning |
+|---|---|
+| **GO** (lime) | Another app's `summary.json` opened and was read. The screen names it, with its duration and distance. "Its .fit" says whether the walk's own file was there and opened too. |
+| **NO FILES** | Other apps' folders exist, but no `summary.json` was found by any route. |
+| **NO READ** | A `summary.json` is there, but it would not open or held no start time. |
+| **BLOCKED** | No other app's folder or file could be reached at all. |
+
+---
+
 ## What the probe does
 
 The probe checks each of these (details in PLAN §3):
@@ -99,6 +135,13 @@ The probe checks each of these (details in PLAN §3):
    `Apps/SharedData/`, the SDK's own route for sharing between apps.
 7. **Renaming.** It writes two temporary files in its own folder and checks
    whether renaming one onto the other is refused, then deletes both.
+8. **By name (0.2.0).** For each app name, it checks whether `../<App>`
+   exists, then opens `<App>/Activity/summary.json` through `..`, `/Apps` and
+   `2:/Apps` in turn, without listing anything, and reads its `utc`, `time`
+   and `distance`. Where one opens, it looks in that month's folder for a
+   `.fit` and checks the first one's header. Two controls: the Streak app's
+   own `../SharedData/HybridX/streak.json`, and the probe's own folder seen
+   from outside.
 
 Every loop is bounded, and every buffer is fixed. It reads no other app's file
 beyond the two it opens.

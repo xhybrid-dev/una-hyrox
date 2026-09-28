@@ -83,14 +83,14 @@ private:
         uint32_t    colour  = Color::YELLOW_DARK;
         switch (r.verdict) {
             case Verdict::Go:
-                meaning = "Other apps' activities can be read";
+                meaning = "Another app's activity was read";
                 colour  = Color::LIME;
                 break;
             case Verdict::NoFiles:
-                meaning = "Record any activity, then run again";
+                meaning = "Apps found, no summary yet: record one";
                 break;
             case Verdict::NoOpen:
-                meaning = "Files are listed but cannot be read";
+                meaning = "Found, but it cannot be read";
                 break;
             case Verdict::Blocked:
                 meaning = "The watch keeps apps' files apart";
@@ -104,13 +104,19 @@ private:
         lv_label_set_text(mMeaning, meaning);
 
         char text[48];
-        snprintf(text, sizeof(text), "Apps %u, with files %u", static_cast<unsigned>(r.apps),
-                 static_cast<unsigned>(r.appsWithFit));
+        snprintf(text, sizeof(text), "Summaries read %u of %u", static_cast<unsigned>(r.summariesRead),
+                 static_cast<unsigned>(r.summariesFound));
         lv_label_set_text(mRow[0], text);
-        snprintf(text, sizeof(text), "Activity files %u", static_cast<unsigned>(r.fitFiles + r.otherFit));
+        if (r.summaryApp[0]) {
+            snprintf(text, sizeof(text), "%.12s %lu s, %lu m", r.summaryApp, static_cast<unsigned long>(r.summarySecs),
+                     static_cast<unsigned long>(r.summaryMetres));
+        } else {
+            snprintf(text, sizeof(text), "Apps seen %u of %u", static_cast<unsigned>(r.appsSeen),
+                     static_cast<unsigned>(r.namesTried));
+        }
         lv_label_set_text(mRow[1], text);
-        snprintf(text, sizeof(text), "Read %u KB, %u ms", static_cast<unsigned>(r.readBytes / 1024u),
-                 static_cast<unsigned>(r.readMs));
+        snprintf(text, sizeof(text), "Its .fit: %u, open %s", static_cast<unsigned>(r.fitByName),
+                 Probe::checkName(r.fitByNameOpen));
         lv_label_set_text(mRow[2], text);
         snprintf(text, sizeof(text), "Shared folder %s", Probe::checkName(r.sharedData));
         lv_label_set_text(mRow[3], text);
