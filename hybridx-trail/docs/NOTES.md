@@ -128,23 +128,56 @@ memory measurement.
     off-route figure is thousands of km.
 - **Not verifiable without a watch:** everything Gate T0 asks.
 
-## Findings for Jon (fill in after running `PROBE.md`)
+## Gate T0: run 1, on Jon's watch (28 September 2026)
 
-- [ ] Did the probe see the GPX copied over USB **without** a power cycle?
-- [ ] Verdict, file size, points read and kept, and read time for a long route.
-- [ ] Largest single allocation in the service.
-- [ ] GPS: seconds to first fix, and the precision it reported.
-- [ ] Compass: calibrated or not; how close the bearing was to a known
-      direction, level and raised; samples per second (the period unit).
-- [ ] Off-route distance, if the route started nearby.
-- [ ] Where the GPX came from (OS Maps, Komoot, Strava, other).
+`AR_Ham2Lyme_50k_26.gpx` (an Anquet/UKC-style trail race route, 50 km, in
+Dorset/Devon), copied into `Apps/HXTrailProbe/Routes/` and opened once, no
+separate install-then-cycle step recorded: **GO on the first ever run.**
+Evidence: `probe.txt`, `probe-history.txt`, one photo.
 
-## Gate T0: what decides next steps
+| Check | Result |
+|---|---|
+| GPX read | 128,857 bytes, 1,418 `trkpt`, 0 bad, 1 long tag (an extra attribute past 256 B, harmless), in **334 ms** |
+| Route built | 1,190 of 1,418 points kept **at the starting 10 m spacing** — thinning barely engaged; 49,504 m, 845 m ascent |
+| Memory | largest single allocation **510 KB** |
+| GPS | first fix at **27 s**, precision reported 0.7-1.4 m (tight; the sensor's own claim, not independently checked) |
+| Compass | **never calibrated**: 807 samples over 129 s, 0 with `MAG_CALIBRATED` set. Bearing and tilted bearing stayed `-1` throughout |
+| Off route | steady ~24.3-24.4 km — the watch was nowhere near the Dorset route, so this is the maths working correctly, not a fault |
 
-**GO:** the GPX copied over USB is read on the watch. Record the read time,
-memory and power-cycle answer; set the route point limit; decide whether a
-`RouteCache` is needed (only if a long route takes seconds to read); choose
-heading-up's source (compass, GPS course, or both). Then T1.
+**Reading:**
 
-**Not GO:** USB delivery into an app folder doesn't work as documented. Ask UNA
-before any workaround.
+- **USB delivery works, and fast.** No power cycle appears to have been needed
+  to see a GPX dropped straight into a freshly created `Routes/` — worth
+  Jon confirming explicitly next time, but nothing in the run history suggests
+  otherwise (a single run, straight to GO).
+- **A real 50 km ultra route is only 1,418 raw points** (one every ~35 m) —
+  nowhere near the 2,000-point/16 KB cap set in the probe. `RouteBuilder`'s
+  thinning stayed at its starting 10 m spacing the whole way. This suggests
+  planner-exported GPX (as opposed to a densely recorded track) is naturally
+  sparse, and 2,000 points has real headroom for longer routes too.
+- **334 ms to parse and thin 126 KB is well inside "instant"** — no
+  `RouteCache` needed at T1 (brief §5) unless a much denser file is tried.
+- **510 KB free is far more than the ~16 KB route needs** — memory is not a
+  constraint at this route size.
+- **The compass never calibrated in over two minutes of normal outdoor use.**
+  This is the one real open question for heading-up (brief F5): either the
+  watch needs an explicit calibration gesture the SDK doesn't document (a
+  figure-of-eight motion is the common pattern on other platforms), or
+  calibration takes longer than tested, or GPS course-over-ground has to be
+  the primary heading-up source with the compass as a fallback once/if it
+  calibrates. Needs a UNA question (brief §8) and a longer/gestured retest.
+
+## Gate T0: **GO.** T1 can start.
+
+Decisions from this run:
+- Route point cap: keep 2,000 for now — real routes use far fewer.
+- `RouteCache`: not needed yet; revisit only if a denser file is slow.
+- Heading-up source: default to **GPS course over ground**, not the compass,
+  until calibration is understood. Compass can enhance it later if calibrated.
+
+## Open
+
+- [ ] Confirm with Jon: was a power cycle needed at any point to see the GPX?
+- [ ] Try a figure-of-eight motion with the watch, then re-run the probe, to
+      see if that calibrates the compass.
+- [ ] Ask UNA how compass calibration is meant to be triggered (brief §8).
