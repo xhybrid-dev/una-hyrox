@@ -34,6 +34,24 @@ clear of the button column on the right of the lower half. The same
 "read before sharing" notes apply to them, and for paid adverts in
 particular UNA's watch and logo need UNA's clearance first.
 
+## Thumbnails
+
+Six YouTube thumbnails in [`videos/thumbnails/`](videos/thumbnails/), 1280 × 720,
+two per film. **A** is the one to upload; **B** tries a different hook, for
+YouTube's "Test & compare" once the videos are public.
+
+| Film | A | B |
+|---|---|---|
+| **Race** | "16 splits. One button." The last segment, R2 lit. | "8 runs. 8 stations. 1 button." The first run. |
+| **Streak** | "Every week counts." Everest's summit. | "Life happens. Keep climbing." The shield's offer. |
+| **Trail** | "Follow the line." The watch calls "Off course". | "Wander off? You’ll feel it." The buzz. |
+
+All six share the films' kit and one layout, so they read as a series: the
+lockup top left, the headline on the left, UNA's watch on the right, and
+nothing that matters bottom right, where YouTube shows the duration. The
+headlines stay readable at sidebar size (168 × 94). Like the films, they show
+UNA's watch and logo, so check with UNA before they go public.
+
 ## What they share
 
 - **Jon's X mark**, rebuilt as vector geometry (`lib/brand.mjs`) and fitted to
@@ -117,6 +135,7 @@ The reels work the same way, with their own ids:
 python3 audio/race_reel.py       # writes audio/out/race-reel.wav
 node render.mjs race-reel        # writes videos/reels/hybridx-race-reel.mp4
 node posters.mjs                 # film posters and the reels' covers
+node thumbnails.mjs              # the YouTube thumbnails, and out/thumbnails_review.png
 ```
 
 ## Where things are
@@ -137,6 +156,7 @@ lib/film.mjs          headline, callout and press helpers
 films/*.mjs           the three films: scenes, timing, cue sheets
 films/*-reel.mjs      the three portrait reels
 lib/reel.mjs          the reels' safe area, top bar and closing card
+thumbnails.mjs        the YouTube thumbnails, two per film
 audio/synth.py        the synthesiser, effects and mix bus
 audio/common.py       the sonic logo, split sound, loudness normalisation
 audio/*.py            the three scores, and the reels' (*_reel.py)
