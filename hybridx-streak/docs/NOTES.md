@@ -721,3 +721,19 @@ This fixes the first run's misleading NO FILES.
 - Simulator, with Jon's `summary.json` and `streak.json` in a fake tree: GO,
   "Walking 346 s, 461 m".
 - Jon's steps: PROBE.md, "Second run".
+
+### Gate 0, final: probe 0.2.0 on the watch (28 September 2026)
+
+Four runs of 0.2.0 (runs 7-10, 13:48-13:52), before and after a phone sync:
+**BLOCKED** every time. History line: `by name 7/0/0/0`: 7 names tried, 0 app
+folders seen by `exist("../<App>")`, 0 `summary.json` found or read by any of
+`..`, `/Apps` or `2:/Apps`. Shared folder ok, as before.
+
+So the firmware lets `../SharedData/...` through (write, read, remove, and the
+Streak app's own `streak.json` landing in `Apps/SharedData/`) but nothing else
+outside an app's own folder: not a sibling app's folder, not a file in it by
+exact name, not an absolute path. SharedData looks deliberately allowed, not
+reached by general `..` traversal.
+
+**Gate 0: NOT GO, closed.** Automatic counting of other apps' activities is
+impossible without UNA. PLAN §3's options; Jon to choose.
