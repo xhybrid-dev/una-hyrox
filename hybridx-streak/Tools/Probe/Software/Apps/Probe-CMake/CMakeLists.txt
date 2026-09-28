@@ -14,7 +14,7 @@ set(APP_FILE_NAME "HXStreakProbe")
 set(APP_TYPE "Utility")
 set(DEV_ID "HybridX")
 set(APP_ID "DE9CF1F8FFF3776D")          # first 16 hex of md5("HXStreakProbe"); development ID
-set(BUILD_VERSION "0.1.0")
+set(BUILD_VERSION "0.2.0")         # 0.2.0: [7] exact-path reads (Gate 0, second run)
 set(STREAK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../..")
 set(RESOURCES_PATH "${STREAK_ROOT}/Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")

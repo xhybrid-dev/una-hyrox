@@ -61,7 +61,7 @@ target_compile_definitions(StreakProbeSimulator PRIVATE
     APP_ID="DE9CF1F8FFF3776D"
     APP_NAME="HXStreakProbe"
     DEV_ID="HybridX Simulator"
-    BUILD_VERSION="0.1.0-sim"
+    BUILD_VERSION="0.2.0-sim"
 )
 
 find_package(Threads REQUIRED)

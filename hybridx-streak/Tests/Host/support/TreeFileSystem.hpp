@@ -16,6 +16,9 @@
  *     stripped, so a probe of either form behaves as on a single volume;
  *   - blockParentAccess() makes anything outside the sandbox (other than
  *     SharedData) look absent, to test the "firmware forbids it" outcome;
+ *   - blockListingOutside() refuses to list a folder outside the sandbox
+ *     (other than SharedData) but still opens files there by exact path:
+ *     what Jon's watch did at Gate 0 (hybridx-streak NOTES, "Gate 0");
  *   - rename refuses an existing destination, as FatFs's f_rename does.
  ******************************************************************************
  */
@@ -42,6 +45,9 @@ public:
     std::string content(const std::string& path) const;
     /// Pretend the firmware confines an app to its sandbox (and SharedData).
     void blockParentAccess(bool block) { mBlockParent = block; }
+    /// Pretend the firmware refuses folder listings outside the sandbox (and
+    /// SharedData), while files there still open by exact path.
+    void blockListingOutside(bool block) { mBlockListing = block; }
     /// Normalise a path the way every operation does (public for tests).
     std::string resolve(const std::string& path) const;
 
@@ -63,6 +69,7 @@ public:
 
     /// Visible to the file and directory objects.
     bool allowed(const std::string& abs) const;
+    bool listable(const std::string& abs) const;
     Node* find(const std::string& abs);
     const Node* find(const std::string& abs) const;
     std::vector<std::string> children(const std::string& abs) const;
@@ -72,6 +79,7 @@ private:
     std::string                 mSandbox;
     std::map<std::string, Node> mNodes;   ///< absolute path -> node; "/" is the root
     bool                        mBlockParent = false;
+    bool                        mBlockListing = false;
 };
 
 #endif // STREAK_TREE_FILE_SYSTEM_HPP

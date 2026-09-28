@@ -20,10 +20,10 @@ namespace Probe
 /// The Gate 0 answer (hybridx-streak PLAN section 3, question 1).
 enum class Verdict : uint8_t {
     Running,    ///< not finished yet
-    Go,         ///< another app's .fit was listed and opened: automatic counting can work
-    NoFiles,    ///< other apps' folders can be listed but hold no .fit yet: record one and re-run
-    NoOpen,     ///< a .fit was listed but could not be opened or was not a FIT file
-    Blocked,    ///< no route out of the app's own folder lists anything
+    Go,         ///< another app's activity data was read: a summary by name [7], or a listed .fit
+    NoFiles,    ///< other apps can be reached but hold nothing yet: record one and re-run
+    NoOpen,     ///< another app's file is there but could not be opened or was not what it should be
+    Blocked,    ///< no other app's folder or file could be reached at all
 };
 
 /// Result of trying one thing: not tried, worked, or refused.
@@ -58,6 +58,22 @@ struct Result {
     // [5] and [6], and the SharedData control.
     Check    sharedData     = Check::NotRun;   ///< write, read back and remove ../SharedData/<tmp>
     Check    renameRefused  = Check::NotRun;   ///< Ok = rename onto an existing file refused, as FatFs does
+
+    // [7] Exact paths: <route>/<App>/Activity/summary.json opened by name,
+    // with no folder listing (Gate 0's first run: listing ".." went elsewhere,
+    // but "../SharedData/..." files landed in /Apps/SharedData).
+    uint8_t  namesTried     = 0;               ///< app names tried (built-in list + apps.txt)
+    uint8_t  appsSeen       = 0;               ///< names where exist("../<App>") said yes
+    uint8_t  summariesFound = 0;               ///< summary.json that exist() reported, by any route
+    uint8_t  summariesRead  = 0;               ///< summary.json opened and parsed
+    uint8_t  fitByName      = 0;               ///< .fit files seen in a summary's month folder
+    Check    fitByNameOpen  = Check::NotRun;   ///< the first of them opened, ".FIT" at byte 8
+    Check    sharedByName   = Check::NotRun;   ///< ../SharedData/HybridX/streak.json, if present
+    char     summaryApp[16] = {};              ///< the most recent summary read: its app,
+    char     summaryRoute[8] = {};             ///< the route that worked ("..", "/Apps", "2:/Apps"),
+    uint32_t summaryUtc     = 0;               ///< and its "utc", "time" (s) and "distance" (m)
+    uint32_t summarySecs    = 0;
+    uint32_t summaryMetres  = 0;
 
     // Filled by the service, not the runner.
     Check    glance         = Check::NotRun;

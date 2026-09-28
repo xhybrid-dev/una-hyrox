@@ -697,3 +697,27 @@ sessions: `"d":[20724,…]` (day 20724 = 28 September 2026), all counts 0.
 
 Gate 0 reopens on one question: can an app open `../<OtherApp>/Activity/summary.json`
 by name? Next: a probe run that tries exact paths, without listing.
+
+### Probe 0.2.0: [7] exact-path reads (28 September 2026)
+
+Built for the reopened question above. **[7]** opens
+`<route>/<App>/Activity/summary.json` for each app name, through `..`, `/Apps`
+and `2:/Apps` in turn, **without listing a folder**; parses `utc`, `time` and
+`distance`; and, where one opens, looks for a `.fit` in that month's folder
+(`monthOf(utc)`) and checks its header. Names: a built-in list (Walking,
+Running, Cycling, Hiking, Treadmill, Workout, HybridXRace) plus an optional
+`apps.txt` in the probe's folder, which accepts folder names only (no `/`,
+`\`, `:` or `..`).
+
+[7] now decides the verdict: GO if any summary was read; a listed `.fit` that
+opened or refused still stands; otherwise NO READ if a summary was found but
+not read, NO FILES if app folders were seen, BLOCKED if nothing was reachable.
+This fixes the first run's misleading NO FILES.
+
+- `TreeFileSystem` gained `blockListingOutside()`: listing outside the sandbox
+  fails, files still open by name, as on Jon's watch.
+- 7 new host tests, including Jon's real walk `summary.json` as a fixture. All
+  Streak host tests pass; watch target and simulator build.
+- Simulator, with Jon's `summary.json` and `streak.json` in a fake tree: GO,
+  "Walking 346 s, 461 m".
+- Jon's steps: PROBE.md, "Second run".
