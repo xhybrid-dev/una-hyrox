@@ -1,11 +1,10 @@
 # HybridX Trail for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** **Gate T0: GO** (28 September 2026, `NOTES.md`). USB delivery, GPX
-reading, thinning and memory all check out on a real watch and a real 50 km
-route. One open item before T1 starts in earnest: the compass never
-calibrated on-watch, so heading-up defaults to GPS course over ground for now.
-T1 (the route core: tracking, off-course alerts, map projection) is next.
+**Status:** Gate T0 **GO** (28 September 2026). T1, the route core, built and
+host-tested (NOTES, "T1"); waiting on Jon's OK for the alert behaviour. T2
+(the service) next. Heading-up uses GPS direction of travel: the compass never
+calibrated on-watch.
 **Read with:** `NOTES.md` (findings, with SDK citations), `PROBE.md` (Jon's
 steps for T0), `UNA_GPX_REQUEST.md` (the note to UNA about phone delivery).
 

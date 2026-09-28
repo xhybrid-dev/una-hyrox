@@ -181,3 +181,78 @@ Decisions from this run:
 - [ ] Try a figure-of-eight motion with the watch, then re-run the probe, to
       see if that calibrates the compass.
 - [ ] Ask UNA how compass calibration is meant to be triggered (brief §8).
+
+## T1: the route core (28 September 2026)
+
+Pure C++ in `Software/Libs/Core`, no kernel, all host-tested (73 tests in
+`Tests/Host`, synthetic routes and runs from `support/RunSim.hpp`).
+
+| Part | Job |
+|---|---|
+| `RouteTracker` | Matches each fix to the route: distance done, remaining, off-route distance, finish |
+| `OffCourse` | When to buzz: the alert state machine |
+| `CourseOverGround` | Direction of travel from GPS, for the heading-up map |
+| `MapView` | The route as clipped screen lines around the runner, at a zoom and rotation; whole-route fit |
+| `GeoPoint` | gained `bearingDeg`, `offsetM`, `projectOntoSegmentM` |
+
+### T1.1 How the tracker avoids jumping legs
+
+Matching a fix to the nearest point anywhere fails on exactly the routes trail
+runners use: a loop's start and finish are the same place, an out-and-back
+runs one path twice, a figure-of-eight crosses itself. The tracker searches a
+window around its last match (150 m back, 600 m ahead) and scores each
+candidate as *metres off the route + 0.2 x metres from where the runner is
+expected to be along it*, where "expected" is the last match plus the recent
+progress per fix, and being behind that costs double. At the first lock the
+along part is simply the distance from the start, so a loop starts at its
+start. It leaves the window only when the runner is clearly (30 m) nearer
+another part of the route: a shortcut, or a wrong turn that rejoins.
+
+**Tried and dropped:** using the GPS direction of travel to tell the two legs
+of an out-and-back apart. With +-8 m of noise per fix at 3 m/s, a heading from
+10 m of movement swung between 29, 85, 239 and 343 degrees on a straight run,
+and put the runner on the return leg 600 m ahead. Expected progress is far
+steadier. `CourseOverGround` stays, for the map only.
+
+**Known and accepted:** with noise, a fix inside a sharp corner projects back
+onto the incoming segment by up to ~12 m (geometry, not a wrong leg). Tests
+check progress stays within 20 m of the true distance on noisy figure-of-eights
+and parallel out-and-backs.
+
+### T1.2 The alert, as a runner would see it (for Jon to agree, Gate T1)
+
+Each line is a host test (`OffCourseTest.cpp`):
+
+1. **Walking to the start**, 800 m away for ten minutes: **no buzz**. Nothing
+   happens until you first reach the route.
+2. **A wrong turn:** 5 seconds more than **50 m** from the line, **one buzz**
+   ("Off course"). While you stay off, **a reminder every minute**. Once back
+   within **30 m** for 3 seconds, **a different buzz** ("Back on course").
+3. **A GPS spike under trees**, 90 m off for 4 seconds, twice: **no buzz**.
+4. **A switchback that doesn't match the GPX**, wobbling 35-48 m off: **no
+   buzz**, ever. And once genuinely off, wobbling 35-48 m doesn't clear it:
+   you have to be within 30 m.
+5. **Bad fixes** (the GPS itself says +-40 m): ignored completely, and a single
+   bad fix restarts the 5-second count.
+6. **After the finish:** **one "Finished" buzz**, then nothing, whatever you
+   do next (walking to the car park).
+7. The whole chain on a real-shaped wrong turn (miss a turn at 300 m, 650 m
+   detour, rejoin at 700 m): off, three reminders, back on, finished.
+
+The numbers (50 m, 30 m, 5 s, 3 s, 60 s, 25 m) are one `Config` struct:
+changing any is one line. **Jon to confirm or change them.**
+
+### T1.3 Map
+
+`MapView` projects the route around the runner with zoom levels of 100 m,
+250 m, 500 m, 1 km and 2.5 km from the runner to the edge of the round screen,
+north-up or turned to the heading. Segments are clipped to the screen, a route
+that leaves and re-enters becomes separate lines, and points closer than 2 px
+are dropped. At most 512 points in 16 lines per frame (2 KB, fixed); a busier
+view is cut short and flagged, never overflowed. `fit()` frames the whole
+route inside the circle, north-up, for the route preview.
+
+### Gate T1
+
+- [x] Host tests pass: 73 (T0's 37 plus 36 new).
+- [ ] Jon agrees the alert behaviour (T1.2), or gives new numbers.
