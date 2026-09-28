@@ -410,6 +410,10 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             auto* msg        = static_cast<CustomMessage::RouteLoaded*>(message);
             mRouteInfo       = msg->info;
             mRoutePointCount = 0;
+            mProfile.clear();
+            if (msg->profile) {
+                mProfile = *msg->profile;
+            }
             if (msg->points && msg->count >= 2) {
                 mRoutePointCount = msg->count < Trail::Navigator::kMaxPoints ? msg->count : Trail::Navigator::kMaxPoints;
                 memcpy(mRoutePoints, msg->points, sizeof(Trail::GeoPoint) * mRoutePointCount);
@@ -421,6 +425,11 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             auto* msg = static_cast<CustomMessage::NavUpdate*>(message);
             mNav      = msg->status;
             modelListener->onNav(mNav);
+        } break;
+
+        case CustomMessage::TURN_CUE: {
+            auto* msg = static_cast<CustomMessage::TurnCue*>(message);
+            modelListener->onTurnCue(msg->angleDeg);
         } break;
 
         case CustomMessage::NAV_ALERT: {

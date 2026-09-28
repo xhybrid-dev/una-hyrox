@@ -14,6 +14,7 @@
 #include "gui/RouteFormat.hpp"
 #include "gui/MapZoom.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -32,6 +33,7 @@ constexpr int32_t kMeridiemGap = 5;
 
 // HybridX Trail
 constexpr uint32_t kBackOnMs    = 4000;
+constexpr uint32_t kTurnMs      = 4000;
 constexpr int32_t  kToGoY       = 30;   ///< navigation face: the big "to go" row
 constexpr int32_t  kUnitGap     = 6;
 constexpr int32_t  kBannerX     = 14;   ///< the banner: a band across the middle, as in the promo
@@ -100,6 +102,7 @@ TrackScreen::Kind TrackScreen::kindOf(uint16_t id)
         case FaceId::ID_INTERVALS: return Kind::Intervals;
         case FaceId::ID_MAP:       return Kind::Map;
         case FaceId::ID_NAV:       return Kind::Nav;
+        case FaceId::ID_PROFILE:   return Kind::Profile;
         case FaceId::ID_TRACK1:    return Kind::Total;
         case FaceId::ID_TRACK2:    return Kind::Lap;
         case FaceId::ID_TRACK3:    return Kind::Status;
@@ -128,7 +131,9 @@ void TrackScreen::dropFace()
     mPaceValue = mPaceUnit = mDistanceValue = mDistanceUnits = mTimerValue = mTotalHr = mTotalLap = nullptr;
     mHrValue = mLapPaceValue = mLapDistValue = mLapTimerValue = nullptr;
     mDayTime = mMeridiem = mPercent = nullptr;
-    mMapToGo = nullptr;
+    mMapToGo = mMapTurn = nullptr;
+    mChart.reset();
+    mProfMax = mProfAscent = mProfNext = mProfNow = nullptr;
     mNavToGo = mNavToGoUnit = mNavDone = mNavTotal = mNavStatus = mNavFoot = nullptr;
 }
 
@@ -141,6 +146,7 @@ void TrackScreen::buildFace(Kind kind)
         case Kind::Status:    buildFaceStatus(); break;
         case Kind::Map:       buildFaceMap(); break;
         case Kind::Nav:       buildFaceNav(); break;
+        case Kind::Profile:   buildFaceProfile(); break;
         case Kind::None:      return;
     }
     mKind = kind;
@@ -170,6 +176,18 @@ void TrackScreen::buildFaceMap()
     mMap->setRoute(mModel.routePoints(), mModel.routePointCount());
     mMap->showFurniture(true, true, mModel.isUnitsImperial());
     mMapToGo = Theme::label(f, F::SemiBold20, "", 20, 42, 200);
+    mMapTurn = Theme::label(f, F::Medium18, "", 20, 68, 200, LV_TEXT_ALIGN_CENTER, kRouteMagenta);
+}
+
+void TrackScreen::buildFaceProfile()
+{
+    lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
+    mRunTitle  = std::make_unique<Widgets::Title>(f, "Elevation");
+    mChart     = std::make_unique<Widgets::ElevationChart>(f, 24, 48, 192, 96);
+    mProfMax   = Theme::label(f, F::Regular14, "", 30, 46, 90, LV_TEXT_ALIGN_LEFT, Color::GRAY);
+    mProfAscent = Theme::label(f, F::SemiBold20, "", 20, 148, 200);
+    mProfNext   = Theme::label(f, F::Medium18, "", 20, 176, 200, LV_TEXT_ALIGN_CENTER, kRouteMagenta);
+    mProfNow    = Theme::label(f, F::Regular16, "", 20, 204, 200, LV_TEXT_ALIGN_CENTER, Color::GRAY);
 }
 
 void TrackScreen::buildFaceNav()
@@ -198,6 +216,12 @@ void TrackScreen::buildBanner()
     lv_obj_set_style_radius(mBanner, 12, LV_PART_MAIN);
     mBannerText = Theme::label(mBanner, F::SemiBold25, "", 0, 4, kBannerW, LV_TEXT_ALIGN_CENTER, kAlertInk);
     mBannerSub  = Theme::label(mBanner, F::Medium18, "", 0, 36, kBannerW, LV_TEXT_ALIGN_CENTER, kAlertInk);
+    mBannerArrow = lv_line_create(mBanner);
+    lv_obj_set_pos(mBannerArrow, 0, 0);
+    lv_obj_set_style_line_width(mBannerArrow, 4, LV_PART_MAIN);
+    lv_obj_set_style_line_rounded(mBannerArrow, true, LV_PART_MAIN);
+    lv_obj_set_style_line_color(mBannerArrow, Theme::rgb(kAlertInk), LV_PART_MAIN);
+    lv_obj_add_flag(mBannerArrow, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mBanner, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -301,6 +325,9 @@ void TrackScreen::onShow()
     if (mHasRoute) {
         mFaces[mFaceCount++] = FaceId::ID_MAP;
         mFaces[mFaceCount++] = FaceId::ID_NAV;
+        if (mModel.profile().valid()) {
+            mFaces[mFaceCount++] = FaceId::ID_PROFILE;   // a route with no elevation has no profile to show
+        }
     }
     mFaces[mFaceCount++] = FaceId::ID_TRACK1;
     mFaces[mFaceCount++] = FaceId::ID_TRACK2;
@@ -385,6 +412,8 @@ void TrackScreen::onNav(const Trail::Navigator::Status& s)
         updateMap(s);
     } else if (mKind == Kind::Nav) {
         updateNav(s);
+    } else if (mKind == Kind::Profile) {
+        updateProfile(s);
     }
 
     // The off-course banner stays as long as the runner is off; the timed
@@ -392,8 +421,13 @@ void TrackScreen::onNav(const Trail::Navigator::Status& s)
     const bool off = s.alert == Trail::OffCourse::State::Off;
     if (off) {
         char text[32];
-        std::snprintf(text, sizeof(text), "%lu m from the line", static_cast<unsigned long>(s.pos.offRouteM + 0.5f));
+        std::snprintf(text, sizeof(text), "%lu m from line", static_cast<unsigned long>(s.pos.offRouteM + 0.5f));
         showBanner("Off course", text, kAlertYellow, 0);
+        // The way back, as the runner sees it: turned by the direction they face,
+        // or by nothing on a north-up map.
+        const bool northUpMap = mKind == Kind::Map && mModel.getSettings().mapNorthUp;
+        const float faces     = s.headingValid && !northUpMap ? s.headingDeg : 0.0f;
+        setBannerArrow(s.guideValid, s.guideBearingDeg - faces);
         mOffBanner = true;
     } else if (mOffBanner) {
         mOffBanner = false;
@@ -431,6 +465,98 @@ void TrackScreen::updateMap(const Trail::Navigator::Status& s)
         std::snprintf(buf, sizeof(buf), "no GPS");
     }
     lv_label_set_text(mMapToGo, buf);
+
+    // The next turn, under it: "Right 120 m". Not while lost: the way back is the news then.
+    if (s.turnValid && s.alert != Trail::OffCourse::State::Off) {
+        char d[16];
+        RouteFmt::distance(d, sizeof(d), static_cast<float>(s.turnDistM), mIsImperial);
+        std::snprintf(buf, sizeof(buf), "%s %s", Trail::TurnFinder::name(s.turnAngleDeg), d);
+        lv_label_set_text(mMapTurn, buf);
+    } else {
+        lv_label_set_text(mMapTurn, "");
+    }
+}
+
+void TrackScreen::updateProfile(const Trail::Navigator::Status& s)
+{
+    if (mKind != Kind::Profile) {
+        return;
+    }
+    const Trail::ElevationProfile& p = mModel.profile();
+    const float along = s.pos.everLocked ? s.pos.alongM : 0.0f;
+    mChart->set(p, along, s.pos.everLocked);
+
+    char buf[64];
+    char h[16];
+    RouteFmt::height(h, sizeof(h), p.maxM(), mIsImperial);
+    std::snprintf(buf, sizeof(buf), "%s", h);
+    lv_label_set_text(mProfMax, buf);
+
+    RouteFmt::height(h, sizeof(h), p.ascentLeftM(along), mIsImperial);
+    std::snprintf(buf, sizeof(buf), "%s to climb", h);
+    lv_label_set_text(mProfAscent, buf);
+
+    const Trail::ElevationProfile::Climb c = p.nextClimb(along);
+    if (c.found) {
+        char up[16];
+        RouteFmt::height(up, sizeof(up), c.riseM, mIsImperial);
+        if (c.startAheadM < 50.0f) {
+            std::snprintf(buf, sizeof(buf), "Climbing +%s", up);
+        } else {
+            char d[16];
+            RouteFmt::distance(d, sizeof(d), c.startAheadM, mIsImperial);
+            std::snprintf(buf, sizeof(buf), "+%s in %s", up, d);
+        }
+    } else {
+        std::snprintf(buf, sizeof(buf), "No more climbs");
+    }
+    lv_label_set_text(mProfNext, buf);
+
+    RouteFmt::height(h, sizeof(h), p.elevationM(along), mIsImperial);
+    std::snprintf(buf, sizeof(buf), "Now %s", h);
+    lv_label_set_text(mProfNow, buf);
+}
+
+void TrackScreen::setBannerArrow(bool show, float screenDeg)
+{
+    // The text moves over to make room for the arrow.
+    lv_obj_set_x(mBannerText, show ? 48 : 0);
+    lv_obj_set_x(mBannerSub, show ? 48 : 0);
+    lv_obj_set_width(mBannerText, show ? kBannerW - 54 : kBannerW);
+    lv_obj_set_width(mBannerSub, show ? kBannerW - 54 : kBannerW);
+    if (!show) {
+        lv_obj_add_flag(mBannerArrow, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    static const float kShape[5][2] = { { 0, -18 }, { 13, 14 }, { 0, 6 }, { -13, 14 }, { 0, -18 } };
+    const float r = screenDeg * 3.14159265f / 180.0f;
+    const float c = std::cos(r);
+    const float s = std::sin(r);
+    for (int i = 0; i < 5; ++i) {
+        mArrowPts[i].x = static_cast<lv_value_precise_t>(std::lround(28.0f + kShape[i][0] * c - kShape[i][1] * s));
+        mArrowPts[i].y = static_cast<lv_value_precise_t>(std::lround(static_cast<float>(kBannerH) / 2.0f +
+                                                                     kShape[i][0] * s + kShape[i][1] * c));
+    }
+    lv_line_set_points(mBannerArrow, mArrowPts, 5);
+    lv_obj_remove_flag(mBannerArrow, LV_OBJ_FLAG_HIDDEN);
+}
+
+void TrackScreen::onTurnCue(int16_t angleDeg)
+{
+    if (!mHasRoute || mOffBanner) {
+        return;
+    }
+    const uint16_t dist = mModel.nav().turnDistM;
+    char           sub[24];
+    if (dist > 0) {
+        std::snprintf(sub, sizeof(sub), "in %lu m", static_cast<unsigned long>((dist + 5u) / 10u * 10u));
+    } else {
+        sub[0] = '\0';
+    }
+    const bool sharp = Trail::TurnFinder::isSharp(angleDeg);
+    showBanner(sharp ? Trail::TurnFinder::name(angleDeg) : (angleDeg < 0 ? "Turn left" : "Turn right"), sub,
+               kRouteMagenta, kTurnMs);
+    setBannerArrow(false, 0.0f);
 }
 
 void TrackScreen::updateNav(const Trail::Navigator::Status& s)
@@ -516,6 +642,7 @@ void TrackScreen::showBanner(const char* title, const char* sub, uint32_t colour
     const bool two = sub[0] != '\0';
     lv_label_set_text(mBannerText, title);
     lv_label_set_text(mBannerSub, sub);
+    setBannerArrow(false, 0.0f);   // a caller with a direction to show puts it back
     lv_obj_set_y(mBannerText, two ? 5 : 18);
     lv_obj_set_style_bg_color(mBanner, Theme::rgb(colour), LV_PART_MAIN);
     Theme::setHidden(mBanner, false);

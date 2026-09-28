@@ -13,13 +13,16 @@
  *     changes. The list is sorted by name.
  *   - load(): reads one route into the fixed point array, remembers the choice
  *     in route.sel for next time, and points the tracker at it.
- *   - update(): one GPS fix: where the runner is along the route, the heading,
- *     and the off-course alert. Alerts are only raised while @p alertsLive
- *     (an activity running): walking about on the start screen, or paused,
- *     is not being lost.
+ *   - update(): one GPS fix: where the runner is along the route, the heading
+ *     (GPS while running, compass when slow: HeadingFusion), the off-course
+ *     alert, the way back to the line, and the next turn (TurnFinder). Alerts
+ *     and turn cues are only raised while @p alertsLive (an activity
+ *     running): walking about on the start screen, or paused, is not being
+ *     lost.
+ *   - the elevation profile of the loaded route (ElevationProfile).
  *
  * Memory is fixed: 2,000 route points (16 KB), their cumulative distances
- * (8 KB) and 16 route summaries. Construct it once, in static storage: it is
+ * (8 KB), their elevation and climb (8 KB) and 16 route summaries. Construct it once, in static storage: it is
  * far too big for the service's 10 KB stack.
  ******************************************************************************
  */
@@ -33,11 +36,14 @@
 #include "SDK/Interfaces/IFileSystem.hpp"
 
 #include "CourseOverGround.hpp"
+#include "ElevationProfile.hpp"
 #include "GeoPoint.hpp"
 #include "GpxReader.hpp"
+#include "HeadingFusion.hpp"
 #include "OffCourse.hpp"
 #include "RouteBuilder.hpp"
 #include "RouteTracker.hpp"
+#include "TurnFinder.hpp"
 
 namespace Trail
 {
@@ -61,6 +67,10 @@ public:
     static constexpr const char* kIndexFile = "routes.idx";
     static constexpr const char* kSelFile   = "route.sel";
 
+    static constexpr float kGuideMinM   = 25.0f;    ///< show the way back from this far off the line
+    static constexpr float kCueM        = 50.0f;    ///< a turn is announced this far ahead
+    static constexpr float kLookaheadM  = 400.0f;   ///< and shown from this far
+
     struct Status {
         bool                   routeLoaded  = false;
         bool                   hasFix       = false;
@@ -72,6 +82,16 @@ public:
         OffCourse::State       alert        = OffCourse::State::NotStarted;
         uint32_t               offForS      = 0;
         float                  toStartM     = 0.0f;   ///< straight-line distance to the route's start
+        uint8_t                headingSource = 0;     ///< HeadingFusion::Source: 0 none, 1 GPS, 2 compass
+        // The way back: to the nearest part of the route when off it, or to the start before joining it.
+        bool                   guideValid   = false;
+        bool                   guideToStart = false;
+        float                  guideBearingDeg = 0.0f;   ///< true bearing from the fix
+        float                  guideDistM   = 0.0f;
+        // The next turn ahead, if within kLookaheadM.
+        bool                   turnValid    = false;
+        int16_t                turnAngleDeg = 0;         ///< positive right, negative left
+        uint16_t               turnDistM    = 0;
     };
 
     explicit Navigator(SDK::Interface::IFileSystem& fs);
@@ -104,6 +124,31 @@ public:
     /// GPS lost: the position is stale until the next update().
     void lostFix() { mStatus.hasFix = false; }
 
+    /// The latest compass reading (12 o'clock's bearing from magnetic north),
+    /// @p valid only for a calibrated, current sample. Then refreshHeading().
+    void setCompass(bool valid, float bearingDeg)
+    {
+        mCompassValid = valid;
+        mCompassDeg   = bearingDeg;
+    }
+    /// The GPS ground speed, if the receiver gave a valid one; else the speed
+    /// is estimated from the fixes.
+    void setSpeed(bool valid, float mps)
+    {
+        mSpeedValid = valid;
+        mSpeedMps   = mps;
+    }
+    /// Recompute the heading from the latest GPS course, speed and compass.
+    /// update() does; call it too when only the compass has changed.
+    void refreshHeading();
+
+    /// A turn to announce (once each), while an activity runs. Angle: positive
+    /// right, negative left.
+    bool takeTurnCue(int16_t& angleDeg);
+
+    const ElevationProfile& profile() const { return mProfile; }
+    const RouteTracker&     tracker() const { return mTracker; }
+
     const Status& status() const { return mStatus; }
 
     /// How many GPX files have been parsed (for the tests: the index should
@@ -115,6 +160,8 @@ private:
     void loadIndex();
     void saveIndex();
     void writeSelection(const char* file);
+    void updateGuide();
+    void updateTurn(bool alertsLive);
 
     SDK::Interface::IFileSystem& mFs;
     RouteBuilder                 mBuilder;   ///< before mReader, which feeds it
@@ -122,9 +169,25 @@ private:
     RouteTracker                 mTracker;
     OffCourse                    mOffCourse;
     CourseOverGround             mCourse;
+    HeadingFusion                mHeading;
+    ElevationProfile             mProfile;
 
     GeoPoint  mPoints[kMaxPoints] {};
     float     mCumulative[kMaxPoints] {};
+    int16_t   mEleHalf[kMaxPoints] {};
+    uint16_t  mAscent[kMaxPoints] {};
+
+    bool      mCompassValid = false;
+    float     mCompassDeg   = 0.0f;
+    bool      mSpeedValid   = false;
+    float     mSpeedMps     = 0.0f;
+    float     mEstSpeedMps  = 0.0f;   ///< from the fixes, when the GPS gave none
+    GeoPoint  mPrevFix {};
+    uint32_t  mPrevFixMs    = 0;
+    bool      mHavePrevFix  = false;
+    float     mLastCueAlong = -1.0f;
+    bool      mCuePending   = false;
+    int16_t   mCueAngle     = 0;
     uint16_t  mPointCount = 0;
     RouteInfo mRoutes[kMaxRoutes] {};
     uint8_t   mRouteCount = 0;

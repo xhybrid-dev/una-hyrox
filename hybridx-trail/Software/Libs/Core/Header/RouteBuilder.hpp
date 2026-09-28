@@ -42,7 +42,11 @@ public:
     static constexpr int32_t  kEleBandCm     = 500;
 
     /// @param points caller's storage, @p capacity >= 2.
-    RouteBuilder(GeoPoint* points, uint16_t capacity);
+    /// @param eleHalfM, ascentM optional caller's storage, @p capacity entries
+    ///        each: the elevation (in half metres) and the climb so far (in
+    ///        metres, same 5 m dead band as ascentM()) at every kept point,
+    ///        for the elevation profile.
+    RouteBuilder(GeoPoint* points, uint16_t capacity, int16_t* eleHalfM = nullptr, uint16_t* ascentM = nullptr);
 
     void reset();
 
@@ -65,8 +69,13 @@ public:
 private:
     void keep(const GeoPoint& p);
     void rethin();
+    void copyPoint(uint16_t to, uint16_t from);
 
     GeoPoint* mPoints;
+    int16_t*  mEle;
+    uint16_t* mAsc;
+    int16_t   mCurEle = 0;   ///< elevation at the latest point (half metres), carried when a point has none
+    uint16_t  mCurAsc = 0;
     uint16_t  mCapacity;
     uint16_t  mCount    = 0;
     uint16_t  mSpacingM = kStartSpacingM;

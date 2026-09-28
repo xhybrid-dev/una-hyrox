@@ -107,6 +107,7 @@ public:
         float    alongM     = 0.0f;    ///< distance from the start, along the route (scaled)
         float    remainingM = 0.0f;    ///< distance to the finish, along the route (scaled)
         float    offRouteM  = 0.0f;    ///< distance from the fix to the nearest part of the route
+        GeoPoint nearest {};           ///< that nearest part of the route: the way back to it
     };
 
     /// @param points     the route (at least 1 point), not copied: must outlive the tracker.
@@ -129,6 +130,11 @@ public:
 
     const Position& position() const { return mPos; }
     float           lengthM() const { return mLengthM; }
+    /// The last match, in the thinned route's own metres (for TurnFinder,
+    /// whose distances are measured the same way), and the ratio to lengthM().
+    float           thinnedAlongM() const { return mLastAlong; }
+    float           scale() const { return mScale; }
+    const float*    cumulative() const { return mCumulative; }
     uint16_t        count() const { return mCount; }
 
     /// Scaled distance from the start to points[i].
@@ -140,6 +146,7 @@ private:
         uint16_t segment = 0;
         float    d       = 0.0f;   ///< metres to the route
         float    along   = 0.0f;   ///< unscaled metres from the start
+        float    t       = 0.0f;   ///< where along the segment, 0 to 1
     };
 
     Match matchSegment(const GeoPoint& fix, uint16_t i) const;

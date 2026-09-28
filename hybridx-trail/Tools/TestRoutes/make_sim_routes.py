@@ -58,9 +58,12 @@ def gpx(name, xy):
     out = ['<?xml version="1.0" encoding="UTF-8"?>',
            '<gpx version="1.1" creator="make_sim_routes.py" xmlns="http://www.topografix.com/GPX/1/1">',
            "<trk><name>%s</name><trkseg>" % name]
-    for x, y in xy:
+    n = max(len(xy) - 1, 1)
+    for i, (x, y) in enumerate(xy):
         lat, lon = to_ll(x, y)
-        out.append('<trkpt lat="%.7f" lon="%.7f"><ele>250.0</ele></trkpt>' % (lat, lon))
+        # Rolling ground with a steady rise: some climbs for the elevation screen.
+        ele = 250.0 + 45.0 * math.sin(2 * math.pi * 3 * i / n) + 30.0 * i / n
+        out.append('<trkpt lat="%.7f" lon="%.7f"><ele>%.1f</ele></trkpt>' % (lat, lon, ele))
     out.append("</trkseg></trk></gpx>")
     return "\n".join(out) + "\n"
 

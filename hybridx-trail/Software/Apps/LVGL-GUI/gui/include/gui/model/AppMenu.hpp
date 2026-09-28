@@ -133,7 +133,7 @@ struct Root {
 struct TrackView {
     // HybridX Trail: the map and navigation faces come first, shown only
     // with a route loaded. The map has five zooms on one button (R2).
-    enum Id { ID_INTERVALS = 0, ID_MAP, ID_NAV, ID_TRACK1, ID_TRACK2, ID_TRACK3,
+    enum Id { ID_INTERVALS = 0, ID_MAP, ID_NAV, ID_PROFILE, ID_TRACK1, ID_TRACK2, ID_TRACK3,
               ID_COUNT, ID_DEFAULT = ID_INTERVALS };
 
     struct Action {

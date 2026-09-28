@@ -36,6 +36,9 @@ add_executable(hybridx-trail-host-tests
     OffCourseTest.cpp
     MapViewTest.cpp
     NavigatorTest.cpp
+    HeadingFusionTest.cpp
+    TurnFinderTest.cpp
+    ElevationProfileTest.cpp
     TextFoldTest.cpp
     support/FlatFileSystem.cpp
     "${CORE_LIBS}/Sources/GeoPoint.cpp"
@@ -47,6 +50,9 @@ add_executable(hybridx-trail-host-tests
     "${CORE_LIBS}/Sources/MapView.cpp"
     "${CORE_LIBS}/Sources/Navigator.cpp"
     "${CORE_LIBS}/Sources/TextFold.cpp"
+    "${CORE_LIBS}/Sources/HeadingFusion.cpp"
+    "${CORE_LIBS}/Sources/TurnFinder.cpp"
+    "${CORE_LIBS}/Sources/ElevationProfile.cpp"
     "${PROBE_LIBS}/Sources/ProbeRunner.cpp"
 )
 target_include_directories(hybridx-trail-host-tests PRIVATE

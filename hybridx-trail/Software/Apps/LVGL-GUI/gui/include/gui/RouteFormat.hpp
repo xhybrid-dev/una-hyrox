@@ -59,6 +59,16 @@ inline void distance(char* buf, size_t n, float metres, bool imperial)
     std::snprintf(buf, n, "%.8s %s", num, unit);   // "12345.6 km" at most
 }
 
+/// A height or a climb: "180 m", or "590 ft".
+inline void height(char* buf, size_t n, float metres, bool imperial)
+{
+    if (imperial) {
+        std::snprintf(buf, n, "%lu ft", static_cast<unsigned long>(metres * 3.28084f + 0.5f));
+    } else {
+        std::snprintf(buf, n, "%lu m", static_cast<unsigned long>(metres + 0.5f));
+    }
+}
+
 /// "350 m up" (or feet).
 inline void climb(char* buf, size_t n, uint32_t metres, bool imperial)
 {

@@ -74,20 +74,21 @@ key 4;            snap 14-map-3km
 key 4;            snap 15-map-whole-route
 key 4                                              # round to 300 m again
 key 2;            snap 16-nav                      # L2: navigation face
-key 2;            snap 17-run                      # the Run face
-key 2;            snap 18-lap                      # RunLVGL's lap face
-key 2;            snap 19-status                   # and its status face
-key 1; key 1; key 1; key 1                         # back to the map
+key 2;            snap 17-elevation                # the elevation profile
+key 2;            snap 18-run                      # the Run face
+key 2;            snap 19-lap                      # RunLVGL's lap face
+key 2;            snap 20-status                   # and its status face
+key 1; key 1; key 1; key 1; key 1                  # back to the map
 # The runner leaves the route at the bend; the watch jumps to the map.
 waitlog "Navigation: went off" 120
-sleep 2;          snap 20-off-course
-key 2;            snap 21-nav-off-course
+sleep 2;          snap 21-off-course
+key 2;            snap 22-nav-off-course
 waitlog "Navigation: back on" 120
-sleep 1;          snap 22-back-on-course           # round the track and back onto the route
-key 3;            snap 23-action-menu              # R1: pause, action menu
+sleep 1;          snap 23-back-on-course           # round the track and back onto the route
+key 3;            snap 24-action-menu              # R1: pause, action menu
 key 2; key 2
-hold 3 3;         snap 24-saved                    # hold R1 on Save
-sleep 3;          snap 25-summary
+hold 3 3;         snap 25-saved                    # hold R1 on Save
+sleep 3;          snap 26-summary
 
 echo "--- service log"
 grep -E "Route:|Navigation:" "$LOG"

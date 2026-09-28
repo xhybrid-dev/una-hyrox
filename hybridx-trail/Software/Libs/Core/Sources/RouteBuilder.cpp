@@ -10,10 +10,21 @@
 namespace Trail
 {
 
-RouteBuilder::RouteBuilder(GeoPoint* points, uint16_t capacity)
+RouteBuilder::RouteBuilder(GeoPoint* points, uint16_t capacity, int16_t* eleHalfM, uint16_t* ascentM)
     : mPoints(points)
+    , mEle(eleHalfM)
+    , mAsc(ascentM)
     , mCapacity(capacity < 2 ? 2 : capacity)
 {
+}
+
+void RouteBuilder::copyPoint(uint16_t to, uint16_t from)
+{
+    mPoints[to] = mPoints[from];
+    if (mEle && mAsc) {
+        mEle[to] = mEle[from];
+        mAsc[to] = mAsc[from];
+    }
 }
 
 void RouteBuilder::reset()
@@ -29,6 +40,8 @@ void RouteBuilder::reset()
     mEleRefCm  = 0;
     mAscentCm  = 0;
     mDescentCm = 0;
+    mCurEle    = 0;
+    mCurAsc    = 0;
 }
 
 void RouteBuilder::point(const GeoPoint& p, bool hasEle, int32_t eleCm, PointKind kind)
@@ -57,6 +70,10 @@ void RouteBuilder::point(const GeoPoint& p, bool hasEle, int32_t eleCm, PointKin
             mDescentCm += mEleRefCm - eleCm;
             mEleRefCm = eleCm;
         }
+        const int32_t half = eleCm / 50;
+        mCurEle            = static_cast<int16_t>(half < -32768 ? -32768 : (half > 32767 ? 32767 : half));
+        const int64_t asc  = mAscentCm / 100;
+        mCurAsc            = static_cast<uint16_t>(asc > 65535 ? 65535 : asc);
     }
 
     mLast     = p;
@@ -76,8 +93,13 @@ void RouteBuilder::keep(const GeoPoint& p)
             return;
         }
     }
-    mPoints[mCount++] = p;
-    mLastKept         = true;
+    mPoints[mCount] = p;
+    if (mEle && mAsc) {
+        mEle[mCount] = mCurEle;
+        mAsc[mCount] = mCurAsc;
+    }
+    ++mCount;
+    mLastKept = true;
 }
 
 void RouteBuilder::rethin()
@@ -89,7 +111,7 @@ void RouteBuilder::rethin()
             // Nothing sensible left to do: drop every other point.
             uint16_t out = 1;
             for (uint16_t i = 2; i < mCount; i += 2) {
-                mPoints[out++] = mPoints[i];
+                copyPoint(out++, i);
             }
             mCount = out;
             return;
@@ -98,7 +120,7 @@ void RouteBuilder::rethin()
         uint16_t out = 1;
         for (uint16_t i = 1; i < mCount; ++i) {
             if (Geo::distanceM(mPoints[out - 1], mPoints[i]) >= static_cast<float>(mSpacingM)) {
-                mPoints[out++] = mPoints[i];
+                copyPoint(out++, i);
             }
         }
         mCount = out;
@@ -109,10 +131,14 @@ void RouteBuilder::finish()
 {
     if (mRaw > 1 && !mLastKept) {
         if (mCount == mCapacity) {
-            mPoints[mCount - 1] = mLast;   // the end matters more than the point before it
-        } else {
-            mPoints[mCount++] = mLast;
+            --mCount;   // the end matters more than the point before it
         }
+        mPoints[mCount] = mLast;
+        if (mEle && mAsc) {
+            mEle[mCount] = mCurEle;
+            mAsc[mCount] = mCurAsc;
+        }
+        ++mCount;
         mLastKept = true;
     }
 }

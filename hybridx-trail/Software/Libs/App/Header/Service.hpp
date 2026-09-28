@@ -39,6 +39,10 @@ private:
     static constexpr uint32_t skBacklightTimeout     = 5000;
     static constexpr uint32_t skSamplePeriod         = 1000;
     static constexpr uint32_t skSampleLatency        = 1000;
+    // HybridX Trail's compass: as the probe read it (Tools/Probe), 5 Hz.
+    static constexpr float    skCompassPeriod        = 200.0f;
+    static constexpr uint32_t skCompassLatency       = 1000;
+    static constexpr uint32_t skCompassMaxAgeMs      = 3000;
 
     static constexpr float    skMapDistanceThreshold = 10.0f; // meters
     static constexpr uint32_t skMapMaxPoints         = 70;
@@ -81,7 +85,14 @@ private:
     SDK::Sensor::Connection mSensorFusion;
     SDK::Sensor::Connection mSensorRunningCadence;
     SDK::Sensor::Connection mSensorGrade;
+    SDK::Sensor::Connection mSensorMag;     ///< HybridX Trail: the compass, with a route loaded
+    SDK::Sensor::Connection mSensorAccel;   ///< and gravity, to level it
     bool                    mIsSensorsConnected = false;
+    bool                    mHaveAccel     = false;
+    float                   mAccel[3]      = {};
+    bool                    mCompassValid  = false;
+    float                   mCompassDeg    = 0.0f;
+    uint32_t                mCompassAtMs   = 0;
 
     struct {
         float cadenceSpm      = 0.0f;
@@ -250,6 +261,7 @@ private:
     void sendRoute();
     void processNav();
     void notifyNav(Trail::OffCourse::Event event);
+    void notifyTurn(int16_t angleDeg);
 
     // -- Notifications --------------------------------------------------------
 

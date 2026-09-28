@@ -58,6 +58,7 @@ RouteTracker::Match RouteTracker::matchSegment(const GeoPoint& fix, uint16_t i) 
     m.valid  = true;
     m.segment = i;
     m.d      = Geo::projectOntoSegmentM(fix, mPoints[i], mPoints[i + 1], t);
+    m.t      = t;
     m.along  = mCumulative[i] + t * (mCumulative[i + 1] - mCumulative[i]);
     return m;
 }
@@ -165,6 +166,7 @@ const RouteTracker::Position& RouteTracker::update(const GeoPoint& fix)
     }
     if (mCount == 1) {
         mPos.offRouteM = Geo::distanceM(fix, mPoints[0]);
+        mPos.nearest   = mPoints[0];
         mPos.onRoute   = mPos.offRouteM <= kAcquireM;
         if (mPos.onRoute) {
             Match m;
@@ -188,6 +190,7 @@ const RouteTracker::Position& RouteTracker::update(const GeoPoint& fix)
     }
     mPos.offRouteM = global.d;
     mPos.onRoute   = global.d <= kAcquireM;
+    mPos.nearest   = Geo::lerp(mPoints[global.segment], mPoints[global.segment + 1], global.t);
 
     if (!mPos.everLocked) {
         if (mPos.onRoute) {
