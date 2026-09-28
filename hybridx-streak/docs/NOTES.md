@@ -604,3 +604,52 @@ working pattern exactly. Revisit if/when UNA answers Q4.
   following Race's shape (the root `CHANGELOG.md` is explicitly scoped to
   "HybridX Race" only, and the root `README.md` is Race's own; Streak has no
   such shared role to inherit, so both are package-level here).
+
+## Gate 0: first run on Jon's watch (28 September 2026)
+
+Jon installed the CI build, recorded a walk, and ran the probe five times
+(13:01-13:05, no phone sync between). Every run: **NO FILES**. The Streak app
+counted nothing either. Evidence: `probe.txt`, `probe-history.txt` and two
+photos, in the conversation.
+
+What the report shows:
+
+| Check | Result |
+|---|---|
+| `list ..` | ok, 4 entries. The scan found two folders: `System Volume Information` and `gps`. The other two entries were presumably `SharedData` (skipped by name) and a file or dot-entry. **No app folders**: not `HXStreakProbe` itself, not HybridX Race, not a built-in app |
+| `list /Apps`, `list 2:/Apps` | FAIL (cannot open) |
+| `list /` | ok, 3 entries (the probe's own folder, E.3) |
+| `list .` | FAIL |
+| SharedData | mkdir, write, read back, remove: all ok |
+| Rename onto an existing file | refused, destination kept (FatFs): §6.5's save sequence is right |
+| Clock | local 13:05, offset +60 min (BST): correct |
+| Glance config | 240 x 60, 32 controls |
+
+Reading:
+
+- `..` does **not** reach `/Apps` on the watch. It reaches a folder holding
+  `System Volume Information` (which Windows puts at a volume's root), `gps`
+  and, it seems, `SharedData`, but no app folders. The simulator's `..` is plain
+  host traversal (E.9), which is why S0-S2 could not see this.
+- Absolute paths out of the sandbox are refused.
+- So, **on the routes the probe tries, one app cannot see another's folder.**
+  The verdict should have been BLOCKED, not NO FILES: the probe says NO FILES
+  whenever listing `..` succeeds, without checking that what it listed looks
+  like apps. To fix in the probe if it is run again.
+- **A second probe fault:** `scanApp` reports "0 months" for
+  `System Volume Information` and `gps`, so opening
+  `../System Volume Information/Activity` returned success on the watch,
+  although that folder almost certainly doesn't exist. Either
+  `IDirectory::open()` on a missing path succeeds on the watch, or it created
+  the folder. Future code must check `exist()` before trusting `open()`. Jon to
+  check over USB whether stray `Activity` folders appeared.
+
+Not yet known, and needed before Gate 0 can be closed:
+
+1. The top level of the watch's USB drive (hidden files shown): is it the
+   same volume `..` listed?
+2. Where the walk's `.fit` actually is on the drive, and which app recorded it.
+3. Whether the phone sync step (PROBE.md step 4) changes anything.
+
+Provisional Gate 0 result: **not GO.** PLAN §3's three options apply; the choice
+waits for the answers above.
