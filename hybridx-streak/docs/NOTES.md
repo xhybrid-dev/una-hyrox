@@ -681,3 +681,19 @@ Jon's screenshots of the watch's USB drive, and the walk's `summary.json`:
 deletion on sync. Automatic counting of other apps' activities needs UNA:
 either an activity-list API or an "activity saved" event that a background
 service can receive. PLAN §3's options stand; Jon to choose.
+
+### Gate 0, third look: `..` works for files (28 September 2026)
+
+Jon found `streak.json` in `Apps/SharedData/` on the USB drive. The Streak app
+writes it as `../SharedData/HybridX/streak.json` (`Libs/App/Sources/Service.cpp:32`).
+So **for opening files, `..` from an app's folder is `/Apps`**, as the SDK's own
+`../SharedData/stride.json` assumes (E.3). Only *listing* `..` landed somewhere
+else (`gps`, `System Volume Information`). The listing result was therefore
+misleading, and cross-app reading is **not** yet shown to be blocked for a file
+opened by its exact path, e.g. `../Walking/Activity/summary.json`.
+
+Its content also shows the app ran on the watch and published a week with no
+sessions: `"d":[20724,…]` (day 20724 = 28 September 2026), all counts 0.
+
+Gate 0 reopens on one question: can an app open `../<OtherApp>/Activity/summary.json`
+by name? Next: a probe run that tries exact paths, without listing.
