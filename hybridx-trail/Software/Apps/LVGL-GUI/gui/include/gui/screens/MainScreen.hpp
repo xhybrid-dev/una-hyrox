@@ -33,6 +33,8 @@ public:
     void onIdleTimeout() override;
     void onGpsFix(bool acquired) override;
     void onAccessoryStatus(uint8_t state, const char* name) override;
+    void onRoute() override;
+    void onRoutes() override;
 
 protected:
     void build() override;
@@ -42,8 +44,13 @@ private:
 
     void confirm();
     void updateBackground();
+    void updateRouteItem();
 
     bool mGpsFix = false;
+
+    // The menu items, with the Route item's hint (the route in use) kept here.
+    WheelMenu::Item mItems[Menu::ID_COUNT] {};
+    char            mRouteTip[32] {};
 
     std::unique_ptr<Widgets::Title>           mTitle;
     std::unique_ptr<Widgets::SensorStatusRow> mSensorRow;

@@ -394,8 +394,47 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             }
         } break;
 
+        // HybridX Trail
+        case CustomMessage::ROUTE_LIST: {
+            auto* msg      = static_cast<CustomMessage::RouteList*>(message);
+            mRouteCount    = 0;
+            if (msg->routes) {
+                mRouteCount = msg->count < Trail::Navigator::kMaxRoutes ? msg->count : Trail::Navigator::kMaxRoutes;
+                memcpy(mRoutes, msg->routes, sizeof(Trail::RouteInfo) * mRouteCount);
+            }
+            mSelectedRoute = msg->selected < static_cast<int8_t>(mRouteCount) ? msg->selected : -1;
+            modelListener->onRoutes();
+        } break;
+
+        case CustomMessage::ROUTE_LOADED: {
+            auto* msg        = static_cast<CustomMessage::RouteLoaded*>(message);
+            mRouteInfo       = msg->info;
+            mRoutePointCount = 0;
+            if (msg->points && msg->count >= 2) {
+                mRoutePointCount = msg->count < Trail::Navigator::kMaxPoints ? msg->count : Trail::Navigator::kMaxPoints;
+                memcpy(mRoutePoints, msg->points, sizeof(Trail::GeoPoint) * mRoutePointCount);
+            }
+            modelListener->onRoute();
+        } break;
+
+        case CustomMessage::NAV_UPDATE: {
+            auto* msg = static_cast<CustomMessage::NavUpdate*>(message);
+            mNav      = msg->status;
+            modelListener->onNav(mNav);
+        } break;
+
+        case CustomMessage::NAV_ALERT: {
+            auto* msg = static_cast<CustomMessage::NavAlert*>(message);
+            modelListener->onNavAlert(msg->event);
+        } break;
+
         default:
             break;
     }
     return true;
+}
+
+void Model::selectRoute(int8_t index)
+{
+    SDK::send_msg<CustomMessage::RouteSelect>(mKernel, index);
 }

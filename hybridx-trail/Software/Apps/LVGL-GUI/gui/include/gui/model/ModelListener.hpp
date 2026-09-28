@@ -19,6 +19,7 @@
 #include "Settings.hpp"
 #include "Track.hpp"
 #include "ActivitySummary.hpp"
+#include "Navigator.hpp"
 
 class Model;
 
@@ -50,6 +51,12 @@ public:
     virtual void onIntervalsWorkoutCompleted() {}
     virtual void onActivitySummary(const ActivitySummary& summary) { (void)summary; }
     virtual void onAccessoryStatus(uint8_t state, const char* name) { (void)state; (void)name; }
+
+    // HybridX Trail
+    virtual void onRoutes() {}                                       ///< the route list changed
+    virtual void onRoute() {}                                        ///< the loaded route changed
+    virtual void onNav(const Trail::Navigator::Status& s) { (void)s; }
+    virtual void onNavAlert(Trail::OffCourse::Event e) { (void)e; }
 
 protected:
     Model* model;

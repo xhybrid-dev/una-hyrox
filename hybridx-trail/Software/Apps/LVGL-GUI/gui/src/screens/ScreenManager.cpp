@@ -16,6 +16,8 @@
 #include "gui/model/Model.hpp"
 #include "gui/screens/Screen.hpp"
 #include "gui/screens/MainScreen.hpp"
+#include "gui/screens/RouteListScreen.hpp"
+#include "gui/screens/RoutePreviewScreen.hpp"
 #include "gui/screens/MenuIntervalsScreen.hpp"
 #include "gui/screens/MenuIntervalsRepeatsScreen.hpp"
 #include "gui/screens/MenuIntervalsMetricScreen.hpp"
@@ -83,11 +85,14 @@ void ScreenManager::switchNow(ScreenId id)
         mModel->bind(nullptr);
     }
 
-    // Build and show the new screen, then free the old one: the same order
-    // as the TouchGFX MVP application. Both widget trees exist for the
-    // duration of the switch, so the pool must hold the largest such pair;
-    // the peak logged below is what to size it by.
-    next->create();
+    // HybridX Trail: free the old screen, then build the new one. RunLVGL
+    // built first and freed after (the TouchGFX MVP order), so both widget
+    // trees had to fit in LVGL's 40 KB pool at once; with Trail's map and
+    // navigation faces the run screen plus the start screen do not. Loading
+    // the new screen's empty root first means the old one is never the
+    // active screen when it is deleted, and nothing is drawn in between: the
+    // switch runs inside one lv_timer_handler() call.
+    next->createRoot();
     lv_screen_load(next->root());
     mCurrent = next;
 
@@ -98,14 +103,21 @@ void ScreenManager::switchNow(ScreenId id)
         delete old;
     }
 
+    next->create();
+
     mModel->bind(next);
     next->onShow();
 
+    logPool("screen");
+}
+
+void ScreenManager::logPool(const char* what)
+{
     // Peak use of LVGL's static pool (LV_MEM_SIZE in lv_conf.h), logged per
     // screen so the pool can be sized to what the app actually needs.
     lv_mem_monitor_t mon;
     lv_mem_monitor(&mon);
-    LOG_INFO("LVGL pool: %u/%u B used, peak %u%%, frag %u%%\n",
+    LOG_INFO("LVGL pool (%s): %u/%u B used, peak %u%%, frag %u%%\n", what,
              static_cast<unsigned>(mon.total_size - mon.free_size),
              static_cast<unsigned>(mon.total_size),
              static_cast<unsigned>(mon.max_used) * 100u / static_cast<unsigned>(mon.total_size),
@@ -121,6 +133,8 @@ Screen* ScreenManager::create(ScreenId id)
 
     switch (id) {
         case ScreenId::Main:                      return new MainScreen(m);
+        case ScreenId::RouteList:                 return new RouteListScreen(m);
+        case ScreenId::RoutePreview:              return new RoutePreviewScreen(m);
 
         case ScreenId::MenuIntervals:             return new MenuIntervalsScreen(m);
         case ScreenId::MenuIntervalsRepeats:      return new MenuIntervalsRepeatsScreen(m);

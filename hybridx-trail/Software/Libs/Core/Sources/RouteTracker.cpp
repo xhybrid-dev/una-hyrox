@@ -48,6 +48,7 @@ void RouteTracker::reset()
     mLastAlong    = 0.0f;
     mAdvance      = 0.0f;
     mFixesSince   = 0;
+    mCovered      = 0;
 }
 
 RouteTracker::Match RouteTracker::matchSegment(const GeoPoint& fix, uint16_t i) const
@@ -75,14 +76,40 @@ float RouteTracker::alongCost(float along) const
     return along >= expected ? along - expected : 2.0f * (expected - along);
 }
 
+bool RouteTracker::far(float along) const
+{
+    const float gap   = along - mLastAlong;
+    const float ahead = kMaxSpeedMps * static_cast<float>(mFixesSince + 1u) + kSlackM;
+    return gap < -kSlackM || gap > ahead;
+}
+
+void RouteTracker::cover(float from, float to)
+{
+    const float length = mCount > 0 ? mCumulative[mCount - 1] : 0.0f;
+    if (length <= 0.0f) {
+        return;
+    }
+    auto bin = [length](float along) {
+        const int b = static_cast<int>(along / length * static_cast<float>(kCoverBins));
+        return b < 0 ? 0 : (b >= kCoverBins ? kCoverBins - 1 : b);
+    };
+    for (int b = bin(from); b <= bin(to); ++b) {
+        mCovered |= uint64_t { 1 } << b;
+    }
+}
+
+float RouteTracker::covered() const
+{
+    int n = 0;
+    for (uint64_t bits = mCovered; bits != 0; bits &= bits - 1) {
+        ++n;
+    }
+    return static_cast<float>(n) / static_cast<float>(kCoverBins);
+}
+
 bool RouteTracker::plausible(float d, float along) const
 {
-    if (!mPos.everLocked || d <= kRejoinM) {
-        return true;
-    }
-    const float gap = along - mLastAlong;
-    const float ahead = kMaxSpeedMps * static_cast<float>(mFixesSince + 1u) + kSlackM;
-    return gap >= -kSlackM && gap <= ahead;
+    return !mPos.everLocked || d <= kRejoinM || !far(along);
 }
 
 RouteTracker::Match RouteTracker::pick(const GeoPoint& fix, bool windowOnly) const
@@ -110,8 +137,11 @@ void RouteTracker::accept(const Match& m)
 {
     if (mPos.everLocked) {
         float step = m.along - mLastAlong;
-        step       = step < 0.0f ? 0.0f : (step > kMaxAdvanceM ? kMaxAdvanceM : step);
-        mAdvance   = 0.7f * mAdvance + 0.3f * step;
+        if (step > 0.0f && mFixesSince <= kCoverMaxMissed && !far(m.along)) {
+            cover(mLastAlong, m.along);   // an ordinary step forwards; a rejoin covers nothing
+        }
+        step     = step < 0.0f ? 0.0f : (step > kMaxAdvanceM ? kMaxAdvanceM : step);
+        mAdvance = 0.7f * mAdvance + 0.3f * step;
     }
     mLastAlong      = m.along;
     mFixesSince     = 0;
@@ -122,7 +152,8 @@ void RouteTracker::accept(const Match& m)
     if (mPos.remainingM < 0.0f) {
         mPos.remainingM = 0.0f;
     }
-    if (mPos.remainingM <= kFinishM && mPos.alongM >= kFinishShare * mLengthM && m.d <= kFinishNearM) {
+    if (mPos.remainingM <= kFinishM && mPos.alongM >= kFinishShare * mLengthM && m.d <= kFinishNearM &&
+        covered() >= kFinishCredit) {
         mPos.finished = true;
     }
 }

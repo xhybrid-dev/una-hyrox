@@ -22,6 +22,9 @@ class Screen;
 
 enum class ScreenId : uint8_t {
     Main,
+    // HybridX Trail
+    RouteList,
+    RoutePreview,
     // Intervals configuration
     MenuIntervals,
     MenuIntervalsRepeats,
@@ -62,6 +65,10 @@ public:
 
     /// Request a switch; performed on the next frame.
     void goTo(ScreenId id);
+
+    /// Log the use of LVGL's pool after building @p what (every screen switch
+    /// does; HybridX Trail's run screen also does on changing face).
+    static void logPool(const char* what);
 
 private:
     ScreenManager() = default;

@@ -1704,7 +1704,9 @@ void Service::processNav()
                 LOG_INFO("Navigation: %s (%lu m off)\n", Trail::OffCourse::name(event),
                          static_cast<unsigned long>(mNav.status().pos.offRouteM));
                 notifyNav(event);
-                SDK::send_msg<CustomMessage::NavAlert>(mKernel, event);
+                if (mGuiStarted) {
+                    SDK::send_msg<CustomMessage::NavAlert>(mKernel, event);
+                }
             }
         }
     }

@@ -118,6 +118,20 @@ public:
     bool isTrackSummaryAvailable() const;
     const ActivitySummary& getTrackSummary() const;
 
+    // HybridX Trail: routes (copies of the service's, see Commands.hpp)
+    uint8_t                         routeCount() const { return mRouteCount; }
+    const Trail::RouteInfo&         routeAt(uint8_t i) const { return mRoutes[i < mRouteCount ? i : 0]; }
+    int8_t                          selectedRoute() const { return mSelectedRoute; }
+    bool                            hasRoute() const { return mRoutePointCount >= 2; }
+    const Trail::RouteInfo&         route() const { return mRouteInfo; }
+    const Trail::GeoPoint*          routePoints() const { return mRoutePoints; }
+    uint16_t                        routePointCount() const { return mRoutePointCount; }
+    const Trail::Navigator::Status& nav() const { return mNav; }
+    void                            selectRoute(int8_t index);   ///< -1: no route
+    /// The route list entry being previewed (RoutePreviewScreen).
+    void    setPreviewRoute(int8_t index) { mPreviewRoute = index; }
+    int8_t  previewRoute() const { return mPreviewRoute; }
+
 private:
     // Fields required for GUI <-> Service communication
     ModelListener*           modelListener;
@@ -162,6 +176,17 @@ private:
     Track::State           mTrackState            {};
     const ActivitySummary* mActivitySummary = nullptr;
     Track::Data            mTrackData             {};
+
+    // HybridX Trail. The route is copied here (16 KB, in the Model, which is
+    // static): the service's array must not be read after the message goes.
+    Trail::RouteInfo         mRoutes[Trail::Navigator::kMaxRoutes] {};
+    uint8_t                  mRouteCount      = 0;
+    int8_t                   mSelectedRoute   = -1;
+    int8_t                   mPreviewRoute    = -1;
+    Trail::RouteInfo         mRouteInfo       {};
+    Trail::GeoPoint          mRoutePoints[Trail::Navigator::kMaxPoints] {};
+    uint16_t                 mRoutePointCount = 0;
+    Trail::Navigator::Status mNav             {};
 };
 
 #endif // MODEL_HPP

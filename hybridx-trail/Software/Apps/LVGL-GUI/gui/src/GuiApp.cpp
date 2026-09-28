@@ -16,6 +16,7 @@
 #include "gui/model/Model.hpp"
 #include "gui/theme/Theme.hpp"
 #include "gui/screens/ScreenManager.hpp"
+#include "gui/widgets/RouteMap.hpp"
 
 namespace
 {
@@ -40,6 +41,7 @@ extern "C" const lv_font_t* una_lvgl_default_font(void)
 extern "C" void una_lvgl_app_init(void)
 {
     Theme::init();
+    Widgets::RouteMap::initStyle();
     sModel = new (sModelStorage) Model();
     ScreenManager::instance().start(*sModel, ScreenId::Main);
 }

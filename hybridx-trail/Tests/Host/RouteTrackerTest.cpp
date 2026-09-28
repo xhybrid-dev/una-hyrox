@@ -209,6 +209,22 @@ TEST(RouteTracker, AWrongTurnHoldsProgressThenRejoinsFurtherOn)
     EXPECT_NEAR(t.tracker.position().alongM, 1000.0f, 3.0f);
 }
 
+TEST(RouteTracker, SkippingMostOfTheRouteIsNoFinish)
+{
+    // 300 m on the route, then 100 m off it all the way to 990 m, and back on
+    // for the last 10 m. The tracker follows the rejoin (0 m to go), but 70 %
+    // of the route was never run: that is not "route complete". The wrong
+    // turn above skips 40 % and does finish.
+    Track t(kStraight);
+    const std::vector<NE> cut { { 0, 0 }, { 300, 0 }, { 300, 100 }, { 990, 100 }, { 990, 0 }, { 1000, 0 } };
+    bool finished = false;
+    for (const GeoPoint& f : RunSim::run(cut, 3.0)) {
+        finished = finished || t.fix(f).finished;
+    }
+    EXPECT_FALSE(finished);
+    EXPECT_NEAR(t.tracker.position().alongM, 1000.0f, 3.0f);
+}
+
 TEST(RouteTracker, LengthFromTheFullGpxScalesProgress)
 {
     // The thinned route measures 1,000 m; the GPX said 1,050 m (corners cut).
@@ -344,6 +360,33 @@ TEST(RouteTracker, DriftingAwayNearAReturnLegNeverJumpsToIt)
         ASSERT_FALSE(p.finished) << "fix " << i;
     }
     EXPECT_LT(maxAlong, 200.0f);   // never past the first bend (~140 m)
+}
+
+TEST(RouteTracker, TheWrongTurnRouteIsNeverFinishedFromAnywhereOnTheTrack)
+{
+    // Found in the simulator (NOTES, T3): the same route and track, but the
+    // run started with the runner elsewhere on the track, and nine seconds
+    // after going off course at the bend the watch said "route complete".
+    // Start the run at every point of the lap, with the simulator's GPS
+    // noise (1.5 m), and lap for three laps: the route (the first straight,
+    // then 300 m on east and back) is never run, so never finished.
+    std::vector<NE> way;
+    for (int x = 0; x < 390; x += 5) {
+        way.push_back({ 36.5, static_cast<double>(x) });
+    }
+    for (int x = 385; x >= 0; x -= 5) {
+        way.push_back({ 26.5, static_cast<double>(x) });
+    }
+    for (int start = 0; start < 400; start += 5) {
+        Track        t(way, 5.0);
+        RunSim::Noise noise(static_cast<uint32_t>(start) + 1u);
+        for (int i = 0; i < 240; ++i) {   // three laps
+            NE p = stadium(start + i * 5.5);
+            p.n += noise.next(1.5);
+            p.e += noise.next(1.5);
+            ASSERT_FALSE(t.fix(RunSim::at(p)).finished) << "start " << start << " m, fix " << i;
+        }
+    }
 }
 
 TEST(RouteTracker, TheFinishNeedsTheRunnerAtTheFinish)

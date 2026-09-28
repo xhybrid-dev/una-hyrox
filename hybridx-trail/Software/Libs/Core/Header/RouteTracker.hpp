@@ -42,6 +42,19 @@
  * the simulator). A genuine shortcut or rejoin is still followed: the runner
  * is on the route when they rejoin it.
  *
+ * The finish is earned, too. Besides being at the end (kFinishM) and near
+ * the route there (kFinishNearM), the runner must have covered at least
+ * kFinishCredit of the route in ordinary steps along it: from one matched
+ * fix to the next (kCoverMaxMissed missed fixes at most), no further than a
+ * runner goes. A rejoin after time off the route moves the position but
+ * covers nothing in between, and running the same stretch twice covers it
+ * once. Coverage is kept as kCoverBins equal parts
+ * of the route, a bit each. A runner lapping the simulator's track passes
+ * 20 m from the wrong-turn route's finish on every lap; one noisy fix put
+ * them there and the watch said "route complete" nine seconds after they
+ * went off course (NOTES, T3). A real shortcut still finishes, as long as
+ * it skips less than half the route.
+ *
  * GPS direction of travel (CourseOverGround) is not used here: with a few
  * metres of GPS noise a second it swings by tens of degrees at running pace,
  * and a tracker that trusted it put the runner on the wrong leg (NOTES, T1).
@@ -82,6 +95,9 @@ public:
     static constexpr float kFinishM      = 40.0f;    ///< this near the end along the route, ...
     static constexpr float kFinishShare  = 0.9f;     ///< ... this far along, ...
     static constexpr float kFinishNearM  = 30.0f;    ///< ... and this near the route there, is the finish
+    static constexpr float kFinishCredit = 0.5f;     ///< ... once this share was run step by step
+    static constexpr int   kCoverBins    = 64;       ///< coverage resolution: the route in this many parts
+    static constexpr int   kCoverMaxMissed = 2;      ///< a step still covers after this many unmatched fixes
 
     struct Position {
         bool     everLocked = false;   ///< matched to the route at least once since reset()
@@ -132,6 +148,12 @@ private:
     float alongCost(float along) const;
     /// Whether a match @p d from the fix and @p along the route may be taken.
     bool  plausible(float d, float along) const;
+    /// Whether @p along is "far" from the last match (see the class comment).
+    bool  far(float along) const;
+    /// Mark the route from @p from to @p to (unscaled) as covered.
+    void  cover(float from, float to);
+    /// The share of the route covered, 0 to 1.
+    float covered() const;
     /// The best-scoring segment within kAcquireM (and the window, if @p windowOnly).
     Match pick(const GeoPoint& fix, bool windowOnly) const;
     void  accept(const Match& m);
@@ -145,6 +167,7 @@ private:
     float           mLastAlong = 0.0f;   ///< unscaled
     float           mAdvance   = 0.0f;   ///< smoothed progress per fix, unscaled
     uint16_t        mFixesSince = 0;     ///< fixes since the last accepted match
+    uint64_t        mCovered    = 0;     ///< bit b: part b of kCoverBins run in ordinary steps
 };
 
 } // namespace Trail

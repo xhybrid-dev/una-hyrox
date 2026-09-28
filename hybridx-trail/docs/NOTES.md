@@ -327,3 +327,91 @@ shortcut or rejoin still works: the runner is on the route when they rejoin it.
 - CI now builds the app as well as the probe.
 
 The screens are still RunLVGL's: choosing a route and seeing the map is T3.
+
+## T3: the screens (28 September 2026)
+
+### T3.1 What there is
+
+Screenshots of every step: `docs/screens/` (made by
+`docs/experiments/capture_screens.sh`, which drives the simulator).
+
+- **Start screen:** RunLVGL's wheel, with Intervals replaced by **Route**; its
+  hint is the route in use (amber) or "No route".
+- **Route list:** "No route" (a plain run), then the routes on the watch by
+  name with distance and climb ("1.19 km, 0 m up"; "can't read this file" in
+  red for a broken GPX), then "Add routes" (copy GPX by USB). Back from a
+  preview, it opens on the route previewed.
+- **Route preview:** the whole route, north-up (amber line, lime start, red
+  finish), its name and summary. R1 keeps it, R2 goes back and restores the
+  route chosen before.
+- **Run faces** (L1/L2), with a route: **near map** (250 m to the edge),
+  **far map** (1 km), **navigation** (to go, done, route length, on/off course,
+  metres from the line), then RunLVGL's totals, lap and status faces. The maps
+  are heading-up once the runner is moving (north-up before), with a white
+  arrow a little below centre, an "N" marker, and "x to go" (or "start x m"
+  before joining the route).
+- **Alerts:** going off course jumps to the near map and shows a red
+  "OFF COURSE 61 m" banner over every face until back on; then a green
+  "BACK ON COURSE" for 4 s; at the finish "ROUTE COMPLETE" for 8 s. Buzz and
+  beep patterns as T2.3.
+
+### T3.2 LVGL's pool: one screen, one face at a time
+
+The SDK's `lv_conf.h` fixes LVGL's pool at 40 KB (about 36 KB usable).
+Starting a run crashed the simulator: RunLVGL builds the next screen before
+freeing the last, and its four run faces alone take about 24 KB, so the start
+screen (18 KB) plus the run screen with maps did not fit. Two changes, both in
+our copy of RunLVGL (the SDK is untouched):
+
+- `ScreenManager` frees the old screen before building the new one (the new,
+  empty screen is loaded first, all inside one LVGL tick, so nothing flickers).
+- `TrackScreen` builds only the face on display; paging deletes it and builds
+  the next (about 10-14 KB per run screen; no growth over repeated paging).
+
+Measured peak over the whole walkthrough: 82 % (RunLVGL's own summary screen,
+28.5 KB). Every screen and face change logs `LVGL pool (...)`.
+
+### T3.3 Text on a watch with ASCII fonts
+
+- Route names are UTF-8; the fonts are ASCII. `Core/TextFold` folds accents
+  (Welsh ŵ, ŷ; é, ü, ł...), dashes and curly quotes to ASCII (host-tested).
+- Long names step down the font (SemiBold 30, 25, 20, Medium 18) and are cut
+  with ".." only if they still do not fit.
+- The 40 pt number faces are digits only (RunLVGL's `gen_assets.py`), so the
+  navigation face prints "691" and "m" as separate labels.
+
+### T3.4 Found in the simulator: "route complete" from a noisy fix
+
+With the run started elsewhere on the stadium, the watch said "finished" 9 s
+after going off course. On the west bend the runner passes 20 m from both the
+wrong-turn route's start and its finish (10 m apart); one noisy fix put the
+finish within the 20 m rejoin reach and the start just outside it.
+Reproduced on the host from every start point round the track
+(`TheWrongTurnRouteIsNeverFinishedFromAnywhereOnTheTrack`).
+
+Fixed in `RouteTracker`: the finish is earned. The route is split into 64
+parts; a part counts as covered only by ordinary steps (from one matched fix
+to the next, at most 2 missed, at running speed). A finish needs half the
+parts covered. Rejoins still move the position (a shortcut is followed) but
+cover nothing, and laps of the same stretch count once
+(`SkippingMostOfTheRouteIsNoFinish`; the 40 % wrong-turn test still
+finishes).
+
+**Known limit:** on a route whose legs run 10-20 m apart, a runner off course
+who crosses the other leg can be placed on it, so "to go" can read wrong
+until they rejoin properly. Alerts and the finish are unaffected. Real trails
+rarely have parallel legs that close; the field test (T4) will tell.
+
+### T3.5 Verified
+
+- 95 host tests pass (TextFold 8, new tracker tests 2).
+- Watch target builds with no warnings (compile check; the `.uapp` for the
+  watch comes from CI).
+- Simulator walkthrough (`capture_screens.sh`): list, preview, back, choose,
+  start, every face, off course at 61 m (jump to map, banner), back on at
+  17 m, pause, save, summary. No crash; pool peak 82 %.
+
+Not done: RunLVGL's intervals screens are still compiled but unreachable
+(harmless; tidy up later). The look is RunLVGL's; if the promo videos show a
+different style, send screenshots and it can be matched.
+

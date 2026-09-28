@@ -10,6 +10,7 @@
 #include "gui/theme/Theme.hpp"
 #include "gui/Assets.hpp"
 #include "gui/Strings.hpp"
+#include "gui/RouteFormat.hpp"
 
 #define LOG_MODULE_PRX      "MainScreen"
 #define LOG_MODULE_LEVEL    LOG_LEVEL_INFO
@@ -19,15 +20,14 @@ using namespace SDK::GUI;
 
 namespace
 {
-// Same items and geometry as MainView::setupItems() in the TouchGFX app.
+// RunLVGL's items and geometry (MainView::setupItems() in the TouchGFX app),
+// with HybridX Trail's Route in the Intervals slot: its hint names the route.
 using Style = WheelMenu::Item::Style;
 const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
     // ID_START
     { Style::Simple, "Start", nullptr, &poppins_semibold_35 },
-    // ID_INTERVALS: icon beside left-aligned text, in both slots
-    { Style::Icon, "Intervals", nullptr, &poppins_semibold_30, nullptr, Color::WHITE, false,
-      &img_intervals_40x43, { 30, 10, 87, 140 },
-      &img_intervals_24x26, { 62, 17, 97, 130 } },
+    // ID_ROUTE
+    { Style::Tip, "Route", nullptr, nullptr, "No route", Color::GRAY },
     // ID_SETTINGS
     { Style::Simple, "Settings" },
 };
@@ -40,7 +40,11 @@ MainScreen::MainScreen(Model& model)
 
 void MainScreen::build()
 {
-    mMenu      = std::make_unique<WheelMenu>(mRoot, kItems, Menu::ID_COUNT);
+    for (uint16_t i = 0; i < Menu::ID_COUNT; ++i) {
+        mItems[i] = kItems[i];
+    }
+    updateRouteItem();
+    mMenu      = std::make_unique<WheelMenu>(mRoot, mItems, Menu::ID_COUNT);
     // As in MainView::onAnimationMiddle: the lens and R1 hint change half way
     // through the slide, when the incoming item is about to take the centre.
     mMenu->setSlideMidCallback(
@@ -91,10 +95,9 @@ void MainScreen::confirm()
                 ScreenManager::instance().goTo(ScreenId::TrackStartConfirm);
             }
             break;
-        case Menu::ID_INTERVALS:
-            // No GPS-fix check here: the intervals menu is always reachable so
-            // the workout can be configured indoors. The check happens on Start.
-            ScreenManager::instance().goTo(ScreenId::MenuIntervals);
+        case Menu::ID_ROUTE:
+            mModel.setPreviewRoute(-1);   // the list opens on the route in use
+            ScreenManager::instance().goTo(ScreenId::RouteList);
             break;
         case Menu::ID_SETTINGS:
             ScreenManager::instance().goTo(ScreenId::MenuSettings);
@@ -129,4 +132,27 @@ void MainScreen::onGpsFix(bool acquired)
 void MainScreen::onAccessoryStatus(uint8_t state, const char* /*name*/)
 {
     mSensorRow->setHr(Widgets::SensorStatusRow::hrState(state));
+}
+
+void MainScreen::updateRouteItem()
+{
+    if (mModel.hasRoute()) {
+        RouteFmt::name(mRouteTip, sizeof(mRouteTip), mModel.route().name);
+        mItems[Menu::ID_ROUTE].tip      = mRouteTip;
+        mItems[Menu::ID_ROUTE].tipColor = Color::YELLOW_DARK;
+    } else {
+        mItems[Menu::ID_ROUTE].tip      = "No route";
+        mItems[Menu::ID_ROUTE].tipColor = Color::GRAY;
+    }
+}
+
+void MainScreen::onRoute()
+{
+    updateRouteItem();
+    mMenu->refresh();
+}
+
+void MainScreen::onRoutes()
+{
+    onRoute();
 }

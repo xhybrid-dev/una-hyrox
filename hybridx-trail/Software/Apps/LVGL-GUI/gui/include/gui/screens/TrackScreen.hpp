@@ -7,6 +7,12 @@
  *          interval phase).
  *
  * Port of the Run app's TrackView/TrackPresenter and its TrackFace* containers.
+ *
+ * HybridX Trail adds two map faces (near and far) and a navigation face, and a
+ * banner over every face for off course, back on course and route complete.
+ * Only the face on display exists: paging deletes it and builds the next.
+ * RunLVGL built every face up front, but its four faces take some 24 KB of
+ * LVGL's 40 KB pool (SDK lv_conf.h), which leaves no room for the map.
  ******************************************************************************
  */
 
@@ -16,12 +22,14 @@
 #include <memory>
 
 #include "gui/screens/Screen.hpp"
+#include "gui/widgets/RouteMap.hpp"
 #include "gui/widgets/Widgets.hpp"
 
 class TrackScreen : public Screen
 {
 public:
     explicit TrackScreen(Model& model);
+    ~TrackScreen() override;
 
     // Screen
     void onShow() override;
@@ -37,6 +45,9 @@ public:
     void onIntervalsWorkoutCompleted() override;
     void onGpsFix(bool acquired) override;
     void onAccessoryStatus(uint8_t state, const char* name) override;
+    // HybridX Trail
+    void onNav(const Trail::Navigator::Status& s) override;
+    void onNavAlert(Trail::OffCourse::Event e) override;
 
 protected:
     void build() override;
@@ -44,6 +55,21 @@ protected:
 private:
     using FaceId = App::MenuNav::TrackView::Id;
 
+    /// What a face shows: both map faces are one kind at two zooms.
+    enum class Kind : uint8_t { None, Intervals, Total, Lap, Status, Map, Nav };
+    static Kind kindOf(uint16_t id);
+
+    void dropFace();
+    void buildFace(Kind kind);
+    void fillFace();
+    void buildFaceMap();
+    void buildFaceNav();
+    void buildBanner();
+    void updateMap(const Trail::Navigator::Status& s);
+    void updateNav(const Trail::Navigator::Status& s);
+    void showBanner(const char* text, uint32_t colour, uint32_t forMs);
+    static void bannerTimerCb(lv_timer_t* t);
+    uint8_t faceIndex(uint16_t id) const;
     void buildFaceIntervals();
     void buildFaceTotal();
     void buildFaceLap();
@@ -54,11 +80,9 @@ private:
     void updateHrIcon();
     void setIntervalsPhase(const Track::IntervalsData& iv);
 
-    // Face containers (240 x 240, one visible at a time)
-    lv_obj_t* mFaceIntervals = nullptr;
-    lv_obj_t* mFaceTotal     = nullptr;
-    lv_obj_t* mFaceLap       = nullptr;
-    lv_obj_t* mFaceStatus    = nullptr;
+    // The face on display (240 x 240), behind the indicator, buttons and banner
+    lv_obj_t* mFace = nullptr;
+    Kind      mKind = Kind::None;
 
     // Intervals face
     std::unique_ptr<Widgets::Title>          mIntervalsTitle;
@@ -93,7 +117,28 @@ private:
     std::unique_ptr<Widgets::Buttons>         mButtons;
     std::unique_ptr<Widgets::ScrollIndicator> mIndicator;
 
+    // HybridX Trail: map faces
+    std::unique_ptr<Widgets::RouteMap> mMap;
+    lv_obj_t* mMapScale = nullptr;   ///< "250 m": the zoom
+    lv_obj_t* mMapToGo  = nullptr;   ///< "8.25 km to go"
+    // Navigation face
+    lv_obj_t* mNavToGo     = nullptr;
+    lv_obj_t* mNavToGoUnit = nullptr;
+    lv_obj_t* mNavDone   = nullptr;
+    lv_obj_t* mNavTotal  = nullptr;
+    lv_obj_t* mNavStatus = nullptr;
+    lv_obj_t* mNavFoot   = nullptr;
+    // The banner over every face: off course (stays), back on / finished (timed)
+    lv_obj_t*   mBanner      = nullptr;
+    lv_obj_t*   mBannerText  = nullptr;
+    lv_timer_t* mBannerTimer = nullptr;
+    bool        mOffBanner   = false;
+    // The faces this run has, in order (the map ones only with a route)
+    uint16_t mFaces[App::MenuNav::TrackView::ID_COUNT] {};
+    uint8_t  mFaceCount = 0;
+
     bool     mIntervalsMode = false;
+    bool     mHasRoute      = false;
     uint16_t mFaceId        = FaceId::ID_TRACK1;
     bool     mIsImperial    = false;
     bool     mIs12Hour      = false;
