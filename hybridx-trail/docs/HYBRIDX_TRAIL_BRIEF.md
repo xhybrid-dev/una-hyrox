@@ -1,8 +1,11 @@
 # HybridX Trail for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** Phase T0 (the probe) built, waiting for Jon's run on a watch. Nothing
-past T0 is started.
+**Status:** Gate T0 **GO** (28 September 2026). T1 (route core), T2 (service)
+and T3 (screens) built and verified in the simulator (NOTES, "T1" to "T3");
+screenshots in `docs/screens/`. Next: T4, Jon's field test on the watch.
+Waiting on Jon's OK for the alert behaviour (NOTES T1.2). Heading-up uses GPS
+direction of travel: the compass never calibrated on-watch.
 **Read with:** `NOTES.md` (findings, with SDK citations), `PROBE.md` (Jon's
 steps for T0), `UNA_GPX_REQUEST.md` (the note to UNA about phone delivery).
 

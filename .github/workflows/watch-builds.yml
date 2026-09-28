@@ -74,8 +74,9 @@ jobs:
           # HybridX Intervals: the throwaway Phase P0 probe app only -- see
           # hybridx-intervals/docs/PROBE.md.
           build hybridx-intervals/Tools/Probe/Software/Apps/Probe-CMake intervals-probe
-          # HybridX Trail: the throwaway Phase T0 probe app only -- see
+          # HybridX Trail: the app (from T2), and the T0 probe -- see
           # hybridx-trail/docs/PROBE.md.
+          build hybridx-trail/Software/Apps/HybridXTrail-CMake trail
           build hybridx-trail/Tools/Probe/Software/Apps/Probe-CMake trail-probe
 
       - name: Collect
@@ -86,6 +87,7 @@ jobs:
           cp hybridx-streak/Output/Glance/*.uapp watch-apps/
           cp hybridx-streak/Tools/Probe/Output/*.uapp watch-apps/
           cp hybridx-intervals/Tools/Probe/Output/*.uapp watch-apps/
+          cp hybridx-trail/Output/*.uapp watch-apps/
           cp hybridx-trail/Tools/Probe/Output/*.uapp watch-apps/
           ls -l watch-apps
 

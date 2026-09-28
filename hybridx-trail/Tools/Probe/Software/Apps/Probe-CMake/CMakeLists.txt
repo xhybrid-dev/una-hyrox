@@ -23,7 +23,7 @@ set(CORE_LIBS "${PROBE_ROOT}/../../Software/Libs/Core")
 set(GUI_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../Probe-GUI")
 # app_merging.py requires -normal_icon/-small_icon for every non-Glance app
 # type (hybridx-intervals NOTES), so placeholder artwork: Resources/make_icons.py.
-set(RESOURCES_PATH "${PROBE_ROOT}/../../Resources")
+set(RESOURCES_PATH "${PROBE_ROOT}/Resources")
 file(MAKE_DIRECTORY "${OUTPUT_PATH}")
 
 if("$ENV{UNA_SDK}" STREQUAL "")

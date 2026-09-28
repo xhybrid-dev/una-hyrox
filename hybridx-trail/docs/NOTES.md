@@ -128,23 +128,290 @@ memory measurement.
     off-route figure is thousands of km.
 - **Not verifiable without a watch:** everything Gate T0 asks.
 
-## Findings for Jon (fill in after running `PROBE.md`)
+## Gate T0: run 1, on Jon's watch (28 September 2026)
 
-- [ ] Did the probe see the GPX copied over USB **without** a power cycle?
-- [ ] Verdict, file size, points read and kept, and read time for a long route.
-- [ ] Largest single allocation in the service.
-- [ ] GPS: seconds to first fix, and the precision it reported.
-- [ ] Compass: calibrated or not; how close the bearing was to a known
-      direction, level and raised; samples per second (the period unit).
-- [ ] Off-route distance, if the route started nearby.
-- [ ] Where the GPX came from (OS Maps, Komoot, Strava, other).
+`AR_Ham2Lyme_50k_26.gpx` (an Anquet/UKC-style trail race route, 50 km, in
+Dorset/Devon), copied into `Apps/HXTrailProbe/Routes/` and opened once, no
+separate install-then-cycle step recorded: **GO on the first ever run.**
+Evidence: `probe.txt`, `probe-history.txt`, one photo.
 
-## Gate T0: what decides next steps
+| Check | Result |
+|---|---|
+| GPX read | 128,857 bytes, 1,418 `trkpt`, 0 bad, 1 long tag (an extra attribute past 256 B, harmless), in **334 ms** |
+| Route built | 1,190 of 1,418 points kept **at the starting 10 m spacing** — thinning barely engaged; 49,504 m, 845 m ascent |
+| Memory | largest single allocation **510 KB** |
+| GPS | first fix at **27 s**, precision reported 0.7-1.4 m (tight; the sensor's own claim, not independently checked) |
+| Compass | **never calibrated**: 807 samples over 129 s, 0 with `MAG_CALIBRATED` set. Bearing and tilted bearing stayed `-1` throughout |
+| Off route | steady ~24.3-24.4 km — the watch was nowhere near the Dorset route, so this is the maths working correctly, not a fault |
 
-**GO:** the GPX copied over USB is read on the watch. Record the read time,
-memory and power-cycle answer; set the route point limit; decide whether a
-`RouteCache` is needed (only if a long route takes seconds to read); choose
-heading-up's source (compass, GPS course, or both). Then T1.
+**Reading:**
 
-**Not GO:** USB delivery into an app folder doesn't work as documented. Ask UNA
-before any workaround.
+- **USB delivery works, and fast.** No power cycle appears to have been needed
+  to see a GPX dropped straight into a freshly created `Routes/` — worth
+  Jon confirming explicitly next time, but nothing in the run history suggests
+  otherwise (a single run, straight to GO).
+- **A real 50 km ultra route is only 1,418 raw points** (one every ~35 m) —
+  nowhere near the 2,000-point/16 KB cap set in the probe. `RouteBuilder`'s
+  thinning stayed at its starting 10 m spacing the whole way. This suggests
+  planner-exported GPX (as opposed to a densely recorded track) is naturally
+  sparse, and 2,000 points has real headroom for longer routes too.
+- **334 ms to parse and thin 126 KB is well inside "instant"** — no
+  `RouteCache` needed at T1 (brief §5) unless a much denser file is tried.
+- **510 KB free is far more than the ~16 KB route needs** — memory is not a
+  constraint at this route size.
+- **The compass never calibrated in over two minutes of normal outdoor use.**
+  This is the one real open question for heading-up (brief F5): either the
+  watch needs an explicit calibration gesture the SDK doesn't document (a
+  figure-of-eight motion is the common pattern on other platforms), or
+  calibration takes longer than tested, or GPS course-over-ground has to be
+  the primary heading-up source with the compass as a fallback once/if it
+  calibrates. Needs a UNA question (brief §8) and a longer/gestured retest.
+
+## Gate T0: **GO.** T1 can start.
+
+Decisions from this run:
+- Route point cap: keep 2,000 for now — real routes use far fewer.
+- `RouteCache`: not needed yet; revisit only if a denser file is slow.
+- Heading-up source: default to **GPS course over ground**, not the compass,
+  until calibration is understood. Compass can enhance it later if calibrated.
+
+## Open
+
+- [ ] Confirm with Jon: was a power cycle needed at any point to see the GPX?
+- [ ] Try a figure-of-eight motion with the watch, then re-run the probe, to
+      see if that calibrates the compass.
+- [ ] Ask UNA how compass calibration is meant to be triggered (brief §8).
+
+## T1: the route core (28 September 2026)
+
+Pure C++ in `Software/Libs/Core`, no kernel, all host-tested (73 tests in
+`Tests/Host`, synthetic routes and runs from `support/RunSim.hpp`).
+
+| Part | Job |
+|---|---|
+| `RouteTracker` | Matches each fix to the route: distance done, remaining, off-route distance, finish |
+| `OffCourse` | When to buzz: the alert state machine |
+| `CourseOverGround` | Direction of travel from GPS, for the heading-up map |
+| `MapView` | The route as clipped screen lines around the runner, at a zoom and rotation; whole-route fit |
+| `GeoPoint` | gained `bearingDeg`, `offsetM`, `projectOntoSegmentM` |
+
+### T1.1 How the tracker avoids jumping legs
+
+Matching a fix to the nearest point anywhere fails on exactly the routes trail
+runners use: a loop's start and finish are the same place, an out-and-back
+runs one path twice, a figure-of-eight crosses itself. The tracker searches a
+window around its last match (150 m back, 600 m ahead) and scores each
+candidate as *metres off the route + 0.2 x metres from where the runner is
+expected to be along it*, where "expected" is the last match plus the recent
+progress per fix, and being behind that costs double. At the first lock the
+along part is simply the distance from the start, so a loop starts at its
+start. It leaves the window only when the runner is clearly (30 m) nearer
+another part of the route: a shortcut, or a wrong turn that rejoins.
+
+**Tried and dropped:** using the GPS direction of travel to tell the two legs
+of an out-and-back apart. With +-8 m of noise per fix at 3 m/s, a heading from
+10 m of movement swung between 29, 85, 239 and 343 degrees on a straight run,
+and put the runner on the return leg 600 m ahead. Expected progress is far
+steadier. `CourseOverGround` stays, for the map only.
+
+**Known and accepted:** with noise, a fix inside a sharp corner projects back
+onto the incoming segment by up to ~12 m (geometry, not a wrong leg). Tests
+check progress stays within 20 m of the true distance on noisy figure-of-eights
+and parallel out-and-backs.
+
+### T1.2 The alert, as a runner would see it (for Jon to agree, Gate T1)
+
+Each line is a host test (`OffCourseTest.cpp`):
+
+1. **Walking to the start**, 800 m away for ten minutes: **no buzz**. Nothing
+   happens until you first reach the route.
+2. **A wrong turn:** 5 seconds more than **50 m** from the line, **one buzz**
+   ("Off course"). While you stay off, **a reminder every minute**. Once back
+   within **30 m** for 3 seconds, **a different buzz** ("Back on course").
+3. **A GPS spike under trees**, 90 m off for 4 seconds, twice: **no buzz**.
+4. **A switchback that doesn't match the GPX**, wobbling 35-48 m off: **no
+   buzz**, ever. And once genuinely off, wobbling 35-48 m doesn't clear it:
+   you have to be within 30 m.
+5. **Bad fixes** (the GPS itself says +-40 m): ignored completely, and a single
+   bad fix restarts the 5-second count.
+6. **After the finish:** **one "Finished" buzz**, then nothing, whatever you
+   do next (walking to the car park).
+7. The whole chain on a real-shaped wrong turn (miss a turn at 300 m, 650 m
+   detour, rejoin at 700 m): off, three reminders, back on, finished.
+
+The numbers (50 m, 30 m, 5 s, 3 s, 60 s, 25 m) are one `Config` struct:
+changing any is one line. **Jon to confirm or change them.**
+
+### T1.3 Map
+
+`MapView` projects the route around the runner with zoom levels of 100 m,
+250 m, 500 m, 1 km and 2.5 km from the runner to the edge of the round screen,
+north-up or turned to the heading. Segments are clipped to the screen, a route
+that leaves and re-enters becomes separate lines, and points closer than 2 px
+are dropped. At most 512 points in 16 lines per frame (2 KB, fixed); a busier
+view is cut short and flagged, never overflowed. `fit()` frames the whole
+route inside the circle, north-up, for the route preview.
+
+### Gate T1
+
+- [x] Host tests pass: 73 (T0's 37 plus 36 new).
+- [ ] Jon agrees the alert behaviour (T1.2), or gives new numbers.
+
+## T2: the service (28 September 2026)
+
+### T2.1 Started from RunLVGL, unchanged first
+
+`Software/` is a verbatim copy of the SDK's RunLVGL (commit `a7a995a1`),
+committed on its own, so every Trail change is a readable diff against UNA's
+original: the LVGL GUI in `Apps/LVGL-GUI`, the service in `Libs/App`. Trail is
+an `Activity` app (it records runs, as RunLVGL does), `HybridXTrail`, APP_ID
+`71ABD15ED7526601` (development: the first 16 hex of md5("HybridXTrail")),
+versioned from `trail-v*` tags (`Software/cmake/trail-version.cmake`, as
+Streak's). The GUI also compiles the route core, for the map.
+
+### T2.2 Navigator
+
+All the route work sits in `Core/Navigator` (pure over `IFileSystem`, 9 host
+tests), so the service diff stays small:
+
+- **`scan()`** lists `Routes/` and summarises each GPX (name, length, climb).
+  Summaries are cached in `routes.idx`, so an unchanged file is never parsed
+  twice: a second app start parses nothing. Sorted by name.
+- **`load()`** reads one route into 2,000 fixed points and remembers the
+  choice in `route.sel`; **`restoreSelection()`** brings it back next time.
+- **`update()`** runs the tracker, the heading and the alert for one fix. The
+  alert only runs while an activity runs: frozen on the start screen and while
+  paused.
+
+26 KB in all, so it lives in static storage (`Service.cpp`), not in the
+Service object on the 10 KB service stack.
+
+### T2.3 The service's changes
+
+- On start: `scan()`, `restoreSelection()`.
+- Every second: a new GPS fix (by its timestamp) goes to `Navigator::update`
+  with the GPS's precision; an alert buzzes and is sent to the GUI; a
+  `NavUpdate` goes to the GUI.
+- Alerts: **off course**: backlight, 3 x 300 ms beeps, 2 x 750 ms vibration;
+  **reminder**: one of each; **back on**: two short beeps and a double click
+  (short and different: good news); **finished**: as RunLVGL's lap end, with
+  a 1 s vibration.
+- A new activity resets progress to the start of the route.
+- Messages 0x20-0x25 (`Commands.hpp`): the route list and the route travel as
+  pointers into the service's static storage, as RunLVGL's own Summary does
+  (no MMU: the app's two processes share memory); the GUI copies them. The
+  route is only changed on the start screen, never during an activity.
+
+### T2.4 Found in the simulator: a runner drifting off "finished"
+
+`Tools/TestRoutes/make_sim_routes.py` draws routes on the SDK simulator's own
+400 m stadium track. On `sim-wrong-turn.gpx` (an out-and-back 10 m wide that
+the lapping runner leaves at the first bend) the first run logged "went off"
+and then, 24 s later, **"finished" 57 m from the route**. Reproduced on the
+host (`RouteTrackerTest.DriftingAwayNearAReturnLegNeverJumpsToIt`): drifting
+56 m away, the runner was matched to the return leg 545 m ahead (within the
+60 m reach, and nothing nearer), and later to the finish.
+
+Fixed in `RouteTracker`: a match far along the route (more than 30 m back, or
+further ahead than 7 m/s since the last match) needs the runner within 20 m of
+the route there; and the finish needs the runner within 30 m of it. A real
+shortcut or rejoin still works: the runner is on the route when they rejoin it.
+
+### T2.5 Verified
+
+- 85 host tests pass.
+- Watch target builds (local compile check; the watch `.uapp` comes from CI).
+- Simulator, end to end (`docs/experiments/sim_run.sh sim-wrong-turn.gpx 90`):
+  route restored, "went off (61 m off)", "back on (20 m off)" when the runner
+  rejoins at the start, and the activity saved as a FIT file.
+- CI now builds the app as well as the probe.
+
+The screens are still RunLVGL's: choosing a route and seeing the map is T3.
+
+## T3: the screens (28 September 2026)
+
+### T3.1 What there is
+
+Screenshots of every step: `docs/screens/` (made by
+`docs/experiments/capture_screens.sh`, which drives the simulator).
+
+- **Start screen:** RunLVGL's wheel, with Intervals replaced by **Route**; its
+  hint is the route in use (amber) or "No route".
+- **Route list:** "No route" (a plain run), then the routes on the watch by
+  name with distance and climb ("1.19 km, 0 m up"; "can't read this file" in
+  red for a broken GPX), then "Add routes" (copy GPX by USB). Back from a
+  preview, it opens on the route previewed.
+- **Route preview:** the whole route, north-up (amber line, lime start, red
+  finish), its name and summary. R1 keeps it, R2 goes back and restores the
+  route chosen before.
+- **Run faces** (L1/L2), with a route: **near map** (250 m to the edge),
+  **far map** (1 km), **navigation** (to go, done, route length, on/off course,
+  metres from the line), then RunLVGL's totals, lap and status faces. The maps
+  are heading-up once the runner is moving (north-up before), with a white
+  arrow a little below centre, an "N" marker, and "x to go" (or "start x m"
+  before joining the route).
+- **Alerts:** going off course jumps to the near map and shows a red
+  "OFF COURSE 61 m" banner over every face until back on; then a green
+  "BACK ON COURSE" for 4 s; at the finish "ROUTE COMPLETE" for 8 s. Buzz and
+  beep patterns as T2.3.
+
+### T3.2 LVGL's pool: one screen, one face at a time
+
+The SDK's `lv_conf.h` fixes LVGL's pool at 40 KB (about 36 KB usable).
+Starting a run crashed the simulator: RunLVGL builds the next screen before
+freeing the last, and its four run faces alone take about 24 KB, so the start
+screen (18 KB) plus the run screen with maps did not fit. Two changes, both in
+our copy of RunLVGL (the SDK is untouched):
+
+- `ScreenManager` frees the old screen before building the new one (the new,
+  empty screen is loaded first, all inside one LVGL tick, so nothing flickers).
+- `TrackScreen` builds only the face on display; paging deletes it and builds
+  the next (about 10-14 KB per run screen; no growth over repeated paging).
+
+Measured peak over the whole walkthrough: 82 % (RunLVGL's own summary screen,
+28.5 KB). Every screen and face change logs `LVGL pool (...)`.
+
+### T3.3 Text on a watch with ASCII fonts
+
+- Route names are UTF-8; the fonts are ASCII. `Core/TextFold` folds accents
+  (Welsh ŵ, ŷ; é, ü, ł...), dashes and curly quotes to ASCII (host-tested).
+- Long names step down the font (SemiBold 30, 25, 20, Medium 18) and are cut
+  with ".." only if they still do not fit.
+- The 40 pt number faces are digits only (RunLVGL's `gen_assets.py`), so the
+  navigation face prints "691" and "m" as separate labels.
+
+### T3.4 Found in the simulator: "route complete" from a noisy fix
+
+With the run started elsewhere on the stadium, the watch said "finished" 9 s
+after going off course. On the west bend the runner passes 20 m from both the
+wrong-turn route's start and its finish (10 m apart); one noisy fix put the
+finish within the 20 m rejoin reach and the start just outside it.
+Reproduced on the host from every start point round the track
+(`TheWrongTurnRouteIsNeverFinishedFromAnywhereOnTheTrack`).
+
+Fixed in `RouteTracker`: the finish is earned. The route is split into 64
+parts; a part counts as covered only by ordinary steps (from one matched fix
+to the next, at most 2 missed, at running speed). A finish needs half the
+parts covered. Rejoins still move the position (a shortcut is followed) but
+cover nothing, and laps of the same stretch count once
+(`SkippingMostOfTheRouteIsNoFinish`; the 40 % wrong-turn test still
+finishes).
+
+**Known limit:** on a route whose legs run 10-20 m apart, a runner off course
+who crosses the other leg can be placed on it, so "to go" can read wrong
+until they rejoin properly. Alerts and the finish are unaffected. Real trails
+rarely have parallel legs that close; the field test (T4) will tell.
+
+### T3.5 Verified
+
+- 95 host tests pass (TextFold 8, new tracker tests 2).
+- Watch target builds with no warnings (compile check; the `.uapp` for the
+  watch comes from CI).
+- Simulator walkthrough (`capture_screens.sh`): list, preview, back, choose,
+  start, every face, off course at 61 m (jump to map, banner), back on at
+  17 m, pause, save, summary. No crash; pool peak 82 %.
+
+Not done: RunLVGL's intervals screens are still compiled but unreachable
+(harmless; tidy up later). The look is RunLVGL's; if the promo videos show a
+different style, send screenshots and it can be matched.
+

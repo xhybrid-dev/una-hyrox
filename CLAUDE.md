@@ -85,3 +85,7 @@ independent of Race and Streak.
     Put GPX files in `Tools/Probe/Software/Output/Routes/` and run it from
     `build/bin`;
   - test routes: `python3 hybridx-trail/Tools/TestRoutes/make_test_gpx.py <folder>`.
+  - app simulator: `hybridx-trail/Software/Apps/LVGL-GUI/simulator` (routes
+    in `Software/Output/Routes/`, from `Tools/TestRoutes/make_sim_routes.py`);
+  - captures: `hybridx-trail/docs/experiments/capture_screens.sh [out-dir]`
+    (every screen, into `docs/screens/`); `sim_run.sh` for a quick run.

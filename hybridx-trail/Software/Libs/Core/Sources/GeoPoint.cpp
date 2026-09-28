@@ -58,6 +58,33 @@ float distanceM(const GeoPoint& a, const GeoPoint& b)
 
 float distanceToSegmentM(const GeoPoint& p, const GeoPoint& a, const GeoPoint& b)
 {
+    float t = 0.0f;
+    return projectOntoSegmentM(p, a, b, t);
+}
+
+void offsetM(const GeoPoint& origin, const GeoPoint& p, float& x, float& y)
+{
+    x = static_cast<float>(lonDelta(origin.lonE7, p.lonE7)) * lonScale(origin.latE7);
+    y = static_cast<float>(static_cast<int64_t>(p.latE7) - origin.latE7) * kMetresPerE7;
+}
+
+float bearingDeg(const GeoPoint& a, const GeoPoint& b)
+{
+    float x = 0.0f;
+    float y = 0.0f;
+    offsetM(a, b, x, y);
+    if (x == 0.0f && y == 0.0f) {
+        return 0.0f;
+    }
+    float deg = std::atan2(x, y) * (180.0f / kPi);   // atan2(east, north): clockwise from north
+    if (deg < 0.0f) {
+        deg += 360.0f;
+    }
+    return deg >= 360.0f ? 0.0f : deg;
+}
+
+float projectOntoSegmentM(const GeoPoint& p, const GeoPoint& a, const GeoPoint& b, float& tOut)
+{
     // Flatten around p: p is the origin, a and b are metres east/north of it.
     const float sx = lonScale(p.latE7);
     const float ax = static_cast<float>(lonDelta(p.lonE7, a.lonE7)) * sx;
@@ -75,6 +102,7 @@ float distanceToSegmentM(const GeoPoint& p, const GeoPoint& a, const GeoPoint& b
     }
     const float cx = ax + t * vx;
     const float cy = ay + t * vy;
+    tOut           = t;
     return std::sqrt(cx * cx + cy * cy);
 }
 

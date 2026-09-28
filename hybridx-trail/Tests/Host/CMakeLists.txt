@@ -32,11 +32,21 @@ add_executable(hybridx-trail-host-tests
     RouteBuilderTest.cpp
     RouteMathTest.cpp
     ProbeRunnerTest.cpp
+    RouteTrackerTest.cpp
+    OffCourseTest.cpp
+    MapViewTest.cpp
+    NavigatorTest.cpp
+    TextFoldTest.cpp
     support/FlatFileSystem.cpp
     "${CORE_LIBS}/Sources/GeoPoint.cpp"
     "${CORE_LIBS}/Sources/GpxReader.cpp"
     "${CORE_LIBS}/Sources/RouteBuilder.cpp"
     "${CORE_LIBS}/Sources/RouteMath.cpp"
+    "${CORE_LIBS}/Sources/RouteTracker.cpp"
+    "${CORE_LIBS}/Sources/OffCourse.cpp"
+    "${CORE_LIBS}/Sources/MapView.cpp"
+    "${CORE_LIBS}/Sources/Navigator.cpp"
+    "${CORE_LIBS}/Sources/TextFold.cpp"
     "${PROBE_LIBS}/Sources/ProbeRunner.cpp"
 )
 target_include_directories(hybridx-trail-host-tests PRIVATE
