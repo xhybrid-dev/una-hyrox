@@ -653,3 +653,31 @@ Not yet known, and needed before Gate 0 can be closed:
 
 Provisional Gate 0 result: **not GO.** PLAN §3's three options apply; the choice
 waits for the answers above.
+
+### Gate 0, second look: the USB drive (28 September 2026)
+
+Jon's screenshots of the watch's USB drive, and the walk's `summary.json`:
+
+- **Drive root:** `Apps/` (30 items), `DailyHealth/`, `GPS_EPO/`,
+  `System Volume Information/`, `Update/`, `settings.json`,
+  `settings.json.bak`.
+- **So the probe's `..` is not this volume.** It listed `System Volume
+  Information` and `gps`, while this root has `GPS_EPO` and `Apps`. From inside
+  an app, `..` reaches some other volume (presumably the kernel's own), where
+  `SharedData` lives. Built-in apps (`Apps/Walking`, `Apps/Running`, …) are on
+  the USB volume, beside ours, but out of reach. **Cross-app reading is
+  blocked: confirmed.**
+- **Activity files are deleted after a phone sync.** `Apps/Walking/Activity/`
+  holds an empty `202609/` and a `summary.json`. The walk's `.fit` is gone;
+  Jon reports the same for Running and the others. This answers PLAN §3
+  question 4: even with read access, "scan when opened" would miss every
+  activity synced before Streak was opened (§5.6's risk, now real).
+- **`summary.json` survives, but holds one activity**: the latest, overwritten
+  each time (RunLVGL's `ActivitySummarySerializer` shape). Walk: `utc`
+  1790596689 (12:58 local), 346 s, 461 m, 622 steps, HR avg 82 / max 93, one
+  lap, plus a hex track map. Not a history, and unreachable anyway.
+
+**Gate 0: NOT GO, closed.** Two independent blockers: the sandbox, and the
+deletion on sync. Automatic counting of other apps' activities needs UNA:
+either an activity-list API or an "activity saved" event that a background
+service can receive. PLAN §3's options stand; Jon to choose.
