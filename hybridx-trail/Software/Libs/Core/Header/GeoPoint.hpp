@@ -60,6 +60,19 @@ float distanceM(const GeoPoint& a, const GeoPoint& b);
 /// Metres from @p p to the nearest point of segment a-b (a == b is allowed).
 float distanceToSegmentM(const GeoPoint& p, const GeoPoint& a, const GeoPoint& b);
 
+/// As distanceToSegmentM, and also where along a-b the nearest point lies:
+/// @p t is 0 at a, 1 at b (0 for a zero-length segment).
+float projectOntoSegmentM(const GeoPoint& p, const GeoPoint& a, const GeoPoint& b, float& t);
+
+/// Initial bearing from @p a to @p b, degrees clockwise from true north, in
+/// [0, 360). Flat-earth, like distanceM: right for points up to a few km
+/// apart. 0 when the points coincide.
+float bearingDeg(const GeoPoint& a, const GeoPoint& b);
+
+/// Metres east (@p x) and north (@p y) of @p origin, flat-earth. The shared
+/// step behind the map projection.
+void offsetM(const GeoPoint& origin, const GeoPoint& p, float& x, float& y);
+
 } // namespace Geo
 
 } // namespace Trail
