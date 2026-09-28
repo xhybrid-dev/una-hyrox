@@ -110,7 +110,7 @@ struct Root {
 
     struct Settings {
         enum Id {
-            ID_ALERTS = 0, ID_PHONE_NOTIF,
+            ID_ALERTS = 0, ID_PHONE_NOTIF, ID_NORTH_UP,
             ID_COUNT, ID_DEFAULT = ID_ALERTS
         };
 
@@ -131,9 +131,9 @@ struct Root {
 // Root::Intervals::START), so it is not nested inside Root.
 // TrackAction is always an overlay of TrackView, so it lives inside it.
 struct TrackView {
-    // HybridX Trail: the map (near, far) and navigation faces come first,
-    // shown only with a route loaded.
-    enum Id { ID_INTERVALS = 0, ID_MAP_NEAR, ID_MAP_FAR, ID_NAV, ID_TRACK1, ID_TRACK2, ID_TRACK3,
+    // HybridX Trail: the map and navigation faces come first, shown only
+    // with a route loaded. The map has five zooms on one button (R2).
+    enum Id { ID_INTERVALS = 0, ID_MAP, ID_NAV, ID_TRACK1, ID_TRACK2, ID_TRACK3,
               ID_COUNT, ID_DEFAULT = ID_INTERVALS };
 
     struct Action {

@@ -21,6 +21,7 @@
 
 #include <memory>
 
+#include "gui/MapZoom.hpp"
 #include "gui/screens/Screen.hpp"
 #include "gui/widgets/RouteMap.hpp"
 #include "gui/widgets/Widgets.hpp"
@@ -67,7 +68,7 @@ private:
     void buildBanner();
     void updateMap(const Trail::Navigator::Status& s);
     void updateNav(const Trail::Navigator::Status& s);
-    void showBanner(const char* text, uint32_t colour, uint32_t forMs);
+    void showBanner(const char* title, const char* sub, uint32_t colour, uint32_t forMs);
     static void bannerTimerCb(lv_timer_t* t);
     uint8_t faceIndex(uint16_t id) const;
     void buildFaceIntervals();
@@ -95,6 +96,10 @@ private:
     lv_obj_t* mIvHr        = nullptr;
 
     // Totals face
+    std::unique_ptr<Widgets::Title> mRunTitle;
+    lv_obj_t* mPaceUnit      = nullptr;
+    lv_obj_t* mTotalHr       = nullptr;
+    lv_obj_t* mTotalLap      = nullptr;
     lv_obj_t* mPaceValue     = nullptr;
     lv_obj_t* mDistanceValue = nullptr;
     lv_obj_t* mDistanceUnits = nullptr;
@@ -119,7 +124,6 @@ private:
 
     // HybridX Trail: map faces
     std::unique_ptr<Widgets::RouteMap> mMap;
-    lv_obj_t* mMapScale = nullptr;   ///< "250 m": the zoom
     lv_obj_t* mMapToGo  = nullptr;   ///< "8.25 km to go"
     // Navigation face
     lv_obj_t* mNavToGo     = nullptr;
@@ -131,6 +135,7 @@ private:
     // The banner over every face: off course (stays), back on / finished (timed)
     lv_obj_t*   mBanner      = nullptr;
     lv_obj_t*   mBannerText  = nullptr;
+    lv_obj_t*   mBannerSub   = nullptr;
     lv_timer_t* mBannerTimer = nullptr;
     bool        mOffBanner   = false;
     // The faces this run has, in order (the map ones only with a route)

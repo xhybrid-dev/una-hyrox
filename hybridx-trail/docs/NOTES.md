@@ -415,3 +415,41 @@ Not done: RunLVGL's intervals screens are still compiled but unreachable
 (harmless; tidy up later). The look is RunLVGL's; if the promo videos show a
 different style, send screenshots and it can be matched.
 
+## T3b: the promo look and features (28 September 2026)
+
+Jon's promo slides (concept preview) set the target; the screens now follow them.
+Screenshots: `docs/screens/`.
+
+- **Colour.** Route magenta with a dim wider line beneath it for the glow; start
+  a green dot, finish red; red "N"; white arrow. The Route hint on the start
+  screen and RunLVGL's summary map are magenta too.
+- **Run map.** "9.9 km to go" at the top under the red N; a scale bar at the
+  bottom naming a round distance (200 m, 500 m, 1 km, 2 km; ft and miles when
+  the watch is set to imperial).
+- **Zoom on one button.** R2 on the map cycles 300 m, 750 m, 1.5 km, 3 km (the
+  radius to the screen edge) and the whole route with the runner on it
+  (`MapZoom.hpp`; kept in the Model). The lap button (R2) works on the other
+  faces; laps are not needed on the map.
+- **Heading up or north up.** Settings, "North-up map" (a toggle, kept in
+  `settings.json` as `map_north_up`). Default heading-up. The heading is GPS
+  direction of travel (held while standing). **Not as in the promo:** "the
+  compass when you stop": the compass has never calibrated on the watch (T0),
+  so it is not used.
+- **Off course banner.** A yellow band across the middle, "Off course" and
+  "48 m from the line", until back on; then a green "Back on course" (4 s);
+  "Route complete" with the distance (8 s).
+- **Run face** as in "It's a run, too": distance big, pace and time, heart
+  rate, and the lap in magenta. RunLVGL's lap and status faces follow.
+- **Route preview** as in "Pick a route": the name (cut to fit) above the glowing
+  route, "1.19 km, 0 m up", and **R1 starts the run** on it (with the usual "no
+  GPS, start anyway?" if there is no fix).
+- Face order with a route: map, navigation, run, lap, status.
+
+Not built: the promo slides' own extras (the dotted "48 m" leader line and the
+"along the line" bar are slide art, not watch screens). Ascent shows 0 m for
+the simulator's routes because they carry no elevation.
+
+Verified: 95 host tests; watch target builds (compile check); the simulator
+walkthrough `capture_screens.sh` (zoom cycle, off course at 50 m, back on at
+18 m, save); pool peak 82 %.
+

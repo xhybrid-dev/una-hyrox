@@ -6,7 +6,7 @@
  * Opening the preview loads the route in the service (so the map is the route
  * the watch will follow, thinned exactly as it will be used), and shows it
  * whole, north-up: amber line, lime start, red finish, with its distance and
- * climb. R1 keeps it and goes back to the start screen; R2 puts back the
+ * climb. R1 starts a run on it (as the start screen does); R2 puts back the
  * route chosen before and returns to the list.
  ******************************************************************************
  */
@@ -43,7 +43,7 @@ private:
     std::unique_ptr<Widgets::Title>    mTitle;
     std::unique_ptr<Widgets::RouteMap> mMap;
     std::unique_ptr<Widgets::Buttons>  mButtons;
-    lv_obj_t*                          mNameLbl = nullptr;
+    lv_obj_t*                          mHint    = nullptr;
     lv_obj_t*                          mSummary = nullptr;
     lv_obj_t*                          mLoading = nullptr;
 };

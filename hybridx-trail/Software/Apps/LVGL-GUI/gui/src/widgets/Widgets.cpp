@@ -267,7 +267,7 @@ Map::Map(lv_obj_t* parent, int32_t x, int32_t y)
     lv_obj_set_size(mLine, 150, 150);
     lv_obj_set_style_line_width(mLine, 3, LV_PART_MAIN);
     lv_obj_set_style_line_rounded(mLine, true, LV_PART_MAIN);
-    lv_obj_set_style_line_color(mLine, Theme::rgb(Color::YELLOW_DARK), LV_PART_MAIN);
+    lv_obj_set_style_line_color(mLine, Theme::rgb(0xE040FF), LV_PART_MAIN);
     mStart = Theme::dot(mRoot, 75, 75, 4, Color::CHARTREUSE);
     mEnd   = Theme::dot(mRoot, 75, 75, 4, Color::RED);
 }

@@ -139,7 +139,7 @@ void MainScreen::updateRouteItem()
     if (mModel.hasRoute()) {
         RouteFmt::name(mRouteTip, sizeof(mRouteTip), mModel.route().name);
         mItems[Menu::ID_ROUTE].tip      = mRouteTip;
-        mItems[Menu::ID_ROUTE].tipColor = Color::YELLOW_DARK;
+        mItems[Menu::ID_ROUTE].tipColor = 0xE040FF;
     } else {
         mItems[Menu::ID_ROUTE].tip      = "No route";
         mItems[Menu::ID_ROUTE].tipColor = Color::GRAY;
