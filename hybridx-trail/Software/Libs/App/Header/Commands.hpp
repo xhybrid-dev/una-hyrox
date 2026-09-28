@@ -13,6 +13,9 @@
 #include "Track.hpp"
 #include "ActivitySummary.hpp"
 
+// HybridX Trail: the route core's types
+#include "Navigator.hpp"
+
 // Force 4-byte alignment for all message structures
 #pragma pack(push, 4)
 
@@ -44,6 +47,16 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type TRACK_RESUME          = 0x0000000E;
     constexpr SDK::MessageType::Type MANUAL_LAP            = 0x0000000F;
     constexpr SDK::MessageType::Type INTERVALS_NEXT_PHASE  = 0x00000011;
+
+    // HybridX Trail: routes and navigation.
+    // Service --> GUI
+    constexpr SDK::MessageType::Type ROUTE_LIST            = 0x00000020;
+    constexpr SDK::MessageType::Type ROUTE_LOADED          = 0x00000021;
+    constexpr SDK::MessageType::Type NAV_UPDATE            = 0x00000022;
+    constexpr SDK::MessageType::Type NAV_ALERT             = 0x00000023;
+    // GUI --> Service
+    constexpr SDK::MessageType::Type ROUTE_SELECT          = 0x00000024;
+    constexpr SDK::MessageType::Type ROUTE_RESCAN          = 0x00000025;
 
     // Service <-> GUI
     struct SettingsUpd : public SDK::MessageBase {
@@ -268,6 +281,67 @@ namespace CustomMessage {
         ManualLap() : SDK::MessageBase(MANUAL_LAP) {}
     };
 
+
+    // -- HybridX Trail ---------------------------------------------------------
+    //
+    // The route list and the route itself are too big for a message, so they
+    // travel as pointers into the service's static storage, as RunLVGL's own
+    // Summary does: the watch has no MMU, and the service and GUI of one app
+    // share its memory. The GUI copies them before releasing the message, and
+    // the service only rewrites them on the GUI's own request (ROUTE_SELECT,
+    // ROUTE_RESCAN), never during an activity.
+
+    struct RouteList : public SDK::MessageBase {
+        const Trail::RouteInfo* routes   = nullptr;   ///< non-owning; copy before releaseMessage
+        uint8_t                 count    = 0;
+        int8_t                  selected = -1;        ///< -1: no route (a plain run)
+        RouteList() : SDK::MessageBase(ROUTE_LIST) {}
+        RouteList(const Trail::RouteInfo* r, uint8_t n, int8_t sel) : RouteList()
+        {
+            routes   = r;
+            count    = n;
+            selected = sel;
+        }
+    };
+
+    struct RouteLoaded : public SDK::MessageBase {
+        const Trail::GeoPoint* points = nullptr;      ///< non-owning; copy before releaseMessage
+        uint16_t               count  = 0;            ///< 0: no route
+        Trail::RouteInfo       info {};
+        RouteLoaded() : SDK::MessageBase(ROUTE_LOADED) {}
+        RouteLoaded(const Trail::GeoPoint* p, uint16_t n, const Trail::RouteInfo& i) : RouteLoaded()
+        {
+            points = p;
+            count  = n;
+            info   = i;
+        }
+    };
+
+    struct NavUpdate : public SDK::MessageBase {
+        Trail::Navigator::Status status {};
+        NavUpdate() : SDK::MessageBase(NAV_UPDATE) {}
+        explicit NavUpdate(const Trail::Navigator::Status& s) : NavUpdate() { status = s; }
+    };
+
+    struct NavAlert : public SDK::MessageBase {
+        Trail::OffCourse::Event event = Trail::OffCourse::Event::None;
+        NavAlert() : SDK::MessageBase(NAV_ALERT) {}
+        explicit NavAlert(Trail::OffCourse::Event e) : NavAlert() { event = e; }
+    };
+
+    struct RouteSelect : public SDK::MessageBase {
+        int8_t index = -1;                            ///< into the last RouteList; -1 for none
+        RouteSelect() : SDK::MessageBase(ROUTE_SELECT) {}
+        explicit RouteSelect(int8_t i) : RouteSelect() { index = i; }
+    };
+
+    struct RouteRescan : public SDK::MessageBase {
+        RouteRescan() : SDK::MessageBase(ROUTE_RESCAN) {}
+    };
+
+    // An oversized message fails silently on the watch (hybridx-race NOTES 0.9).
+    static_assert(sizeof(RouteLoaded) <= 256u, "RouteLoaded exceeds the 256-byte kernel pool block");
+    static_assert(sizeof(NavUpdate) <= 256u, "NavUpdate exceeds the 256-byte kernel pool block");
 
 } // namespace CustomMessage
 

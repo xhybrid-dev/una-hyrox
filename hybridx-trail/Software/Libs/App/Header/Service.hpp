@@ -22,6 +22,7 @@
 #include "ActivityWriter.hpp"
 #include "Commands.hpp"
 #include "WristTiltDetector.hpp"
+#include "Navigator.hpp"
 
 class Service : public WristTiltDetector::IListener
 {
@@ -186,6 +187,14 @@ private:
 
     SDK::Calibration::OutdoorStrideCalibrator mCalibrator;
 
+    // -- HybridX Trail: routes ------------------------------------------------
+
+    /// In static storage (Service.cpp): 26 KB, far past the 10 KB stack this
+    /// object lives on.
+    Trail::Navigator& mNav;
+    float             mGpsPrecisionM   = 0.0f;   ///< the latest fix's own precision estimate
+    uint32_t          mNavFixTimestamp = 0;      ///< the GPS timestamp last fed to mNav
+
     // -- Lifecycle ------------------------------------------------------------
 
     void connectGps();
@@ -207,6 +216,8 @@ private:
     void handleEvent(const CustomMessage::TrackResume& event);
     void handleEvent(const CustomMessage::ManualLap& event);
     void handleEvent(const CustomMessage::IntervalsNextPhase& event);
+    void handleEvent(const CustomMessage::RouteSelect& event);
+    void handleEvent(const CustomMessage::RouteRescan& event);
 
     // -- Track control --------------------------------------------------------
 
@@ -232,6 +243,13 @@ private:
     void emitIntervalsWorkout();
     /// workout_step message_index for the current interval phase (0xFFFF = none).
     uint16_t intervalsWktStepIndex() const;
+
+    // -- HybridX Trail: navigation -------------------------------------------
+
+    void sendRoutes();
+    void sendRoute();
+    void processNav();
+    void notifyNav(Trail::OffCourse::Event event);
 
     // -- Notifications --------------------------------------------------------
 

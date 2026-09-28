@@ -297,3 +297,82 @@ TEST(RouteTracker, StandingAtTheTurnaroundThenGoingBack)
     }
     EXPECT_NEAR(t.tracker.position().alongM, 1300.0f, 10.0f);
 }
+
+namespace
+{
+/// The SDK simulator's 400 m stadium track (GpsStepCounterSimulator.cpp),
+/// @p d metres into a lap: north along x = n, east = e.
+NE stadium(double d)
+{
+    const double s = 84.39, r = 36.5, c = TestRoutes::kPi * r;
+    d              = std::fmod(d, 2 * s + 2 * c);
+    if (d < s) {
+        return { r, d };
+    }
+    if (d < s + c) {
+        const double a = (d - s) / r;
+        return { r * std::cos(a), s + r * std::sin(a) };
+    }
+    if (d < 2 * s + c) {
+        return { -r, s - (d - s - c) };
+    }
+    const double a = (d - 2 * s - c) / r;
+    return { -r * std::cos(a), -r * std::sin(a) };
+}
+} // namespace
+
+TEST(RouteTracker, DriftingAwayNearAReturnLegNeverJumpsToIt)
+{
+    // Found in the simulator (NOTES, T2): an out-and-back 10 m wide, and a
+    // runner lapping a track that leaves it at the first bend. Drifting 56 m
+    // away, the return leg 545 m ahead was within reach and was taken; back
+    // near the start the tracker then "finished". Now: progress holds while
+    // off, rejoins at the start when the runner is really back on the route,
+    // and never finishes.
+    std::vector<NE> way;
+    for (int x = 0; x < 390; x += 5) {
+        way.push_back({ 36.5, static_cast<double>(x) });
+    }
+    for (int x = 385; x >= 0; x -= 5) {
+        way.push_back({ 26.5, static_cast<double>(x) });
+    }
+    Track t(way, 5.0);
+    float maxAlong = 0.0f;
+    for (int i = 0; i < 400; ++i) {   // five laps of the track
+        const auto& p = t.fix(RunSim::at(stadium(i * 5.5)));
+        maxAlong      = std::max(maxAlong, p.alongM);
+        ASSERT_FALSE(p.finished) << "fix " << i;
+    }
+    EXPECT_LT(maxAlong, 200.0f);   // never past the first bend (~140 m)
+}
+
+TEST(RouteTracker, TheFinishNeedsTheRunnerAtTheFinish)
+{
+    // A loop's finish is 45 m from where the runner stands: near enough to be
+    // "on" the route by the 60 m rule, not near enough to have finished it.
+    Track t(kStraight);
+    for (const GeoPoint& f : RunSim::run({ { 0, 0 }, { 950, 0 } }, 3.0)) {
+        t.fix(f);
+    }
+    EXPECT_FALSE(t.fix(RunSim::at({ 990, 45 })).finished);
+    EXPECT_TRUE(t.fix(RunSim::at({ 998, 3 })).finished);
+}
+
+TEST(RouteTracker, ThreeLapsOfTheSimulatorTrack)
+{
+    // The route the simulator demo uses (Tools/TestRoutes/make_sim_routes.py).
+    std::vector<NE> way;
+    for (double d = 0.0; d < 3 * 400.0 - 2.0; d += 5.0) {
+        way.push_back(stadium(d));
+    }
+    way.push_back(stadium(0.0));
+    Track              t(way, 5.0);
+    std::vector<float> along;
+    for (int i = 0; i * 5.5 < 3 * 399.9; ++i) {
+        along.push_back(t.fix(RunSim::at(stadium(i * 5.5))).alongM);
+    }
+    // Laps are the same place: expected progress keeps the right lap.
+    EXPECT_LT(worstBackstep(along), 3.0f);
+    EXPECT_NEAR(along[static_cast<size_t>(500.0 / 5.5)], 500.0f, 10.0f);   // lap 2, not lap 1
+    EXPECT_TRUE(t.fix(RunSim::at(stadium(0.0))).finished);
+}

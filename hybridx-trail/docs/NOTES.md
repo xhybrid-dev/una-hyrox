@@ -256,3 +256,74 @@ route inside the circle, north-up, for the route preview.
 
 - [x] Host tests pass: 73 (T0's 37 plus 36 new).
 - [ ] Jon agrees the alert behaviour (T1.2), or gives new numbers.
+
+## T2: the service (28 September 2026)
+
+### T2.1 Started from RunLVGL, unchanged first
+
+`Software/` is a verbatim copy of the SDK's RunLVGL (commit `a7a995a1`),
+committed on its own, so every Trail change is a readable diff against UNA's
+original: the LVGL GUI in `Apps/LVGL-GUI`, the service in `Libs/App`. Trail is
+an `Activity` app (it records runs, as RunLVGL does), `HybridXTrail`, APP_ID
+`71ABD15ED7526601` (development: the first 16 hex of md5("HybridXTrail")),
+versioned from `trail-v*` tags (`Software/cmake/trail-version.cmake`, as
+Streak's). The GUI also compiles the route core, for the map.
+
+### T2.2 Navigator
+
+All the route work sits in `Core/Navigator` (pure over `IFileSystem`, 9 host
+tests), so the service diff stays small:
+
+- **`scan()`** lists `Routes/` and summarises each GPX (name, length, climb).
+  Summaries are cached in `routes.idx`, so an unchanged file is never parsed
+  twice: a second app start parses nothing. Sorted by name.
+- **`load()`** reads one route into 2,000 fixed points and remembers the
+  choice in `route.sel`; **`restoreSelection()`** brings it back next time.
+- **`update()`** runs the tracker, the heading and the alert for one fix. The
+  alert only runs while an activity runs: frozen on the start screen and while
+  paused.
+
+26 KB in all, so it lives in static storage (`Service.cpp`), not in the
+Service object on the 10 KB service stack.
+
+### T2.3 The service's changes
+
+- On start: `scan()`, `restoreSelection()`.
+- Every second: a new GPS fix (by its timestamp) goes to `Navigator::update`
+  with the GPS's precision; an alert buzzes and is sent to the GUI; a
+  `NavUpdate` goes to the GUI.
+- Alerts: **off course**: backlight, 3 x 300 ms beeps, 2 x 750 ms vibration;
+  **reminder**: one of each; **back on**: two short beeps and a double click
+  (short and different: good news); **finished**: as RunLVGL's lap end, with
+  a 1 s vibration.
+- A new activity resets progress to the start of the route.
+- Messages 0x20-0x25 (`Commands.hpp`): the route list and the route travel as
+  pointers into the service's static storage, as RunLVGL's own Summary does
+  (no MMU: the app's two processes share memory); the GUI copies them. The
+  route is only changed on the start screen, never during an activity.
+
+### T2.4 Found in the simulator: a runner drifting off "finished"
+
+`Tools/TestRoutes/make_sim_routes.py` draws routes on the SDK simulator's own
+400 m stadium track. On `sim-wrong-turn.gpx` (an out-and-back 10 m wide that
+the lapping runner leaves at the first bend) the first run logged "went off"
+and then, 24 s later, **"finished" 57 m from the route**. Reproduced on the
+host (`RouteTrackerTest.DriftingAwayNearAReturnLegNeverJumpsToIt`): drifting
+56 m away, the runner was matched to the return leg 545 m ahead (within the
+60 m reach, and nothing nearer), and later to the finish.
+
+Fixed in `RouteTracker`: a match far along the route (more than 30 m back, or
+further ahead than 7 m/s since the last match) needs the runner within 20 m of
+the route there; and the finish needs the runner within 30 m of it. A real
+shortcut or rejoin still works: the runner is on the route when they rejoin it.
+
+### T2.5 Verified
+
+- 85 host tests pass.
+- Watch target builds (local compile check; the watch `.uapp` comes from CI).
+- Simulator, end to end (`docs/experiments/sim_run.sh sim-wrong-turn.gpx 90`):
+  route restored, "went off (61 m off)", "back on (20 m off)" when the runner
+  rejoins at the start, and the activity saved as a FIT file.
+- CI now builds the app as well as the probe.
+
+The screens are still RunLVGL's: choosing a route and seeing the map is T3.

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <memory>
 #include <cstring>
+#include <new>
 
 #include "Settings.hpp"
 #include "ActivitySummary.hpp"
@@ -53,6 +54,10 @@ static float speedFromTotals(float distanceM, float activeTimeS)
     return (activeTimeS > 0.0f) ? (distanceM / activeTimeS) : 0.0f;
 }
 
+/// HybridX Trail's route library and navigation: 26 KB, so in static storage
+/// rather than in the Service object, which sits on the 10 KB service stack.
+alignas(Trail::Navigator) uint8_t sNavigatorStorage[sizeof(Trail::Navigator)];
+
 } // namespace
 
 Service::Service(SDK::Kernel &kernel)
@@ -82,6 +87,7 @@ Service::Service(SDK::Kernel &kernel)
         , mBatteryVoltage(kernel.sys)
         , mWristTiltDetector()
         , mCalibrator(mKernel.fs)
+        , mNav(*new (sNavigatorStorage) Trail::Navigator(kernel.fs))
 
 {
     mTimeCounter.init();
@@ -118,6 +124,12 @@ void Service::run()
     // Get summary
     if (!mActivitySummarySerializer.load(mSummary)) {
         LOG_WARNING("Failed to load activity summary\n");
+    }
+
+    // HybridX Trail: the routes copied into Routes/, and the one chosen last time.
+    mNav.scan();
+    if (mNav.restoreSelection()) {
+        LOG_INFO("Route: %s\n", mNav.current().name);
     }
 
     // Recover any activity a previous boot left unfinished (power loss /
@@ -197,6 +209,16 @@ void Service::run()
                     handleEvent(*static_cast<CustomMessage::IntervalsNextPhase*>(msg));
                 } break;
 
+                case CustomMessage::ROUTE_SELECT:  {
+                    LOG_DEBUG("ROUTE_SELECT\n");
+                    handleEvent(*static_cast<CustomMessage::RouteSelect*>(msg));
+                } break;
+
+                case CustomMessage::ROUTE_RESCAN:  {
+                    LOG_DEBUG("ROUTE_RESCAN\n");
+                    handleEvent(*static_cast<CustomMessage::RouteRescan*>(msg));
+                } break;
+
                 // Sensors messages
                 case SDK::MessageType::EVENT_SENSOR_LAYER_DATA: {
                     auto event = static_cast<SDK::Message::Sensor::EventData*>(msg);
@@ -263,6 +285,8 @@ void Service::run()
                     mTimeCounter.add(utc);
                     processTrack();
                 }
+
+                processNav();
             }
         } else {
             // Just wait some time to see if GUI starts
@@ -340,6 +364,7 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
 
             if (mGps.fix) { // Do not change position if no fix
                 parser.getCoordinates(mGps.latitude, mGps.longitude, mGps.altitude);
+                mGpsPrecisionM = parser.getPrecision();
             }
             LOG_DEBUG("Location: fix %u, lat %f, lon %f\n", mGps.fix, mGps.latitude, mGps.longitude);
         }
@@ -752,12 +777,20 @@ void Service::sendInitialInfoToGui()
     SDK::send_msg<CustomMessage::SettingsUpd>(mKernel, mSettings, mIsImperial, mTimeFormat12h, hrThresholds, CustomMessage::kHrThresholdsCount);
     SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
     SDK::send_msg<CustomMessage::Battery>(mKernel, static_cast<uint8_t>(mBatterySoc.get()));
+
+    // HybridX Trail
+    sendRoutes();
+    sendRoute();
+    SDK::send_msg<CustomMessage::NavUpdate>(mKernel, mNav.status());
 }
 
 void Service::startTrack(std::time_t utc)
 {
     // Reset data
     mTrackData = {};
+
+    // HybridX Trail: a new activity starts from the beginning of the route.
+    mNav.resetProgress();
 
     mTimeCounter.reset();
     mTimeCounter.add(utc);
@@ -1608,5 +1641,105 @@ void Service::onIntervalsPhaseChange(bool alert, bool manual)
     if (alert && !manual) {
         playVibroPattern(SDK::Message::RequestVibroPlay::Effect::SHORT_DOUBLE_CLICK_STRONG_1_100);
         playBuzzerPattern(150, 2);
+    }
+}
+
+// -- HybridX Trail: routes and navigation ---------------------------------------------
+
+void Service::handleEvent(const CustomMessage::RouteSelect& event)
+{
+    // A route is chosen on the start screen; never swap it under a running activity.
+    if (mTrackState != Track::State::INACTIVE) {
+        LOG_WARNING("Route change ignored during an activity\n");
+        return;
+    }
+    if (event.index < 0) {
+        mNav.clear();
+        LOG_INFO("Route: none\n");
+    } else if (mNav.load(static_cast<uint8_t>(event.index))) {
+        LOG_INFO("Route: %s, %lu m, %u points\n", mNav.current().name,
+                 static_cast<unsigned long>(mNav.current().lengthM), static_cast<unsigned>(mNav.pointCount()));
+    } else {
+        LOG_WARNING("Route %d could not be read\n", static_cast<int>(event.index));
+    }
+    sendRoutes();
+    sendRoute();
+    SDK::send_msg<CustomMessage::NavUpdate>(mKernel, mNav.status());
+}
+
+void Service::handleEvent(const CustomMessage::RouteRescan& /*event*/)
+{
+    if (mTrackState != Track::State::INACTIVE) {
+        return;
+    }
+    mNav.scan();
+    sendRoutes();
+    sendRoute();
+}
+
+void Service::sendRoutes()
+{
+    SDK::send_msg<CustomMessage::RouteList>(mKernel, mNav.routes(), mNav.routeCount(), mNav.selected());
+}
+
+void Service::sendRoute()
+{
+    SDK::send_msg<CustomMessage::RouteLoaded>(mKernel, mNav.loaded() ? mNav.points() : nullptr,
+                                              mNav.loaded() ? mNav.pointCount() : static_cast<uint16_t>(0),
+                                              mNav.current());
+}
+
+void Service::processNav()
+{
+    // Once a second. A fix is fed once: the GPS timestamp says whether it is new.
+    if (!mGps.fix) {
+        mNav.lostFix();
+    } else if (mGps.timestamp != mNavFixTimestamp) {
+        mNavFixTimestamp = mGps.timestamp;
+        const Trail::GeoPoint fix = Trail::Geo::fromDegrees(mGps.latitude, mGps.longitude);
+        if (Trail::Geo::valid(fix)) {
+            const auto event = mNav.update(mKernel.sys.getTimeMs(), fix, mGpsPrecisionM,
+                                           mTrackState == Track::State::ACTIVE);
+            if (event != Trail::OffCourse::Event::None) {
+                LOG_INFO("Navigation: %s (%lu m off)\n", Trail::OffCourse::name(event),
+                         static_cast<unsigned long>(mNav.status().pos.offRouteM));
+                notifyNav(event);
+                SDK::send_msg<CustomMessage::NavAlert>(mKernel, event);
+            }
+        }
+    }
+    if (mGuiStarted) {
+        SDK::send_msg<CustomMessage::NavUpdate>(mKernel, mNav.status());
+    }
+}
+
+void Service::notifyNav(Trail::OffCourse::Event event)
+{
+    using Effect = SDK::Message::RequestVibroPlay::Effect;
+    switch (event) {
+        case Trail::OffCourse::Event::WentOff:
+            // The one that must never be missed: long, repeated, with light.
+            backlightOn();
+            playBuzzerPattern(300, 3);
+            playVibroPattern(Effect::ALERT_750MS_100, 2, 250);
+            break;
+        case Trail::OffCourse::Event::StillOff:
+            backlightOn();
+            playBuzzerPattern(300, 1);
+            playVibroPattern(Effect::ALERT_750MS_100, 1);
+            break;
+        case Trail::OffCourse::Event::BackOn:
+            // Short and different: good news, not another warning.
+            backlightOn();
+            playBuzzerPattern(80, 2, 80);
+            playVibroPattern(Effect::DOUBLE_CLICK_100, 1);
+            break;
+        case Trail::OffCourse::Event::Finished:
+            backlightOn();
+            playBuzzerPattern(150, 3);
+            playVibroPattern(Effect::ALERT_1000MS_100, 1);
+            break;
+        case Trail::OffCourse::Event::None:
+            break;
     }
 }

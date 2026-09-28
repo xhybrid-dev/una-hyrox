@@ -33,6 +33,15 @@
  * from the start instead, so a loop starts at its start, not its finish, and
  * a runner part-way along is still placed where they are.
  *
+ * A match is also never taken on distance alone when it is "far": more than
+ * kSlackM behind the last match, or further ahead than a runner could have
+ * gone since (kMaxSpeedMps a fix). A far match needs the runner firmly on the
+ * route there (within kRejoinM). Without that, a runner drifting 50 m away
+ * from the route near where it doubles back was matched to the return leg
+ * 545 m ahead, and later "finished" 57 m from the finish (NOTES, T2: found in
+ * the simulator). A genuine shortcut or rejoin is still followed: the runner
+ * is on the route when they rejoin it.
+ *
  * GPS direction of travel (CourseOverGround) is not used here: with a few
  * metres of GPS noise a second it swings by tens of degrees at running pace,
  * and a tracker that trusted it put the runner on the wrong leg (NOTES, T1).
@@ -67,8 +76,12 @@ public:
     static constexpr float kJumpMarginM  = 30.0f;    ///< leave the window only if this much nearer elsewhere
     static constexpr float kAlongWeight  = 0.2f;     ///< score: metres off the route + this x metres along from expected
     static constexpr float kMaxAdvanceM  = 25.0f;    ///< the most the expectation moves per fix (9 m/s)
-    static constexpr float kFinishM      = 40.0f;    ///< this near the end, and ...
-    static constexpr float kFinishShare  = 0.9f;     ///< ... this far along, is the finish
+    static constexpr float kRejoinM      = 20.0f;    ///< a far match needs the runner this near the route
+    static constexpr float kMaxSpeedMps  = 7.0f;     ///< faster than any runner: beyond it along the route is "far"
+    static constexpr float kSlackM       = 30.0f;    ///< and this much either way is never far
+    static constexpr float kFinishM      = 40.0f;    ///< this near the end along the route, ...
+    static constexpr float kFinishShare  = 0.9f;     ///< ... this far along, ...
+    static constexpr float kFinishNearM  = 30.0f;    ///< ... and this near the route there, is the finish
 
     struct Position {
         bool     everLocked = false;   ///< matched to the route at least once since reset()
@@ -84,6 +97,12 @@ public:
     /// @param cumulative caller's storage for @p count floats.
     /// @param lengthM    the route's length from the full GPX; 0 to use the thinned length.
     RouteTracker(const GeoPoint* points, uint16_t count, float* cumulative, float lengthM = 0.0f);
+
+    /// No route yet: bind() one before tracking.
+    RouteTracker() : RouteTracker(nullptr, 0, nullptr) {}
+
+    /// Point the tracker at a (new) route, as the constructor does, and reset().
+    void bind(const GeoPoint* points, uint16_t count, float* cumulative, float lengthM = 0.0f);
 
     /// Forget the runner's progress, e.g. when a new run starts.
     void reset();
@@ -111,6 +130,8 @@ private:
     bool  inWindow(uint16_t i) const;
     /// The along-route part of the score (see the class comment).
     float alongCost(float along) const;
+    /// Whether a match @p d from the fix and @p along the route may be taken.
+    bool  plausible(float d, float along) const;
     /// The best-scoring segment within kAcquireM (and the window, if @p windowOnly).
     Match pick(const GeoPoint& fix, bool windowOnly) const;
     void  accept(const Match& m);
@@ -123,6 +144,7 @@ private:
     Position        mPos {};
     float           mLastAlong = 0.0f;   ///< unscaled
     float           mAdvance   = 0.0f;   ///< smoothed progress per fix, unscaled
+    uint16_t        mFixesSince = 0;     ///< fixes since the last accepted match
 };
 
 } // namespace Trail
