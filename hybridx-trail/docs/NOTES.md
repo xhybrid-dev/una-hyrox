@@ -415,3 +415,83 @@ Not done: RunLVGL's intervals screens are still compiled but unreachable
 (harmless; tidy up later). The look is RunLVGL's; if the promo videos show a
 different style, send screenshots and it can be matched.
 
+## T3b: the promo look and features (28 September 2026)
+
+Jon's promo slides (concept preview) set the target; the screens now follow them.
+Screenshots: `docs/screens/`.
+
+- **Colour.** Route magenta with a dim wider line beneath it for the glow; start
+  a green dot, finish red; red "N"; white arrow. The Route hint on the start
+  screen and RunLVGL's summary map are magenta too.
+- **Run map.** "9.9 km to go" at the top under the red N; a scale bar at the
+  bottom naming a round distance (200 m, 500 m, 1 km, 2 km; ft and miles when
+  the watch is set to imperial).
+- **Zoom on one button.** R2 on the map cycles 300 m, 750 m, 1.5 km, 3 km (the
+  radius to the screen edge) and the whole route with the runner on it
+  (`MapZoom.hpp`; kept in the Model). The lap button (R2) works on the other
+  faces; laps are not needed on the map.
+- **Heading up or north up.** Settings, "North-up map" (a toggle, kept in
+  `settings.json` as `map_north_up`). Default heading-up. The heading is GPS
+  direction of travel (held while standing). **Not as in the promo:** "the
+  compass when you stop": the compass has never calibrated on the watch (T0),
+  so it is not used.
+- **Off course banner.** A yellow band across the middle, "Off course" and
+  "48 m from the line", until back on; then a green "Back on course" (4 s);
+  "Route complete" with the distance (8 s).
+- **Run face** as in "It's a run, too": distance big, pace and time, heart
+  rate, and the lap in magenta. RunLVGL's lap and status faces follow.
+- **Route preview** as in "Pick a route": the name (cut to fit) above the glowing
+  route, "1.19 km, 0 m up", and **R1 starts the run** on it (with the usual "no
+  GPS, start anyway?" if there is no fix).
+- Face order with a route: map, navigation, run, lap, status.
+
+Not built: the promo slides' own extras (the dotted "48 m" leader line and the
+"along the line" bar are slide art, not watch screens). Ascent shows 0 m for
+the simulator's routes because they carry no elevation.
+
+Verified: 95 host tests; watch target builds (compile check); the simulator
+walkthrough `capture_screens.sh` (zoom cycle, off course at 50 m, back on at
+18 m, save); pool peak 82 %.
+
+## T3c: compass, turn cues, the way back, elevation (28 September 2026)
+
+Jon's compass works now (T0's "never calibrated" was before calibrating it),
+so it is used. Screenshots: `docs/screens/` (17 elevation, 21-22 the way back,
+27 turn cue).
+
+- **Heading (HeadingFusion).** GPS direction of travel above about 1.8 m/s,
+  the compass below 1.2 m/s (hysteresis between). The compass is tilt-levelled
+  with the accelerometer (SDK `getAzimuthDegTilted`), averaged as a vector (so
+  359 and 1 make 0), and given an offset **learnt while running** (GPS heading
+  minus compass, averaged slowly, only above 2.5 m/s). The SDK applies no
+  declination and reports the bearing of 12 o'clock; the learnt offset covers
+  both, so no declination table and no setting. Until it has learnt, the offset
+  is 0 (about 1 degree in the UK). The sensors are connected only while a run
+  with a route is going (battery), 5 Hz, as the probe read them. Untested on the
+  watch: the simulator has no magnetometer, so only the GPS half was seen there.
+- **Turn cues (TurnFinder).** A turn is a change of direction of 45 degrees or
+  more over 30 m chords either side of a point, sampled every 10 m along the
+  route (a grid fixed to the route, so a turn is found in the same place every
+  second and cued once). The map shows "Right 120 m" from 400 m out; 50 m
+  before, one cue: **left = one firm click** and one beep, **right = the double
+  click** and two short beeps; a sharp turn (110 degrees+) or a U-turn (145+)
+  says it twice, and a magenta "Turn right / in 50 m" band shows for 4 s.
+  Cues only while an activity is running, never while off course. Limit: the
+  route on the watch is thinned (10 m and up between points), so a turn is
+  found to within that spacing; very long routes (wide spacing) round corners
+  and gentle ones can be missed.
+- **The way back.** Off course (25 m and more), the yellow band has an arrow
+  pointing at the nearest part of the route, turned by the way you face (or
+  true north on a north-up map), with the distance. The status also carries a
+  "to the start" guide before the route is joined (not shown yet).
+- **Elevation profile.** A face after Navigation, only for routes with
+  elevation: the profile as a line (run part bright, to come dim, a dot where
+  you are), "269 m to climb", "+95 m in 218 m" (the next climb of 25 m or
+  more, dips under 8 m allowed) or "Climbing +47 m", and "Now 250 m" (the
+  route's elevation at your progress, not the noisy GPS altitude). 96 bins, so
+  climbs are placed to about 100-200 m. The builder now keeps elevation and
+  climb-so-far per point (re-thinned with the points).
+- Face order: map, navigation, elevation, run, lap, status.
+- 135 host tests (40 new: fusion, turns, elevation, navigator); watch build
+  clean; simulator walkthrough with the new faces.
+

@@ -214,3 +214,224 @@ TEST(Navigator, WithNoRouteItStillTracksHeading)
     EXPECT_NEAR(nav->status().headingDeg, 0.0f, 1.0f);
     EXPECT_FALSE(nav->status().routeLoaded);
 }
+
+// -- Heading, turn cues, the way back, the elevation profile -------------------------
+
+namespace
+{
+
+/// A GPX with an elevation per point: @p eleAt(i, n) metres.
+template <typename F>
+std::string gpxEle(const std::vector<NE>& way, F eleAt)
+{
+    std::string s = "<?xml version=\"1.0\"?><gpx version=\"1.1\"><trk><name>Hills</name><trkseg>";
+    char        buf[128];
+    const auto  pts = RunSim::route(way, 20.0);
+    for (size_t i = 0; i < pts.size(); ++i) {
+        std::snprintf(buf, sizeof(buf), "<trkpt lat=\"%.7f\" lon=\"%.7f\"><ele>%.1f</ele></trkpt>", pts[i].latE7 / 1e7,
+                      pts[i].lonE7 / 1e7, eleAt(i, pts.size()));
+        s += buf;
+    }
+    return s + "</trkseg></trk></gpx>";
+}
+
+std::unique_ptr<Navigator> loaded(FlatFileSystem& fs, const std::string& content)
+{
+    fs.addDir("Routes");
+    fs.addFile("Routes/r.gpx", content, 1);
+    auto nav = make(fs);
+    nav->scan();
+    EXPECT_TRUE(nav->load(0));
+    return nav;
+}
+
+// North 300 m, then east 300 m: one right turn, 300 m in.
+const std::vector<NE> kRightAngle { { 0, 0 }, { 300, 0 }, { 300, 300 } };
+
+} // namespace
+
+TEST(Navigator, ATurnIsCuedOnceAboutFiftyMetresBefore)
+{
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx(kRightAngle, "L"));
+    int            cues = 0;
+    int16_t        angle = 0;
+    uint16_t       distAtCue = 0;
+    uint32_t       t = 0;
+    for (const GeoPoint& f : RunSim::run(kRightAngle, 3.0)) {
+        nav->setSpeed(true, 3.0f);
+        nav->update(t += 1000, f, 4.0f, true);
+        int16_t a;
+        if (nav->takeTurnCue(a)) {
+            ++cues;
+            angle     = a;
+            distAtCue = nav->status().turnDistM;
+        }
+    }
+    EXPECT_EQ(cues, 1);
+    EXPECT_NEAR(angle, 90, 15);
+    EXPECT_GE(distAtCue, 40u);
+    EXPECT_LE(distAtCue, 50u);
+}
+
+TEST(Navigator, NoCueWhenNoActivityIsRunningButTheTurnIsStillShown)
+{
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx(kRightAngle, "L"));
+    uint32_t       t = 0;
+    bool           shown = false;
+    for (const GeoPoint& f : RunSim::run(kRightAngle, 3.0)) {
+        nav->update(t += 1000, f, 4.0f, false);
+        int16_t a;
+        EXPECT_FALSE(nav->takeTurnCue(a));
+        shown = shown || (nav->status().turnValid && nav->status().turnDistM < 400u);
+    }
+    EXPECT_TRUE(shown);
+}
+
+TEST(Navigator, TheNextTurnCountsDown)
+{
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx(kRightAngle, "L"));
+    uint16_t       last = 65535u;
+    uint32_t       t = 0;
+    int            n = 0;
+    for (const GeoPoint& f : RunSim::run({ { 0, 0 }, { 280, 0 } }, 3.0)) {
+        nav->update(t += 1000, f, 4.0f, true);
+        ASSERT_TRUE(nav->status().turnValid);
+        EXPECT_LE(nav->status().turnDistM, last + 1u);   // never grows (a metre of rounding)
+        last = nav->status().turnDistM;
+        ++n;
+    }
+    EXPECT_LT(last, 30u);
+    EXPECT_GT(n, 80);
+}
+
+TEST(Navigator, TheWayBackPointsAtTheNearestPartOfTheRoute)
+{
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx({ { 0, 0 }, { 1000, 0 } }, "Line"));
+    uint32_t       t = 0;
+    for (const GeoPoint& f : RunSim::run({ { 0, 0 }, { 400, 0 } }, 3.0)) {
+        nav->update(t += 1000, f, 4.0f, true);
+    }
+    EXPECT_FALSE(nav->status().guideValid);   // on the line
+    nav->update(t += 1000, RunSim::at({ 410, 80 }), 4.0f, true);   // 80 m east of it
+    const Navigator::Status& s = nav->status();
+    ASSERT_TRUE(s.guideValid);
+    EXPECT_FALSE(s.guideToStart);
+    EXPECT_NEAR(s.guideDistM, 80.0f, 2.0f);
+    EXPECT_NEAR(s.guideBearingDeg, 270.0f, 3.0f);   // due west
+}
+
+TEST(Navigator, BeforeJoiningTheRouteTheGuidePointsAtTheStart)
+{
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx({ { 0, 0 }, { 1000, 0 } }, "Line"));
+    nav->update(1000, RunSim::at({ -150, 0 }), 4.0f, true);   // 150 m south of the start
+    const Navigator::Status& s = nav->status();
+    ASSERT_TRUE(s.guideValid);
+    EXPECT_TRUE(s.guideToStart);
+    EXPECT_NEAR(s.guideDistM, 150.0f, 2.0f);
+    EXPECT_NEAR(s.guideBearingDeg, 0.0f, 3.0f);   // north
+}
+
+TEST(Navigator, StandingStillTheCompassGivesTheHeading)
+{
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx({ { 0, 0 }, { 1000, 0 } }, "Line"));
+    nav->setCompass(true, 45.0f);
+    for (uint32_t t = 1000; t <= 8000; t += 1000) {
+        nav->setSpeed(true, 0.0f);
+        nav->update(t, RunSim::at({ 10, 0 }), 4.0f, true);
+    }
+    const Navigator::Status& s = nav->status();
+    EXPECT_TRUE(s.headingValid);
+    EXPECT_EQ(s.headingSource, 2);
+    EXPECT_NEAR(s.headingDeg, 45.0f, 1.0f);
+
+    // Turning on the spot without a new fix: refreshHeading follows the compass.
+    for (int i = 0; i < 20; ++i) {
+        nav->setCompass(true, 200.0f);
+        nav->refreshHeading();
+    }
+    EXPECT_NEAR(nav->status().headingDeg, 200.0f, 3.0f);
+}
+
+TEST(Navigator, RunningTheGpsHeadingWins)
+{
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx({ { 0, 0 }, { 1000, 0 } }, "Line"));
+    uint32_t       t = 0;
+    for (const GeoPoint& f : RunSim::run({ { 0, 0 }, { 200, 0 } }, 3.0)) {
+        nav->setCompass(true, 130.0f);   // a swinging wrist
+        nav->setSpeed(true, 3.0f);
+        nav->update(t += 1000, f, 4.0f, true);
+    }
+    EXPECT_EQ(nav->status().headingSource, 1);
+    EXPECT_NEAR(nav->status().headingDeg, 0.0f, 3.0f);   // north
+}
+
+TEST(Navigator, WithoutTheGpsSpeedItIsEstimatedFromTheFixes)
+{
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx({ { 0, 0 }, { 1000, 0 } }, "Line"));
+    uint32_t       t = 0;
+    for (const GeoPoint& f : RunSim::run({ { 0, 0 }, { 200, 0 } }, 3.0)) {
+        nav->setCompass(true, 130.0f);
+        nav->update(t += 1000, f, 4.0f, true);   // no setSpeed
+    }
+    EXPECT_EQ(nav->status().headingSource, 1);
+}
+
+TEST(Navigator, TheElevationProfileComesWithTheRoute)
+{
+    FlatFileSystem fs;
+    // 1 km north, climbing 100 m over the middle 400 m.
+    auto nav = loaded(fs, gpxEle({ { 0, 0 }, { 1000, 0 } }, [](size_t i, size_t n) {
+        const double f = static_cast<double>(i) / static_cast<double>(n - 1);
+        return f < 0.3 ? 200.0 : (f > 0.7 ? 300.0 : 200.0 + (f - 0.3) / 0.4 * 100.0);
+    }));
+    const auto& p = nav->profile();
+    ASSERT_TRUE(p.valid());
+    EXPECT_NEAR(p.minM(), 200.0f, 1.0f);
+    EXPECT_NEAR(p.maxM(), 300.0f, 1.0f);
+    EXPECT_NEAR(p.totalAscentM(), 100.0f, 6.0f);
+    const auto c = p.nextClimb(0);
+    ASSERT_TRUE(c.found);
+    EXPECT_NEAR(c.startAheadM, 300.0f, 30.0f);
+    EXPECT_NEAR(c.riseM, 100.0f, 6.0f);
+}
+
+TEST(Navigator, ARouteWithoutElevationHasNoProfile)
+{
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx({ { 0, 0 }, { 1000, 0 } }, "Flat"));
+    EXPECT_FALSE(nav->profile().valid());
+}
+
+TEST(Navigator, AThinnedLongRouteKeepsItsElevationAligned)
+{
+    FlatFileSystem fs;
+    // 30 km: far more points than the 2,000 kept, so the builder re-thins and
+    // must move the elevations with the points. Up 300 m over the first half.
+    std::vector<NE> way { { 0, 0 }, { 30000, 0 } };
+    std::string     s = "<?xml version=\"1.0\"?><gpx version=\"1.1\"><trk><name>Long</name><trkseg>";
+    char            buf[128];
+    const int       n = 6000;
+    for (int i = 0; i < n; ++i) {
+        const GeoPoint p = RunSim::at({ 30000.0 * i / (n - 1), 0 });
+        const double   ele = i < n / 2 ? 100.0 + 300.0 * i / (n / 2) : 400.0;
+        std::snprintf(buf, sizeof(buf), "<trkpt lat=\"%.7f\" lon=\"%.7f\"><ele>%.1f</ele></trkpt>", p.latE7 / 1e7,
+                      p.lonE7 / 1e7, ele);
+        s += buf;
+    }
+    s += "</trkseg></trk></gpx>";
+    auto nav = loaded(fs, s);
+    const auto& p = nav->profile();
+    ASSERT_TRUE(p.valid());
+    EXPECT_NEAR(p.elevationM(0), 100.0f, 2.0f);
+    EXPECT_NEAR(p.elevationM(15000), 400.0f, 8.0f);
+    EXPECT_NEAR(p.elevationM(30000), 400.0f, 2.0f);
+    EXPECT_NEAR(p.totalAscentM(), 300.0f, 10.0f);
+}

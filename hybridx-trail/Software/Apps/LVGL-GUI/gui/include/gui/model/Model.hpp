@@ -14,6 +14,7 @@
 #define MODEL_HPP
 
 #include <cstdint>
+#include "gui/MapZoom.hpp"
 #include <ctime>
 
 #include "SDK/Kernel/Kernel.hpp"
@@ -127,10 +128,14 @@ public:
     const Trail::GeoPoint*          routePoints() const { return mRoutePoints; }
     uint16_t                        routePointCount() const { return mRoutePointCount; }
     const Trail::Navigator::Status& nav() const { return mNav; }
+    const Trail::ElevationProfile&  profile() const { return mProfile; }
     void                            selectRoute(int8_t index);   ///< -1: no route
     /// The route list entry being previewed (RoutePreviewScreen).
     void    setPreviewRoute(int8_t index) { mPreviewRoute = index; }
     int8_t  previewRoute() const { return mPreviewRoute; }
+    /// The run map's zoom level (MapZoom.hpp), kept across screens.
+    uint8_t mapZoom() const { return mMapZoom; }
+    void    nextMapZoom() { mMapZoom = MapZoom::next(mMapZoom); }
 
 private:
     // Fields required for GUI <-> Service communication
@@ -183,7 +188,9 @@ private:
     uint8_t                  mRouteCount      = 0;
     int8_t                   mSelectedRoute   = -1;
     int8_t                   mPreviewRoute    = -1;
+    uint8_t                  mMapZoom         = 0;
     Trail::RouteInfo         mRouteInfo       {};
+    Trail::ElevationProfile  mProfile         {};
     Trail::GeoPoint          mRoutePoints[Trail::Navigator::kMaxPoints] {};
     uint16_t                 mRoutePointCount = 0;
     Trail::Navigator::Status mNav             {};

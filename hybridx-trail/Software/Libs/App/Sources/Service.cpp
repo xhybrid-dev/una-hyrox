@@ -28,6 +28,8 @@
 #include "SDK/SensorLayer/DataParsers/SensorDataParserFusionRaw.hpp"
 #include "SDK/SensorLayer/DataParsers/SensorDataParserRunningCadence.hpp"
 #include "SDK/SensorLayer/DataParsers/SensorDataParserGrade.hpp"
+#include "SDK/SensorLayer/DataParsers/SensorDataParserMagneticField.hpp"
+#include "SDK/SensorLayer/DataParsers/SensorDataParserAccelerometer.hpp"
 
 #include "SDK/Calibration/StrideMath.hpp"
 
@@ -80,6 +82,8 @@ Service::Service(SDK::Kernel &kernel)
         , mSensorFusion(SDK::Sensor::Type::FUSION_RAW, 1000.0f / skFusionSampleRateHz, 100)
         , mSensorRunningCadence(SDK::Sensor::Type::RUNNING_CADENCE, skSamplePeriod, skSampleLatency)
         , mSensorGrade(SDK::Sensor::Type::GRADE, skSamplePeriod, skSampleLatency)
+        , mSensorMag(SDK::Sensor::Type::MAGNETIC_FIELD, skCompassPeriod, skCompassLatency)
+        , mSensorAccel(SDK::Sensor::Type::ACCELEROMETER, skCompassPeriod, skCompassLatency)
         , mTimeTracker(kernel.sys)
         , mAltitudeFilter(0.8f)
         , mAltitudeCounter()
@@ -321,6 +325,12 @@ void Service::connectSensors()
     if (!mSensorFusion.isConnected())         { mSensorFusion.connect(); }
     if (!mSensorRunningCadence.isConnected()) { mSensorRunningCadence.connect(); }
     if (!mSensorGrade.isConnected())          { mSensorGrade.connect(); }
+    // HybridX Trail: the compass turns the map where GPS cannot (standing at a
+    // junction). Only with a route: it is the navigation's, and costs battery.
+    if (mNav.loaded()) {
+        if (!mSensorAccel.isConnected())      { mSensorAccel.connect(); }
+        if (!mSensorMag.isConnected())        { mSensorMag.connect(); }
+    }
 
     mIsSensorsConnected = true;
 }
@@ -330,6 +340,10 @@ void Service::disconnect()
     if (mIsSensorsConnected) {
         LOG_DEBUG("Disconnect from sensors...\n");
 
+        mSensorMag.disconnect();
+        mSensorAccel.disconnect();
+        mHaveAccel    = false;
+        mCompassValid = false;
         mSensorGrade.disconnect();
         mSensorFusion.disconnect();
         mSensorRunningCadence.disconnect();
@@ -383,6 +397,29 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
             }
             LOG_DEBUG("Speed:    %.2f m/s (valid %u, dr %u)\n",
                       mGpsSpeedMs, mGpsSpeedValid, mGpsDeadReckoning);
+        }
+    } else if (mSensorAccel.matchesDriver(handle)) {
+        for (uint16_t i = 0; i < data.size(); ++i) {
+            SDK::SensorDataParser::Accelerometer p(data[i]);
+            if (p.isDataValid()) {
+                mHaveAccel = true;
+                mAccel[0]  = p.getX();
+                mAccel[1]  = p.getY();
+                mAccel[2]  = p.getZ();
+            }
+        }
+    } else if (mSensorMag.matchesDriver(handle)) {
+        // The bearing of 12 o'clock, levelled with the latest gravity reading
+        // (at most a batch old), magnetic north: HeadingFusion learns the rest.
+        for (uint16_t i = 0; i < data.size(); ++i) {
+            SDK::SensorDataParser::MagneticField p(data[i]);
+            float deg = 0.0f;
+            if (p.isDataValid() && p.isCalibrated() && mHaveAccel &&
+                p.getAzimuthDegTilted(mAccel[0], mAccel[1], mAccel[2], deg)) {
+                mCompassValid = true;
+                mCompassDeg   = deg;
+                mCompassAtMs  = mKernel.sys.getTimeMs();
+            }
         }
     } else if (mSensorGrade.matchesDriver(handle)) {
         SDK::SensorDataParser::Grade parser(data[0]);
@@ -1686,20 +1723,27 @@ void Service::sendRoute()
 {
     SDK::send_msg<CustomMessage::RouteLoaded>(mKernel, mNav.loaded() ? mNav.points() : nullptr,
                                               mNav.loaded() ? mNav.pointCount() : static_cast<uint16_t>(0),
-                                              mNav.current());
+                                              mNav.current(), &mNav.profile());
 }
 
 void Service::processNav()
 {
+    // The compass counts while it is fresh (a few seconds): a watch held
+    // steeply, or a lapse in the sensor, is "no compass", not a stale bearing.
+    const uint32_t now = mKernel.sys.getTimeMs();
+    mNav.setCompass(mCompassValid && (now - mCompassAtMs) <= skCompassMaxAgeMs, mCompassDeg);
+    mNav.setSpeed(mGpsSpeedValid && !mGpsDeadReckoning, mGpsSpeedMs);
+
     // Once a second. A fix is fed once: the GPS timestamp says whether it is new.
+    bool updated = false;
     if (!mGps.fix) {
         mNav.lostFix();
     } else if (mGps.timestamp != mNavFixTimestamp) {
         mNavFixTimestamp = mGps.timestamp;
         const Trail::GeoPoint fix = Trail::Geo::fromDegrees(mGps.latitude, mGps.longitude);
         if (Trail::Geo::valid(fix)) {
-            const auto event = mNav.update(mKernel.sys.getTimeMs(), fix, mGpsPrecisionM,
-                                           mTrackState == Track::State::ACTIVE);
+            updated = true;
+            const auto event = mNav.update(now, fix, mGpsPrecisionM, mTrackState == Track::State::ACTIVE);
             if (event != Trail::OffCourse::Event::None) {
                 LOG_INFO("Navigation: %s (%lu m off)\n", Trail::OffCourse::name(event),
                          static_cast<unsigned long>(mNav.status().pos.offRouteM));
@@ -1708,11 +1752,34 @@ void Service::processNav()
                     SDK::send_msg<CustomMessage::NavAlert>(mKernel, event);
                 }
             }
+            int16_t turn = 0;
+            while (mNav.takeTurnCue(turn)) {
+                LOG_INFO("Navigation: %s ahead\n", Trail::TurnFinder::name(turn));
+                notifyTurn(turn);
+                if (mGuiStarted) {
+                    SDK::send_msg<CustomMessage::TurnCue>(mKernel, turn);
+                }
+            }
         }
+    }
+    if (!updated) {
+        mNav.refreshHeading();   // no new fix, but the compass may have moved
     }
     if (mGuiStarted) {
         SDK::send_msg<CustomMessage::NavUpdate>(mKernel, mNav.status());
     }
+}
+
+void Service::notifyTurn(int16_t angleDeg)
+{
+    // Left is one firm click, right the double click: told apart on the wrist
+    // without looking. A sharp turn or a U-turn says it twice.
+    using Effect = SDK::Message::RequestVibroPlay::Effect;
+    const bool     left  = angleDeg < 0;
+    const uint8_t  times = Trail::TurnFinder::isSharp(angleDeg) ? 2 : 1;
+    backlightOn(4000);
+    playBuzzerPattern(left ? 150 : 70, left ? times : static_cast<uint8_t>(times * 2), 90);
+    playVibroPattern(left ? Effect::STRONG_CLICK_100 : Effect::DOUBLE_CLICK_100, times, 250);
 }
 
 void Service::notifyNav(Trail::OffCourse::Event event)

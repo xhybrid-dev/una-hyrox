@@ -65,24 +65,30 @@ key 1; key 1; key 1                                # back up to the long name
 key 3 3;          snap 08-route-preview-long-name  # R1: preview (loads it)
 key 4 3                                            # R2: not this one; back to the list, on it
 key 2; key 2
-key 3 3;          snap 09-route-preview            # R1: preview the wrong turn
-key 3;            snap 10-start-with-route         # R1: use it, back to the start screen
-key 1;            snap 11-start-ready              # L1: back to Start
-key 3 4;          snap 12-map-near                 # R1: start the run
-sleep 6;          snap 13-map-near-running
-key 2;            snap 14-map-far                  # L2: far map
-key 2;            snap 15-nav                      # L2: navigation face
-key 2;            snap 16-totals                   # L2: RunLVGL's own faces follow
-# The runner leaves the route at the bend; the watch jumps to the near map.
+key 3 3;          snap 09-route-preview            # R1: preview the wrong turn (loads it)
+key 3 6;          snap 10-map-300m                 # R1: start the run on it
+sleep 4;          snap 11-map-300m-running
+key 4;            snap 12-map-750m                 # R2 on the map: zoom
+key 4;            snap 13-map-1500m
+key 4;            snap 14-map-3km
+key 4;            snap 15-map-whole-route
+key 4                                              # round to 300 m again
+key 2;            snap 16-nav                      # L2: navigation face
+key 2;            snap 17-elevation                # the elevation profile
+key 2;            snap 18-run                      # the Run face
+key 2;            snap 19-lap                      # RunLVGL's lap face
+key 2;            snap 20-status                   # and its status face
+key 1; key 1; key 1; key 1; key 1                  # back to the map
+# The runner leaves the route at the bend; the watch jumps to the map.
 waitlog "Navigation: went off" 120
-sleep 2;          snap 17-off-course
-key 2; key 2;     snap 18-nav-off-course
+sleep 2;          snap 21-off-course
+key 2;            snap 22-nav-off-course
 waitlog "Navigation: back on" 120
-sleep 1;          snap 19-back-on-course           # round the track and back onto the route
-key 3;            snap 20-action-menu              # R1: pause, action menu
+sleep 1;          snap 23-back-on-course           # round the track and back onto the route
+key 3;            snap 24-action-menu              # R1: pause, action menu
 key 2; key 2
-hold 3 3;         snap 21-saved                    # hold R1 on Save
-sleep 3;          snap 22-summary
+hold 3 3;         snap 25-saved                    # hold R1 on Save
+sleep 3;          snap 26-summary
 
 echo "--- service log"
 grep -E "Route:|Navigation:" "$LOG"

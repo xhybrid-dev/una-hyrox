@@ -57,6 +57,7 @@ namespace CustomMessage {
     // GUI --> Service
     constexpr SDK::MessageType::Type ROUTE_SELECT          = 0x00000024;
     constexpr SDK::MessageType::Type ROUTE_RESCAN          = 0x00000025;
+    constexpr SDK::MessageType::Type TURN_CUE              = 0x00000026;
 
     // Service <-> GUI
     struct SettingsUpd : public SDK::MessageBase {
@@ -308,12 +309,15 @@ namespace CustomMessage {
         const Trail::GeoPoint* points = nullptr;      ///< non-owning; copy before releaseMessage
         uint16_t               count  = 0;            ///< 0: no route
         Trail::RouteInfo       info {};
+        const Trail::ElevationProfile* profile = nullptr;   ///< non-owning; copy before releaseMessage
         RouteLoaded() : SDK::MessageBase(ROUTE_LOADED) {}
-        RouteLoaded(const Trail::GeoPoint* p, uint16_t n, const Trail::RouteInfo& i) : RouteLoaded()
+        RouteLoaded(const Trail::GeoPoint* p, uint16_t n, const Trail::RouteInfo& i,
+                    const Trail::ElevationProfile* prof) : RouteLoaded()
         {
-            points = p;
-            count  = n;
-            info   = i;
+            points  = p;
+            count   = n;
+            info    = i;
+            profile = prof;
         }
     };
 
@@ -327,6 +331,13 @@ namespace CustomMessage {
         Trail::OffCourse::Event event = Trail::OffCourse::Event::None;
         NavAlert() : SDK::MessageBase(NAV_ALERT) {}
         explicit NavAlert(Trail::OffCourse::Event e) : NavAlert() { event = e; }
+    };
+
+    /// A turn is 50 m ahead: the GUI shows it (the buzz is the service's).
+    struct TurnCue : public SDK::MessageBase {
+        int16_t angleDeg = 0;                         ///< positive right, negative left
+        TurnCue() : SDK::MessageBase(TURN_CUE) {}
+        explicit TurnCue(int16_t a) : TurnCue() { angleDeg = a; }
     };
 
     struct RouteSelect : public SDK::MessageBase {

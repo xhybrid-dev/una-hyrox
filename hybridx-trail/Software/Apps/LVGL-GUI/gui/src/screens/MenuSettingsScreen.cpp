@@ -20,6 +20,7 @@ void MenuSettingsScreen::build()
 {
     mItems[Menu::ID_ALERTS]      = { Style::Simple, "Lap Alerts" };
     mItems[Menu::ID_PHONE_NOTIF] = { Style::Toggle, "Phone\nNotif.", "Phone Notif.", &poppins_semibold_25 };
+    mItems[Menu::ID_NORTH_UP]    = { Style::Toggle, "North-up\nmap", "North-up map", &poppins_semibold_25 };
 
     mMenu      = std::make_unique<WheelMenu>(mRoot, mItems, Menu::ID_COUNT);
     mButtons   = std::make_unique<Widgets::Buttons>(mRoot);
@@ -55,7 +56,11 @@ void MenuSettingsScreen::onKey(uint8_t code)
                 ScreenManager::instance().goTo(ScreenId::MenuAlerts);
             } else {
                 Settings sett = mModel.getSettings();
-                sett.phoneNotifEn = !sett.phoneNotifEn;
+                if (mMenu->selected() == Menu::ID_NORTH_UP) {
+                    sett.mapNorthUp = !sett.mapNorthUp;
+                } else {
+                    sett.phoneNotifEn = !sett.phoneNotifEn;
+                }
                 mModel.saveSettings(sett);
                 onSettings(sett);
             }
@@ -71,6 +76,7 @@ void MenuSettingsScreen::onKey(uint8_t code)
 void MenuSettingsScreen::onSettings(const Settings& settings)
 {
     mItems[Menu::ID_PHONE_NOTIF].toggleState = settings.phoneNotifEn;
+    mItems[Menu::ID_NORTH_UP].toggleState    = settings.mapNorthUp;
     mMenu->refresh();
 }
 

@@ -57,6 +57,7 @@ public:
     virtual void onRoute() {}                                        ///< the loaded route changed
     virtual void onNav(const Trail::Navigator::Status& s) { (void)s; }
     virtual void onNavAlert(Trail::OffCourse::Event e) { (void)e; }
+    virtual void onTurnCue(int16_t angleDeg) { (void)angleDeg; }   ///< positive right, negative left
 
 protected:
     Model* model;

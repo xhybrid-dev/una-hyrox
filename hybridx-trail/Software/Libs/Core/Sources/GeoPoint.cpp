@@ -68,6 +68,32 @@ void offsetM(const GeoPoint& origin, const GeoPoint& p, float& x, float& y)
     y = static_cast<float>(static_cast<int64_t>(p.latE7) - origin.latE7) * kMetresPerE7;
 }
 
+GeoPoint lerp(const GeoPoint& a, const GeoPoint& b, float t)
+{
+    t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+    GeoPoint p;
+    p.latE7 = a.latE7 + static_cast<int32_t>(std::lround(static_cast<double>(static_cast<int64_t>(b.latE7) - a.latE7) * t));
+    p.lonE7 = a.lonE7 + static_cast<int32_t>(std::lround(static_cast<double>(lonDelta(a.lonE7, b.lonE7)) * t));
+    return p;
+}
+
+float wrap180(float deg)
+{
+    deg = std::fmod(deg, 360.0f);
+    if (deg > 180.0f) {
+        deg -= 360.0f;
+    } else if (deg <= -180.0f) {
+        deg += 360.0f;
+    }
+    return deg;
+}
+
+float wrap360(float deg)
+{
+    deg = std::fmod(deg, 360.0f);
+    return deg < 0.0f ? deg + 360.0f : deg;
+}
+
 float bearingDeg(const GeoPoint& a, const GeoPoint& b)
 {
     float x = 0.0f;

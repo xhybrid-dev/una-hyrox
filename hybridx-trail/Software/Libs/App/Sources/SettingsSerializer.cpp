@@ -77,6 +77,7 @@ bool SettingsSerializer::save(const Settings &settings)
     writer.add("version",        settings.version);
     writer.add("auto_pause_en",  settings.autoPauseEn);
     writer.add("phone_notif_en", settings.phoneNotifEn);
+    writer.add("map_north_up",   settings.mapNorthUp);
     writer.add("calib_trace_en", settings.calibTraceEn);
     writer.add("alert_distance_id", static_cast<uint8_t>(settings.alertDistanceId));
     writer.add("alert_time_id",     static_cast<uint8_t>(settings.alertTimeId));
@@ -156,6 +157,8 @@ bool SettingsSerializer::load(Settings &settings)
     reader.get("version",        settings.version);
     reader.get("auto_pause_en",  settings.autoPauseEn);
     reader.get("phone_notif_en", settings.phoneNotifEn);
+    settings.mapNorthUp = false;    // heading-up unless the file says otherwise
+    reader.get("map_north_up", settings.mapNorthUp);
     settings.calibTraceEn = false;  // deterministic default for legacy files
     reader.get("calib_trace_en", settings.calibTraceEn);
     uint8_t distId = static_cast<uint8_t>(Settings::Alerts::Distance::ID_DEFAULT);

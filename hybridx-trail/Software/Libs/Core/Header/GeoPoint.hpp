@@ -69,6 +69,13 @@ float projectOntoSegmentM(const GeoPoint& p, const GeoPoint& a, const GeoPoint& 
 /// apart. 0 when the points coincide.
 float bearingDeg(const GeoPoint& a, const GeoPoint& b);
 
+/// The point @p t of the way from @p a to @p b (0 at a, 1 at b).
+GeoPoint lerp(const GeoPoint& a, const GeoPoint& b, float t);
+
+/// @p deg turned into (-180, 180] and [0, 360): for differences of bearings.
+float wrap180(float deg);
+float wrap360(float deg);
+
 /// Metres east (@p x) and north (@p y) of @p origin, flat-earth. The shared
 /// step behind the map projection.
 void offsetM(const GeoPoint& origin, const GeoPoint& p, float& x, float& y);

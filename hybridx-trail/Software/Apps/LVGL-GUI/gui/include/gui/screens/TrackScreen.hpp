@@ -21,7 +21,9 @@
 
 #include <memory>
 
+#include "gui/MapZoom.hpp"
 #include "gui/screens/Screen.hpp"
+#include "gui/widgets/ElevationChart.hpp"
 #include "gui/widgets/RouteMap.hpp"
 #include "gui/widgets/Widgets.hpp"
 
@@ -48,6 +50,7 @@ public:
     // HybridX Trail
     void onNav(const Trail::Navigator::Status& s) override;
     void onNavAlert(Trail::OffCourse::Event e) override;
+    void onTurnCue(int16_t angleDeg) override;
 
 protected:
     void build() override;
@@ -56,7 +59,7 @@ private:
     using FaceId = App::MenuNav::TrackView::Id;
 
     /// What a face shows: both map faces are one kind at two zooms.
-    enum class Kind : uint8_t { None, Intervals, Total, Lap, Status, Map, Nav };
+    enum class Kind : uint8_t { None, Intervals, Total, Lap, Status, Map, Nav, Profile };
     static Kind kindOf(uint16_t id);
 
     void dropFace();
@@ -64,10 +67,14 @@ private:
     void fillFace();
     void buildFaceMap();
     void buildFaceNav();
+    void buildFaceProfile();
+    void updateProfile(const Trail::Navigator::Status& s);
+    /// The banner's arrow, pointing @p screenDeg clockwise from the top of the screen.
+    void setBannerArrow(bool show, float screenDeg);
     void buildBanner();
     void updateMap(const Trail::Navigator::Status& s);
     void updateNav(const Trail::Navigator::Status& s);
-    void showBanner(const char* text, uint32_t colour, uint32_t forMs);
+    void showBanner(const char* title, const char* sub, uint32_t colour, uint32_t forMs);
     static void bannerTimerCb(lv_timer_t* t);
     uint8_t faceIndex(uint16_t id) const;
     void buildFaceIntervals();
@@ -95,6 +102,10 @@ private:
     lv_obj_t* mIvHr        = nullptr;
 
     // Totals face
+    std::unique_ptr<Widgets::Title> mRunTitle;
+    lv_obj_t* mPaceUnit      = nullptr;
+    lv_obj_t* mTotalHr       = nullptr;
+    lv_obj_t* mTotalLap      = nullptr;
     lv_obj_t* mPaceValue     = nullptr;
     lv_obj_t* mDistanceValue = nullptr;
     lv_obj_t* mDistanceUnits = nullptr;
@@ -119,8 +130,14 @@ private:
 
     // HybridX Trail: map faces
     std::unique_ptr<Widgets::RouteMap> mMap;
-    lv_obj_t* mMapScale = nullptr;   ///< "250 m": the zoom
     lv_obj_t* mMapToGo  = nullptr;   ///< "8.25 km to go"
+    lv_obj_t* mMapTurn  = nullptr;   ///< "Right 120 m": the next turn
+    // Elevation face
+    std::unique_ptr<Widgets::ElevationChart> mChart;
+    lv_obj_t* mProfMax    = nullptr;
+    lv_obj_t* mProfAscent = nullptr;
+    lv_obj_t* mProfNext   = nullptr;
+    lv_obj_t* mProfNow    = nullptr;
     // Navigation face
     lv_obj_t* mNavToGo     = nullptr;
     lv_obj_t* mNavToGoUnit = nullptr;
@@ -131,6 +148,9 @@ private:
     // The banner over every face: off course (stays), back on / finished (timed)
     lv_obj_t*   mBanner      = nullptr;
     lv_obj_t*   mBannerText  = nullptr;
+    lv_obj_t*   mBannerSub   = nullptr;
+    lv_obj_t*   mBannerArrow = nullptr;   ///< the way back to the line, in the off-course band
+    lv_point_precise_t mArrowPts[5] {};
     lv_timer_t* mBannerTimer = nullptr;
     bool        mOffBanner   = false;
     // The faces this run has, in order (the map ones only with a route)

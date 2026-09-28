@@ -58,7 +58,7 @@ bool sameFile(const RouteInfo& a, const RouteInfo& b)
 
 Navigator::Navigator(IFileSystem& fs)
     : mFs(fs)
-    , mBuilder(mPoints, kMaxPoints)
+    , mBuilder(mPoints, kMaxPoints, mEleHalf, mAscent)
     , mReader(mBuilder)
 {
 }
@@ -287,6 +287,7 @@ bool Navigator::load(uint8_t index)
     mRoutes[index] = info;   // refresh the summary with what was read
     mPointCount    = mBuilder.count();
     mTracker.bind(mPoints, mPointCount, mCumulative, static_cast<float>(mBuilder.lengthM()));
+    mProfile.build(mCumulative, mEleHalf, mAscent, mPointCount, mBuilder.hasElevation(), mTracker.lengthM());
     mCurrent            = info;
     mSelected           = static_cast<int8_t>(index);
     mStatus.routeLoaded = true;
@@ -324,6 +325,7 @@ void Navigator::clear()
 {
     mPointCount = 0;
     mTracker.bind(nullptr, 0, nullptr);
+    mProfile.clear();
     mCurrent            = RouteInfo {};
     mSelected           = -1;
     mStatus.routeLoaded = false;
@@ -353,9 +355,83 @@ void Navigator::resetProgress()
     mTracker.reset();
     mOffCourse.reset();
     mCourse.reset();
+    mHeading.reset();
+    mHavePrevFix    = false;
+    mEstSpeedMps    = 0.0f;
+    mLastCueAlong   = -1.0f;
+    mCuePending     = false;
     mStatus.pos     = mTracker.position();
     mStatus.alert   = mOffCourse.state();
     mStatus.offForS = 0;
+    mStatus.guideValid = false;
+    mStatus.turnValid  = false;
+    mStatus.headingValid  = false;
+    mStatus.headingSource = 0;
+}
+
+void Navigator::refreshHeading()
+{
+    const float speed = mSpeedValid ? mSpeedMps : mEstSpeedMps;
+    mHeading.update(mCourse.valid(), mCourse.headingDeg(), speed, mCompassValid, mCompassDeg);
+    mStatus.headingValid  = mHeading.valid();
+    mStatus.headingDeg    = mHeading.headingDeg();
+    mStatus.headingSource = static_cast<uint8_t>(mHeading.source());
+}
+
+bool Navigator::takeTurnCue(int16_t& angleDeg)
+{
+    if (!mCuePending) {
+        return false;
+    }
+    mCuePending = false;
+    angleDeg    = mCueAngle;
+    return true;
+}
+
+void Navigator::updateGuide()
+{
+    mStatus.guideValid = false;
+    if (!mStatus.routeLoaded || !mStatus.hasFix) {
+        return;
+    }
+    if (!mStatus.pos.everLocked) {
+        if (mStatus.toStartM >= kGuideMinM) {
+            mStatus.guideValid      = true;
+            mStatus.guideToStart    = true;
+            mStatus.guideBearingDeg = Geo::bearingDeg(mStatus.fix, mPoints[0]);
+            mStatus.guideDistM      = mStatus.toStartM;
+        }
+    } else if (mStatus.pos.offRouteM >= kGuideMinM) {
+        mStatus.guideValid      = true;
+        mStatus.guideToStart    = false;
+        mStatus.guideBearingDeg = Geo::bearingDeg(mStatus.fix, mStatus.pos.nearest);
+        mStatus.guideDistM      = mStatus.pos.offRouteM;
+    }
+}
+
+void Navigator::updateTurn(bool alertsLive)
+{
+    mStatus.turnValid = false;
+    const RouteTracker::Position& pos = mStatus.pos;
+    if (!mStatus.routeLoaded || !pos.everLocked || pos.finished || mStatus.alert == OffCourse::State::Off ||
+        !pos.onRoute) {
+        return;
+    }
+    const float along = mTracker.thinnedAlongM();
+    const float scale = mTracker.scale();
+    const Turn  t = TurnFinder::next(mPoints, mPointCount, mCumulative, along, along + kLookaheadM / scale);
+    if (!t.valid) {
+        return;
+    }
+    const float distM = (t.alongM - along) * scale;
+    mStatus.turnValid    = true;
+    mStatus.turnAngleDeg = t.angleDeg;
+    mStatus.turnDistM    = static_cast<uint16_t>(distM < 0.0f ? 0.0f : distM + 0.5f);
+    if (alertsLive && distM <= kCueM && t.alongM > mLastCueAlong + 1.0f) {
+        mLastCueAlong = t.alongM;
+        mCuePending   = true;
+        mCueAngle     = t.angleDeg;
+    }
 }
 
 OffCourse::Event Navigator::update(uint32_t nowMs, const GeoPoint& fix, float precisionM, bool alertsLive)
@@ -363,8 +439,22 @@ OffCourse::Event Navigator::update(uint32_t nowMs, const GeoPoint& fix, float pr
     mStatus.hasFix       = true;
     mStatus.fix          = fix;
     mStatus.precisionM   = precisionM;
-    mStatus.headingValid = mCourse.update(fix);
-    mStatus.headingDeg   = mCourse.headingDeg();
+    mCourse.update(fix);
+
+    // Ground speed from the fixes, for when the GPS gives none.
+    if (mHavePrevFix) {
+        const uint32_t dt = nowMs - mPrevFixMs;   // unsigned: the ms clock wraps
+        if (dt >= 300u && dt <= 5000u) {
+            const float v = Geo::distanceM(mPrevFix, fix) * 1000.0f / static_cast<float>(dt);
+            mEstSpeedMps  = 0.5f * mEstSpeedMps + 0.5f * v;
+        } else if (dt > 5000u) {
+            mEstSpeedMps = 0.0f;
+        }
+    }
+    mPrevFix     = fix;
+    mPrevFixMs   = nowMs;
+    mHavePrevFix = true;
+    refreshHeading();
 
     if (!mStatus.routeLoaded) {
         return OffCourse::Event::None;
@@ -380,6 +470,8 @@ OffCourse::Event Navigator::update(uint32_t nowMs, const GeoPoint& fix, float pr
     }
     mStatus.alert   = mOffCourse.state();
     mStatus.offForS = mOffCourse.offForMs(nowMs) / 1000u;
+    updateGuide();
+    updateTurn(alertsLive);
     return event;
 }
 

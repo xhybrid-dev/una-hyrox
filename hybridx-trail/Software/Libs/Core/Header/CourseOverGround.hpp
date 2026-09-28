@@ -3,16 +3,15 @@
  * @file    CourseOverGround.hpp
  * @brief   The runner's direction of travel, from successive GPS fixes.
  *
- * The compass would be the obvious source for a heading-up map, but on Jon's
- * watch it never reported a calibration in two minutes outdoors (NOTES,
- * Gate T0). So the heading comes from GPS: the bearing from an anchor fix to
- * the current one, once the runner has moved at least kMinMoveM from the
- * anchor, which then moves up. Below that distance, GPS wander (a metre or
- * two a second, standing still) would swing the bearing about, so the last
- * heading is held instead.
+ * Used while running, where it is exact; standing still, HeadingFusion turns
+ * to the compass instead (which the watch has, once calibrated). This class
+ * is GPS only: the bearing from an anchor fix to the current one, once the
+ * runner has moved at least kMinMoveM from the anchor, which then moves up.
+ * Below that distance, GPS wander (a metre or two a second, standing still)
+ * would swing the bearing about, so the last heading is held instead.
  *
- * The same heading tells RouteTracker which way along the route the runner
- * is going (out or back on an out-and-back).
+ * (RouteTracker does not use it: it tells which way along the route the
+ * runner is going from their progress; see its header.)
  ******************************************************************************
  */
 
