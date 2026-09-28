@@ -1,0 +1,15 @@
+{
+  "name": "hybridx-promo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Motion-graphics promo films for the HybridX apps on UNA Watch, rendered frame by frame with Skia.",
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/poppins": "^0.4.1",
+    "@napi-rs/canvas": "^0.1.80"
+  }
+}
