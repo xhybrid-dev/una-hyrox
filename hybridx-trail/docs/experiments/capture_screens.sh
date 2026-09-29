@@ -66,15 +66,18 @@ key 3 3;          snap 08-route-preview-long-name  # R1: preview (loads it)
 key 4 3                                            # R2: not this one; back to the list, on it
 key 2; key 2
 key 3 3;          snap 09-route-preview            # R1: preview the wrong turn (loads it)
-key 3 6;          snap 10-map-300m                 # R1: start the run on it
-sleep 4;          snap 11-map-300m-running
-key 4;            snap 12-map-750m                 # R2 on the map: zoom
-key 4;            snap 13-map-1500m
-key 4;            snap 14-map-3km
-key 4;            snap 15-map-whole-route
-key 4                                              # round to 300 m again
-key 2;            snap 16-nav                      # L2: navigation face
-key 2;            snap 17-elevation                # the elevation profile
+key 3 6;          snap 10-map-150m                 # R1: start the run on it
+sleep 4;          snap 11-map-150m-running
+key 1;            snap 12-map-zoomed-in            # UP on the map: one step in
+key 2; key 2; key 2
+                  snap 13-map-zoomed-out           # DOWN: steps out
+key 2; key 2; key 2
+                  snap 14-map-far
+key 2; key 2; key 2; key 2
+                  snap 15-map-whole-route          # the last step: the whole route
+key 1; key 1; key 1; key 1; key 1; key 1; key 1   # and back to 150 m
+key 4;            snap 16-nav                      # R2 on the map: the next screen
+key 2;            snap 17-elevation                # L2 pages on every screen but the map
 key 2;            snap 18-run                      # the Run face
 key 2;            snap 19-lap                      # RunLVGL's lap face
 key 2;            snap 20-status                   # and its status face
@@ -82,7 +85,7 @@ key 1; key 1; key 1; key 1; key 1                  # back to the map
 # The runner leaves the route at the bend; the watch jumps to the map.
 waitlog "Navigation: went off" 120
 sleep 2;          snap 21-off-course
-key 2;            snap 22-nav-off-course
+key 4;            snap 22-nav-off-course
 waitlog "Navigation: back on" 120
 sleep 1;          snap 23-back-on-course           # round the track and back onto the route
 key 3;            snap 24-action-menu              # R1: pause, action menu

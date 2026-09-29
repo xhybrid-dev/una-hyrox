@@ -21,7 +21,7 @@
 
 #include <memory>
 
-#include "gui/MapZoom.hpp"
+#include "MapZoom.hpp"
 #include "gui/screens/Screen.hpp"
 #include "gui/widgets/ElevationChart.hpp"
 #include "gui/widgets/RouteMap.hpp"

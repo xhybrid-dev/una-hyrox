@@ -495,3 +495,16 @@ so it is used. Screenshots: `docs/screens/` (17 elevation, 21-22 the way back,
 - 135 host tests (40 new: fusion, turns, elevation, navigator); watch build
   clean; simulator walkthrough with the new faces.
 
+## T3d: zoom with UP and DOWN (29 September 2026)
+
+Jon's field test: the map was too zoomed out, and R2 (the zoom button) was not
+found. Now:
+
+- **On the map, UP (L1) zooms in and DOWN (L2) zooms out**, one step at a time,
+  stopping at each end. Nine radii, 60, 100, 150, 250, 400, 700, 1200, 2000 and
+  3500 m, then the whole route. **It starts at 150 m** (was 300 m).
+- **R2 on the map is the next screen** (the two left buttons are busy); on every
+  other screen L1/L2 page as before and R2 is the lap.
+- The scale bar (20 m ... 2 km) names the level. `MapZoom.hpp` moved to the core
+  and is host-tested (139 tests).
+

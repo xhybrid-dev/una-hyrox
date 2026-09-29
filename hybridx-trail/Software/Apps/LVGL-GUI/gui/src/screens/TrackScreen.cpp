@@ -12,7 +12,7 @@
 #include "gui/Format.hpp"
 #include "gui/Strings.hpp"
 #include "gui/RouteFormat.hpp"
-#include "gui/MapZoom.hpp"
+#include "MapZoom.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -370,6 +370,27 @@ void TrackScreen::onKey(uint8_t code)
 {
     namespace Btn = SDK::GUI::Button;
     const uint8_t at = faceIndex(mFaceId);
+
+    // On the map, UP and DOWN zoom (a step each, stopping at the ends), and R2
+    // moves on to the next screen, since the two left buttons are busy. On
+    // every other screen UP and DOWN page, and R2 is the lap.
+    if (mKind == Kind::Map) {
+        switch (code) {
+            case Btn::L1:
+                mModel.mapZoomIn();
+                updateMap(mModel.nav());
+                return;
+            case Btn::L2:
+                mModel.mapZoomOut();
+                updateMap(mModel.nav());
+                return;
+            case Btn::R2:
+                showFace(mFaces[at + 1 >= mFaceCount ? 0 : at + 1]);
+                return;
+            default:
+                break;
+        }
+    }
     switch (code) {
         case Btn::L1:
             showFace(mFaces[at == 0 ? mFaceCount - 1 : at - 1]);
@@ -381,12 +402,6 @@ void TrackScreen::onKey(uint8_t code)
             ScreenManager::instance().goTo(ScreenId::TrackAction);
             break;
         case Btn::R2:
-            // On the map, R2 zooms: 300 m, 750 m, 1.5 km, 3 km, the whole route.
-            if (mKind == Kind::Map) {
-                mModel.nextMapZoom();
-                updateMap(mModel.nav());
-                break;
-            }
             // In an intervals workout the lap button advances the phase, on any
             // face; laps are phase-driven. A free run records a manual lap.
             if (mIntervalsMode) {

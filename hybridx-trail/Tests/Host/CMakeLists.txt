@@ -40,6 +40,7 @@ add_executable(hybridx-trail-host-tests
     TurnFinderTest.cpp
     ElevationProfileTest.cpp
     TextFoldTest.cpp
+    MapZoomTest.cpp
     support/FlatFileSystem.cpp
     "${CORE_LIBS}/Sources/GeoPoint.cpp"
     "${CORE_LIBS}/Sources/GpxReader.cpp"
