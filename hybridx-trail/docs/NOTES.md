@@ -609,10 +609,32 @@ Jon's bytes above.
   write, descriptor). Discovery is also retried up to three times if FEBB is
   missing, and every attempt logs the services it saw.
 
+### Route Sender run 2: **phone delivery works** (0.1.1, 29 September 2026)
+
+The first end-to-end send, from a Pixel 7 with the UNA app connected:
+- **Connection:** connected in 94 ms, MTU 220 (205 bytes of file per packet).
+  Discovery found all eight services, FEBB included, on the first try.
+  Version 5.
+- **Before the write:** LISTDIR `/Apps` gave 31 entries and found
+  `HybridXTrail`. `Routes/` held 3 routes (`AR_Ham2Lyme_50k_26.gpx`
+  128,857 B, `125 in the lanes.gpx` 18,371 B, `ridge-loop.gpx` 94,093 B).
+  These were the USB copies, including a name with spaces.
+- **The write:** 685 bytes in 0.79 s, then **DIGEST matched** (size and
+  CRC-32 `d7c6c871`). A second listing showed 4 routes.
+- **Not measured yet:** speed. The file was too small to show it; 0.79 s is
+  mostly round trips. The log showed "0 KB/s" from integer rounding, so
+  0.1.2 logs bytes per second instead.
+
+**Reading:** a GPX chosen on the phone lands in Trail's `Routes/` over BLE,
+verified, with no folders for the user and no USB. The transport question is
+answered.
+
 ### Open (phone delivery)
 
-- [ ] Jon: run Route Sender's test plan (`Tools/RouteSender/README.md`) and
-      send the log.
+- [x] Jon: run Route Sender's test plan. The core send passed in run 2.
+- [ ] Trail shows and loads a route sent this way (check on the watch).
+- [ ] A real-sized route (about 100 KB) for speed, and the Share entry from
+      another app.
 - [ ] Does Trail see a route that arrives while it's running, or only after
       reopening? `Navigator::scan()` runs when the route list is built.
 - [ ] Does the UNA app notice or mind another app using FTS on the same link?

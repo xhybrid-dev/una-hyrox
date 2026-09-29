@@ -482,7 +482,8 @@ public class MainActivity extends Activity {
         long t0 = System.currentTimeMillis();
         link.writeFile(path, data);
         long ms = Math.max(1, System.currentTimeMillis() - t0);
-        log("Written in " + (ms / 1000.0) + " s (" + (data.length * 1000L / ms / 1024) + " KB/s)");
+        // Bytes per second: a small route rounds to "0 KB/s" otherwise.
+        log("Written in " + (ms / 1000.0) + " s (" + (data.length * 1000L / ms) + " bytes/s)");
 
         Fts.Digest d = link.digest(path);
         long crc = WatchLink.crc32(data);
