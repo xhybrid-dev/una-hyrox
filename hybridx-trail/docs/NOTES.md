@@ -508,3 +508,23 @@ found. Now:
 - The scale bar (20 m ... 2 km) names the level. `MapZoom.hpp` moved to the core
   and is host-tested (139 tests).
 
+## T3e: R2 flips between the map and the data screens (29 September 2026)
+
+UP/DOWN zooming the map left no way to reach the data screens but R2 one way.
+Jon's design, built:
+
+- **With a route, R2 flips between the map and the data screen you were last
+  on** (the first, Navigation, the first time). The map is one press from any
+  data screen.
+- **On the map, UP/DOWN zoom. On the data screens, UP/DOWN page** (navigation,
+  elevation, run, lap, status), wrapping round the data screens only, never
+  landing on the map (`FaceCycle.hpp`, host-tested).
+- **No manual lap with a route.** Lap needed R2. Its numbers stay on the Lap
+  screen (a lap is still cut by the lap alerts in Settings). **A plain run with
+  no route is unchanged:** R2 is the lap, UP/DOWN page.
+- Going off course jumps to the map, remembering the data screen you left.
+- Possible later: a long press of R2 for a lap. The SDK sends press and release
+  codes, so timing a hold is possible, but it needs trying on the watch (does
+  the ordinary click still arrive on a long press?), so it is not in.
+- 144 host tests.
+

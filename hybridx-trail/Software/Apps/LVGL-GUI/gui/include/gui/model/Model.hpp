@@ -137,6 +137,11 @@ public:
     uint8_t mapZoom() const { return mMapZoom; }
     void    mapZoomIn() { mMapZoom = MapZoom::in(mMapZoom); }
     void    mapZoomOut() { mMapZoom = MapZoom::out(mMapZoom); }
+    /// The data screen the runner was last on, for R2 to flip back to from the map
+    /// (kNoFace: none yet).
+    static constexpr uint16_t kNoFace = 0xFFFF;
+    uint16_t lastDataFace() const { return mLastDataFace; }
+    void     setLastDataFace(uint16_t id) { mLastDataFace = id; }
 
 private:
     // Fields required for GUI <-> Service communication
@@ -190,6 +195,7 @@ private:
     int8_t                   mSelectedRoute   = -1;
     int8_t                   mPreviewRoute    = -1;
     uint8_t                  mMapZoom         = MapZoom::kDefault;
+    uint16_t                 mLastDataFace    = kNoFace;
     Trail::RouteInfo         mRouteInfo       {};
     Trail::ElevationProfile  mProfile         {};
     Trail::GeoPoint          mRoutePoints[Trail::Navigator::kMaxPoints] {};

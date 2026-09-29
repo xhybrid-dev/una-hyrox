@@ -13,6 +13,7 @@
 #include "gui/Strings.hpp"
 #include "gui/RouteFormat.hpp"
 #include "MapZoom.hpp"
+#include "FaceCycle.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -353,6 +354,10 @@ void TrackScreen::onHide()
 
 void TrackScreen::showFace(uint16_t id)
 {
+    // Leaving a data screen: remember it, so R2 can flip back to it from the map.
+    if (mKind != Kind::None && mKind != Kind::Map) {
+        mModel.setLastDataFace(mFaceId);
+    }
     mFaceId = id;
     const Kind kind = kindOf(id);
     const bool fresh = kind != mKind;
@@ -371,24 +376,55 @@ void TrackScreen::onKey(uint8_t code)
     namespace Btn = SDK::GUI::Button;
     const uint8_t at = faceIndex(mFaceId);
 
-    // On the map, UP and DOWN zoom (a step each, stopping at the ends), and R2
-    // moves on to the next screen, since the two left buttons are busy. On
-    // every other screen UP and DOWN page, and R2 is the lap.
-    if (mKind == Kind::Map) {
-        switch (code) {
-            case Btn::L1:
-                mModel.mapZoomIn();
-                updateMap(mModel.nav());
-                return;
-            case Btn::L2:
-                mModel.mapZoomOut();
-                updateMap(mModel.nav());
-                return;
-            case Btn::R2:
-                showFace(mFaces[at + 1 >= mFaceCount ? 0 : at + 1]);
-                return;
-            default:
-                break;
+    // With a route: R2 flips between the map and the data screen you were on,
+    // so the map is one press away from anywhere. On the map UP and DOWN zoom
+    // (a step each, stopping at the ends); on the data screens they page,
+    // round the data screens only. There is no manual lap then: a long run
+    // with a map is not a lapped session (the lap and status screens stay).
+    if (mHasRoute) {
+        const uint8_t count   = mFaceCount;
+        uint8_t       mapAt   = count;   // "none"
+        for (uint8_t i = 0; i < count; ++i) {
+            if (mFaces[i] == FaceId::ID_MAP) {
+                mapAt = i;
+            }
+        }
+        if (mKind == Kind::Map) {
+            switch (code) {
+                case Btn::L1:
+                    mModel.mapZoomIn();
+                    updateMap(mModel.nav());
+                    return;
+                case Btn::L2:
+                    mModel.mapZoomOut();
+                    updateMap(mModel.nav());
+                    return;
+                case Btn::R2: {
+                    // Back to the last data screen, or the first one.
+                    uint16_t target = mModel.lastDataFace();
+                    if (target == Model::kNoFace || mFaces[faceIndex(target)] != target || target == FaceId::ID_MAP) {
+                        target = mFaces[FaceCycle::step(count, mapAt, mapAt, +1)];
+                    }
+                    showFace(target);
+                    return;
+                }
+                default:
+                    break;
+            }
+        } else if (mapAt < count) {
+            switch (code) {
+                case Btn::L1:
+                    showFace(mFaces[FaceCycle::step(count, mapAt, at, -1)]);
+                    return;
+                case Btn::L2:
+                    showFace(mFaces[FaceCycle::step(count, mapAt, at, +1)]);
+                    return;
+                case Btn::R2:
+                    showFace(FaceId::ID_MAP);
+                    return;
+                default:
+                    break;
+            }
         }
     }
     switch (code) {

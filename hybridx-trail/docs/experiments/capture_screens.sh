@@ -76,16 +76,16 @@ key 2; key 2; key 2
 key 2; key 2; key 2; key 2
                   snap 15-map-whole-route          # the last step: the whole route
 key 1; key 1; key 1; key 1; key 1; key 1; key 1   # and back to 150 m
-key 4;            snap 16-nav                      # R2 on the map: the next screen
-key 2;            snap 17-elevation                # L2 pages on every screen but the map
+key 4;            snap 16-nav                      # R2 on the map: the first data screen
+key 2;            snap 17-elevation                # DOWN pages the data screens
 key 2;            snap 18-run                      # the Run face
 key 2;            snap 19-lap                      # RunLVGL's lap face
 key 2;            snap 20-status                   # and its status face
-key 1; key 1; key 1; key 1; key 1                  # back to the map
+key 4                                              # R2: back to the map, in one press
 # The runner leaves the route at the bend; the watch jumps to the map.
 waitlog "Navigation: went off" 120
 sleep 2;          snap 21-off-course
-key 4;            snap 22-nav-off-course
+key 4; key 2;     snap 22-nav-off-course           # R2 to the last data screen (status), DOWN wraps to navigation
 waitlog "Navigation: back on" 120
 sleep 1;          snap 23-back-on-course           # round the track and back onto the route
 key 3;            snap 24-action-menu              # R1: pause, action menu
