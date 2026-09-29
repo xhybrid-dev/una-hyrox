@@ -595,6 +595,20 @@ Jon's bytes above.
 - **Untested:** no emulator or watch here. Everything past the connection is
   checked only against the protocol doc and the host tests until Jon runs it.
 
+### Route Sender run 1 (Pixel 7, Android 17, 29 September 2026)
+
+- **What happened:** version 0.1.0 connected in about 70 ms and read MTU 220,
+  then failed with "The watch has no file transfer service (0xFEBB)" 3 ms
+  later, on both tries. The file was a 1.27 MB recorded activity GPX.
+- **Cause (in the app, not the watch):** every GATT wait shared one
+  semaphore. A second MTU callback (Android reports the link's MTU by
+  itself, as well as answering the request) released it just after it was
+  drained for service discovery. So the app read the service list before
+  discovery had finished. nRF Connect's list shows FEBB is there.
+- **Fixed in 0.1.1:** one semaphore per callback kind (MTU, discovery, read,
+  write, descriptor). Discovery is also retried up to three times if FEBB is
+  missing, and every attempt logs the services it saw.
+
 ### Open (phone delivery)
 
 - [ ] Jon: run Route Sender's test plan (`Tools/RouteSender/README.md`) and

@@ -65,10 +65,19 @@ public final class WatchLink extends BluetoothGattCallback {
     private final Context mContext;
     private final Listener mListener;
 
+    // One signal per kind of GATT callback. A single shared one let a stray
+    // callback end the next wait early: on Jon's Pixel 7 (Android 17) a second
+    // MTU report ended the wait for service discovery, and the service list
+    // was read before it had arrived ("no file transfer service").
     private final Semaphore mConnected = new Semaphore(0);
-    private final Semaphore mOpDone = new Semaphore(0);
+    private final Semaphore mMtuDone = new Semaphore(0);
+    private final Semaphore mDiscovered = new Semaphore(0);
+    private final Semaphore mReadDone = new Semaphore(0);
+    private final Semaphore mWriteDone = new Semaphore(0);
+    private final Semaphore mDescriptorDone = new Semaphore(0);
     private final LinkedBlockingQueue<byte[]> mNotes = new LinkedBlockingQueue<byte[]>();
     private volatile int mOpStatus;
+    private volatile int mDiscoveryStatus;
     private volatile byte[] mReadValue;
     private volatile int mMtu = 23;
     private volatile boolean mIsConnected;
@@ -117,33 +126,25 @@ public final class WatchLink extends BluetoothGattCallback {
         // The UNA app has usually set the link's MTU already; Android then
         // reports the current one. If no answer comes, carry on at the
         // minimum (23): slow, but safe, and the log shows it.
-        mOpDone.drainPermits();
-        if (!mGatt.requestMtu(REQUEST_MTU) || !acquire(mOpDone, 5000)) {
+        mMtuDone.drainPermits();
+        if (!mGatt.requestMtu(REQUEST_MTU) || !acquire(mMtuDone, 5000)) {
             log("No MTU answer; using the minimum");
         }
         log("MTU " + mMtu + " (up to " + chunkSize() + " bytes of file per packet)");
 
-        mOpDone.drainPermits();
-        if (!mGatt.discoverServices()) {
-            throw new WatchException("Couldn't read the watch's services.");
-        }
-        waitOp("service discovery");
-        BluetoothGattService fts = mGatt.getService(SERVICE);
-        if (fts == null) {
-            throw new WatchException("The watch has no file transfer service (0xFEBB).");
-        }
+        BluetoothGattService fts = discoverFts();
         BluetoothGattCharacteristic version = fts.getCharacteristic(VERSION);
         mRaw = fts.getCharacteristic(RAW);
         if (version == null || mRaw == null) {
             throw new WatchException("The watch's file transfer service is missing a characteristic.");
         }
 
-        mOpDone.drainPermits();
+        mReadDone.drainPermits();
         mReadValue = null;
         if (!mGatt.readCharacteristic(version)) {
             throw new WatchException("Couldn't read the file transfer version.");
         }
-        waitOp("version read");
+        waitOp(mReadDone, "version read");
         byte[] v = mReadValue;
         if (v == null || v.length < 4) {
             throw new WatchException("The watch sent an unreadable file transfer version.");
@@ -157,12 +158,46 @@ public final class WatchLink extends BluetoothGattCallback {
             throw new WatchException("The watch's file transfer channel can't send replies.");
         }
         cccd.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-        mOpDone.drainPermits();
+        mDescriptorDone.drainPermits();
         if (!mGatt.writeDescriptor(cccd)) {
             throw new WatchException("Couldn't turn on replies from the watch.");
         }
-        waitOp("enable notifications");
+        waitOp(mDescriptorDone, "enable notifications");
         log("Replies on");
+    }
+
+    /**
+     * Discovers services and returns FTS. If FTS is missing (Android can
+     * answer from a stale cache), it asks again, up to three times, logging
+     * what it saw each time.
+     */
+    private BluetoothGattService discoverFts() throws IOException {
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            mDiscovered.drainPermits();
+            if (!mGatt.discoverServices()) {
+                throw new WatchException("Couldn't read the watch's services.");
+            }
+            if (!acquire(mDiscovered, CONNECT_TIMEOUT_MS)) {
+                throw new WatchException("Timed out waiting for the watch's services.");
+            }
+            if (!mIsConnected) {
+                throw new WatchException("The watch disconnected.");
+            }
+            StringBuilder names = new StringBuilder();
+            for (BluetoothGattService svc : mGatt.getServices()) {
+                String u = svc.getUuid().toString();
+                // Standard 16-bit UUIDs print as 0xABCD, the rest in full.
+                names.append(' ').append(u.endsWith("-0000-1000-8000-00805f9b34fb")
+                        ? "0x" + u.substring(4, 8).toUpperCase() : u);
+            }
+            log("Services (try " + attempt + ", status " + mDiscoveryStatus + "):" + names);
+            BluetoothGattService fts = mGatt.getService(SERVICE);
+            if (fts != null) {
+                return fts;
+            }
+            sleep(1000);
+        }
+        throw new WatchException("The watch has no file transfer service (0xFEBB).");
     }
 
     /**
@@ -308,7 +343,7 @@ public final class WatchLink extends BluetoothGattCallback {
         if (g == null || !mIsConnected) {
             throw new WatchException("The watch disconnected.");
         }
-        mOpDone.drainPermits();
+        mWriteDone.drainPermits();
         boolean queued = false;
         for (int attempt = 0; attempt < 50 && !queued; attempt++) {
             queued = queueWrite(g, packet);
@@ -319,7 +354,7 @@ public final class WatchLink extends BluetoothGattCallback {
         if (!queued) {
             throw new WatchException("Android wouldn't send to the watch (Bluetooth busy).");
         }
-        waitOp("write");
+        waitOp(mWriteDone, "write");
     }
 
     /**
@@ -392,8 +427,8 @@ public final class WatchLink extends BluetoothGattCallback {
         }
     }
 
-    private void waitOp(String what) throws IOException {
-        if (!acquire(mOpDone, OP_TIMEOUT_MS)) {
+    private void waitOp(Semaphore done, String what) throws IOException {
+        if (!acquire(done, OP_TIMEOUT_MS)) {
             throw new WatchException("Timed out waiting for the watch (" + what + ").");
         }
         if (!mIsConnected) {
@@ -438,7 +473,11 @@ public final class WatchLink extends BluetoothGattCallback {
             }
             // Wake anything waiting, so it sees the disconnect at once.
             mConnected.release();
-            mOpDone.release();
+            mMtuDone.release();
+            mDiscovered.release();
+            mReadDone.release();
+            mWriteDone.release();
+            mDescriptorDone.release();
         }
     }
 
@@ -447,14 +486,13 @@ public final class WatchLink extends BluetoothGattCallback {
         if (status == BluetoothGatt.GATT_SUCCESS) {
             mMtu = mtu;
         }
-        mOpStatus = BluetoothGatt.GATT_SUCCESS;   // a refused MTU is not fatal
-        mOpDone.release();
+        mMtuDone.release();   // a refused MTU is not fatal
     }
 
     @Override
     public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-        mOpStatus = status;
-        mOpDone.release();
+        mDiscoveryStatus = status;
+        mDiscovered.release();
     }
 
     @Override
@@ -462,26 +500,26 @@ public final class WatchLink extends BluetoothGattCallback {
         byte[] v = c.getValue();
         mReadValue = v == null ? null : v.clone();
         mOpStatus = status;
-        mOpDone.release();
+        mReadDone.release();
     }
 
     // Android 13+ form, with the value passed in (see onCharacteristicChanged below).
     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic c, byte[] value, int status) {
         mReadValue = value == null ? null : value.clone();
         mOpStatus = status;
-        mOpDone.release();
+        mReadDone.release();
     }
 
     @Override
     public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic c, int status) {
         mOpStatus = status;
-        mOpDone.release();
+        mWriteDone.release();
     }
 
     @Override
     public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor d, int status) {
         mOpStatus = status;
-        mOpDone.release();
+        mDescriptorDone.release();
     }
 
     // Android 13+ calls the three-argument form, whose default implementation

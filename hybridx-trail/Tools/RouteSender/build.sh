@@ -16,14 +16,14 @@
 #     (API 23's android.jar and dx instead of d8).
 #
 # The source only uses API 23 calls (newer ones by reflection, WatchLink.java)
-# so it builds either way. Environment: VERSION_NAME (default 0.1.0),
-# VERSION_CODE (default 1), OUT (default ./build).
+# so it builds either way. Environment: VERSION_NAME (default 0.1.1),
+# VERSION_CODE (default 2), OUT (default ./build).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 OUT="${OUT:-$HERE/build}"
-VERSION_NAME="${VERSION_NAME:-0.1.0}"
-VERSION_CODE="${VERSION_CODE:-1}"
+VERSION_NAME="${VERSION_NAME:-0.1.1}"
+VERSION_CODE="${VERSION_CODE:-2}"
 MIN_SDK=26
 TARGET_SDK=34
 

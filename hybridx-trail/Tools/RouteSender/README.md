@@ -82,7 +82,7 @@ The build needs no Gradle or Android Studio: `build.sh` runs the host tests,
 then compiles, dexes, packages and signs the app.
 
 ```bash
-hybridx-trail/Tools/RouteSender/build.sh      # -> build/HybridXRouteSender-0.1.0.apk
+hybridx-trail/Tools/RouteSender/build.sh      # -> build/HybridXRouteSender-0.1.1.apk
 ```
 
 It uses a full Android SDK if `$ANDROID_HOME` has one (CI does). Otherwise it
