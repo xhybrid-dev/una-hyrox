@@ -1,9 +1,36 @@
 # Draft note to UNA: sending a GPX from the phone to a watch app
 
 Status: **draft, not sent.** Jon to check the sign-off and the size limit
-before sending. Kept here so the proposal and the brief stay in step.
+before sending. Kept here so the proposal and the brief stay in step. Updated
+29 September 2026 with what the tests showed (NOTES, "Phone delivery over
+BLE"). A short forum version comes first; the full note follows.
 
 ---
+
+## Forum post (short, non-technical)
+
+**Title:** Sending a GPX route from the phone to a watch app
+
+> Hi all. I'm building a route-following app for the UNA Watch: load a GPX,
+> follow the line, and get a buzz if you go off course. The watch side works
+> well. The sticking point is getting the route onto the watch. At the moment
+> it's a USB cable and copying the file into the app's folder. That's fine for
+> me, but not for everyday runners.
+>
+> Is there, or will there be, a way to send a file such as a GPX from the phone
+> to a particular watch app through the UNA app? For example: Share → UNA →
+> "Send to HybridX Trail".
+>
+> If not, is it OK for a separate phone app to send the file to the watch over
+> Bluetooth while the UNA app stays connected? I've tried this on Android and
+> it works, but I'd rather do it the supported way. There's also no way to do
+> it on iPhone without the UNA app.
+>
+> Thanks, Jon (HybridX)
+
+---
+
+## Full note
 
 **Subject:** Feature request: send a GPX route from the UNA app to a third-party watch app
 
@@ -15,7 +42,7 @@ building a simple breadcrumb navigation app, like the older entry-level
 Garmins: load a GPX route, follow the line, and get a buzz if you go off
 course.
 
-The watch side looks fully doable with the SDK as it stands. `GPS_LOCATION`,
+The watch side is built and works with the SDK as it stands. `GPS_LOCATION`,
 the magnetometer bearing, `TrackMapBuilder` and `IFileSystem` cover everything
 the app needs on the watch. For now routes go on by USB, copied into the app's
 folder. That works for me, but it's a laptop job the night before, not
@@ -28,9 +55,14 @@ something an athlete can do from their phone at the trailhead.
    `configFile` values file into an app's folder, so I believe the answer is
    no, but please correct me.
 2. **If not, would you consider adding it?** A suggested design is below.
-3. **As a fallback, can a second phone app connect to a paired watch and write
-   files over the BLE File Transfer Service (0xFEBB)** while the watch stays
-   paired with the UNA app? Is that allowed and supported on iOS and Android?
+3. **As a fallback, is it supported for a second phone app to write files
+   over the BLE File Transfer Service (0xFEBB)** while the UNA app stays
+   connected? On Android it works technically. Through the phone's existing
+   bond, a second app connected and listed `/Apps` over FTS while the UNA app
+   stayed connected. We'd like to know it won't clash with the UNA app's own
+   syncing, and whether you'd rather we didn't. On iPhone we can't do it at
+   all without an Apple developer account, so for iPhone users only the UNA
+   app can offer this.
 
 **Suggested design**
 
@@ -61,6 +93,11 @@ reads it.
 
 The watch app parses the GPX in small chunks with a fixed-size buffer, so the
 UNA app can pass the file through unchanged.
+
+**A small docs note.** `Docs/BLE-Services-Overview.md` lists a Nordic UART
+service (`6E400001-…`), but my watch (UNA WATCH 042648) doesn't expose one. It
+does expose two custom `554e4100-…` services. It may just be the docs being
+ahead of or behind the firmware.
 
 **Why it's worth doing**
 
