@@ -14,7 +14,7 @@
 #define MODEL_HPP
 
 #include <cstdint>
-#include "gui/MapZoom.hpp"
+#include "MapZoom.hpp"
 #include <ctime>
 
 #include "SDK/Kernel/Kernel.hpp"
@@ -135,7 +135,13 @@ public:
     int8_t  previewRoute() const { return mPreviewRoute; }
     /// The run map's zoom level (MapZoom.hpp), kept across screens.
     uint8_t mapZoom() const { return mMapZoom; }
-    void    nextMapZoom() { mMapZoom = MapZoom::next(mMapZoom); }
+    void    mapZoomIn() { mMapZoom = MapZoom::in(mMapZoom); }
+    void    mapZoomOut() { mMapZoom = MapZoom::out(mMapZoom); }
+    /// The data screen the runner was last on, for R2 to flip back to from the map
+    /// (kNoFace: none yet).
+    static constexpr uint16_t kNoFace = 0xFFFF;
+    uint16_t lastDataFace() const { return mLastDataFace; }
+    void     setLastDataFace(uint16_t id) { mLastDataFace = id; }
 
 private:
     // Fields required for GUI <-> Service communication
@@ -188,7 +194,8 @@ private:
     uint8_t                  mRouteCount      = 0;
     int8_t                   mSelectedRoute   = -1;
     int8_t                   mPreviewRoute    = -1;
-    uint8_t                  mMapZoom         = 0;
+    uint8_t                  mMapZoom         = MapZoom::kDefault;
+    uint16_t                 mLastDataFace    = kNoFace;
     Trail::RouteInfo         mRouteInfo       {};
     Trail::ElevationProfile  mProfile         {};
     Trail::GeoPoint          mRoutePoints[Trail::Navigator::kMaxPoints] {};
