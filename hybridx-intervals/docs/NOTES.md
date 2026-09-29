@@ -100,10 +100,17 @@ icons) and pointing `RESOURCES_PATH` at it in
 
 ## Findings for Jon (fill in after running `docs/PROBE.md`)
 
-- [ ] Did OS-level Bluetooth pairing/bonding with the watch succeed, and how
+- [x] Did OS-level Bluetooth pairing/bonding with the watch succeed, and how
       was it triggered (a prompt from the OS, a code on the watch, something
-      else)?
-- [ ] Watch's advertised BLE name, for `send_plan.py --name`.
+      else)? **Partly answered on 29 September 2026, from a phone, not a PC**
+      (hybridx-trail/docs/NOTES.md, "Phone delivery over BLE"). The bond the UNA
+      app makes is the phone's, and a second Android app (nRF Connect) used it
+      with no prompt, while the UNA app stayed connected. FTS reported version
+      5 and answered LISTDIR `/Apps`. A PC pairing on its own is still untested.
+- [x] Watch's name: **"UNA WATCH 042648"** (Jon's watch). Note that the watch
+      **didn't show in a scan** while the UNA app was connected, so
+      `send_plan.py`'s scan may need the UNA app closed, or the phone's
+      Bluetooth off.
 - [ ] MKDIR on an already-existing directory: what status byte came back?
 - [ ] Did the classic WRITE flow complete (`WRITE_PACING` reaching
       `freeSpace == 0`)?

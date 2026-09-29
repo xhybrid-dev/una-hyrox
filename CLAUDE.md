@@ -77,8 +77,12 @@ independent of Race and Streak.
 - **Rules:** the same standing rules as Race apply.
 - **Layout:** the pure route core (GPX reader, thinning, route maths) is
   `Software/Libs/Core`, shared by the probe (`Tools/Probe`) and the future app.
-  Routes go in the app's `Routes/` folder, over USB for v1.
-- **Watch builds come from CI**, as for Streak.
+  Routes go in the app's `Routes/` folder: over USB for development, and from
+  the phone over the watch's BLE File Transfer Service for release (NOTES,
+  "Phone delivery over BLE"). The Android sender is `Tools/RouteSender`
+  (plain Java, no Gradle; its README has the test plan).
+- **Watch builds come from CI**, as for Streak. So does the Route Sender APK
+  (`.github/workflows/route-sender.yml`, artifact `route-sender-apk`).
 - **Commands:**
   - host tests: `cmake -S hybridx-trail/Tests/Host -B hybridx-trail/build-tests && cmake --build hybridx-trail/build-tests && hybridx-trail/build-tests/hybridx-trail-host-tests`;
   - probe simulator: `hybridx-trail/Tools/Probe/Software/Apps/Probe-GUI/simulator`.
@@ -89,3 +93,7 @@ independent of Race and Streak.
     in `Software/Output/Routes/`, from `Tools/TestRoutes/make_sim_routes.py`);
   - captures: `hybridx-trail/docs/experiments/capture_screens.sh [out-dir]`
     (every screen, into `docs/screens/`); `sim_run.sh` for a quick run.
+  - Route Sender (Android APK, with host tests):
+    `hybridx-trail/Tools/RouteSender/build.sh`. It uses `$ANDROID_HOME` if
+    set, else Ubuntu's `android-sdk-platform-23 aapt apksigner zipalign
+    dalvik-exchange` (dl.google.com is blocked in the container).
