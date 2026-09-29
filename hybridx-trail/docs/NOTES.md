@@ -495,36 +495,151 @@ so it is used. Screenshots: `docs/screens/` (17 elevation, 21-22 the way back,
 - 135 host tests (40 new: fusion, turns, elevation, navigator); watch build
   clean; simulator walkthrough with the new faces.
 
-## T3d: zoom with UP and DOWN (29 September 2026)
 
-Jon's field test: the map was too zoomed out, and R2 (the zoom button) was not
-found. Now:
+---
 
-- **On the map, UP (L1) zooms in and DOWN (L2) zooms out**, one step at a time,
-  stopping at each end. Nine radii, 60, 100, 150, 250, 400, 700, 1200, 2000 and
-  3500 m, then the whole route. **It starts at 150 m** (was 300 m).
-- **R2 on the map is the next screen** (the two left buttons are busy); on every
-  other screen L1/L2 page as before and R2 is the lap.
-- The scale bar (20 m ... 2 km) names the level. `MapZoom.hpp` moved to the core
-  and is host-tested (139 tests).
+## Phone delivery over BLE (29 September 2026)
 
-## T3e: R2 flips between the map and the data screens (29 September 2026)
+### Why
 
-UP/DOWN zooming the map left no way to reach the data screens but R2 one way.
-Jon's design, built:
+USB works: Jon has copied a GPX into `Apps/HybridXTrail/Routes/` from a laptop
+and, with a USB-C to USB-C cable, **from his phone** (the watch mounts as a
+removable drive on both). But it relies on the user knowing that folder, which
+athletes won't. The goal for release: a GPX on the phone, a tap, and it's on the
+watch.
 
-- **With a route, R2 flips between the map and the data screen you were last
-  on** (the first, Navigation, the first time). The map is one press from any
-  data screen.
-- **On the map, UP/DOWN zoom. On the data screens, UP/DOWN page** (navigation,
-  elevation, run, lap, status), wrapping round the data screens only, never
-  landing on the map (`FaceCycle.hpp`, host-tested).
-- **No manual lap with a route.** Lap needed R2. Its numbers stay on the Lap
-  screen (a lap is still cut by the lap alerts in Settings). **A plain run with
-  no route is unchanged:** R2 is the lap, UP/DOWN page.
-- Going off course jumps to the map, remembering the data screen you left.
-- Possible later: a long press of R2 for a lap. The SDK sends press and release
-  codes, so timing a hold is possible, but it needs trying on the watch (does
-  the ordinary click still arrive on a long press?), so it is not in.
-- 144 host tests.
+### What the platform offers (research pass)
 
+- **Hardware** (`UNAWatch/una-hardware`, BOMs): STM32U5A5 MCU, eMMC storage,
+  USB (mass storage), and a **BlueNRG-2, Bluetooth Low Energy only**. No
+  Wi-Fi, no NFC. So a file reaches the watch by USB or by BLE, nothing else.
+- **Watch apps have no phone channel.** No SDK interface lets an app talk to the
+  phone (`Libs/Header/SDK/Interfaces/*`); an app only sees its own folder
+  (`IFileSystem`). Anything from the phone must arrive as a file.
+- **The BLE File Transfer Service** (`Docs/BLE-File-Transfer-Service.md`,
+  service `0xFEBB`) reads and writes any file, including
+  `/Apps/<AppDir>/...`. It needs a bonded, encrypted link
+  (`Docs/BLE-Services-Overview.md:7-8`). This is how the UNA app writes
+  `configFile` (`Docs/app-config-fields.md` §9.2).
+- **UNA's config fields can't carry a route:** at most 32 fields
+  (`app-config-fields.md:135`) of at most 128 bytes (`:755`), so 4 KB, typed
+  in by hand.
+
+Options weighed with Jon:
+
+| Option | Verdict |
+|---|---|
+| USB from laptop or phone | Works (Jon, T0 and 29 Sep). Needs folder knowledge, so it stays a developer path |
+| UNA app config fields | Not a route (above) |
+| A web page (Web Bluetooth) | **No.** iPhone browsers have no Bluetooth at all. On Android, Chrome's device chooser only lists advertising devices, and the watch doesn't advertise while the UNA app is connected (test 1 below) |
+| The HybridX app | Not in any store yet (a PWA for users; a personal test APK). Jon prefers not to tie this to it |
+| UNA adds "send GPX to an app" to their app | The best outcome, and the only easy route for iPhone users. Asked (`UNA_GPX_REQUEST.md`, forum post) |
+| **A small standalone Android app** | **Chosen as the fallback and the proof.** Test 2 shows a second app can use FTS. Built: `Tools/RouteSender` |
+
+### Tests on Jon's phone (Android, nRF Connect, 29 September 2026)
+
+1. **Scan:** the watch **did not appear**, even with the UNA app open. Most
+   likely it stops advertising once connected. Not yet tried: the UNA app
+   force-stopped, or a pairing mode on the watch.
+2. **Bonded tab → Connect:** "UNA WATCH 042648" (`7B:9D:B9:72:A9:44`) is listed,
+   and connecting **worked while the UNA app stayed connected**
+   ("CONNECTED / BONDED"). There was no pairing prompt; the bond the UNA app
+   made belongs to the phone, and Android shares the link between apps.
+3. **Services the watch exposes:** `0x1801`, `0x1800`, `0x180A` (Device
+   Information), `0x1805` (Current Time), `0x180F` (Battery), **`0xFEBB`**, and
+   two custom services, `554e4100-a2cf-4df8-0000-7e1e48595106` and
+   `554e4100-28e7-4811-0000-141f8b92ee40` (`55 4E 41` is "UNA" in ASCII: UNA's
+   own, undocumented, not ours to use).
+   - **Conflict with the SDK docs:** `Docs/BLE-Services-Overview.md` lists a
+     Nordic UART service (`6E400001-…`), but the watch doesn't expose one.
+     Nothing here needs it; it's worth mentioning to UNA.
+4. **FTS characteristics:** `adaf0001` (READ) = `05-00-00-00`, so **protocol
+   version 5** (fast transfer: windowed writes, `DIGEST`). `adaf0002` is NOTIFY
+   and WRITE NO RESPONSE, as documented.
+5. **A real FTS command from a second app:** with notifications on, Jon wrote
+   `50 00 05 00 2F 41 70 70 73` (LISTDIR `/Apps`) by hand. The last reply was
+   `51-01-00-00-1F-00-00-00-1F-00-00-00-…`: status OK, entry 31 of 31 with no
+   name, i.e. the listing's terminator. **`/Apps` holds 31 entries, and the
+   watch answered a file command from another app while the UNA app was
+   connected.** (Decoded in `Tools/RouteSender/tests/.../HostTests.java`.)
+
+**Reading:** a native phone app can reach the watch through the phone's existing
+bond (no scan, no extra pairing) and use FTS. That's the whole transport a
+sender needs. What's left to prove is a real write that Trail then shows
+(Route Sender's test plan).
+
+### HybridX Route Sender: the test app (`Tools/RouteSender`)
+
+A one-screen Android app, written in plain Java with no Gradle or libraries:
+- pick a GPX, or **Share → Route Sender** from any app;
+- it finds the paired watch ("UNA" in the name), reads the FTS version and
+  checks `/Apps/HybridXTrail` exists;
+- it runs MKDIR `Routes` if missing, WRITEs the file (v5: 2 KB window with
+  go-back-N; v4: stop-and-wait), then compares the watch's DIGEST (CRC-32 and
+  size) against the phone's;
+- a log to copy back.
+
+Names follow Trail's own rules (`Navigator.cpp` `isGpx`, `RouteInfo::file[48]`).
+The pure parts (`Fts`, `RouteFile`) have host tests, 47 checks, including
+Jon's bytes above.
+
+- **Builds:** `dl.google.com` (Google's Android SDK) is blocked from the Claude
+  container, so `build.sh` also builds with Ubuntu's Android packages (API 23
+  `android.jar`, `aapt2`, `dx`, `apksigner`). The source sticks to API 23
+  calls, and uses the Android 13+ write and notify forms by reflection so
+  that a reply can't overwrite a packet being sent. CI builds it with GitHub's
+  full SDK (`.github/workflows/route-sender.yml`, artifact
+  `route-sender-apk`).
+- **Signing:** a test-only key in the repo (`debug.keystore`), so builds
+  install over each other. A store release needs its own key, kept out of git.
+- **Untested:** no emulator or watch here. Everything past the connection is
+  checked only against the protocol doc and the host tests until Jon runs it.
+
+### Route Sender run 1 (Pixel 7, Android 17, 29 September 2026)
+
+- **What happened:** version 0.1.0 connected in about 70 ms and read MTU 220,
+  then failed with "The watch has no file transfer service (0xFEBB)" 3 ms
+  later, on both tries. The file was a 1.27 MB recorded activity GPX.
+- **Cause (in the app, not the watch):** every GATT wait shared one
+  semaphore. A second MTU callback (Android reports the link's MTU by
+  itself, as well as answering the request) released it just after it was
+  drained for service discovery. So the app read the service list before
+  discovery had finished. nRF Connect's list shows FEBB is there.
+- **Fixed in 0.1.1:** one semaphore per callback kind (MTU, discovery, read,
+  write, descriptor). Discovery is also retried up to three times if FEBB is
+  missing, and every attempt logs the services it saw.
+
+### Route Sender run 2: **phone delivery works** (0.1.1, 29 September 2026)
+
+The first end-to-end send, from a Pixel 7 with the UNA app connected:
+- **Connection:** connected in 94 ms, MTU 220 (205 bytes of file per packet).
+  Discovery found all eight services, FEBB included, on the first try.
+  Version 5.
+- **Before the write:** LISTDIR `/Apps` gave 31 entries and found
+  `HybridXTrail`. `Routes/` held 3 routes (`AR_Ham2Lyme_50k_26.gpx`
+  128,857 B, `125 in the lanes.gpx` 18,371 B, `ridge-loop.gpx` 94,093 B).
+  These were the USB copies, including a name with spaces.
+- **The write:** 685 bytes in 0.79 s, then **DIGEST matched** (size and
+  CRC-32 `d7c6c871`). A second listing showed 4 routes.
+- **Not measured yet:** speed. The file was too small to show it; 0.79 s is
+  mostly round trips. The log showed "0 KB/s" from integer rounding, so
+  0.1.2 logs bytes per second instead.
+
+**Reading:** a GPX chosen on the phone lands in Trail's `Routes/` over BLE,
+verified, with no folders for the user and no USB. The transport question is
+answered.
+
+### Open (phone delivery)
+
+- [x] Jon: run Route Sender's test plan. The core send passed in run 2.
+- [ ] Trail shows and loads a route sent this way (check on the watch).
+- [ ] A real-sized route (about 100 KB) for speed, and the Share entry from
+      another app.
+- [ ] Does Trail see a route that arrives while it's running, or only after
+      reopening? `Navigator::scan()` runs when the route list is built.
+- [ ] Does the UNA app notice or mind another app using FTS on the same link?
+      Both apps share one FTS channel and its replies.
+- [ ] Transfer speed for a typical route (the log's `Written in` line).
+- [ ] UNA's answer to the forum post and the request.
+- [ ] Scan with the UNA app force-stopped: does the watch advertise then?
+      This only matters for a web-page sender, which is ruled out anyway on iPhone.

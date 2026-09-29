@@ -1,0 +1,36 @@
+name: Route Sender (Android)
+
+# Builds HybridX Route Sender, the phone app that sends a GPX to HybridX Trail
+# over the watch's BLE File Transfer Service (hybridx-trail/Tools/RouteSender).
+# GitHub's ubuntu runners carry a full Android SDK, which build.sh picks up
+# from $ANDROID_HOME. Artifact: route-sender-apk.
+
+on:
+  push:
+    paths:
+      - 'hybridx-trail/Tools/RouteSender/**'
+      - '.github/workflows/route-sender.yml'
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Build and test
+        env:
+          # Each CI build installs over the last one: same key, higher code.
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          hybridx-trail/Tools/RouteSender/build.sh
+
+      - name: Upload APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: route-sender-apk
+          path: hybridx-trail/Tools/RouteSender/build/HybridXRouteSender-*.apk
+          if-no-files-found: error

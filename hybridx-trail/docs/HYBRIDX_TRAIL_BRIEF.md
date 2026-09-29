@@ -5,7 +5,9 @@
 and T3 (screens) built and verified in the simulator (NOTES, "T1" to "T3");
 screenshots in `docs/screens/`. Next: T4, Jon's field test on the watch.
 Waiting on Jon's OK for the alert behaviour (NOTES T1.2). Heading-up uses GPS
-direction of travel: the compass never calibrated on-watch.
+direction of travel: the compass never calibrated on-watch. Phone delivery:
+a second app can use the watch's file transfer (NOTES, "Phone delivery over
+BLE"); the test sender `Tools/RouteSender` is waiting on Jon's run.
 **Read with:** `NOTES.md` (findings, with SDK citations), `PROBE.md` (Jon's
 steps for T0), `UNA_GPX_REQUEST.md` (the note to UNA about phone delivery).
 
@@ -77,11 +79,24 @@ Whether step 5 needs a power cycle first is one of the probe's questions. The
 watch can't be used while its drive is attached, so this is a "night before"
 flow, not one for the trailhead.
 
-**Later: from the phone.** Either UNA adds "open GPX in UNA, send to app" to
-their phone app (`UNA_GPX_REQUEST.md`), or HybridX builds its own sender over
-the documented BLE File Transfer Service (the path HybridX Intervals' probe is
-testing). **The watch app doesn't change either way:** it reads whatever is in
-`Routes/`, however it got there.
+**For release: from the phone.** USB needs the user to know the folder, so
+it's a developer path only. For everyone else, one of two routes:
+
+1. **UNA adds "send a GPX to an app"** to their phone app
+   (`UNA_GPX_REQUEST.md`, and a forum post). This is the only easy route for
+   iPhone users.
+2. **HybridX's own phone app** over the documented BLE File Transfer Service.
+   Tested on 29 September 2026: an Android app can reach the watch through
+   the phone's existing bond while the UNA app stays connected, and the watch
+   answers its file commands (NOTES, "Phone delivery over BLE"). A one-screen
+   test app, **HybridX Route Sender** (`Tools/RouteSender`), does the whole
+   job: Share → Send → verified. Android first (sideloaded APK, then Play);
+   iPhone would need an Apple developer account.
+
+A web page can't do it: iPhone browsers have no Bluetooth, and on Android the
+watch isn't discoverable while the UNA app is connected. **The watch app
+doesn't change either way:** it reads whatever is in `Routes/`, however it got
+there.
 
 ## 5. Architecture
 
@@ -129,7 +144,9 @@ or decide. Build the watch target and the simulator after every change.
 ## 7. Decisions for Jon
 
 1. **App name.** "HybridX Trail" is the working name.
-2. **USB only for v1?** Recommended: yes, and add phone delivery when UNA answers.
+2. **USB only for v1?** Recommended: yes for the first watch tests. Before
+   any public release, phone delivery is needed (section 4): UNA's app if they
+   add it, otherwise HybridX Route Sender.
 3. **Off-course threshold default:** 50 m suggested. You know what trail runners
    will tolerate better than I do.
 4. **Units:** kilometres only, or miles as a setting? (The other apps are metric.)
@@ -138,7 +155,9 @@ or decide. Build the watch target and the simulator after every change.
 
 ## 8. Questions for UNA
 
-1. Phone delivery of a GPX to a third-party app (`UNA_GPX_REQUEST.md`).
+1. Phone delivery of a GPX to a third-party app (`UNA_GPX_REQUEST.md`): will
+   the UNA app do it, and is a second app using FTS alongside the UNA app
+   supported?
 2. Can two apps run at once (a navigation overlay on another app), or is one
    full-screen app at a time the model?
 3. How does a user calibrate the compass, and does `MAG_CALIBRATED` stay set
@@ -155,5 +174,6 @@ or decide. Build the watch target and the simulator after every change.
 | GPS accuracy under trees and in valleys | False off-course alerts | Hysteresis and confirmation time in `OffCourse`; tune on Jon's field test |
 | Compass not calibrated, or unreliable near metal | Heading-up map spins | Fall back to GPS direction of travel when moving; north-up as the safe default |
 | Battery on long days | An ultra outlasts the watch | Measure in T4; offer a lower GPS rate if the SDK allows |
-| USB delivery is too fiddly for athletes | Low use | Phone delivery (section 4); a one-page picture guide meanwhile |
+| USB delivery is too fiddly for athletes | Low use | Phone delivery (section 4): UNA's app, or Route Sender |
+| Our sender and the UNA app clash on the shared FTS channel | A failed or corrupt transfer | Route Sender checks every file with `DIGEST` and says so; ask UNA (section 8) |
 | Very long routes | Coarser line | `RouteBuilder` thins evenly to fit; T0 measures what memory allows |
