@@ -737,3 +737,52 @@ reached by general `..` traversal.
 
 **Gate 0: NOT GO, closed.** Automatic counting of other apps' activities is
 impossible without UNA. PLAN §3's options; Jon to choose.
+
+---
+
+## The UNA Android app (v2.2.8): what sync does (30 September 2026)
+
+UNA supplied Jon with the APK (`com.unawatch`, version 2.2.8). Jon sent the
+binary `AndroidManifest.xml`, `assets/index.android.bundle` and screenshots of
+the `lib/` and `assets/` folders. Method: `strings` over the bundle. It is
+**Hermes bytecode (version 96)**, so only string literals are readable, not the
+code. Everything below is inferred from log and identifier strings; none of it
+is documented by UNA or was run.
+
+- **Framework:** React Native (`libhermes.so`, `libreactnative.so`,
+  `index.android.bundle` 7.47 MB), with Sentry, Firebase, Notifee, Klaviyo and
+  AppsFlyer.
+- **Manifest:** no Health Connect or Google Fit permissions. It has BLE,
+  companion-device, notification-listener and foreground-service entries, and
+  a `strava` package query. Whether any component is exported for other apps
+  is not readable from the raw binary; needs `aapt dump xmltree`.
+- **Sync flow** (log strings, prefixes `[BLE]`, `[Activity Files]`,
+  `[Activity Data]`): it connects over the BLE File Transfer Service, lists
+  `/Apps`, and checks each app for new activities. It reads a pointer file,
+  `latest_activity.txt` (its exact location and format are unknown; our probe
+  saw none in `Walking/Activity/`). It lists the app's month folder and
+  downloads files named `activity_YYYYMMDDTHHMMSS.fit`. It parses the FIT
+  itself, saves the activity, then sends **"Deleting activity file from
+  device"**. This confirms the deletion found in Gate 0.
+- **History lives off the watch.** `autoActivityUploadEnabled`,
+  "activityUpload success!" and `/sync/pull?lastPulledAt=` point to a local
+  database in the app's private storage, synced with UNA's backend. A phone
+  companion cannot read it.
+- **Strava:** the app links to Strava by OAuth (`unawatch://strava/authorize`).
+  That is the only export integration seen. `TrainingPeaks` appears only as a
+  metric name (TSS). Not evidence of a TrainingPeaks link.
+- **Other strings worth knowing:** `/Apps/app_list.json`,
+  `/Update/firmware.ota`, `GPS_EPO`, `/settings.json`; FTS protocol version
+  read and DIGEST check (agrees with Trail's NOTES).
+
+**Consequences for Streak**
+- No phone-side route exists without UNA: no Health Connect, nothing exported
+  (unconfirmed), history in private storage.
+- Racing the UNA app to the FIT files over BLE would be fragile, Android-only,
+  and is not recommended.
+- Using UNA's backend endpoints from our own code would rely on an
+  undocumented, authenticated interface. Not to be done without UNA's say-so.
+- The clean route: UNA writes a small recent-activities summary to
+  `Apps/SharedData/` after each sync (the one path the firmware lets apps
+  read). Drafted in `UNA_ACTIVITY_REQUEST.md`. Jon to send.
+- Open: aapt dump of exported components; where `latest_activity.txt` lives.
