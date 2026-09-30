@@ -1,0 +1,1 @@
+{"v":1,"name":"Zone 2 spin","sport":"bike","steps":[{"type":"time","value":2700,"target":{"kind":"hrzone","low":2,"high":2}},{"type":"open","intensity":"cooldown"}]}
