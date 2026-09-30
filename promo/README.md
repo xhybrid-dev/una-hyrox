@@ -34,6 +34,58 @@ clear of the button column on the right of the lower half. The same
 "read before sharing" notes apply to them, and for paid adverts in
 particular UNA's watch and logo need UNA's clearance first.
 
+## The unboxing reel
+
+[`videos/reels/hybridx-unboxing-reel.mp4`](videos/reels/hybridx-unboxing-reel.mp4),
+"Box to start line": Jon's own unboxing of a UNA Watch, cut from two phone
+clips into a 32 s portrait reel (16 bars at 120 BPM, F minor), with a cover
+in [`videos/reels/covers/`](videos/reels/covers/).
+
+The unboxing is run as a race. The reel opens on the finished watch and asks
+"Box to start line. How fast?", rewinds to the empty table, and the clock
+starts as the box slides in. Eight stations follow in the order they
+happened (the box, the seal, the lid, the watch, USB-C, the straps, power on,
+the start line), each with a split on the cut and one of UNA's own claims.
+The finish is the Run screen at **4:24**, then "Open to developers. So we
+build apps for it." and the family end card, "Unboxed. Now we race."
+
+- **The clock is real.** It is elapsed time on the wall clock, from the
+  Pixel's own timestamps in the clip names (10:47:14.350 and 10:50:38.991),
+  counted from the box coming into shot. It runs fast through the sped-up
+  shots, jumps where footage is cut, and only ever goes forwards (the shots
+  keep their real order). 4:24 is the real time from box to Run screen.
+- **The lid is annotated like a coach's telestrator.** The box prints three
+  promises inside its lid (USB-C charging, modular architecture,
+  dual-frequency GPS); the reel freezes on it and draws on them.
+- **Every claim is UNA's**, from [unawatch.com](https://unawatch.com) and the
+  box: "one watch for life", replaceable battery and display, USB-C ("the
+  cable you already carry"), a 10-day battery with up to 20 hours of GPS,
+  dual-frequency GPS, Run, Bike, Hike, Walk and Workout modes, and the open
+  developer platform. The strap line ("Swap the strap too") shows the white
+  strap from its own "UNA strap" box and claims nothing more.
+- **Sound:** a synthesised score in the films' kit (`audio/unboxing_reel.py`)
+  with the clips' own sound under it, the knife through the seal and the
+  boot, each shot's sound following its picture's speed.
+- **Look:** a light grade on the way in (a little contrast and clarity, no
+  shift to the product's colours), the reels' type, top bar and safe area.
+
+It is rendered like the others, but from footage: `lib/footage.mjs` decodes
+the clips with ffmpeg as the frames are drawn, and holds and rewind stills
+are cached in `out/footage/`. The two clips (287 MB and 225 MB) are over
+GitHub's file limit, so they are not in git: put them in `promo/unbooxing/`
+to re-render.
+
+```bash
+python3 audio/unboxing_reel.py   # writes audio/out/unboxing-reel.wav
+node render.mjs unboxing-reel    # writes videos/reels/hybridx-unboxing-reel.mp4
+node render.mjs unboxing-reel --still 0.9   # the cover's frame
+```
+
+**Before posting:** it shows UNA's product, box and logo throughout, so the
+same clearance note applies, more so than for the renders. The watch's own
+clock and date (02:02, Thu 30 Mar) had not been set yet. The cover
+(`videos/reels/covers/hybridx-unboxing-reel.jpg`) is the hook at 0.9 s.
+
 ## Thumbnails
 
 Six YouTube thumbnails in [`videos/thumbnails/`](videos/thumbnails/), 1280 × 720,
@@ -156,6 +208,8 @@ lib/film.mjs          headline, callout and press helpers
 films/*.mjs           the three films: scenes, timing, cue sheets
 films/*-reel.mjs      the three portrait reels
 lib/reel.mjs          the reels' safe area, top bar and closing card
+lib/footage.mjs       real footage: decoding, the grade, held frames, placement
+films/unboxing-reel.mjs  the unboxing reel, cut from ../unbooxing/ (not in git)
 thumbnails.mjs        the YouTube thumbnails, two per film
 audio/synth.py        the synthesiser, effects and mix bus
 audio/common.py       the sonic logo, split sound, loudness normalisation

@@ -447,7 +447,8 @@ const FAMILY = [
 /**
  * The closing card, the same in every film: the lockup, "for UNA Watch", the
  * family of three with this film's app lit, and the address.
- * t: seconds since the card began.
+ * t: seconds since the card began. app 'all' lights the whole family, and an
+ * empty name leaves the lockup as the mark and "HybridX" alone.
  */
 export function endCard(ctx, t, opt) {
   const { app, accent, accent2 = accent, name } = opt;
@@ -463,7 +464,7 @@ export function endCard(ctx, t, opt) {
   const nameS = { size: h * 0.62, weight: 600, tracking: -0.02, color: C.white };
   const prodS = { size: h * 0.62, weight: 300, tracking: -0.02, color: C.white };
   const wHyb = measure(ctx, 'HybridX', nameS);
-  const wSp = h * 0.16;
+  const wSp = name ? h * 0.16 : 0;
   const wProd = measure(ctx, name, prodS);
   const markW = XM.w * h;
   const gapMW = h * 0.42;
@@ -502,7 +503,7 @@ export function endCard(ctx, t, opt) {
   let x = W / 2 - rowW / 2;
   items.forEach((f, i) => {
     const pa = ep(t, 1.2 + i * 0.12, 1.9 + i * 0.12, E.outCubic);
-    const on = f.id === app;
+    const on = app === 'all' || f.id === app;
     ctx.save();
     ctx.globalAlpha *= pa;
     const col = on ? f.color : C.rule;
