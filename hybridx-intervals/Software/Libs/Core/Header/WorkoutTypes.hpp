@@ -51,10 +51,10 @@ enum class TargetKind : uint8_t {
     HeartRateBpm,
 };
 
-/// A band around the target effort. For every kind, `low` is the slow/under
-/// bound and `high` is the fast/over bound in that kind's own units (pace's
-/// direction is inverted internally by TargetEvaluator, which is the one
-/// place that has to know pace runs backwards).
+/// A band around the target effort: `low <= high`, in the kind's own units.
+/// For Pace (sec/km) `low` is the FAST bound and `high` the slow one, which is
+/// how TargetEvaluator::classify reads them. (This comment used to say the
+/// opposite; the evaluator and its tests are the truth.)
 struct Target {
     TargetKind kind = TargetKind::Open;
     uint16_t   low  = 0;

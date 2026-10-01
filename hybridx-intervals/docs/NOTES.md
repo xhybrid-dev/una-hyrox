@@ -112,10 +112,14 @@ icons) and pointing `RESOURCES_PATH` at it in
       `send_plan.py`'s scan may need the UNA app closed, or the phone's
       Bluetooth off.
 - [ ] MKDIR on an already-existing directory: what status byte came back?
-- [ ] Did the classic WRITE flow complete (`WRITE_PACING` reaching
-      `freeSpace == 0`)?
+      Not run for Intervals. Route Sender runs MKDIR only when a folder is
+      missing (Trail NOTES); the status byte is still unrecorded.
+- [x] Did the classic WRITE flow complete (`WRITE_PACING` reaching
+      `freeSpace == 0`)? **Answered by Trail, not by this probe:** Route Sender
+      wrote 685 bytes (version 5, windowed) and DIGEST matched. The classic
+      version 4 flow that `send_plan.py` uses was not exercised.
 - [ ] Did the probe app on the watch report **GO**, and did its preview match
-      the JSON `send_plan.py` sent?
+      the JSON `send_plan.py` sent? Never run. Retired (see "Gate P0: closed").
 - [ ] Anything `send_plan.py`'s console output flagged as unexpected.
 
 ## Gate P0 — what decides next steps
@@ -126,6 +130,35 @@ real-time target/pace-zone engine.
 
 **Not GO**: fall back to Option B, `AppConfig`'s compact single-preset path. No
 workaround attempted — same rule as Streak's Gate 0.
+
+## Gate P0: closed by Trail's evidence (30 September 2026)
+
+The Intervals probe (`Tools/Probe`, `send_plan.py`) was never run. Its
+question was whether a second app can write a file into a watch app's own
+folder over BLE File Transfer and have the watch app read it. Trail answered
+that on the same watch and the same phone:
+
+- **Write:** Route Sender 0.1.1 (a standalone Android app, not the UNA app)
+  wrote into `/Apps/HybridXTrail/Routes/` over FTS version 5, with the UNA app
+  still connected, no scan and no pairing prompt. DIGEST (size and CRC-32)
+  matched. (`hybridx-trail/docs/NOTES.md`, "Route Sender run 2".)
+- **Read-back:** a watch app reads its own folder as ordinary files, which
+  Trail already does with `Routes/` over USB.
+
+**Gate P0 is GO for Option A** (a real phone sender over BLE FTS). The
+`AppConfig` fallback (Option B) stays available as an on-watch preset.
+
+What this does **not** cover, and stays open:
+- The probe's own PC path (Python, `bleak`, OS-level pairing). Not needed if the
+  sender is an Android app that uses the phone's existing bond.
+- **An Intervals file reaching an Intervals watch app.** Trail's read-back on
+  the watch after a BLE write is itself still ticked open in its notes
+  ("Trail shows and loads a route sent this way"). Same for whether an app
+  sees a file that arrives while it is running.
+- iPhone: no path except UNA adding "send file to app" (`hybridx-trail/docs/UNA_GPX_REQUEST.md`).
+
+The probe's code and `docs/PROBE.md` stay in the repo as reference and are
+still built by CI; nothing depends on them.
 
 ## P1: the workout data model and pace/HR engine (26 September 2026)
 
@@ -228,3 +261,69 @@ triggered by that specific reassignment pattern with this compiler.
 5. **Sizing constants.** `Workout::kMaxSteps` (20) and `kNameChars` (32) are
    placeholder bounds with no spec behind them. Is there an expected upper
    bound for how large a workout needs to be?
+
+
+## P2: the workout file and its parser (30 September 2026)
+
+Agreed with Jon: JSON, one workout per file, in the app's `Workouts/` folder.
+Schema in `docs/WORKOUT_FILE.md`. Parser `Software/Libs/Core/Sources/
+WorkoutParser.cpp` (`parseWorkout`), pure C++ and SDK-free like the rest of
+Core: no heap, integers only, every read bounds-checked, first error sticks.
+
+### What was built and checked
+
+- **`parseWorkout(buf, len, Workout&) -> ParseResult`** reads the whole file,
+  converts the wire's human units (seconds, metres, sec/km) into `Step`'s ms
+  and cm, then runs `validate()`. A parsed workout therefore always meets
+  `WorkoutEngine::start`'s precondition. `ParseResult` carries the error, the
+  `ValidationError` if `Invalid`, and the byte offset.
+- **Strict on purpose:** unknown names, non-integers, negatives, out-of-range
+  numbers, `low > high`, a second `steps` key and an over-long name are each an
+  error; nothing is defaulted or truncated. Unknown keys are skipped (bounded
+  to nesting depth 8) so a newer sender can add fields. `v` is checked when
+  read, so a newer file is reported as `BadVersion` even if it has things this
+  reader cannot parse, provided `v` comes first.
+- **Tests:** `Tests/Host/WorkoutParserTest.cpp`, 23 cases, plus two fixture
+  files (`Tests/Host/fixtures/`). Whole suite **68 tests**, all green, both
+  plain and with `-fsanitize=address,undefined`. Every prefix of the worked
+  example is parsed from an exactly-sized heap buffer (so any over-read is an
+  ASan error), and so is every one-byte corruption from a set of 14 bytes.
+  The worked example also runs through `WorkoutEngine` to completion.
+- **Compile check:** `g++ -std=c++17 -Wall -Wextra -Wpedantic -Wconversion
+  -Wshadow -fno-exceptions -fno-rtti` on the new source: no warnings. The
+  container has no ARM compiler, so this is the host compiler, not the
+  cross-compile check P1 did. CI's watch build is the arbiter.
+
+### Finding: a comment in `WorkoutTypes.hpp` had pace backwards
+
+The `Target` comment said `low` is the slow bound and `high` the fast one. The
+code and its tests do the opposite: `TargetEvaluator::classify` treats `low` as
+the **fast** bound (`paceSecPerKm < low` is Over, `> high` is Under), i.e. a
+numeric band with `low <= high`. The comment was wrong, not the code; it is
+fixed, and the file format follows the code ("4:00 to 4:10 per km" is `low: 240,
+high: 250`). The parser refuses `low > high` for every kind, so a sender that
+gets it backwards is told, rather than the watch silently reading an empty band.
+
+### Proposed defaults for the P1 open questions (**awaiting Jon**)
+
+Nothing below is decided; these are what P2 assumed so the schema could be
+written. Each is cheap to change.
+
+1. **Targets stay app-side; FIT records every step as `Open`.** Consequence: a
+   Strava or Garmin Connect upload shows no targets. A `developer_data` field
+   (`FitProfile.hpp:174-183`) could carry them later, unproven.
+2. **One repeat block at a time.** Nesting is refused by `validate()`. A
+   "pyramid" or "sets of sets" would need it.
+3. **An `open` step ends on a manual press.** Still an assumption about what
+   the platform's other apps do; not confirmed from the SDK.
+4. **Pace is a band, `low` and `high` on the wire.** The phone builder can still
+   offer "target and margin" and store the band.
+5. **Limits stay at 20 steps and 31-character names** for v1, and the file at
+   4,096 bytes. No spec behind them: revisit after real use.
+
+### Not done in P2 (by agreement)
+
+The watch app, the phone sender, and the UNA request. Next, if these defaults
+are fine: P3, the watch app started from Trail's LVGL scaffold (workout list,
+preview, run screens), then P4, sending workouts (Route Sender or a fork), and
+the UNA request widened to cover workouts as well as GPX.

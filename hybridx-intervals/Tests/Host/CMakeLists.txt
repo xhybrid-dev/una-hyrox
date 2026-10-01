@@ -32,14 +32,19 @@ add_executable(hybridx-intervals-host-tests
     TargetEvaluatorTest.cpp
     WorkoutEngineTest.cpp
     WorkoutEventsTest.cpp
+    WorkoutParserTest.cpp
     "${CORE_LIBS}/Sources/WorkoutValidation.cpp"
     "${CORE_LIBS}/Sources/HrZones.cpp"
     "${CORE_LIBS}/Sources/TargetEvaluator.cpp"
     "${CORE_LIBS}/Sources/WorkoutEngine.cpp"
+    "${CORE_LIBS}/Sources/WorkoutParser.cpp"
 )
 target_include_directories(hybridx-intervals-host-tests PRIVATE
     "${CORE_LIBS}/Header"
     "${CMAKE_CURRENT_LIST_DIR}"
+)
+target_compile_definitions(hybridx-intervals-host-tests PRIVATE
+    FIXTURE_DIR="${CMAKE_CURRENT_LIST_DIR}/fixtures"
 )
 target_link_libraries(hybridx-intervals-host-tests PRIVATE GTest::gtest_main)
 
