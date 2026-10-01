@@ -18,6 +18,17 @@
 #include "SDK/UnaLogger/Logger.h"
 
 namespace fit = SDK::Fit;
+
+namespace {
+
+// lap_trigger is field 24 of the lap message and manual is 0 in the public FIT
+// profile (checked against the tables fitdecode generates from Garmin's SDK).
+// SDK/Fit/FitProfile.hpp declares neither. Every lap here is a button press, and
+// saying so stops a consumer app treating them as automatic splits.
+constexpr fit::FitWriter::Field kLapTrigger{24, fit::BaseType::UInt8};
+constexpr uint8_t kLapTriggerManual = 0u;
+
+}  // namespace
 using Field = fit::FitWriter::Field;
 using DevFieldDef = fit::FitWriter::DevField;
 
@@ -101,7 +112,8 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Lap::TotalElapsedTime, fit::field::Lap::TotalTimerTime,
          fit::field::Lap::TotalDistance, fit::field::Lap::AvgSpeed,
          fit::field::Lap::MessageIndex, fit::field::Lap::WktStepIndex,
-         fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate},
+         fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate,
+         kLapTrigger},
         {{DF_SEGMENT_TYPE, 1, 0}, {DF_ROUND, 1, 0}, {DF_STATION_ID, 1, 0}});
     mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
         {fit::field::Session::Timestamp, fit::field::Session::StartTime,
@@ -139,14 +151,16 @@ void ActivityWriter::defineRecordMessages()
         {DF_HR_SOURCE, 1, 0}, {DF_HR_OPTICAL, 1, 0}, {DF_HR_EXTERNAL, 1, 0},
     };
 
-    // Plain record (HR only) + 3 HR developer fields.
+    // Plain record (HR and distance) + 3 HR developer fields.
     mFit->defineMessage(L_RECORD, fit::mesgNum(fit::MesgNum::Record),
-        {fit::field::Record::Timestamp, fit::field::Record::HeartRate},
+        {fit::field::Record::Timestamp, fit::field::Record::HeartRate,
+         fit::field::Record::Distance},
         {hr3[0], hr3[1], hr3[2]});
 
     // + battery (5 developer fields).
     mFit->defineMessage(L_RECORD_B, fit::mesgNum(fit::MesgNum::Record),
-        {fit::field::Record::Timestamp, fit::field::Record::HeartRate},
+        {fit::field::Record::Timestamp, fit::field::Record::HeartRate,
+         fit::field::Record::Distance},
         {batt5[0], batt5[1], batt5[2], batt5[3], batt5[4]});
 }
 
@@ -201,6 +215,7 @@ void ActivityWriter::addRecord(const RecordData& record)
     d.u8(record.has(RecordData::Field::HEART_RATE)
              ? static_cast<uint8_t>(record.heartRate)
              : static_cast<uint8_t>(fit::baseTypeInvalid(fit::BaseType::UInt8)));
+    d.u32(record.distanceCm);
 
     // Developer fields, in definition order.
     if (batt) {
@@ -238,6 +253,7 @@ void ActivityWriter::addLap(const LapData& lap)
         .u16(lap.wktStepIndex)
         .u8(static_cast<uint8_t>(lap.hrAvg))
         .u8(static_cast<uint8_t>(lap.hrMax))
+        .u8(kLapTriggerManual)
         // Developer fields: which HYROX segment this lap was (brief 10.1).
         .u8(lap.segmentType)
         .u8(lap.round)

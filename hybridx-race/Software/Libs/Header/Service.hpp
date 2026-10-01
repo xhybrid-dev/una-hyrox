@@ -41,6 +41,7 @@
 #include "ActivityWriter.hpp"
 #include "Commands.hpp"
 #include "RaceModel.hpp"
+#include "RecordSpool.hpp"
 #include "Settings.hpp"
 #include "SettingsSerializer.hpp"
 #include "Track.hpp"
@@ -131,6 +132,31 @@ private:
     std::time_t     mRaceStartUtc = 0;  ///< Wall time of the start, for FIT
     bool            mFitOpen = false;   ///< True between start() and stop()
 
+    /// One second of the open segment, held until its distance is known. Only
+    /// what the FIT record needs, so the spool is small: 12 bytes against ~28 for
+    /// a RecordData.
+    struct SpooledRecord {
+        uint32_t timestamp = 0u;       ///< UTC
+        uint16_t batteryVoltage = 0u;  ///< mV
+        uint8_t  flags = 0u;           ///< bit 0 heart rate valid, bit 1 battery valid
+        uint8_t  heartRate = 0u;
+        uint8_t  hrSource = 0u;
+        uint8_t  hrOpticalBpm = 0u;
+        uint8_t  hrExternalBpm = 0u;
+        uint8_t  batteryLevel = 0u;
+    };
+
+    /// Seconds of one segment the spool can hold. A longer segment writes its
+    /// oldest seconds with a flat distance instead of losing them. Eight minutes
+    /// covers a slow 1 km run and the slowest station in the race data.
+    static constexpr uint16_t kSpoolSeconds = 480u;
+    using Spool = Race::RecordSpool<SpooledRecord, kSpoolSeconds>;
+
+    /// Allocated once per race (about 6 KB), not per tick, and null when memory
+    /// is short, in which case records go straight to the file with the distance
+    /// of the segments completed so far.
+    std::unique_ptr<Spool> mSpool;
+
     // -- Wrist tilt ---------------------------------------------------------------
 
     WristTiltDetector mWristTiltDetector;
@@ -170,6 +196,13 @@ private:
     void publishRaceData();
     void onSegmentOpened(bool raceStarting);
     void finishRace(bool completed);
+    /// Distance of every segment completed so far, in centimetres.
+    uint32_t completedDistanceCm() const;
+    /// One second of the open segment: into the spool, or straight to the file.
+    void recordSecond(const ActivityWriter::RecordData &record);
+    /// The open segment just ended: write its seconds with the distance ramped.
+    void closeSpoolSegment();
+    void writeSpooled(const SpooledRecord &s, uint32_t distanceCm);
     /// Emit the workout and workout_step messages for the race just started.
     void emitRaceWorkout();
 
