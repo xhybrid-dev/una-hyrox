@@ -1541,3 +1541,72 @@ and then failed to link: `ld: cannot open map file …/Output/HybridXRaceGUI.elf
 existed, so this was never seen. The CMakeLists now creates it
 (`file(MAKE_DIRECTORY "${OUTPUT_PATH}")`), which also fixes a first build from a
 fresh clone on Jon's machine.
+
+---
+
+## Amendment — giving Strava what it computes laps from (1 October 2026)
+
+### 5.17 What the first real race showed
+
+Jon's first Roxzone-on test (400 m runs, 31 laps, `una-running-20261001-1248.fit`)
+decoded correctly: every lap's `segment_type`, `round`, `station_id` and distance
+matched the plan, laps contiguous, 5 680 m. Strava and the UNA app agreed with the
+file (5.68 km, 49:08, 145/180 bpm). Three things were still wrong or missing:
+
+| Finding | Cause |
+|---|---|
+| Laps summed to 48:52, session said 49:08 | `msToSec()` rounded each lap's duration down on its own: up to a second lost per lap, 16 s over 31 laps |
+| Strava showed no pace graph or splits | The per-second records carried **no distance**. Strava and Garmin build lap pace, splits and moving time from that series, not from lap totals |
+| Laps not marked as button presses | `lap_trigger` was never written |
+
+Not changed: about 6 % of records have no `heart_rate`. That is the existing
+trust gate (`Service::prepareRecordData`), the raw `hr_optical` is still there.
+
+### 5.18 What changed
+
+- **`RecordSpool.hpp`** (pure, host-tested). A distance can only be spread
+  across a segment once the segment is over, so the open segment's seconds wait
+  in a spool and are written at the split with the distance **ramped** evenly,
+  ending on exactly the total of the completed segments. Writing it live would
+  step by a kilometre in one second (a 1000 m/s "speed"), and Strava would see
+  almost no moving time.
+  - Distance never goes backwards, so an undone and redone split is not counted
+    twice (the spool ramps from the highest distance already written).
+  - 480 seconds of 12 bytes (5.8 KB), allocated once per race, not per tick. A
+    longer segment writes its oldest seconds flat rather than losing them. If the
+    allocation fails the records carry the completed-so-far distance, flat.
+  - A pause writes out what is waiting first, flat, so the timer-stop event never
+    lands before older records. The rest of that segment ramps after resume.
+  - **Cost: a crash loses the open segment's records** (at most a few minutes of
+    heart rate), where before it lost nothing. Laps were never recoverable.
+- **`LapTiming.hpp`** (pure, host-tested). A lap's two ends are rounded, then
+  differenced, so each lap starts where the last ended and the laps sum to the
+  session exactly.
+- **`lap_trigger` = manual** on every lap. Field 24, value 0, checked against the
+  profile tables fitdecode generates from Garmin's SDK. Not in `FitProfile.hpp`.
+- **Record `distance`** (field 5, scale 100) written on every record.
+
+### 5.19 What it means in Strava (not yet verified there)
+
+Zero-metre laps (Roxzone, Wall Balls) are stationary in the distance series, so
+Strava will probably **drop them from moving time**: expect Moving Time well
+below the 49:08 elapsed, and a pace per km computed over moving time. The
+activity's distance is unchanged, and Jon has noted it still counts 5.68 km as a
+run where about 3.2 km was run; the only way to avoid that is a Workout sport
+type, which D2 declined. Strava's lap view should now have distance and pace per
+lap; whether it displays all 31 is the thing to look at on the next upload.
+
+### 5.20 Verified
+
+- 89 host tests (78 + 8 for the spool, 3 for lap timing).
+- `ActivityWriter.cpp` and `Service.cpp` compile warning-free against the pinned
+  SDK (`-fsyntax-only`; the watch image comes from CI).
+- `docs/experiments/fit_replay_race.sh` drives the real `ActivityWriter`, spool
+  and lap timing over the 31 laps of the 1 October test. `fit_decode_report.py`
+  now knows the Roxzone-on sequence and checks what a consumer computes from:
+  laps sum to the session, contiguous, manual, distance on every record and
+  monotonic, last record = session distance, each lap's distance in the records
+  equals its total, no second faster than 10 m/s. The 1 October file fails the
+  first three and the record-distance checks; the replay passes all.
+- **Not verified:** `Service` itself (it needs the kernel and a watch). The wiring
+  is `recordSecond` / `closeSpoolSegment` in `Service.cpp`; the replay mirrors it.

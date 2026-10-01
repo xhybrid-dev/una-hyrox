@@ -53,6 +53,10 @@ public:
         uint8_t     hrExternalBpm  = 0;   // raw external strap bpm (0 = none)
         uint8_t     batteryLevel   = 0;   // %
         uint16_t    batteryVoltage = 0;   // mV
+        // Cumulative distance, centimetres (the FIT scale). Strava and Garmin
+        // build lap pace and moving time from this series, not from the lap
+        // totals, so without it the laps arrive with nothing to compute from.
+        uint32_t    distanceCm     = 0;
 
     private:
         static constexpr uint8_t mask(Field f)

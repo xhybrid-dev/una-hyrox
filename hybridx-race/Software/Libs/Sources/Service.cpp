@@ -12,6 +12,7 @@
 #include <cstring>
 #include <ctime>
 #include <memory>
+#include <new>
 
 #include "SDK/Messages/AccessoryMessages.hpp"
 #include "SDK/Messages/MessageGuard.hpp"
@@ -26,6 +27,7 @@
 #include "SDK/Utils/Utils.hpp"
 
 #include "AppConfigFields.hpp"
+#include "LapTiming.hpp"
 
 #define LOG_MODULE_PRX   "Service"
 #define LOG_MODULE_LEVEL LOG_LEVEL_INFO
@@ -39,6 +41,9 @@ constexpr std::time_t msToSec(uint32_t ms)
 {
     return static_cast<std::time_t>(ms / 1000u);
 }
+
+constexpr uint8_t kSpoolHeartRate = 1u << 0;
+constexpr uint8_t kSpoolBattery   = 1u << 1;
 
 }  // namespace
 
@@ -492,6 +497,10 @@ void Service::startRace(Race::Format format)
     info.appID = APP_ID;
     mActivityWriter.start(info);
     mFitOpen = true;
+    mSpool.reset(new (std::nothrow) Spool());
+    if (!mSpool) {
+        LOG_WARNING("No memory for the record spool: records carry flat distance\n");
+    }
     emitRaceWorkout();
 
     mTrackState = Track::State::ACTIVE;
@@ -517,6 +526,8 @@ void Service::handleEvent(const CustomMessage::RaceSplit &event)
         LOG_DEBUG("Split ignored by the lockout\n");
         return;  // Brief 7.5 invariant 3: no state change, no feedback.
     }
+
+    closeSpoolSegment();
 
     const Race::SegmentResult *closed = mRace.recorded(closingIndex);
     const bool finished = (mRace.state() == Race::RaceModel::State::Finished);
@@ -554,6 +565,14 @@ void Service::handlePause()
     if (!mRace.pause(nowMs())) {
         return;
     }
+    // The timer-stop event is written at once and must not land before records
+    // that are older than it, so the seconds waiting in the spool go first, at
+    // the distance already reached. The rest of the segment ramps after resume.
+    if (mSpool) {
+        mSpool->close(mSpool->writtenCm(), [this](const SpooledRecord &r, uint32_t cm) {
+            writeSpooled(r, cm);
+        });
+    }
     mActivityWriter.pause(mTimeTracker.getExpectedUTC());
     mTrackState = Track::State::PAUSED;
     SDK::send_msg<CustomMessage::RaceStateUpd>(mKernel, mTrackState);
@@ -580,6 +599,7 @@ void Service::handleFinishEarly()
     if (!mRace.finishEarly(nowMs())) {
         return;
     }
+    closeSpoolSegment();
     finishRace(false);
 }
 
@@ -693,11 +713,19 @@ void Service::saveRace(bool discard)
     if (discard) {
         mActivityWriter.discard();
         mFitOpen = false;
+        mSpool.reset();
         mRace.discard();
         LOG_INFO("Race discarded\n");
         disconnect();
         return;
     }
+
+    // Every record goes to the file before the first lap does, so any seconds
+    // still waiting in the spool are written now. Normally there are none (the
+    // last split or the early finish drained it); this catches a save that
+    // reaches here any other way.
+    closeSpoolSegment();
+    mSpool.reset();
 
     // Laps are written here, not at split time, because a split can be undone
     // until the race is saved (brief 10.1). Chronological order, all before the
@@ -714,11 +742,15 @@ void Service::saveRace(bool discard)
 
         const uint32_t wallMs = seg->activeMs + seg->pausedMs;
 
+        // Both ends rounded, then differenced, so every lap starts where the
+        // last one ended and the laps add up to the session (LapTiming.hpp).
+        const Race::LapSeconds secs = Race::lapSeconds(cursorMs, seg->activeMs, seg->pausedMs);
+
         ActivityWriter::LapData lap {};
-        lap.timeStart = startUtc + msToSec(cursorMs);
-        lap.timestamp = startUtc + msToSec(cursorMs + wallMs);
-        lap.duration = msToSec(seg->activeMs);
-        lap.elapsed = msToSec(wallMs);
+        lap.timeStart = startUtc + secs.startSec;
+        lap.timestamp = startUtc + secs.startSec + secs.elapsedSec;
+        lap.duration = secs.activeSec;
+        lap.elapsed = secs.elapsedSec;
         lap.hrAvg = static_cast<float>(seg->hrAvg());
         lap.hrMax = static_cast<float>(seg->hrMax);
         lap.segmentType = static_cast<uint8_t>(seg->desc.type);
@@ -824,7 +856,7 @@ void Service::processRace()
     if (mRace.state() == Race::RaceModel::State::Running) {
         // A FIT record a second, gated exactly as the SDK's apps gate it.
         const ActivityWriter::RecordData record = prepareRecordData();
-        mActivityWriter.addRecord(record);
+        recordSecond(record);
 
         const float hr = mHrCounter.getCurrent();
         if (hr > skHrMinValid && mHrTrust >= 1u && mHrTrust <= 3u) {
@@ -833,6 +865,73 @@ void Service::processRace()
     }
 
     publishRaceData();
+}
+
+uint32_t Service::completedDistanceCm() const
+{
+    uint32_t cm = 0u;
+    for (uint8_t i = 0u; i < mRace.recordedCount(); ++i) {
+        const Race::SegmentResult *seg = mRace.recorded(i);
+        if (seg != nullptr) {
+            cm += static_cast<uint32_t>(
+                          Race::RaceModel::distanceM(seg->desc, mSettings.runDistanceM)) * 100u;
+        }
+    }
+    return cm;
+}
+
+void Service::recordSecond(const ActivityWriter::RecordData &record)
+{
+    if (!mSpool) {
+        ActivityWriter::RecordData direct = record;
+        direct.distanceCm = completedDistanceCm();
+        mActivityWriter.addRecord(direct);
+        return;
+    }
+
+    SpooledRecord s {};
+    s.timestamp = static_cast<uint32_t>(record.timestamp);
+    s.batteryVoltage = record.batteryVoltage;
+    s.flags = static_cast<uint8_t>(
+            (record.has(ActivityWriter::RecordData::Field::HEART_RATE) ? kSpoolHeartRate : 0u) |
+            (record.has(ActivityWriter::RecordData::Field::BATTERY) ? kSpoolBattery : 0u));
+    s.heartRate = static_cast<uint8_t>(record.heartRate);
+    s.hrSource = record.hrSource;
+    s.hrOpticalBpm = record.hrOpticalBpm;
+    s.hrExternalBpm = record.hrExternalBpm;
+    s.batteryLevel = record.batteryLevel;
+
+    // Only a full spool writes from here: the oldest second, at the distance
+    // already reached.
+    mSpool->add(s, [this](const SpooledRecord &r, uint32_t cm) {
+        writeSpooled(r, cm);
+    });
+}
+
+void Service::writeSpooled(const SpooledRecord &s, uint32_t distanceCm)
+{
+    ActivityWriter::RecordData r {};
+    r.timestamp = static_cast<std::time_t>(s.timestamp);
+    r.set(ActivityWriter::RecordData::Field::HEART_RATE, (s.flags & kSpoolHeartRate) != 0u);
+    r.set(ActivityWriter::RecordData::Field::BATTERY, (s.flags & kSpoolBattery) != 0u);
+    r.heartRate = static_cast<float>(s.heartRate);
+    r.hrSource = s.hrSource;
+    r.hrOpticalBpm = s.hrOpticalBpm;
+    r.hrExternalBpm = s.hrExternalBpm;
+    r.batteryLevel = s.batteryLevel;
+    r.batteryVoltage = s.batteryVoltage;
+    r.distanceCm = distanceCm;
+    mActivityWriter.addRecord(r);
+}
+
+void Service::closeSpoolSegment()
+{
+    if (!mSpool) {
+        return;
+    }
+    mSpool->close(completedDistanceCm(), [this](const SpooledRecord &r, uint32_t cm) {
+        writeSpooled(r, cm);
+    });
 }
 
 void Service::publishRaceData()
