@@ -9,6 +9,10 @@
 //                                         a quick, half-size clip of a range
 //   node render.mjs race --cues           print the audio cue sheet (JSON)
 //
+// A film made from real footage (the unboxing reel) also has async hooks:
+// setup() once before rendering, prepare(t) before each frame is drawn (to
+// decode that frame), and close() when a part is done.
+//
 // Frames are pure functions of time, so parts render independently and are
 // joined without re-encoding.
 
@@ -16,7 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createCanvas } from '@napi-rs/canvas';
 import { W, H, FPS, setFrame } from './lib/core.mjs';
 import { setupFonts } from './lib/gfx.mjs';
@@ -44,18 +48,18 @@ function args() {
 }
 
 async function loadFilm(id) {
-  const mod = await import(path.join(HERE, 'films', `${id}.mjs`));
+  const mod = await import(pathToFileURL(path.join(HERE, 'films', `${id}.mjs`)).href);
   // The reels are portrait: each film says its own frame size.
   setFrame(...(mod.default.frame || [1920, 1080]));
   return mod.default;
 }
 
-function x264Args(file, fps, w, h, crf = 18) {
+function x264Args(file, fps, w, h, crf = 18, tune = 'animation') {
   return [
     '-y', '-loglevel', 'error',
     '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${w}x${h}`, '-r', String(fps), '-i', '-',
     '-vf', 'scale=out_color_matrix=bt709:out_range=tv,format=yuv420p',
-    '-c:v', 'libx264', '-preset', 'slow', '-tune', 'animation', '-crf', String(crf),
+    '-c:v', 'libx264', '-preset', 'slow', '-tune', tune, '-crf', String(crf),
     '-x264-params', 'keyint=120:min-keyint=60',
     '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
     '-movflags', '+faststart', file,
@@ -67,7 +71,7 @@ async function renderRange(film, f0, f1, file, { scale = 1, fps = FPS, crf = 18 
   const w = Math.round(W * scale), h = Math.round(H * scale);
   const canvas = createCanvas(w, h);
   const ctx = canvas.getContext('2d');
-  const ff = spawn(ffmpegPath(), x264Args(file, fps, w, h, crf), { stdio: ['pipe', 'inherit', 'inherit'] });
+  const ff = spawn(ffmpegPath(), x264Args(file, fps, w, h, crf, film.tune), { stdio: ['pipe', 'inherit', 'inherit'] });
   const t0 = Date.now();
   for (let f = f0; f < f1; f++) {
     const t = f / fps;
@@ -77,6 +81,7 @@ async function renderRange(film, f0, f1, file, { scale = 1, fps = FPS, crf = 18 
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
     if (scale !== 1) ctx.scale(scale, scale);
+    if (film.prepare) await film.prepare(t);
     film.draw(ctx, t);
     const buf = canvas.data();
     if (!ff.stdin.write(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength))) {
@@ -87,6 +92,7 @@ async function renderRange(film, f0, f1, file, { scale = 1, fps = FPS, crf = 18 
     }
   }
   ff.stdin.end();
+  if (film.close) film.close();
   await new Promise((r, j) => ff.on('close', (c) => (c === 0 ? r() : j(new Error(`ffmpeg exited ${c}`)))));
 }
 
@@ -101,11 +107,13 @@ async function still(film, times, dir) {
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
+    if (film.prepare) await film.prepare(t);
     film.draw(ctx, t);
     const f = path.join(dir, `${film.id}_${String(t.toFixed(2)).padStart(7, '0')}.png`);
     fs.writeFileSync(f, await canvas.encode('png'));
     files.push(f);
   }
+  if (film.close) film.close();
   return files;
 }
 
@@ -123,18 +131,20 @@ async function sheet(film, step, file, from = 0, to = null) {
   sctx.fillRect(0, 0, sh.width, sh.height);
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
-  times.forEach((t, i) => {
+  for (const [i, t] of times.entries()) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
+    if (film.prepare) await film.prepare(t);
     film.draw(ctx, t);
     const x = (i % cols) * tw, y = Math.floor(i / cols) * (th + 18);
     sctx.drawImage(canvas, x, y + 18, tw, th);
     sctx.fillStyle = '#888';
     sctx.font = '12px "JetBrains Mono"';
     sctx.fillText(`${t.toFixed(2)}s`, x + 4, y + 13);
-  });
+  }
+  if (film.close) film.close();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, await sh.encode('png'));
   return file;
@@ -150,15 +160,16 @@ function run(cmd, argv) {
 async function main() {
   const o = args();
   if (!o.film) {
-    console.error('usage: node render.mjs <race|streak|trail|race-reel|streak-reel|trail-reel> [--still t,t] [--sheet step] [--from s --to s] [--preview] [--cues]');
+    console.error('usage: node render.mjs <race|streak|trail|race-reel|streak-reel|trail-reel|unboxing-reel> [--still t,t] [--sheet step] [--from s --to s] [--preview] [--cues]');
     process.exit(1);
   }
   const film = await loadFilm(o.film);
 
   if (o.cues) {
-    process.stdout.write(JSON.stringify({ id: film.id, duration: film.duration, bpm: film.bpm, sections: film.sections || [], cues: film.cues() }, null, 1));
+    process.stdout.write(JSON.stringify({ id: film.id, duration: film.duration, bpm: film.bpm, sections: film.sections || [], cues: film.cues(), edl: film.edl ? film.edl() : undefined }, null, 1));
     return;
   }
+  if (film.setup) await film.setup();
   if (o.still) {
     const times = String(o.still).split(',').map(Number);
     const files = await still(film, times, path.join(OUT, 'stills'));
@@ -173,7 +184,7 @@ async function main() {
   if (o.part !== undefined) {
     // A child: render frames [f0, f1) to a part file.
     const f0 = Number(o.f0), f1 = Number(o.f1);
-    await renderRange(film, f0, f1, o.out, { scale: Number(o.scale || 1), fps: Number(o.fps || FPS), crf: Number(o.crf || 18) });
+    await renderRange(film, f0, f1, o.out, { scale: Number(o.scale || 1), fps: Number(o.fps || FPS), crf: Number(o.crf || film.crf || 18) });
     return;
   }
 
@@ -195,11 +206,12 @@ async function main() {
     const file = path.join(OUT, `${film.id}_part${i}.mp4`);
     parts.push(file);
     kids.push(run(process.execPath, [fileURLToPath(import.meta.url), o.film, '--part', String(i), '--f0', String(a), '--f1', String(b),
-      '--out', file, '--scale', String(scale), '--fps', String(fps), '--crf', String(o.crf || 18)]));
+      '--out', file, '--scale', String(scale), '--fps', String(fps), '--crf', String(o.crf || film.crf || 18)]));
   }
   await Promise.all(kids);
   const list = path.join(OUT, `${film.id}_parts.txt`);
-  fs.writeFileSync(list, parts.map((p) => `file '${p}'`).join('\n'));
+  // Forward slashes, so the concat list also reads on Windows.
+  fs.writeFileSync(list, parts.map((p) => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
   const silent = path.join(OUT, `${film.id}${preview ? '_preview' : ''}_video.mp4`);
   await run(ffmpegPath(), ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', silent]);
   parts.forEach((p) => fs.unlinkSync(p));

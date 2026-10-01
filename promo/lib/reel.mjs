@@ -64,7 +64,7 @@ export function reelHud(ctx, t, opt) {
  * A reel headline: a title (one or more lines) and a wrapped supporting line,
  * sized for a phone. Returns the y below the block.
  */
-export function reelHead(ctx, lt, a, b, x, y, { p0 = 0, q0 = 99, size = 112, width = SAFE.right - SAFE.left, color = C.white, align = 'left', subSize = 44 } = {}) {
+export function reelHead(ctx, lt, a, b, x, y, { p0 = 0, q0 = 99, size = 112, width = SAFE.right - SAFE.left, color = C.white, align = 'left', subSize = 44, subColor = C.soft, subWeight = 300 } = {}) {
   const q = prog(lt, q0, q0 + 0.35);
   const lines = Array.isArray(a) ? a : [a];
   const lh = size * 1.04;
@@ -75,7 +75,7 @@ export function reelHead(ctx, lt, a, b, x, y, { p0 = 0, q0 = 99, size = 112, wid
   let yb = y + (lines.length - 1) * lh;
   if (b) {
     yb += size * 0.62 + subSize * 0.4;
-    const s = { ...T.sub(subSize, C.soft), align };
+    const s = { ...T.sub(subSize, subColor), weight: subWeight, align };
     const ls = wrap(ctx, b, x, yb, width, s);
     ls.forEach((ln, i) => {
       kinetic(ctx, ln, x, yb + i * subSize * 1.3, s, prog(lt, p0 + 0.25 + i * 0.07, p0 + 0.85 + i * 0.07), q, 'fade');
