@@ -32,7 +32,7 @@ WorkoutPreviewScreen::WorkoutPreviewScreen(Model& model)
 
 void WorkoutPreviewScreen::build()
 {
-    mSummaryLabel = Theme::label(mRoot, F::Medium18, "", 30, 46, 180);
+    mSummaryLabel = Theme::label(mRoot, F::Regular16, "", 30, 48, 180);
     for (uint8_t i = 0; i < kRows; ++i) {
         mRowLabels[i] = Theme::label(mRoot, F::Regular16, "", 36, kRowY + kRowH * i, 172, LV_TEXT_ALIGN_LEFT);
     }
@@ -84,6 +84,8 @@ void WorkoutPreviewScreen::show()
     }
     Theme::setHidden(mLoading, true);
     Intervals::Text::summary(mSummary, sizeof(mSummary), mModel.workoutInfo().summary, mModel.isUnitsImperial());
+    static const lv_font_t* const kFaces[] = { Theme::font(F::Regular16), Theme::font(F::Regular14) };
+    lv_obj_set_style_text_font(mSummaryLabel, WorkoutFmt::fit(mSummary, sizeof(mSummary), kFaces, 2, 176), 0);
     lv_label_set_text(mSummaryLabel, mSummary);
     makeLines();
     mTop = 0;

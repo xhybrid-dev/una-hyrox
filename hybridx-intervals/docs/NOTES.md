@@ -466,3 +466,111 @@ empty root, free the old screen, then build. Pool peak after the fix: 78 %.
   for P3c to show.
 - `Settings::Intervals` and RunLVGL's seven setup screens are still compiled
   and reachable, but no longer change what runs. P3c removes them.
+
+## P3c: the screens (2 October 2026)
+
+Screenshots of every step: `docs/screens/` (`docs/experiments/capture_screens.sh`,
+which drives the simulator through the list, a preview, and a whole run of
+`sim-short.json`).
+
+### P3c.1 What there is
+
+- **Start screen:** RunLVGL's wheel; the Intervals item's hint is the workout
+  chosen (amber) or "No workout". It opens the list, after a rescan (files may
+  have been copied in over USB since).
+- **Workout list** (modelled on Trail's route list): "No workout" (a plain run),
+  then the workouts by name with their totals ("2.4 km, 29 min"; minutes
+  rounded up; "1 open" counts steps that end on a press), then "Add workouts"
+  ("copy files by USB", or "16 shown: remove some"). A file that can't be read
+  is listed by its file name, in red, with the reason ("not a workout file",
+  "newer format: update app", "a repeat is wrong"...); a bike workout in grey,
+  "bike: not yet". Neither opens.
+- **Preview:** the name, the totals, then every step on its own line ("Run
+  400 m", "Rest 1:30", "Cool-down, open") with its target under it ("@ 3:50-4:10
+  /km"), a repeat block under an amber "6 x". L1/L2 scroll ("1 more"); R1
+  starts; R2 goes back and puts back the workout chosen before. Opening it
+  chooses the workout, as Trail's route preview does.
+- **Countdown:** the workout's name, totals and first step, where RunLVGL showed
+  reps, run and rest. R2 goes back to the preview.
+- **Run face** (RunLVGL's intervals face): the title is the step and its pass,
+  "RUN 2/6"; the big timer counts down a timed step, shows the distance left
+  of a distance step, or counts up an open one; under it, the measure the
+  target is set in (pace, or heart rate) **coloured against the band: blue
+  under, lime in, red over**, white while settling (15 s) or with no target;
+  at the bottom, the band ("4:00-4:20", "Zone 4"). Without a target it is
+  RunLVGL's: pace when running, heart rate when resting.
+- **Cue banner:** on each cue, for 4 s over any face: "SPEED UP" / "SLOW DOWN"
+  for a pace target, "PUSH ON" / "EASE OFF" for heart rate, blue or red.
+- **Step alert** (RunLVGL's): its pass ("1/3") and its target ("@ 4:00-4:20
+  /km") where RunLVGL had the runner.
+- RunLVGL's **seven set-up screens are removed** (the intervals menu, repeats,
+  run/rest metric and the time and distance pickers). `PickerLogic.hpp` and
+  the picker descriptors in `AppMenu.hpp` stay for the on-watch builder (P3d);
+  `Settings::Intervals` stays in the settings file, unused.
+- **Text** is pure Core, host-tested: `WorkoutText` (step lines, targets,
+  totals, problems; integer formatting, British English) and `TextFold`
+  (copied from Trail: accents to ASCII for the watch fonts). The GUI also
+  compiles Core now, for them.
+
+### P3c.2 Proposed, **for Jon**
+
+- Colours: under = sky blue, in = lime, over = red. (Garmin-like; the
+  display has 64 colours.)
+- Banner words: "SPEED UP" / "SLOW DOWN" (pace), "PUSH ON" / "EASE OFF" (heart rate).
+- The countdown's R2 goes back to the preview; the list's R2 to the start
+  screen.
+
+### P3c.3 Verified
+
+- **Host tests: 113**, green, plain and under ASan/UBSan (WorkoutText 8,
+  TextFold 8, as well as P1-P3b's).
+- **Watch target** compile check: 422,156 B `.uapp` (smaller than P3b's:
+  the set-up screens are gone), no warnings in our code. Not installable
+  (Ubuntu toolchain with stubs); CI builds the real one.
+- **Simulator walkthrough** (`capture_screens.sh`, 31 frames): every list entry
+  kind, a preview scrolled, a preview left (the choice put back), then "Sim
+  short" run through: warm-up counting down from its first second, each rep's
+  alert with its target, the pace white while settling then red with "SLOW
+  DOWN", RunLVGL's other faces, the rest's alert and face (heart rate), the
+  open cool-down ended with R2, "Workout completed", saving, the summary.
+  Service log: 9 laps, one cue per rep, track stopped. LVGL pool peak 82 %.
+- Found and fixed in the captures: totals lines too wide for the round screen
+  at the top (the preview and the countdown now fit them, stepping down to
+  14 pt); two key counts in the script.
+
+## Gate P3: what Jon can test on the watch
+
+The `.uapp` comes from CI: **Actions → Watch builds →** the newest green run on
+the branch **→ Artifacts → watch-apps → `HybridXIntervals_*.uapp`**.
+
+1. **Install:** on the watch drive, make `Apps/HybridXIntervals/`, copy the
+   `.uapp` in, eject safely, power-cycle. "HX Intervals" in the app list.
+2. **Add workouts:** open the app once (it makes `Workouts/`), connect USB again,
+   and copy the files from `Tools/TestWorkouts/` (not `sim-short.json`) into
+   `Apps/HybridXIntervals/Workouts/`. Eject, open the app.
+   - Expect: Intervals → the list shows them by name, the broken one in red,
+     Zone 2 spin greyed "bike: not yet".
+3. **A real session:** choose "6 x 400 m" (or "5 x 1 km"), check the preview, and
+   run it. Expect: a countdown, the warm-up counting down, an alert and buzz at
+   each new step, the pace coloured against 3:50-4:10/km, a banner and buzz
+   when off pace for a few seconds (three short = speed up, one long = slow
+   down), a reminder each minute if it stays off.
+4. **Afterwards:** the activity in the UNA app, then Strava or Garmin Connect.
+   Expect: one lap per step, and the workout's steps (as "open" targets).
+
+Decisions for Jon at this gate: the cue rules (P3b.2), the colours and banner
+words (P3c.2), the P1 defaults still open (P2 section), and the shape of the
+on-watch builder (P3d, below).
+
+### P3d (next): the on-watch builder, proposed
+
+Not built: the design is Jon's call. A suggestion to react to:
+- **Quick builder:** a short wizard writing a new `Workouts/*.json` through a
+  `Core/WorkoutWriter` (round-trip tested against the parser): reps (1-20),
+  work (time or distance, RunLVGL's pickers), rest (time), target (none, pace
+  band, or heart-rate zone), warm-up and cool-down (open or timed).
+- **Duplicate and tweak:** from a workout's preview, copy it and change its reps
+  or its target band (the common "same session, a bit faster" week to week).
+- Open questions: how a pace band is entered with four buttons (a centre pace
+  and a fixed width, say ±5 s/km, is quickest); whether quick builder covers
+  enough, or free-form step editing is wanted.

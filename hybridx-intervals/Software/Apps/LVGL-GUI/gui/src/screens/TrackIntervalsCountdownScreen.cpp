@@ -40,7 +40,7 @@ void TrackIntervalsCountdownScreen::build()
     Theme::imageTinted(mRoot, &img_tickgreen_22x17, 186, 60, SDK::GUI::Color::YELLOW_DARK);
     mCount = Theme::label(mRoot, F::SemiBold60, "5", 70, 142, 100);
     mRest  = Theme::label(mRoot, F::Medium18, "", 40, 119, 160);
-    mRun   = Theme::label(mRoot, F::Medium18, "", 40, 87, 160);
+    mRun   = Theme::label(mRoot, F::Regular16, "", 40, 89, 160);   // the workout's totals: the longest line
     mReps  = Theme::label(mRoot, F::Medium18, "", 40, 55, 160);
 }
 
@@ -58,6 +58,9 @@ void TrackIntervalsCountdownScreen::onShow()
         WorkoutFmt::fit(buf, sizeof(buf), kFaces, 1, 160);
         lv_label_set_text(mReps, buf);
         Intervals::Text::summary(buf, sizeof(buf), mModel.workoutInfo().summary, imperial);
+        static const lv_font_t* const kSumFaces[] = { Theme::font(Theme::Font::Regular16),
+                                                      Theme::font(Theme::Font::Regular14) };
+        lv_obj_set_style_text_font(mRun, WorkoutFmt::fit(buf, sizeof(buf), kSumFaces, 2, 156), 0);
         lv_label_set_text(mRun, buf);
         if (mModel.workout().stepCount > 0) {
             Intervals::Text::stepLine(buf, sizeof(buf), mModel.workout().steps[0], imperial);
