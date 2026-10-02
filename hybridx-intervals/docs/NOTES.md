@@ -435,3 +435,34 @@ empty root, free the old screen, then build. Pool peak after the fix: 78 %.
   workouts on a pretend watch, chooses one (by writing `workout.sel`, until
   the P3c list exists), starts it through RunLVGL's intervals menu, ends the
   open cool-down with R2, saves, and prints the service's log lines.
+
+### P3b.5 Verified
+
+- **Host tests: 97**, all green, plain and under ASan/UBSan (WorkoutStore 11,
+  WorkoutRunner 9, WorkoutSummary 4, the engine's new queries 4, the test
+  workouts 1, as well as P1-P2's).
+- **Watch target** compile check: 428,380 B `.uapp`, no warnings in our code
+  (Ubuntu toolchain with stubs, not installable; CI builds the real one).
+- **Simulator, end to end** (`sim_run.sh sim-short.json 230`): the store found
+  6 workouts, logged the broken one ("error 2 at byte 21"), restored "Sim
+  short", and ran it: a 20 s warm-up, 3 x (200 m, 20 s rest), and an open
+  cool-down ended with R2. One "over target" cue per 200 m (the simulated
+  runner is far faster than 4:00-4:20/km), about 17 s into the step, after
+  the 15 s settling time and the 3 s debounce. Laps closed at 200.3, 203.9
+  and 202.7 m (1 s ticks at 5-6 m/s). LVGL pool peak 82 %.
+- **The FIT file, decoded** (`fitdecode`): `workout` "Sim short" with 5
+  `workout_step`s exactly as the file (time 20 s warm-up; distance 200 m
+  active; time 20 s rest; repeat from step 1, 3 times; open cool-down), 9
+  laps linked to steps 0, 1, 2, 1, 2, 1, 2, 4 and the last one (after the
+  workout ended) unlinked, and the session closed (9 laps, 1,213 m).
+
+### P3b.6 Known, for P3c
+
+- RunLVGL's GUI fills the first second of an intervals run from its old
+  settings (`Model::trackStart`), so a timed warm-up reads "Open" until the
+  service's first update. P3c fills it from the chosen workout instead.
+- The intervals screens still show only phase and timer; the target band,
+  zone colour, repeat position and next step are in `Track::IntervalsData`
+  for P3c to show.
+- `Settings::Intervals` and RunLVGL's seven setup screens are still compiled
+  and reachable, but no longer change what runs. P3c removes them.
