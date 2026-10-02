@@ -13,6 +13,10 @@
 #include "Track.hpp"
 #include "ActivitySummary.hpp"
 
+// HybridX Intervals: the workout core's types
+#include "TargetEvaluator.hpp"
+#include "WorkoutStore.hpp"
+
 // Force 4-byte alignment for all message structures
 #pragma pack(push, 4)
 
@@ -35,6 +39,15 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type INTERVALS_PHASE_ALERT      = 0x00000009;
     constexpr SDK::MessageType::Type INTERVALS_WORKOUT_COMPLETED = 0x00000010;
     constexpr SDK::MessageType::Type ACCESSORY_STATUS          = 0x00000012;
+
+    // HybridX Intervals: the workouts on the watch.
+    // Service --> GUI
+    constexpr SDK::MessageType::Type WORKOUT_LIST          = 0x00000020;
+    constexpr SDK::MessageType::Type WORKOUT_LOADED        = 0x00000021;
+    constexpr SDK::MessageType::Type WORKOUT_CUE           = 0x00000022;
+    // GUI --> Service
+    constexpr SDK::MessageType::Type WORKOUT_SELECT        = 0x00000024;
+    constexpr SDK::MessageType::Type WORKOUT_RESCAN        = 0x00000025;
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -268,6 +281,61 @@ namespace CustomMessage {
         ManualLap() : SDK::MessageBase(MANUAL_LAP) {}
     };
 
+    // HybridX Intervals ---------------------------------------------------------
+
+    /// The workouts in Workouts/, after a scan. The list travels as a pointer
+    /// into the service's static storage, as RunLVGL's Summary and Trail's
+    /// route list do (no MMU: the two processes share memory); the GUI copies
+    /// it before releasing the message.
+    struct WorkoutList : public SDK::MessageBase {
+        const Intervals::WorkoutInfo* infos     = nullptr;   ///< non-owning; copy before releaseMessage
+        uint8_t                       count     = 0;
+        int8_t                        selected  = -1;        ///< -1: no workout (a plain run)
+        bool                          truncated = false;     ///< more files than the list holds
+        WorkoutList() : SDK::MessageBase(WORKOUT_LIST) {}
+        WorkoutList(const Intervals::WorkoutInfo* i, uint8_t n, int8_t sel, bool more) : WorkoutList()
+        {
+            infos     = i;
+            count     = n;
+            selected  = sel;
+            truncated = more;
+        }
+    };
+
+    /// The workout chosen (or none): its steps for the preview and the run screen.
+    struct WorkoutLoaded : public SDK::MessageBase {
+        const Intervals::Workout* workout = nullptr;   ///< non-owning; null: none. Copy before releaseMessage
+        Intervals::WorkoutInfo    info {};
+        WorkoutLoaded() : SDK::MessageBase(WORKOUT_LOADED) {}
+        WorkoutLoaded(const Intervals::Workout* w, const Intervals::WorkoutInfo& i) : WorkoutLoaded()
+        {
+            workout = w;
+            info    = i;
+        }
+    };
+
+    /// Off target: the service buzzes, the GUI shows it.
+    struct WorkoutCue : public SDK::MessageBase {
+        Intervals::ZoneState state    = Intervals::ZoneState::NoTarget;   ///< Under or Over
+        bool                 reminder = false;
+        WorkoutCue() : SDK::MessageBase(WORKOUT_CUE) {}
+        WorkoutCue(Intervals::ZoneState s, bool r) : WorkoutCue()
+        {
+            state    = s;
+            reminder = r;
+        }
+    };
+
+    struct WorkoutSelect : public SDK::MessageBase {
+        int8_t index = -1;   ///< in the last WorkoutList; -1: no workout
+        WorkoutSelect() : SDK::MessageBase(WORKOUT_SELECT) {}
+        explicit WorkoutSelect(int8_t i) : WorkoutSelect() { index = i; }
+    };
+
+    /// Look in Workouts/ again (files may have been copied in over USB).
+    struct WorkoutRescan : public SDK::MessageBase {
+        WorkoutRescan() : SDK::MessageBase(WORKOUT_RESCAN) {}
+    };
 
 } // namespace CustomMessage
 

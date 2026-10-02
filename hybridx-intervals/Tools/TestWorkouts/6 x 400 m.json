@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "name": "6 x 400 m",
+  "sport": "run",
+  "steps": [
+    { "type": "time", "value": 600, "intensity": "warmup" },
+    { "type": "dist", "value": 400, "intensity": "active",
+      "target": { "kind": "pace", "low": 230, "high": 250 } },
+    { "type": "time", "value": 90, "intensity": "rest" },
+    { "type": "repeat", "from": 1, "count": 6 },
+    { "type": "time", "value": 600, "intensity": "cooldown" }
+  ]
+}

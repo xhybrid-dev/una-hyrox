@@ -67,6 +67,19 @@ struct IntervalsData {
     uint8_t         totalRepeats  = 0;    ///< Total number of RUN-REST cycles
     std::time_t     phaseTimerSec = 0;    ///< Seconds (meaning depends on metric)
     float           distRemaining = 0.0f; ///< Metres remaining (DISTANCE metric only)
+
+    // HybridX Intervals: the workout step behind the phase (Core/WorkoutRunner).
+    // Plain types, so the GUI needs no Core header to read them; the enums'
+    // values are Intervals::TargetKind and Intervals::ZoneState.
+    uint8_t  stepIndex   = 0;     ///< in the workout file's step list (and FIT workout_step index)
+    int16_t  nextIndex   = -1;    ///< the step after this one; -1 if this is the last
+    uint16_t passes      = 0;     ///< repeat block size; 0 outside a block (repeat/totalRepeats hold the same, capped at 255)
+    uint8_t  targetKind  = 0;     ///< Intervals::TargetKind: 0 open, 1 pace, 2 HR zone, 3 HR bpm
+    uint16_t targetLow   = 0;     ///< pace: the fast bound, s/km; HR: the low bound
+    uint16_t targetHigh  = 0;
+    uint8_t  zone        = 0;     ///< Intervals::ZoneState, debounced (for colour)
+    uint8_t  zoneLive    = 0;     ///< Intervals::ZoneState, this second's reading
+    bool     settling    = false; ///< the step began less than WorkoutRunner::kSettleMs ago
 };
 
 // =============================================================================

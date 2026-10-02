@@ -23,6 +23,10 @@
 #include "Commands.hpp"
 #include "WristTiltDetector.hpp"
 
+// HybridX Intervals
+#include "WorkoutRunner.hpp"
+#include "WorkoutStore.hpp"
+
 class Service : public WristTiltDetector::IListener
 {
 public:
@@ -160,23 +164,20 @@ private:
     Track::Data  mTrackData{};
 
     // -- Interval training state ----------------------------------------------
+    // HybridX Intervals: RunLVGL's fixed warm-up / run / rest / cool-down
+    // state machine is replaced by a workout from Workouts/, run by
+    // Core/WorkoutRunner (NOTES P3b). Both live in static storage (Service.cpp).
+
+    Intervals::WorkoutStore&  mStore;
+    Intervals::WorkoutRunner& mRunner;
+    Intervals::Workout&       mRunWorkout;    ///< the workout being run, copied from mStore at track start
 
     bool        mIntervalsMode        = false;
     bool        mIntervalsCompleted   = false; ///< Set after workout completed; blocks further phase processing
-    std::time_t mPhaseStartActiveSec  = 0;     ///< mTimeCounter.getValueActive() at phase start
-    float       mPhaseStartActiveDist = 0.0f;  ///< mDistanceCounter.getValueActive() at phase start
-
-    /// Maps interval phases to workout_step message_index values for the FIT
-    /// workout description (0xFFFF = no associated step).
-    struct IntervalsStepMap {
-        bool     valid       = false;
-        uint16_t warmUpIdx   = 0xFFFF;
-        uint16_t runIdx      = 0xFFFF;
-        uint16_t restIdx     = 0xFFFF;
-        uint16_t finalRunIdx = 0xFFFF; ///< last RUN step when the final rest is skipped
-        uint16_t coolDownIdx = 0xFFFF;
-    };
-    IntervalsStepMap mIntervalsStepMap;
+    bool        mWorkoutInFit         = false; ///< the workout and its steps were written to the FIT file
+    uint16_t    mLapWktStep           = 0xFFFF; ///< FIT workout_step index of the lap being saved
+    uint8_t     mHrThresholds[CustomMessage::kHrThresholdsCount] {};   ///< for the HR zone of a sample
+    uint8_t     mHrThresholdsCount    = 0;
 
     // -- Wrist tilt -----------------------------------------------------------
 
@@ -222,16 +223,20 @@ private:
 
     // -- Interval training ----------------------------------------------------
 
-    void startIntervalsPhase(Track::IntervalsPhase phase);
-    void advanceIntervalsPhase(bool manual = false);
-    void processIntervals();
+    void handleEvent(const CustomMessage::WorkoutSelect& event);
+    void handleEvent(const CustomMessage::WorkoutRescan& event);
+    void sendWorkouts();          ///< the list, then the loaded workout (or none)
+    void startWorkout();          ///< at track start, in intervals mode
+    void processIntervals();      ///< once a second while the track is ACTIVE
+    /// Act on what the runner reported: laps, step alerts, cues, the end.
+    void applyRunnerResult(const Intervals::WorkoutRunner::TickResult& res, bool manual);
+    void updateIntervalsData();   ///< mTrackData.intervals from the runner's view
     void onIntervalsPhaseChange(bool alert, bool manual);
+    Intervals::Sample currentSample() const;
 
-    /// Build the workout_step list from the intervals config, emit the workout /
-    /// workout_step messages, and populate mIntervalsStepMap for lap referencing.
+    /// Write the workout and its steps to the FIT file (a 1:1 copy of the
+    /// file's steps, so a step's index is its workout_step message_index).
     void emitIntervalsWorkout();
-    /// workout_step message_index for the current interval phase (0xFFFF = none).
-    uint16_t intervalsWktStepIndex() const;
 
     // -- Notifications --------------------------------------------------------
 

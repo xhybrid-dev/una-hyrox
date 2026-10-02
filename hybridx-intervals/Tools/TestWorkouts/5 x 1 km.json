@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "name": "5 x 1 km",
+  "sport": "run",
+  "steps": [
+    { "type": "open", "intensity": "warmup" },
+    { "type": "dist", "value": 1000, "intensity": "active",
+      "target": { "kind": "pace", "low": 230, "high": 245 } },
+    { "type": "time", "value": 120, "intensity": "rest" },
+    { "type": "repeat", "from": 1, "count": 5 },
+    { "type": "time", "value": 600, "intensity": "cooldown" }
+  ]
+}
