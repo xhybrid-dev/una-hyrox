@@ -35,7 +35,9 @@ printf "%s" "$WORKOUT" > "$SOFT/Output/workout.sel"
 Xvfb $DISP -screen 0 800x800x24 >/dev/null 2>&1 & XPID=$!
 sleep 2
 cd "$BIN"
-DISPLAY=$DISP ./HybridXIntervalsSimulator > "$LOG" 2>&1 & SIMPID=$!
+# Line-buffered: the simulator is killed at the end, which would lose a
+# fully buffered tail of its log.
+DISPLAY=$DISP stdbuf -oL -eL ./HybridXIntervalsSimulator > "$LOG" 2>&1 & SIMPID=$!
 cleanup() { kill -9 $SIMPID 2>/dev/null; kill $XPID 2>/dev/null; }
 trap cleanup EXIT
 sleep 8                                   # the simulated GPS finds a fix after ~5 s
