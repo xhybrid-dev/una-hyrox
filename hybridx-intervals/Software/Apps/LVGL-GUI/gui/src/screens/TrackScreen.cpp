@@ -6,6 +6,11 @@
  */
 
 #include "gui/screens/TrackScreen.hpp"
+
+#include <cstdio>
+
+#include "TargetEvaluator.hpp"
+#include "WorkoutText.hpp"
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 #include "gui/Assets.hpp"
@@ -33,6 +38,22 @@ constexpr uint32_t kIvNeutral = Color::WHITE;
 constexpr uint32_t kIvRun     = Color::CYAN;
 constexpr uint32_t kIvRest    = Color::YELLOW_DARK;
 
+// HybridX Intervals: the live value against its target (proposed, NOTES P3c).
+constexpr uint32_t kZoneUnder = Color::SKY;    // too slow / too low
+constexpr uint32_t kZoneIn    = Color::LIME;
+constexpr uint32_t kZoneOver  = Color::RED;    // too fast / too high
+constexpr uint32_t kCueShowMs = 4000;
+
+uint32_t zoneColor(uint8_t zone)
+{
+    switch (static_cast<Intervals::ZoneState>(zone)) {
+        case Intervals::ZoneState::Under:  return kZoneUnder;
+        case Intervals::ZoneState::InZone: return kZoneIn;
+        case Intervals::ZoneState::Over:   return kZoneOver;
+        default:                           return Color::WHITE;
+    }
+}
+
 const char* phaseTitle(Track::IntervalsPhase phase)
 {
     switch (phase) {
@@ -58,6 +79,13 @@ TrackScreen::TrackScreen(Model& model)
 {
 }
 
+TrackScreen::~TrackScreen()
+{
+    if (mCueTimer) {
+        lv_timer_delete(mCueTimer);
+    }
+}
+
 void TrackScreen::build()
 {
     mIndicator = std::make_unique<Widgets::ScrollIndicator>(mRoot, Widgets::ScrollIndicator::kSmall);
@@ -69,12 +97,43 @@ void TrackScreen::build()
     buildFaceLap();
     buildFaceTotal();
     buildFaceIntervals();
+    buildCueBanner();   // last: over every face
+}
+
+void TrackScreen::buildCueBanner()
+{
+    mCueBanner = Theme::box(mRoot, 0, 96, 240, 48, kZoneOver);
+    mCueText   = Theme::label(mCueBanner, F::SemiBold30, "", 0, 4, 240);
+    setHidden(mCueBanner, true);
+}
+
+void TrackScreen::onWorkoutCue(uint8_t zoneState)
+{
+    // What to do about it, in the target's own terms.
+    const bool under = static_cast<Intervals::ZoneState>(zoneState) == Intervals::ZoneState::Under;
+    const bool pace  = mModel.getTrackData().intervals.targetKind == static_cast<uint8_t>(Intervals::TargetKind::Pace);
+    lv_label_set_text(mCueText, pace ? (under ? "SPEED UP" : "SLOW DOWN") : (under ? "PUSH ON" : "EASE OFF"));
+    lv_obj_set_style_bg_color(mCueBanner, Theme::rgb(under ? kZoneUnder : kZoneOver), 0);
+    setHidden(mCueBanner, false);
+    if (mCueTimer) {
+        lv_timer_reset(mCueTimer);
+    } else {
+        mCueTimer = lv_timer_create(&TrackScreen::cueTimerCb, kCueShowMs, this);
+        lv_timer_set_repeat_count(mCueTimer, 1);
+    }
+}
+
+void TrackScreen::cueTimerCb(lv_timer_t* t)
+{
+    auto* self      = static_cast<TrackScreen*>(lv_timer_get_user_data(t));
+    self->mCueTimer = nullptr;   // one-shot: LVGL deletes the timer after this call
+    setHidden(self->mCueBanner, true);
 }
 
 void TrackScreen::buildFaceIntervals()
 {
     lv_obj_t* f = mFaceIntervals = Theme::container(mRoot, 0, 0, 240, 240);
-    mIvRepeats     = Theme::label(f, F::Italic18, "", 80, 202, 80);
+    mIvRepeats     = Theme::label(f, F::Italic18, "", 50, 202, 140);   // the target band
     mIvRunIcon     = Theme::image(f, &img_runningman_46x46, 97, 167);
     mIvHr          = Theme::label(f, F::SemiBold35, Strings::kNoValue, 40, 162, 160);
     mIvPace        = Theme::label(f, F::SemiBold35, Strings::kNoValue, 40, 162, 160);
@@ -264,25 +323,48 @@ void TrackScreen::setIntervalsPhase(const Track::IntervalsData& iv)
 {
     const bool run  = iv.phase == Track::IntervalsPhase::RUN;
     const bool rest = iv.phase == Track::IntervalsPhase::REST;
+    const auto kind = static_cast<Intervals::TargetKind>(iv.targetKind);
+    const bool paceTarget = kind == Intervals::TargetKind::Pace;
+    const bool hrTarget   = kind == Intervals::TargetKind::HeartRateZone || kind == Intervals::TargetKind::HeartRateBpm;
 
-    mIntervalsTitle->setText(phaseTitle(iv.phase));
+    // HybridX Intervals: the step and where it is in its repeat block, "RUN 2/6".
+    if (iv.passes > 0) {
+        std::snprintf(mIvTitle, sizeof(mIvTitle), "%s %u/%u", phaseTitle(iv.phase), static_cast<unsigned>(iv.repeat),
+                      static_cast<unsigned>(iv.passes));
+    } else {
+        std::snprintf(mIvTitle, sizeof(mIvTitle), "%s", phaseTitle(iv.phase));
+    }
+    mIntervalsTitle->setText(mIvTitle);
     mIntervalsTimer->setColor(run ? kIvRun : rest ? kIvRest : kIvNeutral);
     mIntervalsTimer->setLineVisible(run || rest);
 
-    // Bottom row: pace while running, heart rate while resting, the runner otherwise.
-    setHidden(mIvRunIcon,   run || rest);
-    setHidden(mIvPaceIcon,  !run);
-    setHidden(mIvPace,      !run);
-    setHidden(mIvHeartIcon, !rest);
-    setHidden(mIvHr,        !rest);
+    // Bottom row: the measure the target is set in; without a target, pace
+    // while running, heart rate while resting, the runner otherwise (RunLVGL's).
+    const bool showPace = paceTarget || (!hrTarget && run);
+    const bool showHr   = hrTarget || (!paceTarget && rest);
+    setHidden(mIvRunIcon,   showPace || showHr);
+    setHidden(mIvPaceIcon,  !showPace);
+    setHidden(mIvPace,      !showPace);
+    setHidden(mIvHeartIcon, !showHr);
+    setHidden(mIvHr,        !showHr);
 
-    // Repeat counter only during RUN / REST; "n" alone for open-ended repeats.
-    setHidden(mIvRepeats, !(run || rest));
-    if (iv.totalRepeats == 0) {
-        lv_label_set_text_fmt(mIvRepeats, "%u", static_cast<unsigned>(iv.repeat));
-    } else {
-        lv_label_set_text_fmt(mIvRepeats, "%u/%u", static_cast<unsigned>(iv.repeat),
-                              static_cast<unsigned>(iv.totalRepeats));
+    // Coloured against the target once the step has settled.
+    const uint32_t color = (paceTarget || hrTarget) && !iv.settling ? zoneColor(iv.zone) : Color::WHITE;
+    lv_obj_set_style_text_color(showPace ? mIvPace : mIvHr, Theme::rgb(color), 0);
+
+    // Under it, the target band (its unit is the readout's own).
+    setHidden(mIvRepeats, !(paceTarget || hrTarget));
+    if (paceTarget) {
+        char lo[12];
+        char hi[12];
+        Intervals::Text::clock(lo, sizeof(lo), mIsImperial ? Intervals::Text::secPerMile(iv.targetLow) : iv.targetLow);
+        Intervals::Text::clock(hi, sizeof(hi), mIsImperial ? Intervals::Text::secPerMile(iv.targetHigh) : iv.targetHigh);
+        std::snprintf(mIvTarget, sizeof(mIvTarget), "%s-%s", lo, hi);
+        lv_label_set_text(mIvRepeats, mIvTarget);
+    } else if (hrTarget) {
+        const Intervals::Target t { kind, iv.targetLow, iv.targetHigh };
+        Intervals::Text::target(mIvTarget, sizeof(mIvTarget), t, mIsImperial);
+        lv_label_set_text(mIvRepeats, mIvTarget);
     }
 }
 

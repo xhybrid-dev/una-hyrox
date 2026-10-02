@@ -33,6 +33,7 @@ public:
     void onIdleTimeout() override;
     void onGpsFix(bool acquired) override;
     void onAccessoryStatus(uint8_t state, const char* name) override;
+    void onWorkout() override;
 
 protected:
     void build() override;
@@ -42,6 +43,10 @@ private:
 
     void confirm();
     void updateBackground();
+    void updateWorkoutItem();
+
+    WheelMenu::Item mItems[Menu::ID_COUNT] {};
+    char            mWorkoutTip[32] {};
 
     bool mGpsFix = false;
 

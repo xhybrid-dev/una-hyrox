@@ -16,10 +16,8 @@
 #include "gui/model/Model.hpp"
 #include "gui/screens/Screen.hpp"
 #include "gui/screens/MainScreen.hpp"
-#include "gui/screens/MenuIntervalsScreen.hpp"
-#include "gui/screens/MenuIntervalsRepeatsScreen.hpp"
-#include "gui/screens/MenuIntervalsMetricScreen.hpp"
-#include "gui/screens/IntervalsPickerScreen.hpp"
+#include "gui/screens/WorkoutListScreen.hpp"
+#include "gui/screens/WorkoutPreviewScreen.hpp"
 #include "gui/screens/MenuSettingsScreen.hpp"
 #include "gui/screens/MenuAlertsScreen.hpp"
 #include "gui/screens/MenuAlertValueScreen.hpp"
@@ -121,21 +119,13 @@ void ScreenManager::switchNow(ScreenId id)
 Screen* ScreenManager::create(ScreenId id)
 {
     Model& m = *mModel;
-    using Phase  = MenuIntervalsMetricScreen::Phase;
-    using Metric = IntervalsPickerScreen::Metric;
     using Alert  = MenuAlertValueScreen::Kind;
 
     switch (id) {
         case ScreenId::Main:                      return new MainScreen(m);
 
-        case ScreenId::MenuIntervals:             return new MenuIntervalsScreen(m);
-        case ScreenId::MenuIntervalsRepeats:      return new MenuIntervalsRepeatsScreen(m);
-        case ScreenId::MenuIntervalsRun:          return new MenuIntervalsMetricScreen(m, Phase::Run);
-        case ScreenId::MenuIntervalsRest:         return new MenuIntervalsMetricScreen(m, Phase::Rest);
-        case ScreenId::MenuIntervalsRunTime:      return new IntervalsPickerScreen(m, Phase::Run, Metric::Time);
-        case ScreenId::MenuIntervalsRunDistance:  return new IntervalsPickerScreen(m, Phase::Run, Metric::Distance);
-        case ScreenId::MenuIntervalsRestTime:     return new IntervalsPickerScreen(m, Phase::Rest, Metric::Time);
-        case ScreenId::MenuIntervalsRestDistance: return new IntervalsPickerScreen(m, Phase::Rest, Metric::Distance);
+        case ScreenId::WorkoutList:               return new WorkoutListScreen(m);
+        case ScreenId::WorkoutPreview:            return new WorkoutPreviewScreen(m);
 
         case ScreenId::MenuSettings:              return new MenuSettingsScreen(m);
         case ScreenId::MenuAlerts:                return new MenuAlertsScreen(m);

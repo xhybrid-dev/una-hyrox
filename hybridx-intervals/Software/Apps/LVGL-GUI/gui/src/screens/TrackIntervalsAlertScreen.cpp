@@ -11,6 +11,10 @@
 #include "gui/Assets.hpp"
 #include "gui/Format.hpp"
 
+#include <cstdio>
+
+#include "WorkoutText.hpp"
+
 using namespace SDK::GUI;
 
 namespace
@@ -32,7 +36,8 @@ TrackIntervalsAlertScreen::~TrackIntervalsAlertScreen()
 
 void TrackIntervalsAlertScreen::build()
 {
-    Theme::image(mRoot, &img_runningman_46x46, 97, 166);
+    mRunner  = Theme::image(mRoot, &img_runningman_46x46, 97, 166);
+    mTarget  = Theme::label(mRoot, Theme::Font::Medium18, "", 20, 172, 200);
     mRepeats = Theme::label(mRoot, Theme::Font::SemiBold35, "", 40, 115, 160);
     mTimer   = std::make_unique<Widgets::IntervalsTimer>(mRoot, 25, 41);
     mTimer->setLineVisible(false);
@@ -66,19 +71,27 @@ void TrackIntervalsAlertScreen::onShow()
         mTimer->setRemainingTime(iv.phaseTimerSec);
     }
 
-    // Repeat counter only during RUN / REST; "n" alone for open-ended repeats.
-    const bool showRepeats = iv.phase == Track::IntervalsPhase::RUN || iv.phase == Track::IntervalsPhase::REST;
-    if (showRepeats) {
-        if (iv.totalRepeats == 0) {
-            lv_label_set_text_fmt(mRepeats, "%u", static_cast<unsigned>(iv.repeat));
-        } else {
-            lv_label_set_text_fmt(mRepeats, "%u/%u", static_cast<unsigned>(iv.repeat),
-                                  static_cast<unsigned>(iv.totalRepeats));
-        }
+    // HybridX Intervals: where the step is in its repeat block ("2/6"), from
+    // the workout (RunLVGL showed it in RUN and REST only).
+    if (iv.passes > 0) {
+        lv_label_set_text_fmt(mRepeats, "%u/%u", static_cast<unsigned>(iv.repeat),
+                              static_cast<unsigned>(iv.passes));
         lv_obj_remove_flag(mRepeats, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(mRepeats, LV_OBJ_FLAG_HIDDEN);
     }
+
+    // And its target, where RunLVGL had the runner.
+    const Intervals::Target target { static_cast<Intervals::TargetKind>(iv.targetKind), iv.targetLow, iv.targetHigh };
+    const bool hasTarget = target.kind != Intervals::TargetKind::Open;
+    if (hasTarget) {
+        char band[24];
+        Intervals::Text::target(band, sizeof(band), target, mModel.isUnitsImperial());
+        std::snprintf(mTargetText, sizeof(mTargetText), "@ %s", band);
+        lv_label_set_text(mTarget, mTargetText);
+    }
+    Theme::setHidden(mTarget, !hasTarget);
+    Theme::setHidden(mRunner, hasTarget);
 
     mDismiss = lv_timer_create(&TrackIntervalsAlertScreen::dismissCb, kDismissMs, this);
     lv_timer_set_repeat_count(mDismiss, 1);

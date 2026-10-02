@@ -22,15 +22,9 @@ class Screen;
 
 enum class ScreenId : uint8_t {
     Main,
-    // Intervals configuration
-    MenuIntervals,
-    MenuIntervalsRepeats,
-    MenuIntervalsRun,
-    MenuIntervalsRest,
-    MenuIntervalsRunTime,
-    MenuIntervalsRunDistance,
-    MenuIntervalsRestTime,
-    MenuIntervalsRestDistance,
+    // HybridX Intervals: the workouts (replacing RunLVGL's intervals set-up)
+    WorkoutList,
+    WorkoutPreview,
     // Settings
     MenuSettings,
     MenuAlerts,

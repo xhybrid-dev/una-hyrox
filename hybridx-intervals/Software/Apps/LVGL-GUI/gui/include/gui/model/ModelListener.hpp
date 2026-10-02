@@ -51,6 +51,11 @@ public:
     virtual void onActivitySummary(const ActivitySummary& summary) { (void)summary; }
     virtual void onAccessoryStatus(uint8_t state, const char* name) { (void)state; (void)name; }
 
+    // HybridX Intervals
+    virtual void onWorkouts() {}                                        ///< the workout list changed
+    virtual void onWorkout() {}                                         ///< the chosen workout changed
+    virtual void onWorkoutCue(uint8_t zoneState) { (void)zoneState; }   ///< off target (Intervals::ZoneState)
+
 protected:
     Model* model;
 };

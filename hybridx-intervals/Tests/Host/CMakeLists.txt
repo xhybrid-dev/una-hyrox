@@ -36,6 +36,8 @@ add_executable(hybridx-intervals-host-tests
     WorkoutSummaryTest.cpp
     WorkoutRunnerTest.cpp
     WorkoutStoreTest.cpp
+    WorkoutTextTest.cpp
+    TextFoldTest.cpp
     support/FlatFileSystem.cpp
     "${CORE_LIBS}/Sources/WorkoutValidation.cpp"
     "${CORE_LIBS}/Sources/HrZones.cpp"
@@ -45,6 +47,8 @@ add_executable(hybridx-intervals-host-tests
     "${CORE_LIBS}/Sources/WorkoutSummary.cpp"
     "${CORE_LIBS}/Sources/WorkoutRunner.cpp"
     "${CORE_LIBS}/Sources/WorkoutStore.cpp"
+    "${CORE_LIBS}/Sources/WorkoutText.cpp"
+    "${CORE_LIBS}/Sources/TextFold.cpp"
 )
 target_include_directories(hybridx-intervals-host-tests PRIVATE
     "${CORE_LIBS}/Header"

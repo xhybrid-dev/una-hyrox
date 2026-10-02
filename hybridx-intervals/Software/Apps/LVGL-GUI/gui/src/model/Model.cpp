@@ -147,40 +147,51 @@ void Model::trackStart(bool intervalsMode)
 {
     mTrackData.intervalsMode = intervalsMode;
 
-    if (intervalsMode) {
-        const Settings::Intervals& cfg = mSettings.intervals;
-        Track::IntervalsData& iv       = mTrackData.intervals;
-
+    // HybridX Intervals: from the chosen workout's first step, as the service
+    // will report it (Service::updateIntervalsData), rather than RunLVGL's
+    // old settings.
+    if (intervalsMode && mHasWorkout && mWorkout.stepCount > 0) {
+        const Intervals::Step& step = mWorkout.steps[0];
+        Track::IntervalsData&  iv   = mTrackData.intervals;
         iv = Track::IntervalsData{};
-        // totalRepeats is the literal repeat count chosen by the user; 0 == 'Open'.
-        iv.totalRepeats = cfg.repeatsNum;
-
-        if (cfg.warmUp) {
-            iv.phase  = Track::IntervalsPhase::WARM_UP;
-            iv.metric = Track::IntervalsMetric::TIME_OPEN;
-        } else {
-            iv.phase  = Track::IntervalsPhase::RUN;
-            iv.repeat = 1;
-            switch (cfg.runMetric) {
-                case Settings::Intervals::TIME:
-                    iv.metric        = Track::IntervalsMetric::TIME_REMAINING;
-                    iv.phaseTimerSec = static_cast<time_t>(cfg.runTime);
-                    break;
-                case Settings::Intervals::DISTANCE:
-                    iv.metric        = Track::IntervalsMetric::DISTANCE;
-                    iv.distRemaining = cfg.runDistance;
-                    break;
-                default:
-                    iv.metric = Track::IntervalsMetric::TIME_OPEN;
-                    break;
-            }
-            // warmUp=false: the GUI goes straight to the alert screen before any
-            // INTERVALS_PHASE_ALERT arrives, so give it the same data now.
-            mPendingAlertIntervals = iv;
+        switch (step.intensity) {
+            case Intervals::StepIntensity::Warmup:   iv.phase = Track::IntervalsPhase::WARM_UP;   break;
+            case Intervals::StepIntensity::Cooldown: iv.phase = Track::IntervalsPhase::COOL_DOWN; break;
+            case Intervals::StepIntensity::Rest:     iv.phase = Track::IntervalsPhase::REST;      break;
+            default:                                 iv.phase = Track::IntervalsPhase::RUN;       break;
         }
+        switch (step.durationType) {
+            case Intervals::DurationKind::Time:
+                iv.metric        = Track::IntervalsMetric::TIME_REMAINING;
+                iv.phaseTimerSec = static_cast<time_t>(step.durationValue / 1000u);
+                break;
+            case Intervals::DurationKind::Distance:
+                iv.metric        = Track::IntervalsMetric::DISTANCE;
+                iv.distRemaining = static_cast<float>(step.durationValue) / 100.0f;
+                break;
+            default:
+                iv.metric = Track::IntervalsMetric::TIME_OPEN;
+                break;
+        }
+        iv.targetKind = static_cast<uint8_t>(step.target.kind);
+        iv.targetLow  = step.target.low;
+        iv.targetHigh = step.target.high;
+        iv.nextIndex  = mWorkout.stepCount > 1 ? 1 : -1;
+        iv.settling   = true;
+        mPendingAlertIntervals = iv;
     }
 
     SDK::send_msg<CustomMessage::TrackStart>(mKernel, intervalsMode);
+}
+
+void Model::selectWorkout(int8_t index)
+{
+    SDK::send_msg<CustomMessage::WorkoutSelect>(mKernel, index);
+}
+
+void Model::rescanWorkouts()
+{
+    SDK::send_msg<CustomMessage::WorkoutRescan>(mKernel);
 }
 
 void Model::intervalsNextPhase()
@@ -376,6 +387,40 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
 
         case CustomMessage::INTERVALS_WORKOUT_COMPLETED: {
             modelListener->onIntervalsWorkoutCompleted();
+        } break;
+
+        // HybridX Intervals: copy before the message is released (Commands.hpp).
+        case CustomMessage::WORKOUT_LIST: {
+            auto* msg     = static_cast<CustomMessage::WorkoutList*>(message);
+            mWorkoutCount = 0;
+            if (msg->infos) {
+                mWorkoutCount = msg->count < Intervals::WorkoutStore::kMaxWorkouts
+                                    ? msg->count : Intervals::WorkoutStore::kMaxWorkouts;
+                memcpy(mWorkouts, msg->infos, sizeof(Intervals::WorkoutInfo) * mWorkoutCount);
+            }
+            mWorkoutsTruncated = msg->truncated;
+            mSelectedWorkout   = msg->selected < static_cast<int8_t>(mWorkoutCount) ? msg->selected : -1;
+            if (modelListener) {
+                modelListener->onWorkouts();
+            }
+        } break;
+
+        case CustomMessage::WORKOUT_LOADED: {
+            auto* msg    = static_cast<CustomMessage::WorkoutLoaded*>(message);
+            mHasWorkout  = msg->workout != nullptr;
+            mWorkout     = mHasWorkout ? *msg->workout : Intervals::Workout{};
+            mWorkoutInfo = msg->info;
+            if (modelListener) {
+                modelListener->onWorkout();
+            }
+        } break;
+
+        case CustomMessage::WORKOUT_CUE: {
+            auto* msg = static_cast<CustomMessage::WorkoutCue*>(message);
+            mLastCue  = msg->state;
+            if (modelListener) {
+                modelListener->onWorkoutCue(static_cast<uint8_t>(msg->state));
+            }
         } break;
 
         case CustomMessage::SUMMARY: {

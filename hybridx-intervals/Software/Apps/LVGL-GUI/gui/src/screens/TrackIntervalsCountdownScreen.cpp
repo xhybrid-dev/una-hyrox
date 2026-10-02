@@ -10,6 +10,8 @@
 #include "gui/theme/Theme.hpp"
 #include "gui/Assets.hpp"
 #include "gui/Format.hpp"
+#include "gui/WorkoutFormat.hpp"
+#include "WorkoutText.hpp"
 
 using namespace SDK::GUI;
 
@@ -46,17 +48,22 @@ void TrackIntervalsCountdownScreen::onShow()
 {
     mModel.resetIdleTimer();
 
-    const Settings::Intervals& iv = mModel.getSettings().intervals;
+    // HybridX Intervals: the workout about to start, where RunLVGL showed its
+    // reps, run and rest settings: the name, the totals, and the first step.
     const bool imperial = mModel.isUnitsImperial();
-    char buf[24];
-    char reps[8];
-    Fmt::intervalsRepeats(reps, sizeof(reps), iv.repeatsNum);
-    snprintf(buf, sizeof(buf), "Reps: %s", reps);
-    lv_label_set_text(mReps, buf);
-    Fmt::intervalsPhaseSummary(buf, sizeof(buf), "Run", iv.runMetric, iv.runTime, iv.runDistance, imperial);
-    lv_label_set_text(mRun, buf);
-    Fmt::intervalsPhaseSummary(buf, sizeof(buf), "Rest", iv.restMetric, iv.restTime, iv.restDistance, imperial);
-    lv_label_set_text(mRest, buf);
+    char buf[32];
+    if (mModel.hasWorkout()) {
+        static const lv_font_t* const kFaces[] = { Theme::font(Theme::Font::Medium18) };
+        WorkoutFmt::name(buf, sizeof(buf), mModel.workoutInfo().name);
+        WorkoutFmt::fit(buf, sizeof(buf), kFaces, 1, 160);
+        lv_label_set_text(mReps, buf);
+        Intervals::Text::summary(buf, sizeof(buf), mModel.workoutInfo().summary, imperial);
+        lv_label_set_text(mRun, buf);
+        if (mModel.workout().stepCount > 0) {
+            Intervals::Text::stepLine(buf, sizeof(buf), mModel.workout().steps[0], imperial);
+            lv_label_set_text(mRest, buf);
+        }
+    }
 
     mShownSeconds = kTimeoutMs / 1000;
     lv_label_set_text_fmt(mCount, "%u", static_cast<unsigned>(mShownSeconds));
@@ -78,7 +85,7 @@ void TrackIntervalsCountdownScreen::onKey(uint8_t code)
         startTrack();
     } else if (code == Btn::R2) {
         lv_anim_delete(this, nullptr);
-        ScreenManager::instance().goTo(ScreenId::MenuIntervals);
+        ScreenManager::instance().goTo(ScreenId::WorkoutPreview);
     }
 }
 
@@ -109,8 +116,10 @@ void TrackIntervalsCountdownScreen::startTrack()
     mStarted = true;
     lv_anim_delete(this, nullptr);
     mModel.trackStart(true);
-    // With a warm-up the track faces come first; otherwise the RUN alert opens
-    // the workout (the model pre-filled its snapshot in trackStart()).
-    ScreenManager::instance().goTo(mModel.getSettings().intervals.warmUp ? ScreenId::Track
-                                                                          : ScreenId::TrackIntervalsAlert);
+    // With a warm-up first the track faces come first; otherwise the first
+    // step's alert opens the workout (the model pre-filled its snapshot in
+    // trackStart()).
+    const bool warmUpFirst = mModel.hasWorkout() && mModel.workout().stepCount > 0 &&
+                             mModel.workout().steps[0].intensity == Intervals::StepIntensity::Warmup;
+    ScreenManager::instance().goTo(warmUpFirst ? ScreenId::Track : ScreenId::TrackIntervalsAlert);
 }

@@ -118,6 +118,22 @@ public:
     bool isTrackSummaryAvailable() const;
     const ActivitySummary& getTrackSummary() const;
 
+    // HybridX Intervals: the workouts (copies of the service's, see Commands.hpp)
+    uint8_t                       workoutCount() const { return mWorkoutCount; }
+    const Intervals::WorkoutInfo& workoutAt(uint8_t i) const { return mWorkouts[i < mWorkoutCount ? i : 0]; }
+    bool                          workoutsTruncated() const { return mWorkoutsTruncated; }
+    int8_t                        selectedWorkout() const { return mSelectedWorkout; }
+    bool                          hasWorkout() const { return mHasWorkout; }
+    const Intervals::Workout&     workout() const { return mWorkout; }
+    const Intervals::WorkoutInfo& workoutInfo() const { return mWorkoutInfo; }
+    void                          selectWorkout(int8_t index);   ///< -1: no workout
+    void                          rescanWorkouts();
+    /// The list entry being previewed (WorkoutPreviewScreen).
+    void   setPreviewWorkout(int8_t index) { mPreviewWorkout = index; }
+    int8_t previewWorkout() const { return mPreviewWorkout; }
+    /// The last off-target cue, for the run screen's banner.
+    Intervals::ZoneState lastCue() const { return mLastCue; }
+
 private:
     // Fields required for GUI <-> Service communication
     ModelListener*           modelListener;
@@ -162,6 +178,17 @@ private:
     Track::State           mTrackState            {};
     const ActivitySummary* mActivitySummary = nullptr;
     Track::Data            mTrackData             {};
+
+    // HybridX Intervals (about 2.5 KB: the list and one workout)
+    Intervals::WorkoutInfo mWorkouts[Intervals::WorkoutStore::kMaxWorkouts] {};
+    uint8_t                mWorkoutCount      = 0;
+    bool                   mWorkoutsTruncated = false;
+    int8_t                 mSelectedWorkout   = -1;
+    int8_t                 mPreviewWorkout    = -1;
+    bool                   mHasWorkout        = false;
+    Intervals::Workout     mWorkout           {};
+    Intervals::WorkoutInfo mWorkoutInfo       {};
+    Intervals::ZoneState   mLastCue           = Intervals::ZoneState::NoTarget;
 };
 
 #endif // MODEL_HPP

@@ -22,6 +22,7 @@ class TrackScreen : public Screen
 {
 public:
     explicit TrackScreen(Model& model);
+    ~TrackScreen() override;
 
     // Screen
     void onShow() override;
@@ -37,6 +38,7 @@ public:
     void onIntervalsWorkoutCompleted() override;
     void onGpsFix(bool acquired) override;
     void onAccessoryStatus(uint8_t state, const char* name) override;
+    void onWorkoutCue(uint8_t zoneState) override;
 
 protected:
     void build() override;
@@ -53,6 +55,8 @@ private:
     void setTime(uint8_t h, uint8_t m);
     void updateHrIcon();
     void setIntervalsPhase(const Track::IntervalsData& iv);
+    void buildCueBanner();
+    static void cueTimerCb(lv_timer_t* t);
 
     // Face containers (240 x 240, one visible at a time)
     lv_obj_t* mFaceIntervals = nullptr;
@@ -69,6 +73,13 @@ private:
     lv_obj_t* mIvHeartIcon = nullptr;
     lv_obj_t* mIvPace      = nullptr;
     lv_obj_t* mIvHr        = nullptr;
+    char      mIvTitle[20] = {};
+    char      mIvTarget[24] = {};
+
+    // HybridX Intervals: the off-target banner, over every face for a few seconds
+    lv_obj_t*   mCueBanner = nullptr;
+    lv_obj_t*   mCueText   = nullptr;
+    lv_timer_t* mCueTimer  = nullptr;
 
     // Totals face
     lv_obj_t* mPaceValue     = nullptr;

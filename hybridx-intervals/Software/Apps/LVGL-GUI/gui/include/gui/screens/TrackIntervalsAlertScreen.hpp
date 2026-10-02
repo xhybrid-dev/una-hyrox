@@ -30,6 +30,9 @@ private:
 
     lv_timer_t* mDismiss = nullptr;
     lv_obj_t*   mRepeats = nullptr;
+    lv_obj_t*   mRunner  = nullptr;
+    lv_obj_t*   mTarget  = nullptr;   ///< HybridX Intervals: the new step's target
+    char        mTargetText[32] = {};
     std::unique_ptr<Widgets::Title>          mTitle;
     std::unique_ptr<Widgets::IntervalsTimer> mTimer;
 };
