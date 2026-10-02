@@ -97,3 +97,25 @@ independent of Race and Streak.
     `hybridx-trail/Tools/RouteSender/build.sh`. It uses `$ANDROID_HOME` if
     set, else Ubuntu's `android-sdk-platform-23 aapt apksigner zipalign
     dalvik-exchange` (dl.google.com is blocked in the container).
+
+## HybridX Intervals (`hybridx-intervals/`)
+A fourth app: structured workouts (warm-up, work and rest steps with pace or
+heart-rate targets, repeats, cool-down) for running. It is independent of Race,
+Streak and Trail.
+- **Docs:** findings, decisions and phases: `hybridx-intervals/docs/NOTES.md`
+  (P0-P3, gates); the workout file format: `WORKOUT_FILE.md`; the retired
+  P0 probe: `PROBE.md`. Read `NOTES.md` at the start of each Intervals phase.
+- **Rules:** the same standing rules as Race apply.
+- **Layout:** the pure core (model, parser, engine, runner, store, text) is
+  `Software/Libs/Core`; the service (from RunLVGL) `Software/Libs/App`; the GUI
+  `Software/Apps/LVGL-GUI`. A workout is always a JSON file in the app's
+  `Workouts/` folder: over USB now, from the phone over BLE FTS later (Trail's
+  Route Sender shows how).
+- **Watch builds come from CI**, as for Streak and Trail.
+- **Commands:**
+  - host tests: `cmake -S hybridx-intervals/Tests/Host -B hybridx-intervals/build-tests && cmake --build hybridx-intervals/build-tests && hybridx-intervals/build-tests/hybridx-intervals-host-tests`;
+  - simulator: `hybridx-intervals/Software/Apps/LVGL-GUI/simulator`;
+  - example workouts: `hybridx-intervals/Tools/TestWorkouts/`;
+  - a run in the simulator: `docs/experiments/sim_run.sh [workout] [seconds]`;
+    every screen: `docs/experiments/capture_screens.sh [out-dir]` (into
+    `docs/screens/`).

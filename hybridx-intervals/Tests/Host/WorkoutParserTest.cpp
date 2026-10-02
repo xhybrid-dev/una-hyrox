@@ -363,3 +363,32 @@ TEST(WorkoutParser, TruncationAndCorruptionNeverOverread)
         }
     }
 }
+
+// The example files in Tools/TestWorkouts (for the simulator and for Jon's
+// first try on the watch) must parse the way their README says.
+TEST(WorkoutParser, TheTestWorkoutsParseAsDescribed)
+{
+    struct Case {
+        const char* file;
+        ParseError  error;
+    };
+    const Case cases[] = {
+        { "6 x 400 m.json", ParseError::Ok },     { "5 x 1 km.json", ParseError::Ok },
+        { "Tempo 20.json", ParseError::Ok },      { "Zone 2 spin.json", ParseError::Ok },
+        { "sim-short.json", ParseError::Ok },     { "broken example.json", ParseError::Syntax },
+    };
+    for (const Case& c : cases) {
+        const std::string path = std::string(TESTWORKOUTS_DIR) + "/" + c.file;
+        FILE*             f    = std::fopen(path.c_str(), "rb");
+        ASSERT_NE(f, nullptr) << path;
+        std::string s;
+        char        buf[512];
+        size_t      n;
+        while ((n = std::fread(buf, 1, sizeof(buf), f)) > 0) {
+            s.append(buf, n);
+        }
+        std::fclose(f);
+        Workout w;
+        EXPECT_EQ(parseWorkout(s.data(), s.size(), w).error, c.error) << c.file;
+    }
+}

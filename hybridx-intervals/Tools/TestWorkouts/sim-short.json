@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "name": "Sim short",
+  "sport": "run",
+  "steps": [
+    { "type": "time", "value": 20, "intensity": "warmup" },
+    { "type": "dist", "value": 200, "intensity": "active",
+      "target": { "kind": "pace", "low": 240, "high": 260 } },
+    { "type": "time", "value": 20, "intensity": "rest" },
+    { "type": "repeat", "from": 1, "count": 3 },
+    { "type": "open", "intensity": "cooldown" }
+  ]
+}
