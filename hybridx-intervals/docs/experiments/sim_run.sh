@@ -55,7 +55,8 @@ key 3 6                                    # R1: Start (then the countdown)
 snap 02-running
 sleep "$SECS"
 snap 03-after
-key 4 2                                    # R2: next step (ends an open cool-down)
+key 4 7                                    # R2: next step (ends an open cool-down);
+                                           # "Workout completed" takes no keys for 5 s
 key 3 1                                    # R1: action menu (pauses)
 key 2; key 2                               # L2 twice: Save
 hold 3 3                                   # hold R1: save

@@ -362,3 +362,76 @@ Running only: bike workouts are listed but not runnable.
   with no warnings: the cross-compile check P2 could not do.
 - Simulator builds and runs (dummy video driver, 5 s, clean shutdown).
 - Behaviour is still RunLVGL's; P3b replaces its intervals.
+
+## P3b: workouts from files drive the run (2 October 2026)
+
+### P3b.1 What changed
+
+RunLVGL's fixed warm-up / run / rest / cool-down state machine (and the
+`Settings::Intervals` it read) no longer drives anything in the service. A
+workout from `Workouts/` does, through three new pure pieces of Core, all
+host-tested:
+
+- **`WorkoutStore`** (modelled on Trail's `Navigator`): lists `Workouts/`
+  (creating it), parses every `.json`, keeps a summary of each (name, sport,
+  totals with repeats expanded, the parser's error and byte offset if it
+  can't be read), sorts by name, and remembers the choice in `workout.sel`.
+  Files are at most 4 KB, so there's no index cache: every scan parses again.
+  16 workouts at most (the rest are flagged, not listed); names over 47 bytes
+  are skipped, not truncated. Bike workouts are listed but not runnable.
+- **`WorkoutRunner`**: the engine, the target check and the cues in one
+  place. The service gives it the activity's **active** time and distance
+  once a second, so a pause needs no special case. It reports what the
+  service must do: save a lap (every step is its own lap), announce a new
+  step, buzz a cue, finish.
+- **`WorkoutSummary`**, and two engine additions: `repeatPosition()` ("2 of
+  6", right on the first pass too, which `iterationsRemaining()` was not) and
+  `nextStepIndex()` (for a "next" line, without moving the engine).
+
+The service (`Libs/App/Sources/Service.cpp`):
+- scans and restores the choice when the GUI starts; messages 0x20-0x25
+  (`Commands.hpp`) carry the list, the chosen workout and the cues, as
+  pointers into static storage like Trail's routes;
+- intervals mode runs the chosen workout; with none chosen it is a plain run;
+- writes the workout to the FIT file as a 1:1 copy of the file's steps, so a
+  step's index is its `workout_step` message index, and links each lap to it
+  (targets are not written: FIT here has only "open", P1.1);
+- feeds RunLVGL's existing interval screens through `Track::IntervalsData`
+  (phase from the step's intensity, timer from its duration), plus new
+  fields for the P3c screens: step, next step, repeat position, target band,
+  zone.
+- About 8 KB of workout state lives in static storage, not on the 10 KB
+  service stack.
+
+### P3b.2 Cues (proposed defaults, **awaiting Jon**)
+
+- No cue in the first **15 s** of a step: pace and heart rate still describe
+  the last step's effort.
+- Then a cue when the state has been Under or Over for **3 seconds running**
+  (the P1 debouncer).
+- **Too slow / too low:** three short buzzes and beeps ("pick it up").
+  **Too fast / too high:** one long beep and one buzz ("ease off").
+- A **reminder every 60 s** while still out of the band. Nothing for coming
+  back in: the screen shows it.
+- Every new step: the alert screen, and a buzz if it changed by itself (not
+  after a press), as RunLVGL did.
+
+### P3b.3 Found in the simulator: LVGL's pool on RunLVGL's own screens
+
+Going from the start screen to RunLVGL's intervals menu crashed the
+simulator (a null from `lv_malloc` inside `lv_style_init`, building the menu's
+sensor row): RunLVGL builds the next screen before freeing the last, so both
+must fit in LVGL's 40 KB pool, and these two do not. This is RunLVGL's own
+code, unchanged by us. Ported Trail's fix (its T3.2): load the new screen's
+empty root, free the old screen, then build. Pool peak after the fix: 78 %.
+
+### P3b.4 Test workouts and the simulator script
+
+- `Tools/TestWorkouts/`: example files (6 x 400 m, 5 x 1 km, a heart-rate
+  tempo, a bike workout, a broken file, and `sim-short.json` sized for the
+  simulator's fast runner), with a README for copying them to the watch.
+  A host test checks each parses as the README says.
+- `docs/experiments/sim_run.sh [workout] [seconds] [shots]`: puts the test
+  workouts on a pretend watch, chooses one (by writing `workout.sel`, until
+  the P3c list exists), starts it through RunLVGL's intervals menu, ends the
+  open cool-down with R2, saves, and prints the service's log lines.
