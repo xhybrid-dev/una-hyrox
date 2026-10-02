@@ -327,3 +327,38 @@ The watch app, the phone sender, and the UNA request. Next, if these defaults
 are fine: P3, the watch app started from Trail's LVGL scaffold (workout list,
 preview, run screens), then P4, sending workouts (Route Sender or a fork), and
 the UNA request widened to cover workouts as well as GPX.
+
+## P3a: the app starts from RunLVGL (2 October 2026)
+
+Agreed with Jon (P3 plan): the app **replaces** RunLVGL's basic built-in
+intervals with the workout engine, takes workouts from files (USB now; the
+phone or UNA's app later) and, after the P3 gate, a better on-watch builder.
+Running only: bike workouts are listed but not runnable.
+
+- **Verbatim copy first.** `Software/` is the SDK's RunLVGL (`a7a995a1`),
+  committed unchanged on its own (as Trail's T2.1), so every Intervals change
+  is a readable diff against UNA's original: the GUI in `Apps/LVGL-GUI`, the
+  CMake project in `Apps/HybridXIntervals-CMake`, the service in `Libs/App`.
+  `Libs/Core` (P1, P2) sits beside it; `Libs/libs.cmake` compiles both.
+- **Identity.** `HybridXIntervals`, type `Activity`, development APP_ID
+  `DBDC6FEA92394563` (first 16 hex of md5("HybridXIntervals")). The name on
+  the watch is **"HX Intervals"**: `app_merging.py:221` keeps 15 bytes of the
+  name, and "HybridX Intervals" is 17. Version from `intervals-v*` tags
+  (`Software/cmake/intervals-version.cmake`, as Trail's). The title on the
+  start screen reads "INTERVALS".
+- **Icon** (`Resources/make_icons.py`): a workout profile in blocks, low grey
+  warm-up, three tall lime work blocks with short grey rests, a low grey
+  cool-down. The P0 probe's placeholder icons moved to
+  `Tools/Probe/Resources`, with the probe's `RESOURCES_PATH`.
+- **CI** builds the app next to the probe and adds its `.uapp` to
+  `watch-apps`.
+
+### P3a verified
+
+- Watch target, local compile check (Ubuntu's `arm-none-eabi-gcc` with
+  Race's syscall stubs, so **not installable**; the watch copy comes from
+  CI): `HybridXIntervals_0.0.0-dev.uapp`, 419,996 bytes. Only warnings are two
+  in SDK files. Core (P1, P2) is now compiled by the ARM compiler for real,
+  with no warnings: the cross-compile check P2 could not do.
+- Simulator builds and runs (dummy video driver, 5 s, clean shutdown).
+- Behaviour is still RunLVGL's; P3b replaces its intervals.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the RunLVGL PC simulator on Linux and regenerate its assets, the way a
+# Build the HybridX Intervals PC simulator on Linux and regenerate its assets, the way a
 # developer on Debian/Ubuntu would. Run from anywhere inside the SDK checkout:
 #
 #   UNA_SDK=/path/to/sdk ./linux-check.sh
@@ -31,10 +31,10 @@ fi
 echo "=== simulator: configure + build (gcc, Ninja) ==="
 cmake -S "$here" -B "$here/build-linux" -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build "$here/build-linux" -j"$(nproc)"
-ls -l "$here/build/bin/RunLVGLSimulator"
+ls -l "$here/build/bin/HybridXIntervalsSimulator"
 
 echo "=== simulator: headless smoke run (3 s) ==="
-( cd "$here/build/bin" && SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout 3s ./RunLVGLSimulator \
+( cd "$here/build/bin" && SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout 3s ./HybridXIntervalsSimulator \
     || [ $? -eq 124 ] ) | tail -n 12
 
 echo "=== assets: regenerate and compare with the committed files ==="

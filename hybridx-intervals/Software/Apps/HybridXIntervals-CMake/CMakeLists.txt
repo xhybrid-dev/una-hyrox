@@ -1,22 +1,28 @@
-# RunLVGL -- the Run activity app with its GUI process built on LVGL.
+# HybridX Intervals -- structured workouts (warm-up, work and rest steps with
+# pace or heart-rate targets, repeats, cool-down) in a run-recording app, with
+# its GUI process built on LVGL.
 #
-# The service process is a copy of Running's; only the GUI differs. Compare
-# with ../../../../Running/Software/Apps/Running-CMake/CMakeLists.txt: the
-# TOUCHGFX_* lines become GUI_PATH plus the *_GUI_LVGL SDK variables.
+# Started from the SDK's RunLVGL (Examples/Apps/RunLVGL/Software/Apps/
+# RunLVGL-CMake/CMakeLists.txt), as the standing rules require. The
+# differences: the name and ID, the Libs split into Core / App
+# (../../Libs/libs.cmake), and the version taken from intervals-v* tags
+# (../../cmake/intervals-version.cmake).
 cmake_minimum_required(VERSION 3.21)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
 
 # App configuration
-set(APP_NAME "RunLVGL")
-set(APP_USER_NAME "RunLVGL")
-set(APP_FILE_NAME "RunLVGL")
+set(APP_NAME "HybridXIntervals")
+set(APP_USER_NAME "HX Intervals")       # 12 bytes; app_merging.py truncates at 15
+set(APP_FILE_NAME "HybridXIntervals")
 set(APP_TYPE "Activity")
-set(DEV_ID "UNA")
-set(APP_ID "A1B8E3F04C7D925E")
+set(DEV_ID "HybridX")
+set(APP_ID "DBDC6FEA92394563")          # first 16 hex of md5("HybridXIntervals"); development ID
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")
 set(GUI_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../LVGL-GUI")
+# Output/ is git-ignored; the linker needs it to exist for its .map files.
+file(MAKE_DIRECTORY "${OUTPUT_PATH}")
 
 if("$ENV{UNA_SDK}" STREQUAL "")
     message(FATAL_ERROR "UNA_SDK environment variable is not set. Run SDK/Utilities/Scripts/set-una-sdk-env.ps1 or set UNA_SDK to the SDK root.")
@@ -40,7 +46,8 @@ include(${GUI_PATH}/lvgl-gui.cmake)
 
 project(${APP_NAME})
 
-# Set up version
+# Set up version: from intervals-v* tags, not the SDK's apps-v*.
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/intervals-version.cmake)
 una_app_setup_version(BUILD_VERSION ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Build service

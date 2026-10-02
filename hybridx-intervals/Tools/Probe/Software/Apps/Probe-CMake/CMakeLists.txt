@@ -22,7 +22,7 @@ set(GUI_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../Probe-GUI")
 # app_merging.py requires -normal_icon/-small_icon for every non-Glance app
 # type (Utility here), so APP_USE_ICONS Off doesn't apply -- placeholder
 # artwork instead (Resources/make_icons.py, same pattern as Race/Streak).
-set(RESOURCES_PATH "${PROBE_ROOT}/../../Resources")
+set(RESOURCES_PATH "${PROBE_ROOT}/Resources")
 file(MAKE_DIRECTORY "${OUTPUT_PATH}")
 
 if("$ENV{UNA_SDK}" STREQUAL "")
