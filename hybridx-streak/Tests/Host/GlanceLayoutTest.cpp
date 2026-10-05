@@ -1,7 +1,9 @@
 /**
  * Host tests for the glance layout (PLAN 8): whatever area and control budget
  * the watch reports, every control fits inside it, the budget is kept, and
- * every text fits a glance text control.
+ * every text fits a glance text control: at most GLANCE_TEXT_SIZE bytes, plain
+ * ASCII in a face that has letters, and no wider than its box in the real
+ * Poppins widths (support/GlanceFontWidths.hpp).
  */
 
 #include <gtest/gtest.h>
@@ -9,7 +11,9 @@
 #include <cstring>
 #include <string>
 
+#include "GlanceFontWidths.hpp"
 #include "GlanceLayout.hpp"
+#include "Summits.hpp"
 
 using Glance::Layout;
 using Glance::Spec;
@@ -31,6 +35,23 @@ Streak::HomeView view(uint16_t streak, uint8_t sessions, uint8_t target, Streak:
     return v;
 }
 
+/// The text's width in its face, or -1 for a face these tests do not know.
+int widthOf(const Spec& s)
+{
+    const uint8_t* table = nullptr;
+    switch (s.font) {
+        case GLANCE_FONT_POPPINS_REGULAR_18: table = GlanceFontWidths::kRegular18; break;
+        case GLANCE_FONT_POPPINS_MEDIUM_18: table = GlanceFontWidths::kMedium18; break;
+        case GLANCE_FONT_POPPINS_SEMIBOLD_20: table = GlanceFontWidths::kSemiBold20; break;
+        default: return -1;
+    }
+    int w = 0;
+    for (const char* c = s.text; *c; ++c) {
+        w += (*c >= 0x20 && *c <= 0x7E) ? table[*c - 0x20] : 0;
+    }
+    return w;
+}
+
 void expectFits(const Layout& l, int16_t w, int16_t h, uint32_t maxControls, const std::string& what)
 {
     EXPECT_LE(l.count, maxControls) << what;
@@ -48,6 +69,19 @@ void expectFits(const Layout& l, int16_t w, int16_t h, uint32_t maxControls, con
         if (s.type == Spec::Type::Text) {
             EXPECT_GT(std::strlen(s.text), 0u) << what;
             EXPECT_LE(std::strlen(s.text), static_cast<size_t>(GLANCE_TEXT_SIZE)) << what;
+            for (const char* c = s.text; *c; ++c) {
+                EXPECT_TRUE(*c >= 0x20 && *c <= 0x7E) << what << " non-ASCII in '" << s.text << "'";
+            }
+            // The 10 point face is digits only; words in it drew as '?'.
+            EXPECT_NE(s.font, GLANCE_FONT_POPPINS_MEDIUM_10) << what << " '" << s.text << "'";
+            const int tw = widthOf(s);
+            EXPECT_GE(tw, 0) << what << " unmeasured face " << int(s.font);
+            // A line too wide for its box is clipped. The full layout (the
+            // watch's 240x60) must show every word; the others are fallbacks
+            // for areas no watch has reported.
+            if (l.kind == Layout::Kind::Full) {
+                EXPECT_LE(tw, s.w) << what << " '" << s.text << "' is " << tw << " px in " << s.w;
+            }
         }
     }
 }
@@ -82,15 +116,60 @@ TEST(GlanceLayout, FitsEveryAreaAndBudget)
     }
 }
 
-TEST(GlanceLayout, FullLayoutHasTheMountainAndThreeLines)
+/// The full layout's bottom line: its last control.
+const Spec& bottom(const Layout& l) { return l.items[l.count - 1]; }
+
+TEST(GlanceLayout, FitsEveryTargetAndClimb)
+{
+    // Every target 1..7 at every session count, and every step of every climb
+    // (plus two repeat Everests), in the watch's 240x60 area.
+    for (uint8_t target = 1; target <= 7; ++target) {
+        for (uint8_t sessions = 0; sessions <= 9; ++sessions) {
+            for (uint8_t days = 1; days <= 7; ++days) {
+                for (const auto mood : {Streak::Mood::Climbing, Streak::Mood::AtRisk}) {
+                    Streak::HomeView v = view(99, sessions, target, mood);
+                    v.daysLeft         = days;
+                    Layout l;
+                    Glance::layout(v, State::Normal, 240, 60, 32, l);
+                    ASSERT_EQ(l.kind, Layout::Kind::Full);
+                    // 5 mountain, the head, a bead per session of the target, the line.
+                    ASSERT_EQ(l.count, 7 + target);
+                    EXPECT_EQ(l.items[6 + target - 1].type, Spec::Type::Rect) << int(target);
+                    EXPECT_EQ(l.items[6 + target].type, Spec::Type::Text) << int(target);
+                    expectFits(l, 240, 60, 32, "target " + std::to_string(target) + " sessions "
+                                                   + std::to_string(sessions) + " days " + std::to_string(days));
+                }
+            }
+        }
+    }
+    for (uint32_t weeks = 0; weeks < Streak::kClimbs[Streak::kClimbCount - 1].summitAt + 2 * Streak::kRepeatSteps;
+         ++weeks) {
+        Streak::HomeView v = view(1, 1, 3, Streak::Mood::Climbing);
+        v.weeksAchieved    = static_cast<uint16_t>(weeks);
+        Layout l;
+        Glance::layout(v, State::Normal, 240, 60, 32, l);
+        expectFits(l, 240, 60, 32, "weeks achieved " + std::to_string(weeks));
+    }
+}
+
+TEST(GlanceLayout, FullLayoutHasTheMountainBeadsAndALine)
 {
     Layout l;
     Glance::layout(view(7, 2, 3, Streak::Mood::Climbing), State::Normal, 240, 60, 32, l);
     ASSERT_EQ(l.kind, Layout::Kind::Full);
-    EXPECT_EQ(l.count, 8);
+    ASSERT_EQ(l.count, 10);   // 5 mountain, the head, 3 beads, the line
     EXPECT_STREQ(l.items[5].text, "7 week streak");
-    EXPECT_STREQ(l.items[6].text, "2 of 3 this week");
-    EXPECT_STREQ(l.items[7].text, "Snowdon: 2 weeks to go");   // 10 weeks: 2 steps left to 12
+    for (int i = 6; i < 9; ++i) {
+        EXPECT_EQ(l.items[i].type, Spec::Type::Rect);
+        EXPECT_EQ(l.items[i].colour, i < 8 ? GLANCE_COLOR_GREEN : GLANCE_COLOR_GRAY) << i;
+    }
+    EXPECT_STREQ(bottom(l).text, "Snowdon: 2 wks");   // 10 weeks: 2 steps left to 12
+    EXPECT_EQ(bottom(l).font, GLANCE_FONT_POPPINS_REGULAR_18);
+
+    Streak::HomeView one = view(7, 2, 3, Streak::Mood::Climbing);
+    one.weeksAchieved    = 11;
+    Glance::layout(one, State::Normal, 240, 60, 32, l);
+    EXPECT_STREQ(bottom(l).text, "Snowdon: 1 wk");
 }
 
 TEST(GlanceLayout, FewControlsGiveTheCompactLayout)
@@ -99,32 +178,48 @@ TEST(GlanceLayout, FewControlsGiveTheCompactLayout)
     Glance::layout(view(7, 2, 3, Streak::Mood::Climbing), State::Normal, 240, 60, 4, l);
     EXPECT_EQ(l.kind, Layout::Kind::Compact);
     EXPECT_EQ(l.count, 2);
+    EXPECT_STREQ(l.items[1].text, "2 of 3 this week");
+    // A target of 7 needs 14 controls for the full layout.
+    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 13, l);
+    EXPECT_EQ(l.kind, Layout::Kind::Compact);
+    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 14, l);
+    EXPECT_EQ(l.kind, Layout::Kind::Full);
     Glance::layout(view(7, 2, 3, Streak::Mood::Climbing), State::Normal, 240, 30, 32, l);
     EXPECT_EQ(l.kind, Layout::Kind::Tiny);
-    EXPECT_STREQ(l.items[0].text, "7 wk streak \xC2\xB7 2/3");
+    EXPECT_STREQ(l.items[0].text, "7 wk streak, 2/3");
 }
 
 TEST(GlanceLayout, TheWordsForEachState)
 {
     Layout l;
     Glance::layout(view(40, 2, 4, Streak::Mood::AtRisk), State::Normal, 240, 60, 32, l);
-    EXPECT_STREQ(l.items[7].text, "2 more in 2 days");
-    EXPECT_EQ(l.items[7].colour, GLANCE_COLOR_YELLOW_DARK);
+    EXPECT_STREQ(bottom(l).text, "2 more, 2 days left");
+    EXPECT_EQ(bottom(l).colour, GLANCE_COLOR_YELLOW_DARK);
+
+    Streak::HomeView last = view(40, 3, 4, Streak::Mood::AtRisk);
+    last.daysLeft         = 1;
+    Glance::layout(last, State::Normal, 240, 60, 32, l);
+    EXPECT_STREQ(bottom(l).text, "Last day: 1 more");
 
     Glance::layout(view(9, 0, 3, Streak::Mood::Climbing, Streak::HomeView::kDecisionPending), State::Normal, 240, 60,
                    32, l);
-    EXPECT_STREQ(l.items[7].text, "Open to use a shield");
+    EXPECT_STREQ(bottom(l).text, "Shield? Open app");
 
     Glance::layout(view(0, 1, 3, Streak::Mood::Trial, Streak::HomeView::kTrialWeek), State::Normal, 240, 60, 32, l);
     EXPECT_STREQ(l.items[5].text, "First week");
 
     Glance::layout(view(5, 3, 3, Streak::Mood::Done), State::Normal, 240, 60, 32, l);
-    EXPECT_EQ(l.items[6].colour, GLANCE_COLOR_GREEN);
-    EXPECT_STREQ(l.items[7].text, "Week banked. Rest up.");
+    EXPECT_EQ(l.items[8].colour, GLANCE_COLOR_GREEN);   // every bead done
+    EXPECT_STREQ(bottom(l).text, "Banked. Rest up.");
+    EXPECT_EQ(bottom(l).colour, GLANCE_COLOR_GREEN);
 
+    // No beads when the week means nothing yet.
     Glance::layout(view(5, 3, 3, Streak::Mood::Done, Streak::HomeView::kClockUnset), State::Normal, 240, 60, 32, l);
+    EXPECT_EQ(l.count, 7);
     EXPECT_STREQ(l.items[5].text, "Set the time");
+    EXPECT_STREQ(bottom(l).text, "in the UNA app");
 
     Glance::layout(Streak::HomeView {}, State::NoStreak, 240, 60, 32, l);
-    EXPECT_STREQ(l.items[6].text, "Open it to start");
+    EXPECT_EQ(l.count, 7);
+    EXPECT_STREQ(bottom(l).text, "Open it to start");
 }

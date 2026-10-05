@@ -6,17 +6,23 @@
  * The glance's area and control budget come from the watch at run time
  * (RequestGlanceConfig), and the S0 probe has yet to report the real ones, so
  * the layout adapts (PLAN 8):
- *   full     a line-drawn mountain with a flag, then "7 week streak",
- *            "2 of 3 this week" and a small coach line;
- *   compact  the two lines of text alone, centred (too few controls, or narrow);
- *   tiny     one line: "7 wk streak · 2/3" (a very short area).
+ *   full     a line-drawn mountain with a flag, then "7 week streak", a row
+ *            of beads (one per session of the week's target, done in green)
+ *            and one line of what matters now: a shield waiting, the days
+ *            left when at risk, "Banked. Rest up.", or the next summit
+ *            ("Ben Nevis: 14 wks");
+ *   compact  two lines of text alone, centred: "7 week streak" and
+ *            "2 of 3 this week" (too few controls, or narrow);
+ *   tiny     one line: "7 wk streak, 2/3" (a very short area).
  * Special states replace the words: no streak yet ("Open HybridX Streak"),
  * the clock unset ("Set the time"), a shield decision waiting.
  *
  * Colours are the glance's own 16 (GlanceControl.h), which have no lime:
- * GREEN stands in for it. Every text is at most GLANCE_TEXT_SIZE bytes, and
- * every control lies inside the area -- GlanceLayoutTest checks both for a
- * range of areas and budgets.
+ * GREEN stands in for it. Words use only 18 and 20 point faces and plain
+ * ASCII: the 10 point face holds digits alone, so letters drew as '?'.
+ * Every text is at most GLANCE_TEXT_SIZE bytes and fits its box in the real
+ * Poppins widths, and every control lies inside the area -- GlanceLayoutTest
+ * checks all three for a range of areas, budgets and states.
  ******************************************************************************
  */
 
@@ -46,7 +52,7 @@ struct Spec {
 };
 
 struct Layout {
-    static constexpr uint8_t kMax = 12;
+    static constexpr uint8_t kMax = 16;   ///< the full layout uses at most 14
     Spec    items[kMax] {};
     uint8_t count = 0;
     enum class Kind : uint8_t { Full, Compact, Tiny } kind = Kind::Full;

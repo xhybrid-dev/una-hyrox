@@ -786,3 +786,77 @@ is documented by UNA or was run.
   `Apps/SharedData/` after each sync (the one path the firmware lets apps
   read). Drafted in `UNA_ACTIVITY_REQUEST.md`. Jon to send.
 - Open: aapt dump of exported components; where `latest_activity.txt` lives.
+
+## S4.2 The glance's third line (5 October 2026)
+
+**Found on the watch:** the glance's small coach line showed as `?????3?????`.
+Only the number in it survived.
+
+**Cause:** the 10 point face holds digits only. The SDK's generated TouchGFX
+tables (`Docs/Tutorials/Buttons/.../generated/fonts/src/Table_Poppins_*`, SDK
+`a7a995a`) list the same Poppins faces as `GlanceFont_t`:
+- `Poppins_Medium_10` has 11 glyphs, `0`-`9` and `?`, and `?` is its
+  fallback. So every letter, space and colon drew as `?`.
+- Every other face has the 95 printable ASCII characters; SemiBold 18 and
+  Italic 18 also have the ellipsis.
+- None of them has the middle dot `·` (U+00B7), so the tiny line's dot would
+  have drawn as `?` too.
+- None of the SDK's six glance examples uses Medium 10.
+
+This is inferred from the tutorial's tables, not from the glance firmware's
+own fonts, but it matches the symptom exactly.
+
+The host tests checked only byte length and position, and the preview drew
+with a stand-in font, so neither caught it.
+
+**Why not just a bigger face?** The faces with letters are 23 px tall (18
+point) or 25 px (SemiBold 20). Three lines need about 69 px; the glance is 60.
+
+**Fix:** "2 of 3 this week" becomes a row of beads, which frees the bottom row
+for one 18 point line (Regular 18).
+- **Beads:** one per session of the target (1-7), 14×8 px. Done ones are
+  green, the rest grey. Both are filled rects, the kind the flag already uses
+  on the watch.
+- **The bottom line**, in priority order:
+
+  | Situation | Line | Colour |
+  |---|---|---|
+  | Shield decision waiting | `Shield? Open app` | amber |
+  | Target met | `Banked. Rest up.` | green |
+  | At risk, last day | `Last day: 1 more` | amber |
+  | At risk | `2 more, 3 days left` | amber |
+  | On track (Jon's choice) | `Ben Nevis: 14 wks` (the next summit) | grey |
+
+- **Special states:** before the app is first opened, and with the clock
+  unset, there are no beads; the line reads "Open it to start" or "in the UNA
+  app".
+- **Room:** the mountain is now 52 px with a 6 px gap, leaving 178 px of
+  words. The longest line, "Arthur's Seat: 4 wks", is 173 px.
+- **Budget:** the full layout needs 7 + target controls (at most 14) and a
+  240×60 area. Otherwise the compact layout is used, which still shows
+  "2 of 3 this week".
+- **Tiny line:** "7 wk streak, 2/3" (the dot is gone).
+
+**Guards:**
+- `Tests/Host/support/GlanceFontWidths.hpp` holds the real advance widths of
+  Regular 18, Medium 18 and SemiBold 20, copied from those tables.
+- `GlanceLayoutTest` now fails if:
+  - any text uses Medium 10 or a non-ASCII byte;
+  - any full-layout text is wider than its box. This is checked for every
+    target, session count, day count and climb step, including two repeat
+    Everests.
+- `Layout::kMax` went from 12 to 16. A target of 7 needs 14 controls, and at 12
+  the last bead would have been overwritten silently. The test now checks the
+  full layout's count (7 + target) for every target.
+- Trial runs with the coach line back in Medium 10, with the old long
+  wording, and with `kMax` back at 12 each failed the tests.
+- `glance_preview.py` now draws with the SDK's Poppins when `UNA_SDK` is set,
+  and draws Medium 10 as the watch does.
+
+**Verified:**
+- 113 host tests pass.
+- The glance compiles for the watch (a local compile check with stubs: 37 KB).
+  The installable `.uapp` comes from CI.
+- **Jon to check on the watch:** that the beads and the line show as in
+  `screens/glance-preview.png`, and that 18 point text sits inside its 23 px
+  box without clipping.
