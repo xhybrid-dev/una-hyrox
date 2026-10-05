@@ -2,6 +2,9 @@
 
 This workspace holds two folders:
 - `una-sdk/`: the UNA Watch SDK (read-only reference; never edit it). `UNA_SDK` points here.
+  In Claude Code on the web, `.claude/hooks/session-start.sh` fetches it at
+  the commit CI pins (`UNA_SDK_REF` in `.github/workflows/watch-builds.yml`)
+  and sets `UNA_SDK`; bump the SDK there and new sessions follow.
 - `hybridx-race/`: our app, a HYROX-format race timer for the UNA Watch.
 
 ## Before any work
