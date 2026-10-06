@@ -116,8 +116,9 @@ TEST(GlanceLayout, FitsEveryAreaAndBudget)
     }
 }
 
-/// The full layout's mountain: 6 blocks, the flag pole and the flag.
-constexpr int kMountain = 8;
+/// The full layout's mountain: 5 blocks, the flag pole and the flag.
+constexpr int kMountain = 7;
+constexpr int kTiers    = 5;
 
 /// The full layout's bottom line: its last control.
 const Spec& bottom(const Layout& l) { return l.items[l.count - 1]; }
@@ -196,18 +197,20 @@ TEST(GlanceLayout, TheMountainNarrowsToACentredSummit)
     ASSERT_EQ(l.kind, Layout::Kind::Full);
     int16_t prevTop = 1000;
     int16_t prevW   = 1000;
-    for (int i = 0; i < 6; ++i) {   // the blocks, foot to summit
+    for (int i = 0; i < kTiers; ++i) {   // the blocks, foot to summit
         const Spec& b = l.items[i];
         ASSERT_EQ(b.type, Spec::Type::Rect) << i;
         EXPECT_LT(b.y, prevTop) << "each block sits above the last " << i;
         EXPECT_LT(b.w, prevW) << "and is narrower " << i;
-        EXPECT_EQ(b.x + b.w / 2, 4 + 26) << "centred under the summit " << i;
+        EXPECT_EQ(b.x + b.w / 2, 14 + 18) << "centred under the summit " << i;
         prevTop = b.y;
         prevW   = b.w;
     }
-    EXPECT_EQ(l.items[5].colour, GLANCE_COLOR_WHITE);   // the cap
-    // The flag stands on the summit.
-    EXPECT_EQ(l.items[6].y + l.items[6].h, l.items[5].y);
+    EXPECT_EQ(l.items[kTiers - 1].colour, GLANCE_COLOR_WHITE);   // the cap
+    // The flag pole stands on the summit.
+    EXPECT_EQ(l.items[kTiers].y + l.items[kTiers].h, l.items[kTiers - 1].y);
+    // Held in from the left edge, clear of the scroll marker.
+    EXPECT_GE(l.items[0].x, 12);
 }
 
 TEST(GlanceLayout, FewControlsGiveTheCompactLayout)
@@ -217,10 +220,10 @@ TEST(GlanceLayout, FewControlsGiveTheCompactLayout)
     EXPECT_EQ(l.kind, Layout::Kind::Compact);
     EXPECT_EQ(l.count, 2);
     EXPECT_STREQ(l.items[1].text, "2 of 3 this week");
-    // A target of 7 needs 17 controls for the full layout.
-    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 16, l);
+    // A target of 7 needs 16 controls for the full layout.
+    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 15, l);
     EXPECT_EQ(l.kind, Layout::Kind::Compact);
-    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 17, l);
+    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 16, l);
     EXPECT_EQ(l.kind, Layout::Kind::Full);
     Glance::layout(view(7, 2, 3, Streak::Mood::Climbing), State::Normal, 240, 30, 32, l);
     EXPECT_EQ(l.kind, Layout::Kind::Tiny);

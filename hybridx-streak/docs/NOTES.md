@@ -883,7 +883,7 @@ draw correctly (the flag, the beads, every word).
 narrowing by 8 px a tier to a 12 px white cap, with a 2 px white pole and the
 green flag on top. Same footprint as before, so the words still have 178 px.
 - The mountain is 8 controls (it was 5), so the full layout needs
-  10 + target controls (at most 17). `Layout::kMax` is 20. The watch reports
+  10 + target controls (at most 17), before it was condensed (below). `Layout::kMax` is 20. The watch reports
   32.
 - **Guards:** `GlanceLayoutTest` fails if the full layout contains a line
   control, and checks the mountain: each block above and narrower than the one
@@ -897,3 +897,19 @@ green flag on top. Same footprint as before, so the words still have 178 px.
 
 **Verified:** 115 host tests pass; the glance compiles for the watch. Jon to
 check the new mountain on the watch.
+
+**Condensed (Jon's photo of the S4.3 build):** the mountain drew well, but
+the glance filled the round screen's full width: the mountain's foot ran into
+the list's curved scroll marker on the left, and the words sat close to the
+right edge.
+- The mountain is smaller: five 5 px blocks, 36 px wide at the foot (it was
+  six 6 px blocks, 52 px), with a 9 px pole and an 8×5 px flag.
+- Content is held in from both edges: 14 px on the left (it was 4) and the
+  words keep 8 px clear on the right. The words have 176 px; the longest line,
+  "Arthur's Seat: 4 wks", is 173 px, so no text changed.
+- The full layout needs 9 + target controls (at most 16).
+- `GlanceLayoutTest` checks the mountain starts at least 12 px in.
+- The text sizes cannot shrink: only 18 and 20 point have letters (S4.2). If
+  the glance still feels large, the next step is a shorter bottom line, such
+  as the summit name alone.
+

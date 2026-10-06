@@ -179,7 +179,7 @@ is a mock-up drawn from the real layout code):
 
 | Layout | When | What |
 |---|---|---|
-| Full | 10 + target controls (at most 17), 240×60 or more | a mountain of stacked blocks (teal, with a white cap) and a green flag; "7 week streak" (SemiBold 20, green); a row of beads, one per session of the week's target (done green, to do grey); one line (Regular 18) of what matters now: "Shield? Open app" (amber), "Banked. Rest up." (green), "Last day: 1 more" or "2 more, 3 days left" (amber), else the next summit, "Ben Nevis: 14 wks" (grey) |
+| Full | 9 + target controls (at most 16), 240×60 or more | a mountain of stacked blocks (teal, with a white cap) and a green flag; "7 week streak" (SemiBold 20, green); a row of beads, one per session of the week's target (done green, to do grey); one line (Regular 18) of what matters now: "Shield? Open app" (amber), "Banked. Rest up." (green), "Last day: 1 more" or "2 more, 3 days left" (amber), else the next summit, "Ben Nevis: 14 wks" (grey) |
 | Compact | fewer controls, or a smaller area | "7 week streak" and "2 of 3 this week", centred |
 | Tiny | under 48 px tall | "7 wk streak, 2/3" |
 

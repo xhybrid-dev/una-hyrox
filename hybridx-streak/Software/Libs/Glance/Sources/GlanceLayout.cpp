@@ -30,16 +30,22 @@ constexpr int16_t kFullHeight    = kBeadTop + kBeadH + 1 + kLine;   ///< 60
 constexpr int16_t kTwoLineHeight = kHead + kLine;                   ///< 48
 // The mountain is stacked rectangles, not lines: on the watch the line
 // control drew only a faint stub (NOTES S4.3), while rectangles are proven.
-constexpr uint8_t  kTiers    = 6;            ///< stacked blocks, widest at the foot
-constexpr int16_t  kTierH    = 6;
+constexpr uint8_t  kTiers    = 5;            ///< stacked blocks, widest at the foot
+constexpr int16_t  kTierH    = 5;
 constexpr uint32_t kMountainControls = kTiers + 2;   ///< the tiers, the pole and the flag
 constexpr uint8_t  kMaxBeads = 7;            ///< targets are 1..7 (Goal)
-// The mountain's box, and the gap between it and the words. 52 + 6 leaves
-// 178 px of words in a 240 px area: the longest message, "Arthur's Seat:
-// 4 wks", is 173 px in Regular 18 (GlanceLayoutTest measures every one).
-constexpr int16_t kMountain = 52;
+// The glance sits in a round screen, with the list's scroll marker curving
+// over the left edge, so the content is held in from both sides: the
+// mountain is 36 px wide, starting 14 px in, and the words keep 8 px clear
+// on the right. That leaves 176 px of words in a 240 px area; the longest
+// message, "Arthur's Seat: 4 wks", is 173 px in Regular 18 (GlanceLayoutTest
+// measures every one).
+constexpr int16_t kInset    = 14;
+constexpr int16_t kMountain = 36;
 constexpr int16_t kWordsGap = 6;
-constexpr int16_t kFullWidth = 4 + kMountain + kWordsGap + 178;   ///< 240
+constexpr int16_t kRightGap = 8;
+constexpr int16_t kWordsMin = 176;
+constexpr int16_t kFullWidth = kInset + kMountain + kWordsGap + kWordsMin + kRightGap;   ///< 240
 
 unsigned u(uint32_t v) { return static_cast<unsigned>(v); }
 
@@ -183,21 +189,21 @@ void layout(const Streak::HomeView& v, State state, int16_t width, int16_t heigh
     // matters now.
     out.kind           = Layout::Kind::Full;
     const int16_t oy   = static_cast<int16_t>((height - kFullHeight) / 2);
-    const int16_t x0   = 4;
+    const int16_t x0   = kInset;
     const int16_t base = static_cast<int16_t>(oy + kFullHeight - 3);
     const int16_t top  = static_cast<int16_t>(base - kTiers * kTierH);
     const int16_t apex = static_cast<int16_t>(x0 + kMountain / 2);
-    const int16_t step = static_cast<int16_t>((kMountain - 12) / (kTiers - 1));   // 8: 52, 44 ... 12 wide
+    const int16_t step = static_cast<int16_t>((kMountain - 12) / (kTiers - 1));   // 6: 36, 30 ... 12 wide
     for (uint8_t i = 0; i < kTiers; ++i) {
         const int16_t w = static_cast<int16_t>(kMountain - i * step);
         rect(out, static_cast<int16_t>(x0 + i * step / 2), static_cast<int16_t>(base - (i + 1) * kTierH), w, kTierH,
              i == kTiers - 1 ? GLANCE_COLOR_WHITE : GLANCE_COLOR_TEAL);
     }
-    rect(out, apex, static_cast<int16_t>(top - 11), 2, 11, GLANCE_COLOR_WHITE);
-    rect(out, static_cast<int16_t>(apex + 2), static_cast<int16_t>(top - 11), 9, 6, GLANCE_COLOR_GREEN);
+    rect(out, apex, static_cast<int16_t>(top - 9), 2, 9, GLANCE_COLOR_WHITE);
+    rect(out, static_cast<int16_t>(apex + 2), static_cast<int16_t>(top - 9), 8, 5, GLANCE_COLOR_GREEN);
 
     const int16_t tx = static_cast<int16_t>(x0 + kMountain + kWordsGap);
-    const int16_t tw = static_cast<int16_t>(width - tx);
+    const int16_t tw = static_cast<int16_t>(width - tx - kRightGap);
     text(out, tx, oy, tw, kHead, w.head, GLANCE_FONT_POPPINS_SEMIBOLD_20, w.headColour, GLANCE_ALIGN_H_LEFT);
     // Beads: done in green, still to do in grey. Both filled rects, which
     // the watch is known to draw.
