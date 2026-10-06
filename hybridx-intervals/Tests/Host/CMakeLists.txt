@@ -11,8 +11,8 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Core is SDK-free (no una-sdk headers anywhere in Software/Libs/Core), but
-# the SDK still provides the pinned GoogleTest fetch used across this repo.
+# Core uses one SDK header, the IFileSystem interface (WorkoutStore); the rest
+# is plain C++. The SDK also provides the pinned GoogleTest fetch.
 if(NOT DEFINED ENV{UNA_SDK})
     message(FATAL_ERROR
         "UNA_SDK is not set. Point it at the una-sdk checkout, e.g.\n"
@@ -33,18 +33,31 @@ add_executable(hybridx-intervals-host-tests
     WorkoutEngineTest.cpp
     WorkoutEventsTest.cpp
     WorkoutParserTest.cpp
+    WorkoutSummaryTest.cpp
+    WorkoutRunnerTest.cpp
+    WorkoutStoreTest.cpp
+    WorkoutTextTest.cpp
+    TextFoldTest.cpp
+    support/FlatFileSystem.cpp
     "${CORE_LIBS}/Sources/WorkoutValidation.cpp"
     "${CORE_LIBS}/Sources/HrZones.cpp"
     "${CORE_LIBS}/Sources/TargetEvaluator.cpp"
     "${CORE_LIBS}/Sources/WorkoutEngine.cpp"
     "${CORE_LIBS}/Sources/WorkoutParser.cpp"
+    "${CORE_LIBS}/Sources/WorkoutSummary.cpp"
+    "${CORE_LIBS}/Sources/WorkoutRunner.cpp"
+    "${CORE_LIBS}/Sources/WorkoutStore.cpp"
+    "${CORE_LIBS}/Sources/WorkoutText.cpp"
+    "${CORE_LIBS}/Sources/TextFold.cpp"
 )
 target_include_directories(hybridx-intervals-host-tests PRIVATE
     "${CORE_LIBS}/Header"
     "${CMAKE_CURRENT_LIST_DIR}"
+    "${UNA_SDK_ROOT}/Libs/Header"   # IFileSystem, for WorkoutStore
 )
 target_compile_definitions(hybridx-intervals-host-tests PRIVATE
     FIXTURE_DIR="${CMAKE_CURRENT_LIST_DIR}/fixtures"
+    TESTWORKOUTS_DIR="${CMAKE_CURRENT_LIST_DIR}/../../Tools/TestWorkouts"
 )
 target_link_libraries(hybridx-intervals-host-tests PRIVATE GTest::gtest_main)
 

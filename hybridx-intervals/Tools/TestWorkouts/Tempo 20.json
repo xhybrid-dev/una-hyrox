@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "name": "Tempo 20",
+  "sport": "run",
+  "steps": [
+    { "type": "time", "value": 900, "intensity": "warmup",
+      "target": { "kind": "hrzone", "low": 1, "high": 2 } },
+    { "type": "time", "value": 1200, "intensity": "active",
+      "target": { "kind": "hrzone", "low": 4, "high": 4 } },
+    { "type": "open", "intensity": "cooldown" }
+  ]
+}

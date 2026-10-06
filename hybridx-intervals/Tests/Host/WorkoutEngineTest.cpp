@@ -205,3 +205,102 @@ TEST(WorkoutEngine, StepRemainingMsCountsDownOnlyForTimeSteps)
     engine.advanceManually(1000, 0, manualEvents);
     EXPECT_EQ(engine.stepRemainingMs(5000), 0u) << "Open steps report no remaining time";
 }
+
+namespace
+{
+// Warm-up, 3 x (work, rest), cool-down; every step Open so the test walks it by hand.
+Workout threeRepWorkout()
+{
+    Workout w;
+    w.addStep(Step { DurationKind::Open, 0, StepIntensity::Warmup, {}, 0 });                    // 0
+    w.addStep(Step { DurationKind::Open, 0, StepIntensity::Active, {}, 0 });                    // 1
+    w.addStep(Step { DurationKind::Open, 0, StepIntensity::Rest, {}, 0 });                      // 2
+    w.addStep(Step { DurationKind::RepeatUntilStepsComplete, 1, StepIntensity::Active, {}, 3 }); // 3
+    w.addStep(Step { DurationKind::Open, 0, StepIntensity::Cooldown, {}, 0 });                  // 4
+    return w;
+}
+} // namespace
+
+TEST(WorkoutEngine, RepeatPositionIsRightOnEveryPassIncludingTheFirst)
+{
+    const Workout w = threeRepWorkout();
+    WorkoutEngine engine;
+    Events        e;
+    engine.start(w, 0, 0, e);
+
+    uint16_t pass = 9, total = 9;
+    EXPECT_FALSE(engine.repeatPosition(pass, total)) << "the warm-up is outside the block";
+    EXPECT_EQ(pass, 0u);
+    EXPECT_EQ(total, 0u);
+
+    // Expected (step, pass) for each manual advance through the workout.
+    const uint8_t  steps[] = { 1, 2, 1, 2, 1, 2, 4 };
+    const uint16_t passes[] = { 1, 1, 2, 2, 3, 3, 0 };
+    for (size_t i = 0; i < sizeof(steps); ++i) {
+        Events a;
+        engine.advanceManually(0, 0, a);
+        ASSERT_EQ(engine.stepIndex(), steps[i]) << "advance " << i;
+        const bool inBlock = engine.repeatPosition(pass, total);
+        EXPECT_EQ(inBlock, passes[i] != 0) << "advance " << i;
+        EXPECT_EQ(pass, passes[i]) << "advance " << i;
+        EXPECT_EQ(total, inBlock ? 3u : 0u) << "advance " << i;
+    }
+}
+
+TEST(WorkoutEngine, NextStepIndexFollowsRepeatsWithoutChangingAnything)
+{
+    const Workout w = threeRepWorkout();
+    WorkoutEngine engine;
+    Events        e;
+    engine.start(w, 0, 0, e);
+
+    // From each position, nextStepIndex() must predict what advanceManually() then does.
+    for (int guard = 0; guard < 20 && !engine.completed(); ++guard) {
+        const int16_t predicted = engine.nextStepIndex();
+        EXPECT_EQ(engine.nextStepIndex(), predicted) << "a second call must give the same answer";
+        Events a;
+        engine.advanceManually(0, 0, a);
+        if (engine.completed()) {
+            EXPECT_EQ(predicted, -1);
+        } else {
+            EXPECT_EQ(predicted, engine.stepIndex());
+        }
+    }
+    EXPECT_TRUE(engine.completed());
+    EXPECT_EQ(engine.nextStepIndex(), -1);
+}
+
+TEST(WorkoutEngine, PositionQueriesAreSafeBeforeStart)
+{
+    WorkoutEngine engine;
+    uint16_t      pass = 1, total = 1;
+    EXPECT_FALSE(engine.repeatPosition(pass, total));
+    EXPECT_EQ(engine.nextStepIndex(), -1);
+}
+
+TEST(WorkoutEngine, BackToBackBlocksEachReportTheirOwnPosition)
+{
+    Workout w;
+    w.addStep(Step { DurationKind::Open, 0, StepIntensity::Active, {}, 0 });                    // 0
+    w.addStep(Step { DurationKind::RepeatUntilStepsComplete, 0, StepIntensity::Active, {}, 2 }); // 1
+    w.addStep(Step { DurationKind::Open, 0, StepIntensity::Active, {}, 0 });                    // 2
+    w.addStep(Step { DurationKind::RepeatUntilStepsComplete, 2, StepIntensity::Active, {}, 4 }); // 3
+    WorkoutEngine engine;
+    Events        e;
+    engine.start(w, 0, 0, e);
+
+    uint16_t pass = 0, total = 0;
+    ASSERT_TRUE(engine.repeatPosition(pass, total));
+    EXPECT_EQ(pass, 1u);
+    EXPECT_EQ(total, 2u);
+    Events a1;
+    engine.advanceManually(0, 0, a1);   // second pass of block one
+    ASSERT_TRUE(engine.repeatPosition(pass, total));
+    EXPECT_EQ(pass, 2u);
+    Events a2;
+    engine.advanceManually(0, 0, a2);   // block two, first pass
+    ASSERT_EQ(engine.stepIndex(), 2u);
+    ASSERT_TRUE(engine.repeatPosition(pass, total));
+    EXPECT_EQ(pass, 1u);
+    EXPECT_EQ(total, 4u);
+}

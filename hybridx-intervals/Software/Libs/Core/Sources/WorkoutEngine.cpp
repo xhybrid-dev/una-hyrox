@@ -128,4 +128,58 @@ uint16_t WorkoutEngine::iterationsRemaining() const
     return (mActiveMarker == kNoActiveMarker) ? 0 : mIterationsLeft;
 }
 
+bool WorkoutEngine::repeatPosition(uint16_t& pass, uint16_t& total) const
+{
+    pass  = 0;
+    total = 0;
+    if (currentStep() == nullptr) {
+        return false;
+    }
+    // The enclosing block's marker is the first marker after this step: a
+    // later one whose range reached back over this step would contain the
+    // first marker too, which validate() rejects as nesting.
+    for (uint8_t m = static_cast<uint8_t>(mStepIndex + 1); m < mWorkout->stepCount; ++m) {
+        const Step& marker = mWorkout->steps[m];
+        if (marker.durationType != DurationKind::RepeatUntilStepsComplete) {
+            continue;
+        }
+        if (marker.durationValue > mStepIndex) {
+            return false;   // the first marker's block starts after this step
+        }
+        total = marker.repeatCount;
+        // mIterationsLeft counts down from repeatCount at each pass through the
+        // marker, so it is only meaningful once this marker is active.
+        pass = (mActiveMarker == m) ? static_cast<uint16_t>(total - mIterationsLeft + 1) : 1;
+        return true;
+    }
+    return false;
+}
+
+int16_t WorkoutEngine::nextStepIndex() const
+{
+    if (currentStep() == nullptr) {
+        return -1;
+    }
+    // advancePastCompletedStep() without the side effects.
+    uint8_t  active = mActiveMarker;
+    uint16_t left   = mIterationsLeft;
+    uint8_t  next   = static_cast<uint8_t>(mStepIndex + 1);
+    while (next < mWorkout->stepCount &&
+           mWorkout->steps[next].durationType == DurationKind::RepeatUntilStepsComplete) {
+        const Step& marker = mWorkout->steps[next];
+        if (active != next) {
+            active = next;
+            left   = marker.repeatCount;
+        }
+        --left;
+        if (left > 0) {
+            next = static_cast<uint8_t>(marker.durationValue);
+        } else {
+            active = kNoActiveMarker;
+            ++next;
+        }
+    }
+    return next < mWorkout->stepCount ? static_cast<int16_t>(next) : static_cast<int16_t>(-1);
+}
+
 } // namespace Intervals

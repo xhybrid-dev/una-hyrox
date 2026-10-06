@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Draw the Intervals Probe's launcher icons: a plain teal "P" on a dark tile.
+"""Draw HybridX Intervals' launcher icons: a workout profile in blocks.
 
-Writes icon_60x60.png and icon_30x30.png next to this script. The watch build's
-app_merging.py requires exactly those sizes, square, RGBA, and converts them to
-ABGR2222 (two bits per channel, alpha included). This probe is throwaway (P0,
-never released), so the icon is placeholder artwork only -- legible enough to
-tell it apart on the watch's app list, nothing more.
+Low grey warm-up, three tall lime work blocks with short grey rests between,
+and a low grey cool-down: the shape of a structured workout as a coach draws
+it. Writes icon_60x60.png and icon_30x30.png next to this script.
 
+The watch build's app_merging.py requires exactly those sizes, square, RGBA,
+and converts them to ABGR2222 (two bits per channel, alpha included), so the
+icon is drawn the way it will be shown: flat colours from the display's 64,
+hard edges, and a transparent background like the SDK's own app icons.
 Drawn at 4x and reduced with a box filter, then snapped to the display's four
 levels per channel so what you see here is what the watch shows.
 
@@ -20,9 +22,9 @@ from PIL import Image, ImageDraw
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # SDK::GUI::Color values (SDK/GUI/Color.hpp), as the simulator shows them.
-TEAL = (0, 170, 170, 255)       # TEAL      0x008080
-TEAL_DARK = (0, 85, 85, 255)    # TEAL_DARK 0x004040
-WHITE = (255, 255, 255, 255)    # WHITE     0xC0C0C0
+LIME = (170, 255, 0, 255)          # LIME 0x80C000: work
+GRAY = (170, 170, 170, 255)        # GRAY 0x808080: warm-up, rest, cool-down
+GRAY_DARK = (85, 85, 85, 255)      # GRAY_DARK 0x404040: the disc
 
 
 def draw(size):
@@ -33,15 +35,22 @@ def draw(size):
     def p(x, y):
         return (x * s / 60.0, y * s / 60.0)
 
-    # A rounded dark-teal tile, with a plain white "P" for "Probe".
-    d.rounded_rectangle([p(4, 4), p(56, 56)], radius=s * 0.12, fill=TEAL_DARK, outline=TEAL, width=max(1, s // 30))
-    d.rectangle([p(20, 14), p(26, 46)], fill=WHITE)
-    d.rectangle([p(20, 14), p(38, 20)], fill=WHITE)
-    d.rectangle([p(32, 14), p(38, 30)], fill=WHITE)
-    d.rectangle([p(20, 24), p(38, 30)], fill=WHITE)
+    d.ellipse([p(2, 2), p(58, 58)], fill=GRAY_DARK)
+    base = 42
+    # (x0, x1, top, colour): warm-up, work, rest, work, rest, work, cool-down.
+    blocks = [
+        (10, 15, 34, GRAY),
+        (16, 21, 16, LIME),
+        (22, 25, 34, GRAY),
+        (26, 31, 16, LIME),
+        (32, 35, 34, GRAY),
+        (36, 41, 16, LIME),
+        (42, 50, 34, GRAY),
+    ]
+    for x0, x1, top, colour in blocks:
+        d.rectangle([p(x0, top), p(x1, base)], fill=colour)
 
     img = img.resize((size, size), Image.BOX)
-    # Snap to the display's levels, alpha included (ABGR2222 keeps 2 bits).
     px = img.load()
     for y in range(size):
         for x in range(size):

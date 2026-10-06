@@ -54,6 +54,17 @@ public:
     /// 0 when no repeat range is active.
     uint16_t       iterationsRemaining() const;
 
+    /// Where the current step sits in its repeat block, for "2 of 6": @p pass
+    /// counts from 1, @p total is the block's repeatCount. False (and both 0)
+    /// when the step is outside any block, or the workout is not running.
+    /// Unlike iterationsRemaining(), this is right on the first pass too.
+    bool           repeatPosition(uint16_t& pass, uint16_t& total) const;
+
+    /// The step that will run after the current one, following repeats
+    /// exactly as the engine will; -1 when the current step is the last (or
+    /// the workout is not running). Changes nothing.
+    int16_t        nextStepIndex() const;
+
 private:
     void enterStep(uint8_t index, uint32_t nowMs, uint32_t distanceCm, Events& events);
     void advancePastCompletedStep(uint32_t nowMs, uint32_t distanceCm, Events& events);

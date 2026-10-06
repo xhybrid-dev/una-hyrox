@@ -20,6 +20,9 @@ hybridx-streak/Tools/Probe/Software/Apps/Probe-GUI/simulator/build/
 # Square simulator frames; the committed screens are the round-masked copies.
 hybridx-streak/docs/screens/raw/
 hybridx-intervals/build-tests/
+hybridx-intervals/Output/
+hybridx-intervals/Software/Output/
+hybridx-intervals/Software/Apps/LVGL-GUI/simulator/build/
 hybridx-intervals/Tools/Probe/build/
 hybridx-intervals/Tools/Probe/Output/
 hybridx-intervals/Tools/Probe/Software/Output/
