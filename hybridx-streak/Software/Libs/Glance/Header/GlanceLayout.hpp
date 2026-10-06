@@ -6,7 +6,7 @@
  * The glance's area and control budget come from the watch at run time
  * (RequestGlanceConfig), and the S0 probe has yet to report the real ones, so
  * the layout adapts (PLAN 8):
- *   full     a line-drawn mountain with a flag, then "7 week streak", a row
+ *   full     a mountain of stacked blocks with a flag, then "7 week streak", a row
  *            of beads (one per session of the week's target, done in green)
  *            and one line of what matters now: a shield waiting, the days
  *            left when at risk, "Banked. Rest up.", or the next summit
@@ -52,7 +52,7 @@ struct Spec {
 };
 
 struct Layout {
-    static constexpr uint8_t kMax = 16;   ///< the full layout uses at most 14
+    static constexpr uint8_t kMax = 20;   ///< the full layout uses at most 17
     Spec    items[kMax] {};
     uint8_t count = 0;
     enum class Kind : uint8_t { Full, Compact, Tiny } kind = Kind::Full;

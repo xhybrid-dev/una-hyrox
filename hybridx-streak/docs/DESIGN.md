@@ -179,12 +179,12 @@ is a mock-up drawn from the real layout code):
 
 | Layout | When | What |
 |---|---|---|
-| Full | 7 + target controls (at most 14), 240×60 or more | a line-drawn mountain with a green flag; "7 week streak" (SemiBold 20, green); a row of beads, one per session of the week's target (done green, to do grey); one line (Regular 18) of what matters now: "Shield? Open app" (amber), "Banked. Rest up." (green), "Last day: 1 more" or "2 more, 3 days left" (amber), else the next summit, "Ben Nevis: 14 wks" (grey) |
+| Full | 10 + target controls (at most 17), 240×60 or more | a mountain of stacked blocks (teal, with a white cap) and a green flag; "7 week streak" (SemiBold 20, green); a row of beads, one per session of the week's target (done green, to do grey); one line (Regular 18) of what matters now: "Shield? Open app" (amber), "Banked. Rest up." (green), "Last day: 1 more" or "2 more, 3 days left" (amber), else the next summit, "Ben Nevis: 14 wks" (grey) |
 | Compact | fewer controls, or a smaller area | "7 week streak" and "2 of 3 this week", centred |
 | Tiny | under 48 px tall | "7 wk streak, 2/3" |
 
 Words on the glance are plain ASCII in 18 or 20 point faces only. The 10
-point face holds digits alone, and no face has "·" (NOTES S4.2).
+point face holds digits alone, and no face has "·" (NOTES S4.2). Shapes are text and filled rectangles only: the line control drew nothing usable on the watch (NOTES S4.3).
 
 Special states: "First week"; "New streak"; before the app is first opened,
 "HybridX Streak / Open it to start"; with the clock unset, "Set the time / in
