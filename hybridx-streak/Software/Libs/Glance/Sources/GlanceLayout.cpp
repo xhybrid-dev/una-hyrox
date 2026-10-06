@@ -28,7 +28,11 @@ constexpr int16_t kBeadH    = 8;
 constexpr int16_t kBeadGap  = 6;
 constexpr int16_t kFullHeight    = kBeadTop + kBeadH + 1 + kLine;   ///< 60
 constexpr int16_t kTwoLineHeight = kHead + kLine;                   ///< 48
-constexpr uint32_t kMountainControls = 5;   ///< 4 lines + the flag
+// The mountain is stacked rectangles, not lines: on the watch the line
+// control drew only a faint stub (NOTES S4.3), while rectangles are proven.
+constexpr uint8_t  kTiers    = 6;            ///< stacked blocks, widest at the foot
+constexpr int16_t  kTierH    = 6;
+constexpr uint32_t kMountainControls = kTiers + 2;   ///< the tiers, the pole and the flag
 constexpr uint8_t  kMaxBeads = 7;            ///< targets are 1..7 (Goal)
 // The mountain's box, and the gap between it and the words. 52 + 6 leaves
 // 178 px of words in a 240 px area: the longest message, "Arthur's Seat:
@@ -59,17 +63,6 @@ void text(Layout& out, int16_t x, int16_t y, int16_t w, int16_t h, const char* s
     s.colour = colour;
     s.align  = align;
     std::snprintf(s.text, sizeof(s.text), "%s", str);
-}
-
-void line(Layout& out, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint8_t colour)
-{
-    Spec& s  = add(out);
-    s.type   = Spec::Type::Line;
-    s.x      = x1;
-    s.y      = y1;
-    s.x2     = x2;
-    s.y2     = y2;
-    s.colour = colour;
 }
 
 void rect(Layout& out, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t colour)
@@ -184,27 +177,30 @@ void layout(const Streak::HomeView& v, State state, int16_t width, int16_t heigh
         return;
     }
 
-    // Full: a mountain on the left, drawn in lines (the glance has no filled
-    // triangles), with a green summit flag. On the right: the streak, a bead
-    // per session of the week's target, and one line of what matters now.
+    // Full: a mountain on the left, stacked blocks that narrow to a white
+    // cap, with a summit flag; the words on the right. On the right: the
+    // streak, a bead per session of the week's target, and one line of what
+    // matters now.
     out.kind           = Layout::Kind::Full;
     const int16_t oy   = static_cast<int16_t>((height - kFullHeight) / 2);
     const int16_t x0   = 4;
     const int16_t base = static_cast<int16_t>(oy + kFullHeight - 3);
-    const int16_t top  = static_cast<int16_t>(base - kMountain + 14);
+    const int16_t top  = static_cast<int16_t>(base - kTiers * kTierH);
     const int16_t apex = static_cast<int16_t>(x0 + kMountain / 2);
-    line(out, x0, base, apex, top, GLANCE_COLOR_TEAL);
-    line(out, apex, top, static_cast<int16_t>(x0 + kMountain), base, GLANCE_COLOR_TEAL);
-    line(out, static_cast<int16_t>(apex - 5), static_cast<int16_t>(top + 8), static_cast<int16_t>(apex + 5),
-         static_cast<int16_t>(top + 8), GLANCE_COLOR_WHITE);
-    line(out, apex, top, apex, static_cast<int16_t>(top - 11), GLANCE_COLOR_WHITE);
-    rect(out, static_cast<int16_t>(apex + 1), static_cast<int16_t>(top - 11), 9, 6, GLANCE_COLOR_GREEN);
+    const int16_t step = static_cast<int16_t>((kMountain - 12) / (kTiers - 1));   // 8: 52, 44 ... 12 wide
+    for (uint8_t i = 0; i < kTiers; ++i) {
+        const int16_t w = static_cast<int16_t>(kMountain - i * step);
+        rect(out, static_cast<int16_t>(x0 + i * step / 2), static_cast<int16_t>(base - (i + 1) * kTierH), w, kTierH,
+             i == kTiers - 1 ? GLANCE_COLOR_WHITE : GLANCE_COLOR_TEAL);
+    }
+    rect(out, apex, static_cast<int16_t>(top - 11), 2, 11, GLANCE_COLOR_WHITE);
+    rect(out, static_cast<int16_t>(apex + 2), static_cast<int16_t>(top - 11), 9, 6, GLANCE_COLOR_GREEN);
 
     const int16_t tx = static_cast<int16_t>(x0 + kMountain + kWordsGap);
     const int16_t tw = static_cast<int16_t>(width - tx);
     text(out, tx, oy, tw, kHead, w.head, GLANCE_FONT_POPPINS_SEMIBOLD_20, w.headColour, GLANCE_ALIGN_H_LEFT);
-    // Beads: done in green, still to do in grey. Both filled: a filled
-    // rect is what the flag already proves on the watch.
+    // Beads: done in green, still to do in grey. Both filled rects, which
+    // the watch is known to draw.
     for (uint8_t i = 0; i < beads; ++i) {
         rect(out, static_cast<int16_t>(tx + 1 + i * (kBeadW + kBeadGap)), static_cast<int16_t>(oy + kBeadTop), kBeadW,
              kBeadH, i < v.sessions ? GLANCE_COLOR_GREEN : GLANCE_COLOR_GRAY);

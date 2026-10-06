@@ -832,7 +832,7 @@ for one 18 point line (Regular 18).
   app".
 - **Room:** the mountain is now 52 px with a 6 px gap, leaving 178 px of
   words. The longest line, "Arthur's Seat: 4 wks", is 173 px.
-- **Budget:** the full layout needs 7 + target controls (at most 14) and a
+- **Budget:** the full layout needs 7 + target controls (at most 14; S4.3 later made it 10 + target, at most 17) and a
   240×60 area. Otherwise the compact layout is used, which still shows
   "2 of 3 this week".
 - **Tiny line:** "7 wk streak, 2/3" (the dot is gone).
@@ -860,3 +860,40 @@ for one 18 point line (Regular 18).
 - **Jon to check on the watch:** that the beads and the line show as in
   `screens/glance-preview.png`, and that 18 point text sits inside its 23 px
   box without clipping.
+
+## S4.3 The mountain: lines do not draw on the watch (6 October 2026)
+
+**Found on the watch** (Jon's photos of the glances list, S4.2's build): the
+text, the green heading, the flag and the beads all drew as designed. The
+mountain did not. Where its slopes should have been there was a faint short
+horizontal stub and a short diagonal beside the "A" of the bottom line.
+
+**Cause (not fully known):** the glance's line control (`GlanceLine_t`: a
+start point and a stop point, as we gave it) does not draw a line between
+those points on the watch. Nothing in the SDK says why:
+- none of its six Glance examples uses a line control;
+- `GlanceControlLine.hpp` documents only "start" and "stop";
+- the layout test checked that every point was inside the area, which they
+  were.
+
+Text and filled rectangles are the only shapes the watch has now been seen to
+draw correctly (the flag, the beads, every word).
+
+**Fix:** the mountain is six stacked blocks, 52 px wide at the foot and
+narrowing by 8 px a tier to a 12 px white cap, with a 2 px white pole and the
+green flag on top. Same footprint as before, so the words still have 178 px.
+- The mountain is 8 controls (it was 5), so the full layout needs
+  10 + target controls (at most 17). `Layout::kMax` is 20. The watch reports
+  32.
+- **Guards:** `GlanceLayoutTest` fails if the full layout contains a line
+  control, and checks the mountain: each block above and narrower than the one
+  below, all centred, the flag standing on the cap.
+- The code still supports line specs; nothing uses them. If UNA says how the
+  control is meant to be used, the old line-drawn mountain is in git (commit
+  `e77060a`).
+- **Question for UNA, worth adding to the next message to them:** how do the
+  glance line controls work (coordinates relative to what, any minimum
+  length, any clipping)?
+
+**Verified:** 115 host tests pass; the glance compiles for the watch. Jon to
+check the new mountain on the watch.

@@ -116,6 +116,9 @@ TEST(GlanceLayout, FitsEveryAreaAndBudget)
     }
 }
 
+/// The full layout's mountain: 6 blocks, the flag pole and the flag.
+constexpr int kMountain = 8;
+
 /// The full layout's bottom line: its last control.
 const Spec& bottom(const Layout& l) { return l.items[l.count - 1]; }
 
@@ -132,10 +135,10 @@ TEST(GlanceLayout, FitsEveryTargetAndClimb)
                     Layout l;
                     Glance::layout(v, State::Normal, 240, 60, 32, l);
                     ASSERT_EQ(l.kind, Layout::Kind::Full);
-                    // 5 mountain, the head, a bead per session of the target, the line.
-                    ASSERT_EQ(l.count, 7 + target);
-                    EXPECT_EQ(l.items[6 + target - 1].type, Spec::Type::Rect) << int(target);
-                    EXPECT_EQ(l.items[6 + target].type, Spec::Type::Text) << int(target);
+                    // The mountain, the head, a bead per session of the target, the line.
+                    ASSERT_EQ(l.count, kMountain + 2 + target);
+                    EXPECT_EQ(l.items[kMountain + target].type, Spec::Type::Rect) << int(target);
+                    EXPECT_EQ(l.items[kMountain + 1 + target].type, Spec::Type::Text) << int(target);
                     expectFits(l, 240, 60, 32, "target " + std::to_string(target) + " sessions "
                                                    + std::to_string(sessions) + " days " + std::to_string(days));
                 }
@@ -157,11 +160,11 @@ TEST(GlanceLayout, FullLayoutHasTheMountainBeadsAndALine)
     Layout l;
     Glance::layout(view(7, 2, 3, Streak::Mood::Climbing), State::Normal, 240, 60, 32, l);
     ASSERT_EQ(l.kind, Layout::Kind::Full);
-    ASSERT_EQ(l.count, 10);   // 5 mountain, the head, 3 beads, the line
-    EXPECT_STREQ(l.items[5].text, "7 week streak");
-    for (int i = 6; i < 9; ++i) {
+    ASSERT_EQ(l.count, kMountain + 5);   // the mountain, the head, 3 beads, the line
+    EXPECT_STREQ(l.items[kMountain].text, "7 week streak");
+    for (int i = kMountain + 1; i < kMountain + 4; ++i) {
         EXPECT_EQ(l.items[i].type, Spec::Type::Rect);
-        EXPECT_EQ(l.items[i].colour, i < 8 ? GLANCE_COLOR_GREEN : GLANCE_COLOR_GRAY) << i;
+        EXPECT_EQ(l.items[i].colour, i < kMountain + 3 ? GLANCE_COLOR_GREEN : GLANCE_COLOR_GRAY) << i;
     }
     EXPECT_STREQ(bottom(l).text, "Snowdon: 2 wks");   // 10 weeks: 2 steps left to 12
     EXPECT_EQ(bottom(l).font, GLANCE_FONT_POPPINS_REGULAR_18);
@@ -172,6 +175,41 @@ TEST(GlanceLayout, FullLayoutHasTheMountainBeadsAndALine)
     EXPECT_STREQ(bottom(l).text, "Snowdon: 1 wk");
 }
 
+TEST(GlanceLayout, TheFullLayoutDrawsNoLines)
+{
+    // On the watch the line control drew only a faint stub (NOTES S4.3);
+    // text and filled rectangles are the shapes known to work.
+    for (uint8_t target = 1; target <= 7; ++target) {
+        Layout l;
+        Glance::layout(view(7, 2, target, Streak::Mood::Climbing), State::Normal, 240, 60, 32, l);
+        ASSERT_EQ(l.kind, Layout::Kind::Full);
+        for (uint8_t i = 0; i < l.count; ++i) {
+            EXPECT_NE(l.items[i].type, Spec::Type::Line) << int(i);
+        }
+    }
+}
+
+TEST(GlanceLayout, TheMountainNarrowsToACentredSummit)
+{
+    Layout l;
+    Glance::layout(view(7, 2, 3, Streak::Mood::Climbing), State::Normal, 240, 60, 32, l);
+    ASSERT_EQ(l.kind, Layout::Kind::Full);
+    int16_t prevTop = 1000;
+    int16_t prevW   = 1000;
+    for (int i = 0; i < 6; ++i) {   // the blocks, foot to summit
+        const Spec& b = l.items[i];
+        ASSERT_EQ(b.type, Spec::Type::Rect) << i;
+        EXPECT_LT(b.y, prevTop) << "each block sits above the last " << i;
+        EXPECT_LT(b.w, prevW) << "and is narrower " << i;
+        EXPECT_EQ(b.x + b.w / 2, 4 + 26) << "centred under the summit " << i;
+        prevTop = b.y;
+        prevW   = b.w;
+    }
+    EXPECT_EQ(l.items[5].colour, GLANCE_COLOR_WHITE);   // the cap
+    // The flag stands on the summit.
+    EXPECT_EQ(l.items[6].y + l.items[6].h, l.items[5].y);
+}
+
 TEST(GlanceLayout, FewControlsGiveTheCompactLayout)
 {
     Layout l;
@@ -179,10 +217,10 @@ TEST(GlanceLayout, FewControlsGiveTheCompactLayout)
     EXPECT_EQ(l.kind, Layout::Kind::Compact);
     EXPECT_EQ(l.count, 2);
     EXPECT_STREQ(l.items[1].text, "2 of 3 this week");
-    // A target of 7 needs 14 controls for the full layout.
-    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 13, l);
+    // A target of 7 needs 17 controls for the full layout.
+    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 16, l);
     EXPECT_EQ(l.kind, Layout::Kind::Compact);
-    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 14, l);
+    Glance::layout(view(7, 2, 7, Streak::Mood::Climbing), State::Normal, 240, 60, 17, l);
     EXPECT_EQ(l.kind, Layout::Kind::Full);
     Glance::layout(view(7, 2, 3, Streak::Mood::Climbing), State::Normal, 240, 30, 32, l);
     EXPECT_EQ(l.kind, Layout::Kind::Tiny);
@@ -206,20 +244,20 @@ TEST(GlanceLayout, TheWordsForEachState)
     EXPECT_STREQ(bottom(l).text, "Shield? Open app");
 
     Glance::layout(view(0, 1, 3, Streak::Mood::Trial, Streak::HomeView::kTrialWeek), State::Normal, 240, 60, 32, l);
-    EXPECT_STREQ(l.items[5].text, "First week");
+    EXPECT_STREQ(l.items[kMountain].text, "First week");
 
     Glance::layout(view(5, 3, 3, Streak::Mood::Done), State::Normal, 240, 60, 32, l);
-    EXPECT_EQ(l.items[8].colour, GLANCE_COLOR_GREEN);   // every bead done
+    EXPECT_EQ(l.items[kMountain + 3].colour, GLANCE_COLOR_GREEN);   // every bead done
     EXPECT_STREQ(bottom(l).text, "Banked. Rest up.");
     EXPECT_EQ(bottom(l).colour, GLANCE_COLOR_GREEN);
 
     // No beads when the week means nothing yet.
     Glance::layout(view(5, 3, 3, Streak::Mood::Done, Streak::HomeView::kClockUnset), State::Normal, 240, 60, 32, l);
-    EXPECT_EQ(l.count, 7);
-    EXPECT_STREQ(l.items[5].text, "Set the time");
+    EXPECT_EQ(l.count, kMountain + 2);
+    EXPECT_STREQ(l.items[kMountain].text, "Set the time");
     EXPECT_STREQ(bottom(l).text, "in the UNA app");
 
     Glance::layout(Streak::HomeView {}, State::NoStreak, 240, 60, 32, l);
-    EXPECT_EQ(l.count, 7);
+    EXPECT_EQ(l.count, kMountain + 2);
     EXPECT_STREQ(bottom(l).text, "Open it to start");
 }
