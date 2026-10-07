@@ -54,7 +54,7 @@ void MainScreen::build()
     mMenu->setSlideMidCallback(
         [](void* ctx, uint16_t) { static_cast<MainScreen*>(ctx)->updateBackground(); }, this);
     mButtons   = std::make_unique<Widgets::Buttons>(mRoot);
-    mTitle     = std::make_unique<Widgets::Title>(mRoot, Strings::kAppNameUc);
+    mTitle     = std::make_unique<Widgets::Title>(mRoot, Strings::kAppTitle);
     mSensorRow = std::make_unique<Widgets::SensorStatusRow>(mRoot, 0, 52, 240, 24);
 
     mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,

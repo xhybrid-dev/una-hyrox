@@ -44,10 +44,36 @@ Everything below becomes 0.1.0 once it has run on a watch (Gate 6).
   100 m to 1 km. Shorten it and the app calls the session a sim rather than a
   race, on the watch and in the FIT file.
 - **Phone-editable settings** through AppConfig: Roxzone splits, run length,
-  split lock, vibrate on split, target finish.
+  split lock, vibrate on split. A value set on the phone wins at the next
+  launch; one never set there leaves the watch's own choice alone.
 - **Haptics** by segment type, and backlight on every split.
 - **Store packaging**: `Utilities/pack-store-zip.sh` builds a validated portal
   zip and refuses to build an invalid one.
+
+### Fixed
+
+These were found in the final pre-submission pass (`docs/NOTES.md`, "Final
+pass before submission") in builds that had been running on a watch.
+
+- **A second race in the same session would not start.** After a save, Start
+  race showed a frozen race screen ("RUN 0/8 · 9 of 8") and the split button
+  did nothing until the app was closed and reopened. The sensors were also
+  switched back on behind the summary screen.
+- **Run length set on the phone was ignored**, and a change made on the watch
+  never reached the phone.
+- **Target finish** appeared in the phone's settings but did nothing. It is
+  withdrawn until target pacing (F14) ships.
+- **The race's average and maximum heart rate** included pauses, the wait on the
+  Finished screen and samples the laps reject, so they could disagree with the
+  laps. They now come from the laps' own samples.
+- **The finish buzz no longer replays** when a finished race is saved by the
+  five-minute autosave or a forced exit.
+- **The status face's clock follows the watch's 12-hour setting.**
+- **The title fits.** "HYBRIDX RACE" was clipped at both ends on every menu
+  screen; it is now "HybridX Race".
+- **The FIT workout is named "HYROX-format full race"** (or half, rounds 1-4
+  or 5-8), describing the format as the store text does, rather than
+  "HYROX Full Race".
 
 ### Notes
 

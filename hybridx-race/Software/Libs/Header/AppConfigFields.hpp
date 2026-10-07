@@ -37,7 +37,9 @@ constexpr const char *kRoxzoneSplits = "roxzoneSplits";
 constexpr const char *kRunDistanceM = "runDistanceM";
 constexpr const char *kSplitLockoutSec = "splitLockoutSec";
 constexpr const char *kVibrateOnSplit = "vibrateOnSplit";
-constexpr const char *kTargetFinishMin = "targetFinishMin";
+// "targetFinishMin" was declared until 0.1.0 and did nothing; it comes back
+// with target pacing (F14). An old values file may still hold it; save()
+// copies undeclared keys through untouched.
 
 /// The declaration, mirroring app-manifest.json's "configFields".
 extern const SDK::AppConfig::Field kFields[];

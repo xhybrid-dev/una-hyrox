@@ -112,6 +112,14 @@ jobs:
           git clone https://github.com/UNAWatch/una-sdk.git una-sdk
           git -C una-sdk checkout "$UNA_SDK_REF"
 
+      - name: HybridX Race settings declaration
+        # The manifest's configFields and the app's AppConfig table must agree
+        # (una-sdk Docs/app-config-fields.md 5.1).
+        run: |
+          python3 una-sdk/Utilities/Scripts/app_packer/validate_app_config.py \
+            --check hybridx-race/Resources/app-manifest.json \
+            --check-bounds hybridx-race/Software/Libs/Sources/AppConfigFields.cpp
+
       - name: HybridX Race host tests
         run: |
           export UNA_SDK=$GITHUB_WORKSPACE/una-sdk

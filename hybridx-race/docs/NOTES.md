@@ -1610,3 +1610,117 @@ lap; whether it displays all 31 is the thing to look at on the next upload.
   first three and the record-distance checks; the replay passes all.
 - **Not verified:** `Service` itself (it needs the kernel and a watch). The wiring
   is `recordSecond` / `closeSpoolSegment` in `Service.cpp`; the replay mirrors it.
+
+---
+
+## Amendment — final pass before submission (7 October 2026)
+
+A full review of the app ahead of the UNA App Development Competition
+(deadline 30 October 2026): the race model, the service, the FIT writer, the
+screens, and the simulator driven through every screen and through two races
+back to back. Two real bugs, four smaller ones and a clipped title, all fixed
+here. Nothing in the race timing or the FIT lap layout changed.
+
+### 5.21 A second race in the same session would not start
+
+**Found in the simulator**, by saving a race, pressing R2 back to the main menu
+and starting another. The service logged `Race already in progress`, and the
+race screen sat frozen on "RUN 0/8 · 1 km · 9 of 8", 0:00, with the split
+button doing nothing until the app was closed and reopened.
+
+**Cause:** `RaceModel` ends at Saved or Discarded, as brief 7.3's table does,
+and `start()` needs Idle. Nothing went back to Idle. Discard hid it, because
+Discard exits the app; Save does not.
+
+**A second effect of the same cause:** `processRace()` runs while the state is
+not Idle, and it calls `connectSensors()`. So 500 ms after a save switched the
+sensors off, they were switched back on (heart rate, IMU fusion, battery)
+behind the summary screen, until the app closed.
+
+**Fix:** `RaceModel::reset()`, Saved or Discarded (or Idle) back to Idle. It
+refuses while a race is running, paused or finished but unsaved, so it can
+never forget a race. The service calls it at the end of `saveRace()`, in both
+the save and the discard paths. Four host tests, including the frozen-screen
+sequence itself. Re-run in the simulator: the second race starts at RUN 1/8 and
+splits, and the log shows no sensor restart after the save.
+
+### 5.22 Run length set on the phone was ignored
+
+5.13 added `runDistanceM` to AppConfig "so a coach can set it from the phone",
+but `loadConfiguration()` never read it and the settings save never wrote it
+back. A store install would offer it at install time (`Docs/app-config-fields.md`:
+the companion app asks for the fields when the app is installed) and then
+ignore it.
+
+**Fix, and a change to how all four fields load:** a field overrides
+`settings.json` only when the values file holds it (`AppConfig::has()`). An
+absent field is the app's default, not a choice. Reading the default as before
+would have reset a watch choice on every launch for a USB install (which has no
+values file), and would have reset every existing watch's run length to 1 km
+on upgrade, because no values file written so far holds `runDistanceM`. The
+watch writes run length back with the other three.
+
+Checked in the simulator with hand-written files: no values file keeps the
+watch's 800 m and Roxzone on; a file holding only `runDistanceM: 500` changes
+run length alone ("Full sim · 31 segments · 500 m runs", "500 m" on the race
+face); a file holding all fields wins on all; 650 m (the phone checks only the
+range, there is no step key) rounds down to 600 m, which the field's
+description now says. Changing run length on the watch writes
+`{"roxzoneSplits":false,"runDistanceM":500,...}`.
+
+### 5.23 Target finish withdrawn from the phone
+
+`targetFinishMin` was in the manifest, so the phone offered it, but nothing
+used it: target pacing (F14) waits on D6. It is out of the manifest and the
+field table until F14 ships. `Settings::targetFinishMin` stays, unused, as
+F14's hook. An old values file that holds it keeps it: `AppConfig::save()`
+copies undeclared keys through. The CI workflow now checks Race's manifest
+against its field table, as it already did for Streak: the header said CI did,
+but it did not.
+
+### 5.24 Smaller fixes
+
+| Finding | Fix |
+|---|---|
+| The session's and the summary's average and maximum heart rate came from every sensor sample: pauses, the wait on the Finished screen, and samples the trust gate keeps out of the laps. They could disagree with the laps | `RaceModel::heartRateTotals()`: sum and count over the laps' own samples. Three host tests |
+| The five-minute autosave and a forced exit called `finishRace()` even for a race already finished, replaying the long finish buzz with the athlete elsewhere | `bankRace()`: finish (with its signal) only a race still running or paused, then save |
+| The status face's clock ignored the watch's 12-hour setting | `ClockText.hpp`, pure and host-tested (four tests). The simulator has no 12-hour setting, so T24 checks it on the watch |
+| `if (!raceStarting \|\| true)` in `onSegmentOpened()` | Removed with its parameter |
+
+### 5.25 Visual
+
+- **The title was clipped at both ends** on the main menu, "On your marks" and
+  the Saved screen. The SDK title label is 120 px wide (`Title.cpp`, x 60) and
+  "HYBRIDX RACE" in italic 18 is wider. Now "HybridX Race", which fits.
+- **The FIT workout name** was "HYROX Full Race", which Garmin Connect can show.
+  It is now "HYROX-format full race" (or "half, rounds 1-4" / "5-8", then
+  ", 500 m runs" for a sim; 41 bytes at most), describing the format the way the
+  store text does, in line with D1. Jon to say if he prefers the old wording.
+- **Left as it is:** "Roxzone splits" on Settings wraps to two lines and sits
+  close to its toggle, but does not touch it (about 2 px on the watch).
+- Store previews (`Resources/previews/`) and `docs/screens/phase4-*` refreshed
+  from a new capture.
+
+### 5.26 Verified
+
+- 100 host tests (89 + 11).
+- Simulator and watch target build with no warnings in our code. The watch
+  build here is a compile check with the stubs (5.20); the installable `.uapp`
+  comes from CI.
+- `validate_app_config.py`: 4 fields, table matches.
+- `fit_decode_report.py` on a simulated full race: 16 named laps that sum to
+  the session, contiguous, manual, distance on every record, 10 480 m. Two
+  checks fail (a lap's distance in the records, and no second faster than
+  10 m/s) because the capture script splits a 1 km run after 4 s. The
+  unchanged code fails them identically on the same script, and real-length
+  laps pass them (5.20).
+- **Not verified:** T22-T24 in `ON_WATCH_TESTS.md`, on the watch.
+
+### 5.27 Before uploading
+
+- No version tags exist yet, so every build, CI's included, is `0.0.0-dev`.
+  The release commit needs `v0.1.0` and `apps-v0.1.0` (5.4), then
+  `pack-store-zip.sh --expect-version 0.1.0`.
+- `APP_ID` is still the development ID: create the app on the portal first and
+  put its ID in `CMakeLists.txt` and the manifest (2.3, 5.2).
+- The Poppins licence question (5.5) is still open.

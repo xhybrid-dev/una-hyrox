@@ -37,12 +37,12 @@
       "id": "runDistanceM",
       "type": "int",
       "label": "Run distance",
-      "description": "How long each run is in a simulation. 1000 m is the race distance.",
+      "description": "How long each run is in a simulation, in 100 m steps; a value between steps is rounded down. 1000 m is the race distance.",
       "default": 1000,
       "min": 100,
       "max": 1000,
       "unit": "m",
-      "validationMessage": "Between 100 and 1000 metres, in 100 m steps."
+      "validationMessage": "Between 100 and 1000 metres."
     },
     {
       "id": "splitLockoutSec",
@@ -61,17 +61,6 @@
       "label": "Vibrate on split",
       "description": "Vibrate when a new segment starts.",
       "default": true
-    },
-    {
-      "id": "targetFinishMin",
-      "type": "int",
-      "label": "Target finish",
-      "description": "Target race time in minutes. 0 turns targets off.",
-      "default": 0,
-      "min": 0,
-      "max": 240,
-      "unit": "min",
-      "validationMessage": "Between 0 and 240 minutes."
     }
   ]
 }

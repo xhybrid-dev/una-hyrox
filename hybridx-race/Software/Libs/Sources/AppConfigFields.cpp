@@ -21,7 +21,6 @@ const AppConfig::Field kFields[] = {
     AppConfig::intField("runDistanceM", 1000, 100, 1000),
     AppConfig::intField("splitLockoutSec", 3, 1, 10),
     AppConfig::boolField("vibrateOnSplit", true),
-    AppConfig::intField("targetFinishMin", 0, 0, 240),
 };
 
 const size_t kFieldCount = sizeof(kFields) / sizeof(kFields[0]);

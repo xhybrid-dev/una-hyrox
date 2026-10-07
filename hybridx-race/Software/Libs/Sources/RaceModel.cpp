@@ -252,6 +252,24 @@ bool RaceModel::discard()
     return true;
 }
 
+bool RaceModel::reset()
+{
+    if (mState != State::Idle && mState != State::Saved && mState != State::Discarded) {
+        return false;
+    }
+    // start() rebuilds the plan and the open segment, and recorded() is
+    // bounded by mRecordedCount, so the result buffers need no clearing.
+    mState = State::Idle;
+    mCompleted = false;
+    mPlannedCount = 0u;
+    mRecordedCount = 0u;
+    mRaceStartMs = 0u;
+    mRaceEndMs = 0u;
+    mLastSplitMs = 0u;
+    openSegment(0u);
+    return true;
+}
+
 void RaceModel::addHeartRate(uint8_t bpm)
 {
     if (mState != State::Running) {
@@ -338,6 +356,24 @@ uint32_t RaceModel::totalActiveMsOfType(SegmentType type) const
         }
     }
     return total;
+}
+
+HeartRateTotals RaceModel::heartRateTotals() const
+{
+    uint32_t sum = 0u;
+    uint32_t count = 0u;
+    uint8_t max = 0u;
+    for (uint8_t i = 0u; i < mRecordedCount; ++i) {
+        sum += mResults[i].hrSum;
+        count += mResults[i].hrCount;
+        if (mResults[i].hrMax > max) {
+            max = mResults[i].hrMax;
+        }
+    }
+    if (count == 0u) {
+        return { 0u, 0u };
+    }
+    return { static_cast<uint8_t>((sum + (count / 2u)) / count), max };
 }
 
 }  // namespace Race

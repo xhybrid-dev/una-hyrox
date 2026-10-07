@@ -12,6 +12,7 @@
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
+#include "ClockText.hpp"
 #include "RaceModel.hpp"
 
 using namespace SDK::GUI;
@@ -224,8 +225,7 @@ void TrackScreen::onRaceFinished(bool /*completed*/)
 void TrackScreen::onTime(uint8_t hour, uint8_t minute, uint8_t /*sec*/)
 {
     char buf[8];
-    snprintf(buf, sizeof(buf), "%02u:%02u", static_cast<unsigned>(hour),
-             static_cast<unsigned>(minute));
+    Race::clockText(buf, sizeof(buf), hour, minute, mModel.is12HourFormat());
     lv_label_set_text(mClock, buf);
 }
 

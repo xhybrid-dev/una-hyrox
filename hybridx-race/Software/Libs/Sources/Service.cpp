@@ -130,8 +130,7 @@ void Service::run()
                 if (mRace.state() != Race::RaceModel::State::Idle && mFitOpen) {
                     // The kernel is taking the app down: bank what we have
                     // rather than lose it.
-                    finishRace(false);
-                    saveRace(false);
+                    bankRace();
                 }
                 mKernel.comm.releaseMessage(msg);
                 return;
@@ -254,8 +253,7 @@ void Service::run()
                 if (mGuiGoneAtMs != 0u && goneMs >= skGuiGoneGraceMs) {
                     LOG_INFO("GUI gone %u ms with a race running: saving and exiting\n",
                              static_cast<unsigned>(goneMs));
-                    finishRace(false);
-                    saveRace(false);
+                    bankRace();
                     disconnect();
                     return;
                 }
@@ -360,17 +358,29 @@ void Service::loadConfiguration()
     }
 
     // AppConfig is the source of truth for the fields the phone can edit
-    // (brief 10.3); the race format stays in our own settings file.
-    mSettings.roxzoneSplits = mConfig->getBool(RaceConfig::kRoxzoneSplits);
-    mSettings.splitLockoutSec =
-            static_cast<uint8_t>(mConfig->getInt(RaceConfig::kSplitLockoutSec));
-    mSettings.vibrateOnSplit = mConfig->getBool(RaceConfig::kVibrateOnSplit);
-    mSettings.targetFinishMin =
-            static_cast<uint16_t>(mConfig->getInt(RaceConfig::kTargetFinishMin));
+    // (brief 10.3); the race format stays in our own settings file. A field
+    // overrides settings.json only when the values file holds it: an absent
+    // one is the app's default, not a choice, and must not undo one made on
+    // the watch. That covers a USB install, which has no values file at all,
+    // and a values file written before a field existed.
+    if (mConfig->has(RaceConfig::kRoxzoneSplits)) {
+        mSettings.roxzoneSplits = mConfig->getBool(RaceConfig::kRoxzoneSplits);
+    }
+    if (mConfig->has(RaceConfig::kRunDistanceM)) {
+        mSettings.runDistanceM = Race::clampRunDistanceM(
+                static_cast<uint16_t>(mConfig->getInt(RaceConfig::kRunDistanceM)));
+    }
+    if (mConfig->has(RaceConfig::kSplitLockoutSec)) {
+        mSettings.splitLockoutSec =
+                static_cast<uint8_t>(mConfig->getInt(RaceConfig::kSplitLockoutSec));
+    }
+    if (mConfig->has(RaceConfig::kVibrateOnSplit)) {
+        mSettings.vibrateOnSplit = mConfig->getBool(RaceConfig::kVibrateOnSplit);
+    }
 
-    LOG_INFO("Config: roxzone %u, lockout %u s, vibrate %u, target %u min\n",
-             mSettings.roxzoneSplits, mSettings.splitLockoutSec, mSettings.vibrateOnSplit,
-             mSettings.targetFinishMin);
+    LOG_INFO("Config: roxzone %u, run %u m, lockout %u s, vibrate %u\n",
+             mSettings.roxzoneSplits, mSettings.runDistanceM, mSettings.splitLockoutSec,
+             mSettings.vibrateOnSplit);
 }
 
 void Service::handleEvent(const CustomMessage::SettingsSave &event)
@@ -385,6 +395,7 @@ void Service::handleEvent(const CustomMessage::SettingsSave &event)
     // which is what brief 10.3 specifies.
     if (mConfig) {
         mConfig->setBool(RaceConfig::kRoxzoneSplits, mSettings.roxzoneSplits);
+        mConfig->setInt(RaceConfig::kRunDistanceM, mSettings.runDistanceM);
         mConfig->setInt(RaceConfig::kSplitLockoutSec, mSettings.splitLockoutSec);
         mConfig->setBool(RaceConfig::kVibrateOnSplit, mSettings.vibrateOnSplit);
         if (!mConfig->save()) {
@@ -506,7 +517,7 @@ void Service::startRace(Race::Format format)
     mTrackState = Track::State::ACTIVE;
     SDK::send_msg<CustomMessage::RaceStateUpd>(mKernel, mTrackState);
 
-    onSegmentOpened(true);
+    onSegmentOpened();
     publishRaceData();
 
     LOG_INFO("Race started: format %u, roxzone %u, %u segments\n",
@@ -544,7 +555,7 @@ void Service::handleEvent(const CustomMessage::RaceSplit &event)
     if (finished) {
         finishRace(true);
     } else {
-        onSegmentOpened(false);
+        onSegmentOpened();
     }
 
     publishRaceData();
@@ -611,7 +622,7 @@ void Service::handleUndoFinish()
     LOG_INFO("Finish undone\n");
     mTrackState = Track::State::ACTIVE;
     SDK::send_msg<CustomMessage::RaceStateUpd>(mKernel, mTrackState);
-    onSegmentOpened(false);
+    onSegmentOpened();
     publishRaceData();
 }
 
@@ -645,6 +656,18 @@ void Service::finishRace(bool completed)
 
     LOG_INFO("Race finished: %u of %u segments, completed %u\n", mRace.recordedCount(),
              mRace.plannedCount(), mRace.completed());
+}
+
+void Service::bankRace()
+{
+    // A race still under way ends here, with the finish signal. One already
+    // finished was signalled when it finished, so it is only saved: replaying
+    // the long buzz minutes later, with the athlete elsewhere, means nothing.
+    if (mRace.state() == Race::RaceModel::State::Running ||
+        mRace.state() == Race::RaceModel::State::Paused) {
+        finishRace(false);
+    }
+    saveRace(false);
 }
 
 void Service::emitRaceWorkout()
@@ -683,10 +706,13 @@ void Service::emitRaceWorkout()
         }
     }
 
-    const char *shape = "HYROX Full Race";
+    // "HYROX-format", as the store description puts it: HYROX describes the
+    // format and never names the app (decision D1). Garmin Connect can show
+    // this name. The longest, with a shortened run, is 41 bytes.
+    const char *shape = "HYROX-format full race";
     switch (mSettings.format) {
-    case Race::Format::HalfA: shape = "HYROX Half, rounds 1-4"; break;
-    case Race::Format::HalfB: shape = "HYROX Half, rounds 5-8"; break;
+    case Race::Format::HalfA: shape = "HYROX-format half, rounds 1-4"; break;
+    case Race::Format::HalfB: shape = "HYROX-format half, rounds 5-8"; break;
     case Race::Format::Full:
     default:                  break;
     }
@@ -715,6 +741,7 @@ void Service::saveRace(bool discard)
         mFitOpen = false;
         mSpool.reset();
         mRace.discard();
+        mRace.reset();
         LOG_INFO("Race discarded\n");
         disconnect();
         return;
@@ -774,8 +801,10 @@ void Service::saveRace(bool discard)
     track.timestamp = startUtc + msToSec(totalElapsed);
     track.duration = msToSec(totalActive);
     track.elapsed = msToSec(totalElapsed);
-    track.hrAvg = mHrCounter.getAverage();
-    track.hrMax = mHrCounter.getMaximum();
+    // From the laps' own samples, so the race and its laps always agree.
+    const Race::HeartRateTotals hr = mRace.heartRateTotals();
+    track.hrAvg = static_cast<float>(hr.avg);
+    track.hrMax = static_cast<float>(hr.max);
     track.raceFormat = static_cast<uint8_t>(mSettings.format);
     track.roxzoneMode = mSettings.roxzoneSplits ? 1u : 0u;
     track.completed = mRace.completed() ? 1u : 0u;
@@ -799,10 +828,13 @@ void Service::saveRace(bool discard)
     sendSummary();
 
     mRace.save();
+    // Back to Idle, or the next START is refused and the race screen freezes.
+    // It also stops processRace() reconnecting the sensors behind the summary.
+    mRace.reset();
     disconnect();
 }
 
-void Service::onSegmentOpened(bool raceStarting)
+void Service::onSegmentOpened()
 {
     const Race::SegmentDesc *seg = mRace.currentSegment();
     if (seg == nullptr) {
@@ -810,9 +842,7 @@ void Service::onSegmentOpened(bool raceStarting)
     }
 
     backlightOn();
-    if (!raceStarting || true) {
-        notifySegment(seg->type);
-    }
+    notifySegment(seg->type);
 }
 
 void Service::notifySegment(Race::SegmentType type)
@@ -1014,8 +1044,9 @@ void Service::buildSummary()
     mSummary.stationsMs = mRace.totalActiveMsOfType(Race::SegmentType::Station);
     mSummary.roxzoneMs = mRace.totalActiveMsOfType(Race::SegmentType::RoxIn) +
                          mRace.totalActiveMsOfType(Race::SegmentType::RoxOut);
-    mSummary.hrAvg = static_cast<uint8_t>(mHrCounter.getAverage());
-    mSummary.hrMax = static_cast<uint8_t>(mHrCounter.getMaximum());
+    const Race::HeartRateTotals hr = mRace.heartRateTotals();
+    mSummary.hrAvg = hr.avg;
+    mSummary.hrMax = hr.max;
 
     uint8_t n = 0u;
     for (uint8_t i = 0u; i < mRace.recordedCount() && n < Race::kMaxSegments; ++i) {

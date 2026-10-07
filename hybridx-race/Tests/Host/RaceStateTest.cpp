@@ -305,6 +305,74 @@ TEST(RaceStateTest, DiscardIsRefusedFromIdleAndSaved)
     EXPECT_FALSE(m.discard()) << "a saved race is no longer ours to abandon";
 }
 
+// -- RESET: a second race in the same session ------------------------------------
+
+TEST(RaceStateTest, ASecondRaceStartsAfterTheFirstIsSaved)
+{
+    // The bug this pins: after Save, START was refused because the model never
+    // went back to Idle, and the watch showed a frozen race screen.
+    RaceModel m;
+    ASSERT_TRUE(m.start(halfConfig(), 0u));
+    runSplits(m, 8u);
+    ASSERT_TRUE(m.save());
+    EXPECT_FALSE(m.start(halfConfig(), 100000u)) << "still refused without a reset";
+
+    ASSERT_TRUE(m.reset());
+    EXPECT_EQ(m.state(), State::Idle);
+    EXPECT_EQ(m.plannedCount(), 0u);
+    EXPECT_EQ(m.recordedCount(), 0u);
+    EXPECT_EQ(m.recorded(0u), nullptr) << "the first race's laps are gone";
+    EXPECT_FALSE(m.completed());
+    EXPECT_EQ(m.totalElapsedMs(200000u), 0u);
+
+    ASSERT_TRUE(m.start(halfConfig(), 200000u));
+    EXPECT_EQ(m.state(), State::Running);
+    EXPECT_EQ(m.currentIndex(), 0u);
+    EXPECT_EQ(m.totalActiveMs(205000u), 5000u) << "timed from the second start";
+    EXPECT_FALSE(m.split(201000u)) << "the lockout runs from the second start too";
+    ASSERT_TRUE(m.split(203000u));
+    ASSERT_NE(m.recorded(0u), nullptr);
+    EXPECT_EQ(m.recorded(0u)->activeMs, 3000u);
+}
+
+TEST(RaceStateTest, ASecondRaceStartsAfterTheFirstIsDiscarded)
+{
+    RaceModel m;
+    ASSERT_TRUE(m.start(halfConfig(), 0u));
+    runSplits(m, 3u);
+    ASSERT_TRUE(m.discard());
+    ASSERT_TRUE(m.reset());
+    ASSERT_TRUE(m.start(halfConfig(), 50000u));
+    EXPECT_EQ(m.currentIndex(), 0u);
+}
+
+TEST(RaceStateTest, ResetNeverForgetsARaceStillToBeSaved)
+{
+    RaceModel m;
+    ASSERT_TRUE(m.start(halfConfig(), 0u));
+    EXPECT_FALSE(m.reset());
+    EXPECT_EQ(m.state(), State::Running);
+
+    ASSERT_TRUE(m.pause(5000u));
+    EXPECT_FALSE(m.reset());
+    EXPECT_EQ(m.state(), State::Paused);
+
+    ASSERT_TRUE(m.resume(6000u));
+    runSplits(m, 8u);
+    ASSERT_EQ(m.state(), State::Finished);
+    EXPECT_FALSE(m.reset()) << "finished but unsaved";
+    EXPECT_EQ(m.state(), State::Finished);
+    EXPECT_EQ(m.recordedCount(), 8u);
+}
+
+TEST(RaceStateTest, ResetFromIdleIsHarmless)
+{
+    RaceModel m;
+    EXPECT_TRUE(m.reset());
+    EXPECT_EQ(m.state(), State::Idle);
+    ASSERT_TRUE(m.start(halfConfig(), 0u));
+}
+
 // -- Queries stay safe -------------------------------------------------------------
 
 TEST(RaceStateTest, RecordedIsBoundsChecked)
