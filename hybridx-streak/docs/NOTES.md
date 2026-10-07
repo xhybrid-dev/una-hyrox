@@ -913,3 +913,19 @@ right edge.
   the glance still feels large, the next step is a shorter bottom line, such
   as the summit name alone.
 
+
+## S4.4 Glances do not click through (7 October 2026)
+
+- **The SDK:** a glance's service gets only `EVENT_GLANCE_START`, `_TICK` and
+  `_STOP`. There is no select, tap or button event, and the glances screen
+  starts the service and never the GUI (`service-lifecycle.md` 3.3).
+- **On the watch (Jon):** SELECT on any glance, ours and UNA's (Steps
+  included), does nothing.
+- **The Notifications glance does click through,** but it is not an app: it is
+  absent from `app_list.json` and from the watch's `Apps` folder, and no SDK
+  example has it. It is firmware, so there is nothing to copy.
+- **Decision:** the glance stays display-only; the full app holds the detail.
+  If UNA ever opens select to third-party glances, ask them (with the line
+  control question in S4.3) whether a glance can open its own app.
+- **Not done:** rotating pages on the tick, to show more than one view. Jon
+  did not want it for now.
