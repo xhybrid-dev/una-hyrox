@@ -42,6 +42,7 @@ void ActivityWriter::start(const AppInfo& info)
 {
     mLapCounter   = 0;
     mLastFlushUtc = info.timestamp;
+    mProfileName  = info.sportProfileName.substr(0, kProfileNameMax);
 
     if (!createAndOpenFile(info.timestamp)) {
         return;
@@ -54,8 +55,9 @@ void ActivityWriter::start(const AppInfo& info)
     }
 
     // file_id
-    const uint8_t productNameLen =
-        static_cast<uint8_t>(std::strlen(fit::kProductName) + 1);
+    const char* productName =
+        info.productName.empty() ? fit::kProductName : info.productName.c_str();
+    const uint8_t productNameLen = static_cast<uint8_t>(std::strlen(productName) + 1);
     mFit->defineMessage(L_FILE_ID, fit::mesgNum(fit::MesgNum::FileId),
         {fit::field::FileId::Type, fit::field::FileId::Manufacturer,
          fit::field::FileId::Product, fit::field::FileId::SerialNumber,
@@ -67,7 +69,7 @@ void ActivityWriter::start(const AppInfo& info)
         .u16(static_cast<uint16_t>(fit::Product::UnaWatch))
         .u32(0)
         .u32(unixToFitTimestamp(info.timestamp))
-        .str(fit::kProductName, productNameLen)
+        .str(productName, productNameLen)
         .write();
 
     // developer_data_id
@@ -115,15 +117,35 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate,
          kLapTrigger},
         {{DF_SEGMENT_TYPE, 1, 0}, {DF_ROUND, 1, 0}, {DF_STATION_ID, 1, 0}});
-    mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
-        {fit::field::Session::Timestamp, fit::field::Session::StartTime,
-         fit::field::Session::TotalElapsedTime, fit::field::Session::TotalTimerTime,
-         fit::field::Session::TotalDistance, fit::field::Session::AvgSpeed,
-         fit::field::Session::MessageIndex, fit::field::Session::NumLaps,
-         fit::field::Session::Sport, fit::field::Session::SubSport,
-         fit::field::Session::AvgHeartRate, fit::field::Session::MaxHeartRate},
-        {{DF_RACE_FORMAT, 1, 0}, {DF_ROXZONE_MODE, 1, 0}, {DF_COMPLETED, 1, 0},
-         {DF_RUN_DISTANCE_M, 2, 0}});
+    // sport_profile_name is NOT in SDK/Fit/FitProfile.hpp. Its number, 110
+    // (string), is the public FIT data dictionary's, read from the profile
+    // tables fitdecode generates from Garmin's FIT SDK (NOTES.md 5.28). It is
+    // written only when the caller gave one, and the definition says so, so the
+    // default file is unchanged.
+    constexpr uint8_t kSportProfileNameNum = 110;
+    if (mProfileName.empty()) {
+        mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
+            {fit::field::Session::Timestamp, fit::field::Session::StartTime,
+             fit::field::Session::TotalElapsedTime, fit::field::Session::TotalTimerTime,
+             fit::field::Session::TotalDistance, fit::field::Session::AvgSpeed,
+             fit::field::Session::MessageIndex, fit::field::Session::NumLaps,
+             fit::field::Session::Sport, fit::field::Session::SubSport,
+             fit::field::Session::AvgHeartRate, fit::field::Session::MaxHeartRate},
+            {{DF_RACE_FORMAT, 1, 0}, {DF_ROXZONE_MODE, 1, 0}, {DF_COMPLETED, 1, 0},
+             {DF_RUN_DISTANCE_M, 2, 0}});
+    } else {
+        mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
+            {fit::field::Session::Timestamp, fit::field::Session::StartTime,
+             fit::field::Session::TotalElapsedTime, fit::field::Session::TotalTimerTime,
+             fit::field::Session::TotalDistance, fit::field::Session::AvgSpeed,
+             fit::field::Session::MessageIndex, fit::field::Session::NumLaps,
+             fit::field::Session::Sport, fit::field::Session::SubSport,
+             fit::field::Session::AvgHeartRate, fit::field::Session::MaxHeartRate,
+             {kSportProfileNameNum, fit::BaseType::String,
+              static_cast<uint8_t>(mProfileName.size() + 1u)}},
+            {{DF_RACE_FORMAT, 1, 0}, {DF_ROXZONE_MODE, 1, 0}, {DF_COMPLETED, 1, 0},
+             {DF_RUN_DISTANCE_M, 2, 0}});
+    }
     mFit->defineMessage(L_ACTIVITY, fit::mesgNum(fit::MesgNum::Activity),
         {fit::field::Activity::Timestamp, fit::field::Activity::TotalTimerTime,
          fit::field::Activity::LocalTimestamp, fit::field::Activity::NumSessions});
@@ -346,8 +368,8 @@ bool ActivityWriter::stop(const TrackData& track)
 
     bool ok = mFit->ok();
 
-    ok = mFit->data(L_SESSION)
-        .u32(unixToFitTimestamp(track.timestamp))
+    auto session = mFit->data(L_SESSION);
+    session.u32(unixToFitTimestamp(track.timestamp))
         .u32(unixToFitTimestamp(track.timeStart))
         .u32(static_cast<uint32_t>(track.elapsed * 1000))
         .u32(static_cast<uint32_t>(track.duration * 1000))
@@ -362,9 +384,14 @@ bool ActivityWriter::stop(const TrackData& track)
         .u8(track.sport)
         .u8(track.subSport)
         .u8(static_cast<uint8_t>(track.hrAvg))
-        .u8(static_cast<uint8_t>(track.hrMax))
-        // Developer fields: what race this was (brief 10.1).
-        .u8(track.raceFormat)
+        .u8(static_cast<uint8_t>(track.hrMax));
+    // The optional standard field sits after the last one declared above and
+    // before the developer fields, as the definition orders them.
+    if (!mProfileName.empty()) {
+        session.str(mProfileName.c_str(), static_cast<uint8_t>(mProfileName.size() + 1u));
+    }
+    // Developer fields: what race this was (brief 10.1).
+    ok = session.u8(track.raceFormat)
         .u8(track.roxzoneMode)
         .u8(track.completed)
         .u16(track.runDistanceM)

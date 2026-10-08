@@ -1724,3 +1724,65 @@ but it did not.
 - `APP_ID` is still the development ID: create the app on the portal first and
   put its ID in `CMakeLists.txt` and the manifest (2.3, 5.2).
 - The Poppins licence question (5.5) is still open.
+
+---
+
+## Amendment — what names an activity on Strava (8 October 2026)
+
+### 5.28 The question, what the code says, and round 5
+
+**Jon's observation:** activities from the built-in apps reach Strava (through
+the UNA app) as "generic - UNA Watch" for Workout and "running - UNA Watch" for
+Running. Can an app choose its own?
+
+**Established from the repository:**
+
+- The built-in apps differ in the FIT session's `sport`: Workout writes Generic
+  (`Examples/Apps/Workout/.../ActivityWriter.cpp:256`), Running writes Running.
+  Race writes Running / Generic (D2).
+- "UNA Watch" is `fit::kProductName`, written to `file_id.product_name` in every
+  file (`SDK/Fit/FitProfile.hpp:64`).
+- The `.json` sidecar carries an `activity_type` string ("workout", "running",
+  "race"). It does not appear in the title Jon sees: Workout's sidecar says
+  "workout" and the title says "generic".
+
+So both titles fit "sport, then product name". **Not known:** who builds the
+title. The UNA app does the Strava upload (OAuth, 5.x of the Streak notes) and
+only its string table has been read.
+
+**D2 should be re-tested.** 5.12 concluded that the sport field made no
+difference to what Garmin showed, on files that all carried the same start time
+and so could not have shown one. Jon's observation is evidence that sport does
+reach the title, at least through the UNA app.
+
+**Round 5** (`docs/experiments/build-fit-candidates.sh`), four files, each a day
+apart so they land as separate activities, uploaded to Strava by hand:
+
+| File | What differs from N1 |
+|---|---|
+| N1 running as the app is | nothing: Running / Generic, as Race writes it |
+| N2 training | `sport` = Training (10), declared in `FitProfile.hpp` |
+| N3 running + profile name | `session.sport_profile_name` = "HybridX-Race" |
+| N4 HybridX everywhere | workout name, `sport_profile_name` and `product_name` all "HybridX" |
+
+A by-hand upload bypasses the UNA app, so it shows what Strava does with the
+file itself. If Strava names all four alike ("Morning Run"), the "- UNA Watch"
+title is built by the UNA app, which is worth knowing. If it picks up N3 or N4,
+we have a field an app can set. Whether the UNA app's sync honours it is a
+separate step (a file copied to the watch's `Activity` folder is unverified).
+
+**Code changes this needed (default output byte-identical, checked):**
+`ActivityWriter::AppInfo` gained two optional strings, `sportProfileName`
+(session field 110, string: the number is the public FIT profile's, read from
+fitdecode's tables like `wkt_step_name` in 5.11) and `productName`. Both empty
+by default, and the app sets neither. A file written with the old defaults is
+byte-for-byte what it was (`cmp` on files made in the same second).
+
+**A flaw in the older generator, fixed:** `fit_race_sample.cpp` wrote records
+with no distance, so its files were not what the watch writes since 5.18, and
+would have shown Strava no pace graph. It now goes through `RecordSpool` as
+`Service` does. All eight consumer checks in `fit_decode_report.py` pass on the
+new files, including the two that failed in 5.26.
+
+`fit_naming_report.py` prints the naming fields of any file. The script no
+longer deletes the earlier rounds' H, J and K files, which are evidence.
