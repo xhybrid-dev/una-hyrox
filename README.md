@@ -162,6 +162,17 @@ faults need the debug UART and UNA's Dev tool.
 
 ## Building the store package
 
+**From CI (use this one for a release).** Every *Watch builds* run also builds
+the portal zip from the Race `.uapp` it has just built, and uploads it as the
+**race-store-zip** artifact, next to **watch-apps**. On a push of an
+`apps-v*` tag the script also refuses a package whose binary is not that
+version or that still carries the development App ID. Download the zip and
+upload it as it is; no local build is involved.
+`hybridx-race/docs/SUBMISSION.md` is the step-by-step.
+
+**Locally (a dry run, never for upload).** A container build uses Ubuntu's
+compiler and stubs, so its `.uapp` must not go on a watch or in the store:
+
 ```bash
 hybridx-race/Utilities/pack-store-zip.sh
 ```
@@ -175,8 +186,9 @@ the C++ field table — and only then writes
 > **Before the first real upload:** the `APP_ID` in `CMakeLists.txt` and
 > `app-manifest.json` is a locally generated development ID. Create the app on
 > [apps.unawatch.com](https://apps.unawatch.com), paste the App ID it issues into
-> both files, re-run CMake, rebuild, and re-run the packaging script. The mobile
-> app matches versions by that ID.
+> both files and commit. The mobile app matches versions by that ID. The
+> packaging script refuses a release where the two files differ, or where the ID
+> is still the development one.
 
 ## Versions
 
@@ -188,8 +200,10 @@ the C++ field table — and only then writes
 git tag v0.1.0 && git tag apps-v0.1.0 && git push --tags
 ```
 
-Then rebuild and run the packaging script with `--expect-version 0.1.0`, which
-refuses to package if the binary is not actually that version.
+Pushing the tags starts a *Watch builds* run. Its **race-store-zip** artifact is
+the package: for an `apps-v*` tag CI passes `--expect-version` itself, so a zip
+whose binary is not that version, or that still has the development App ID, is
+never produced.
 
 ## Where everything is written down
 
