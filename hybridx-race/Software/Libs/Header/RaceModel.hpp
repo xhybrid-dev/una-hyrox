@@ -77,14 +77,24 @@ struct SegmentResult
 };
 
 /**
+ * @brief Heart rate over a whole race.
+ */
+struct HeartRateTotals
+{
+    uint8_t avg;  ///< Average in bpm, rounded to nearest; 0 if no samples
+    uint8_t max;  ///< Highest sample in bpm; 0 if no samples
+};
+
+/**
  * @brief The race.
  *
- * Lifecycle follows brief 7.3:
+ * Lifecycle follows brief 7.3, plus reset() back to Idle so a second race can
+ * start in the same session:
  *
  *   Idle -> Running <-> Paused
  *            |  |          |
- *            |  +--> Finished --> Saved
- *            +-------------------> Discarded
+ *            |  +--> Finished --> Saved ------+
+ *            +-------------------> Discarded -+--> reset() --> Idle
  */
 class RaceModel
 {
@@ -375,6 +385,17 @@ public:
     bool discard();
 
     /**
+     * @brief Forget a saved or discarded race, ready for the next START.
+     *
+     * Not in brief 7.3's table, which ends at Saved and Discarded. Without it a
+     * second race in the same session is refused, because START needs Idle.
+     * A race that is still running, paused or unsaved is never forgotten.
+     *
+     * @retval True when the model is Idle afterwards.
+     */
+    bool reset();
+
+    /**
      * @brief Attribute a heart-rate sample to the open segment.
      *
      * Samples taken while paused are dropped: they are rest, and would drag a
@@ -462,6 +483,17 @@ public:
      * @retval Milliseconds.
      */
     uint32_t totalActiveMsOfType(SegmentType type) const;
+
+    /**
+     * @brief Heart rate across the whole race, from the segments' own samples.
+     *
+     * The same samples as the laps (running, not paused, gated by the service),
+     * merged by sum and count rather than averaged from averages, so the race
+     * figures can never disagree with the laps. Counts closed segments only.
+     *
+     * @retval Average and maximum in bpm, both 0 when there are no samples.
+     */
+    HeartRateTotals heartRateTotals() const;
 
 private:
     /// Close the open segment at @p atMs and bank it. Does not open the next.

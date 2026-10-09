@@ -194,8 +194,10 @@ private:
     void startRace(Race::Format format);
     void processRace();
     void publishRaceData();
-    void onSegmentOpened(bool raceStarting);
+    void onSegmentOpened();
     void finishRace(bool completed);
+    /// Save the race without the GUI: the forced exit and the grace window.
+    void bankRace();
     /// Distance of every segment completed so far, in centimetres.
     uint32_t completedDistanceCm() const;
     /// One second of the open segment: into the spool, or straight to the file.
@@ -206,6 +208,7 @@ private:
     /// Emit the workout and workout_step messages for the race just started.
     void emitRaceWorkout();
 
+    /// Write or delete the activity, then forget the race so another can start.
     void saveRace(bool discard);
     void buildSummary();
     void sendSummary();

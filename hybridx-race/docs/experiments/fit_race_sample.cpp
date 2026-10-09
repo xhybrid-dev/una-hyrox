@@ -19,6 +19,12 @@
 //         what the two look like in Garmin and Strava before committing.
 //         days-ago (default 0) moves the race back that many days.
 //         run-metres (default 1000) shortens the runs, as a sim often is.
+//         workout-name, profile-name, product-name (each default "-", meaning
+//         what the app writes) are the naming experiments of NOTES.md 5.28:
+//           workout-name  the FIT workout's name (wkt_name)
+//           profile-name  session.sport_profile_name (field 110), not written
+//                         by the app
+//           product-name  file_id.product_name, "UNA Watch" in every real file
 //
 // The race always ENDS at the moment the program runs, so two files made in the
 // same run differ in start time. That matters more than it sounds: every
@@ -30,6 +36,7 @@
 #include "ActivityWriter.hpp"
 #include "RaceData.hpp"
 #include "RaceModel.hpp"
+#include "RecordSpool.hpp"
 
 #include "support/KernelTestDoubles.hpp"
 
@@ -74,6 +81,17 @@ int main(int argc, char **argv)
             (argc > 6) ? static_cast<uint16_t>(std::atoi(argv[6]))
                        : Race::kRunDistanceDefaultM);
 
+    // "-" is "what the app writes": the argument is there to be overridden.
+    auto nameArg = [argc, argv](int index) -> std::string {
+        if (argc > index && std::strcmp(argv[index], "-") != 0) {
+            return argv[index];
+        }
+        return std::string();
+    };
+    const std::string workoutNameArg = nameArg(7);
+    const std::string profileNameArg = nameArg(8);
+    const std::string productNameArg = nameArg(9);
+
     // The app always uses RaceModel::distanceM(); the policy switch exists only
     // so the two can be compared side by side in a consumer app.
     auto distanceOf = [runsOnly, runM](const Race::SegmentDesc &d) -> uint16_t {
@@ -110,6 +128,8 @@ int main(int argc, char **argv)
     info.appVersion = 0x00000100u;
     info.devID = "HybridX";
     info.appID = "8C345EF26E3350E7";
+    info.sportProfileName = profileNameArg;
+    info.productName = productNameArg;
     writer.start(info);
 
     // The workout, exactly as Service::emitRaceWorkout() builds it.
@@ -128,22 +148,51 @@ int main(int argc, char **argv)
             steps[i].durationValue = 0u;
         }
     }
+    // The name Service::emitRaceWorkout() gives a Full race.
     char wktName[48];
-    if (runM == Race::kRunDistanceDefaultM) {
-        snprintf(wktName, sizeof(wktName), "HYROX Full Race");
+    if (!workoutNameArg.empty()) {
+        snprintf(wktName, sizeof(wktName), "%s", workoutNameArg.c_str());
+    } else if (runM == Race::kRunDistanceDefaultM) {
+        snprintf(wktName, sizeof(wktName), "HYROX-format full race");
     } else {
-        snprintf(wktName, sizeof(wktName), "HYROX Full Race, %u m runs",
+        snprintf(wktName, sizeof(wktName), "HYROX-format full race, %u m runs",
                  static_cast<unsigned>(runM));
     }
     writer.addWorkout(wktName, steps, n);
 
-    // 1 Hz heart-rate records for the whole race.
-    for (uint32_t t = 0u; t < totalS; ++t) {
+    // 1 Hz records through the RecordSpool, the way Service::recordSecond and
+    // closeSpoolSegment wire it: one second at a time, and at every split the
+    // distance of everything completed so far, which the spool ramps across the
+    // segment just ended. Without a distance on every record Strava shows no
+    // pace graph or moving time (NOTES.md 5.17), so a file written without it
+    // is not what the watch writes.
+    struct Spooled {
+        uint32_t timestamp;
+        uint8_t  hr;
+    };
+    auto sink = [&writer](const Spooled &sp, uint32_t cm) {
         ActivityWriter::RecordData rec {};
-        rec.timestamp = startUtc + static_cast<std::time_t>(t);
-        rec.heartRate = static_cast<float>(150u + (t % 25u));
+        rec.timestamp = static_cast<std::time_t>(sp.timestamp);
+        rec.heartRate = static_cast<float>(sp.hr);
         rec.set(ActivityWriter::RecordData::Field::HEART_RATE);
+        rec.hrSource = 1u;
+        rec.hrOpticalBpm = sp.hr;
+        rec.distanceCm = cm;
         writer.addRecord(rec);
+    };
+    Race::RecordSpool<Spooled, 480> spool;
+    {
+        uint32_t second = 0u;
+        uint32_t doneCm = 0u;
+        for (uint8_t i = 0u; i < n; ++i) {
+            const uint32_t secs = segmentSeconds(plan[i]);
+            for (uint32_t k = 0u; k < secs; ++k, ++second) {
+                spool.add({static_cast<uint32_t>(startUtc) + second,
+                           static_cast<uint8_t>(150u + (second % 25u))}, sink);
+            }
+            doneCm += static_cast<uint32_t>(distanceOf(plan[i])) * 100u;
+            spool.close(doneCm, sink);
+        }
     }
 
     // Laps, in one batch after every record, as saveRace() writes them.

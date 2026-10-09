@@ -253,3 +253,59 @@ TEST(LapAccumulatorTest, UndoMergesPausedTimeAsWellAsHeartRate)
     EXPECT_EQ(seg->pausedMs, 7000u) << "both pauses belong to the merged segment";
     EXPECT_EQ(seg->activeMs, 13000u) << "20 s wall, 7 s paused";
 }
+
+// -- Race totals -------------------------------------------------------------------
+
+TEST(LapAccumulatorTest, RaceTotalsMergeEverySampleOfEverySegment)
+{
+    RaceModel m;
+    ASSERT_TRUE(m.start(config(), 0u));
+
+    feed(m, { 100u });                  // segment 0: one sample
+    ASSERT_TRUE(m.split(10000u));
+    feed(m, { 160u, 170u, 180u });      // segment 1: three samples
+    ASSERT_TRUE(m.split(20000u));
+
+    // Sum 610 over 4 samples = 152.5, rounded to 153. Averaging the two
+    // segments' averages (100 and 170) would give 135.
+    const Race::HeartRateTotals hr = m.heartRateTotals();
+    EXPECT_EQ(hr.avg, 153u);
+    EXPECT_EQ(hr.max, 180u);
+}
+
+TEST(LapAccumulatorTest, RaceTotalsLeaveOutPausesAndTheWaitAfterTheFinish)
+{
+    // The race figures used to come from every sensor sample, so a pause and
+    // the time spent on the Finished screen pulled them away from the laps.
+    RaceModel m;
+    ASSERT_TRUE(m.start(config(), 0u));
+
+    feed(m, { 150u });
+    ASSERT_TRUE(m.pause(1000u));
+    feed(m, { 90u });                   // resting: not part of the race
+    ASSERT_TRUE(m.resume(5000u));
+    m.finishEarly(8000u);
+    feed(m, { 200u });                  // on the Finished screen
+
+    const Race::HeartRateTotals hr = m.heartRateTotals();
+    EXPECT_EQ(hr.avg, 150u);
+    EXPECT_EQ(hr.max, 150u);
+}
+
+TEST(LapAccumulatorTest, RaceTotalsAreZeroWithNoSamplesAndAfterAReset)
+{
+    RaceModel m;
+    EXPECT_EQ(m.heartRateTotals().avg, 0u);
+
+    ASSERT_TRUE(m.start(config(), 0u));
+    ASSERT_TRUE(m.split(10000u));
+    EXPECT_EQ(m.heartRateTotals().avg, 0u);
+    EXPECT_EQ(m.heartRateTotals().max, 0u);
+
+    feed(m, { 170u });
+    m.finishEarly(20000u);
+    ASSERT_TRUE(m.save());
+    ASSERT_TRUE(m.reset());
+    EXPECT_EQ(m.heartRateTotals().avg, 0u);
+    EXPECT_EQ(m.heartRateTotals().max, 0u);
+}

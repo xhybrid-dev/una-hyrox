@@ -33,6 +33,7 @@ add_executable(hybridx-race-host-tests
     LapAccumulatorTest.cpp
     RecordSpoolTest.cpp
     LapTimingTest.cpp
+    ClockTextTest.cpp
     "${APP_LIBS}/Sources/RaceModel.cpp"
 )
 

@@ -7,18 +7,16 @@
 # stand-in that might differ (which is exactly how the first round went wrong:
 # see NOTES.md 5.9).
 #
-# Round 4. Sport and distance are settled: running/generic, every stated metre,
-# 10 480 m for a Full race. What these two files are for is the ONE question the
-# earlier rounds could not answer, because every candidate carried the same
-# hard-coded start time and Garmin Connect therefore saw one activity being
-# re-uploaded rather than several to compare (NOTES.md 5.12).
+# Round 5: what decides the title and type Strava shows? Built after Jon saw
+# the built-in apps' activities arrive as "generic - UNA Watch" and
+# "running - UNA Watch" (NOTES.md 5.28). One variable changes per file; each ends
+# at the moment it is written and is spaced a day apart, so they land as
+# separate activities (the flaw that spoiled rounds 1-3, NOTES.md 5.12).
 #
-# Each file now ends at the moment it is written and is spaced a day apart, so
-# they land in Garmin as separate activities.
-#
-# The cardio sub_sport below is the public FIT data dictionary's, read from the
-# profile tables fitdecode generates from Garmin's FIT SDK; it is NOT in
-# SDK/Fit/FitProfile.hpp, whose SubSport enum stops at 6 (NOTES.md 5.11).
+# session.sport_profile_name (field 110, string) is NOT in SDK/Fit/FitProfile.hpp.
+# Its number, like fitness_equipment (sport 4) and hiit (62) if they are ever
+# wanted, is the public FIT profile's, read from the tables fitdecode generates
+# from Garmin's FIT SDK, and the report below decodes it back by name.
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./build-fit-candidates.sh
 # Needs:  g++, python3, pip install fitdecode
@@ -51,29 +49,36 @@ g++ -std=c++17 -O1 -w -o "$BIN" "$HERE/fit_race_sample.cpp" \
     "$UNA_SDK/Libs/Source/UnaLogger/Logger.cpp" \
     -I"$LIBS/Header" -I"$UNA_SDK/Libs/Header" -I"$UNA_SDK/Tests/Host"
 
-#          file                    sport sub runs-only days-ago
+#  file                              sport sub runs-only days-ago run-m workout   profile        product
 CANDIDATES=(
-    "H-running-fresh.fit         1  0 0 0"   # the decided combination
-    "J-cardio-fresh.fit         10 26 0 1"   # the control, a day earlier
+    "N1-running-as-the-app-is.fit         1    0 0 0 1000 -         -              -"
+    "N2-training.fit                     10    0 0 1 1000 -         -              -"
+    "N3-running-profile-name.fit          1    0 0 2 1000 -         HybridX-Race  -"
+    "N4-hybridx-everywhere.fit            1    0 0 3 1000 HybridX   HybridX        HybridX"
 )
 
 echo
 echo "== writing =="
-rm -f "$OUT"/*.fit
+rm -f "$OUT"/N*.fit   # earlier rounds' files (H, J, K) are evidence; leave them
 for spec in "${CANDIDATES[@]}"; do
     # shellcheck disable=SC2086
     set -- $spec
-    (cd "$OUT" && "$BIN" "$1" "$2" "$3" "$4" "$5")
+    (cd "$OUT" && "$BIN" "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9")
 done
 
 echo
+echo "== what is in each file's naming fields =="
+python3 -I "$HERE/fit_naming_report.py" "$OUT"/N*.fit
+
+echo
 echo "== decoding =="
-python3 "$HERE/fit_decode_report.py" "$OUT"/*.fit
+python3 "$HERE/fit_decode_report.py" "$OUT"/N*.fit
 
 rm -f "$BIN"
 echo
-echo "Upload both to Garmin Connect. They are a day apart, so they cannot"
-echo "collide with each other or with anything uploaded before. What to check:"
-echo "  H   filed as Running, and are the laps named (SKIERG, RUN 2/8, ...)?"
-echo "  J   filed as anything OTHER than Running -- if it is, the sport field"
-echo "      does reach Garmin and the earlier rounds were only ever colliding."
+echo "Upload all four to Strava by hand, in this order. A day apart, they cannot"
+echo "collide. For each, note the TITLE and the ACTIVITY TYPE Strava shows."
+echo "  N1  what the app writes today"
+echo "  N2  sport = training: does the type change to Workout?"
+echo "  N3  sport_profile_name set: does the title or type pick it up?"
+echo "  N4  HybridX in the workout name, profile name and product name"

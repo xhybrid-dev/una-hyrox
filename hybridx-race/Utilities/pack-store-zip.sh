@@ -76,6 +76,32 @@ case "$VERSION" in
         ;;
 esac
 
+# -- The ID in the binary is the ID in the manifest ---------------------------
+# APP_ID is baked into the .uapp by CMake and named again in the manifest. After
+# the portal issues the real one it has to be pasted in two places, and the
+# portal matches new versions to the app by it (Docs/deploy.md), so one place
+# updated and one forgotten is exactly the mistake worth refusing.
+DEV_APP_ID="8C345EF26E3350E7"
+CMAKE_ID=$(sed -n 's/^set(APP_ID "\([0-9A-Fa-f]\{16\}\)").*/\1/p' \
+           "$APP/Software/Apps/HybridXRace-CMake/CMakeLists.txt" | head -n 1)
+MANIFEST_ID=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' \
+              "$APP/Resources/app-manifest.json")
+if [ -z "$CMAKE_ID" ]; then
+    echo "Cannot read APP_ID out of HybridXRace-CMake/CMakeLists.txt." >&2
+    exit 1
+fi
+if [ "$CMAKE_ID" != "$MANIFEST_ID" ]; then
+    echo "APP_ID differs: CMakeLists.txt has $CMAKE_ID, app-manifest.json has $MANIFEST_ID." >&2
+    echo "Paste the portal's App ID into both, re-run cmake and rebuild." >&2
+    exit 1
+fi
+if [ -n "$EXPECT_VERSION" ] && [ "$MANIFEST_ID" = "$DEV_APP_ID" ]; then
+    echo "A release must carry the App ID the portal issued, not the development ID" >&2
+    echo "$DEV_APP_ID. Create the app on apps.unawatch.com first (README, 'Building" >&2
+    echo "the store package')." >&2
+    exit 1
+fi
+
 # -- Stage -------------------------------------------------------------------
 
 rm -rf "$STAGE"
@@ -119,13 +145,23 @@ python3 "$PACKER/validate_app_config.py" \
 
 ZIP="$OUT/HybridXRace-$VERSION.zip"
 rm -f "$ZIP"
-(cd "$STAGE" && zip -q -r "$ZIP" .)
+if command -v zip >/dev/null 2>&1; then
+    (cd "$STAGE" && zip -q -r "$ZIP" .)
+else
+    # The CI image has Python and not always zip. Same layout: everything at the
+    # root of the archive, previews/ as a folder.
+    (cd "$STAGE" && python3 -m zipfile -c "$ZIP" ./*)
+fi
 
 echo
 echo "Package: $ZIP"
 unzip -l "$ZIP"
 echo
-echo "Before uploading: the id in the manifest is a development APP_ID."
-echo "Create the app on apps.unawatch.com, paste its App ID into"
-echo "Software/Apps/HybridXRace-CMake/CMakeLists.txt and Resources/app-manifest.json,"
-echo "re-run cmake, rebuild, and re-run this script."
+if [ "$MANIFEST_ID" = "$DEV_APP_ID" ]; then
+    echo "Before uploading: the id in the manifest is a development APP_ID."
+    echo "Create the app on apps.unawatch.com, paste its App ID into"
+    echo "Software/Apps/HybridXRace-CMake/CMakeLists.txt and Resources/app-manifest.json,"
+    echo "re-run cmake, rebuild, and re-run this script."
+else
+    echo "App ID $MANIFEST_ID matches in CMakeLists.txt and app-manifest.json."
+fi

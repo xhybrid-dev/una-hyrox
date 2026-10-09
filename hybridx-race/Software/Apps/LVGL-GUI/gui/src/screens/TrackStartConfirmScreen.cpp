@@ -43,7 +43,7 @@ void TrackStartConfirmScreen::build()
                              LV_TEXT_ALIGN_CENTER, SDK::GUI::Color::GRAY);
 
     Theme::imageTinted(mRoot, &img_tickgreen_22x17, 186, 60, SDK::GUI::Color::YELLOW_DARK);
-    mTitle = std::make_unique<Widgets::Title>(mRoot, Strings::kAppNameUc);
+    mTitle = std::make_unique<Widgets::Title>(mRoot, Strings::kAppTitle);
 }
 
 void TrackStartConfirmScreen::onShow()

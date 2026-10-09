@@ -52,7 +52,7 @@ void TrackResultScreen::build()
                        SDK::GUI::Color::YELLOW_DARK);
     Theme::label(mRoot, F::Medium18,
                  saved ? "Race has\nbeen saved" : "Race has\nbeen deleted", 48, 156, 144);
-    mTitle = std::make_unique<Widgets::Title>(mRoot, Strings::kAppNameUc);
+    mTitle = std::make_unique<Widgets::Title>(mRoot, Strings::kAppTitle);
 }
 
 void TrackResultScreen::onShow()

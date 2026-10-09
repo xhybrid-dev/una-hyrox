@@ -95,3 +95,11 @@ undone, and restrict undo accordingly.
 |---|---|---|
 | T20 | Install from the store zip rather than by copying the `.uapp` | The package built by `Utilities/pack-store-zip.sh` installs through the portal and the companion app, the icon and previews appear, and the four AppConfig settings are editable from the phone and reach the watch (T12 covers the value arriving; this covers the packaging around it) |
 | T21 | **LVGL pool headroom.** Walk the whole app on the watch — every menu row, a race with splits and toasts, the action menu, finished, saved, both summary pages — with the debug UART attached | `ScreenManager` logs `LVGL pool: .../... B used, peak N%` after every screen switch. In the simulator the peak is **91 %** of a 40 KB pool we cannot enlarge (`NOTES.md` 5.6). Record what the watch reports. Anything at or above 90 % means the fix must land before more screens are added; any rendering glitch or hang during a screen switch is this until proved otherwise |
+
+### Added in the final pre-submission pass (7 October 2026)
+
+| ID | Test | Pass criteria |
+|---|---|---|
+| T22 | **Two races without leaving the app.** Finish and save a race (a half with a 100 m run length is quickest), let the summary show, press R2 back to the main menu, then Start race again | The second race starts at RUN 1/8, "1 of N", with the clock running, and the split button works. Before the fix it showed a frozen "RUN 0/8 · 9 of 8" (`NOTES.md`, "Final pass before submission") |
+| T23 | **Run length from the phone.** With the app installed from the store (T20), set Run distance to 500 m in the UNA app, then open the app | "On your marks" reads "500 m runs". Then change Run length on the watch to 800 m and back out of Settings: the next race uses 800 m, and the phone shows 800 m once it has synced the app's settings back (if the UNA app reads them back at all: record which) |
+| T24 | **12-hour clock.** Set the watch to a 12-hour clock, start a race, press L1 for the status face | The time reads, say, "7:05" in the evening, not "19:05" |

@@ -100,6 +100,29 @@ jobs:
           path: watch-apps/*.uapp
           if-no-files-found: error
 
+      - name: HybridX Race store package
+        # The zip the portal takes (hybridx-race/Utilities/pack-store-zip.sh),
+        # built from the Race .uapp above, so nothing built outside CI ever
+        # reaches the store. After the apps are uploaded, so a packaging fault
+        # cannot hide a watch build. A dry run unless the push is an apps-v* tag,
+        # when the script also refuses a binary whose version is not the tag's
+        # and a package still carrying the development APP_ID.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            apps-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#apps-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash hybridx-race/Utilities/pack-store-zip.sh $EXPECT
+
+      - name: Upload the Race store package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: race-store-zip
+          path: hybridx-race/Output/HybridXRace-*.zip
+          if-no-files-found: error
+
   host-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -111,6 +134,14 @@ jobs:
         run: |
           git clone https://github.com/UNAWatch/una-sdk.git una-sdk
           git -C una-sdk checkout "$UNA_SDK_REF"
+
+      - name: HybridX Race settings declaration
+        # The manifest's configFields and the app's AppConfig table must agree
+        # (una-sdk Docs/app-config-fields.md 5.1).
+        run: |
+          python3 una-sdk/Utilities/Scripts/app_packer/validate_app_config.py \
+            --check hybridx-race/Resources/app-manifest.json \
+            --check-bounds hybridx-race/Software/Libs/Sources/AppConfigFields.cpp
 
       - name: HybridX Race host tests
         run: |

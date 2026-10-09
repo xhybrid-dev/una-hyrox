@@ -32,7 +32,18 @@ public:
         uint32_t    appVersion = 0;  // Application version 4 bytes LE [patch, minor, major, 0]
         std::string devID;           // Developer ID (max len 16)
         std::string appID;           // Application ID (max len 16)
+        // Both are for naming experiments (NOTES.md 5.28). Left empty the file
+        // is byte for byte what it was before they existed.
+        /// session.sport_profile_name, a name the file gives its own activity
+        /// profile. Not written when empty; truncated to kProfileNameMax.
+        std::string sportProfileName;
+        /// file_id.product_name. Empty keeps the SDK's "UNA Watch".
+        std::string productName;
     };
+
+    /// Longest sport_profile_name written, in characters (the FIT string field
+    /// is declared with a terminator on top).
+    static constexpr uint8_t kProfileNameMax = 15;
 
     struct RecordData {
         enum class Field : uint8_t {
@@ -206,6 +217,7 @@ private:
     std::unique_ptr<SDK::Fit::FitWriter>   mFit  = nullptr;
     SDK::Fit::RecordingMarker              mMarker;   ///< Shared crash-recovery marker.
     uint16_t    mLapCounter   = 0;
+    std::string mProfileName;        ///< From AppInfo; empty = no session field 110.
     std::time_t mLastFlushUtc = 0;   ///< Record timestamp of the last durability flush.
 
     void defineRecordMessages();

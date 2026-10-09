@@ -9,7 +9,7 @@
  * Adapted from the SDK's Running/RunLVGL example: the alert and interval
  * settings are gone, and what remains is the race configuration of brief 10.3.
  *
- * Three of these fields also live in AppConfig so the phone can edit them
+ * Four of these fields also live in AppConfig so the phone can edit them
  * (see AppConfigFields.hpp). AppConfig is the source of truth for those;
  * this struct is the in-memory working copy plus the last-used race format,
  * which brief 10.3 says to keep in the app's own settings file rather than
