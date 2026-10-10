@@ -197,6 +197,14 @@ jobs:
           cmake --build ci-build/trail-tests -j"$(nproc)"
           ctest --test-dir ci-build/trail-tests --output-on-failure
 
+      - name: HybridX Run settings declaration
+        # The manifest's configFields and the app's AppConfig table must agree
+        # (una-sdk Docs/app-config-fields.md 5.1).
+        run: |
+          python3 una-sdk/Utilities/Scripts/app_packer/validate_app_config.py \
+            --check hybridx-run/Resources/app-manifest.json \
+            --check-bounds hybridx-run/Software/Libs/App/Sources/AppConfigFields.cpp
+
       - name: HybridX Run host tests
         # The pure VO2max core (profile, steady windows, history and its JSON).
         run: |

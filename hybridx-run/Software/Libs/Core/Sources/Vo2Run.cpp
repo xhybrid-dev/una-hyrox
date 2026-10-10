@@ -40,7 +40,15 @@ float acsmRunningVo2(float speedMs, float gradePct)
 
 void Vo2Run::reset()
 {
-    *this = Vo2Run{};
+    // Field by field: a whole-object temporary would put 1 KB on the
+    // service's 10 KB stack.
+    clearWindow();
+    mActiveSec    = 0;
+    mWindowCount  = 0;
+    mCounts       = WindowCounts{};
+    mHoldCount    = 0;
+    mHoldNext     = 0;
+    mSustainedMax = 0;
 }
 
 void Vo2Run::clearWindow()

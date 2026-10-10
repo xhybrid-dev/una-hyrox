@@ -27,6 +27,12 @@
 #include "SDK/SensorLayer/DataParsers/SensorDataParserFusionRaw.hpp"
 #include "SDK/SensorLayer/DataParsers/SensorDataParserRunningCadence.hpp"
 #include "SDK/SensorLayer/DataParsers/SensorDataParserGrade.hpp"
+#include "SDK/SensorLayer/DataParsers/SensorDataParserHeartRateMetrics.hpp"
+#include "SDK/AppConfig/AppConfig.hpp"
+
+// HybridX Run
+#include "AppConfigFields.hpp"
+#include "SafeFile.hpp"
 
 #include "SDK/Calibration/StrideMath.hpp"
 
@@ -53,6 +59,15 @@ static float speedFromTotals(float distanceM, float activeTimeS)
     return (activeTimeS > 0.0f) ? (distanceM / activeTimeS) : 0.0f;
 }
 
+// HybridX Run: where the VO2max history and its public copy live.
+constexpr const char* kVo2File    = "vo2.json";
+constexpr const char* kSharedDir  = "../SharedData/HybridX";
+constexpr const char* kSharedFile = "../SharedData/HybridX/vo2max.json";
+
+// A latched HR or speed reading counts for the VO2max windows only while it is
+// this recent (both sensors report once a second).
+constexpr uint32_t kVo2FreshMs = 2500;
+
 } // namespace
 
 Service::Service(SDK::Kernel &kernel)
@@ -75,6 +90,9 @@ Service::Service(SDK::Kernel &kernel)
         , mSensorFusion(SDK::Sensor::Type::FUSION_RAW, 1000.0f / skFusionSampleRateHz, 100)
         , mSensorRunningCadence(SDK::Sensor::Type::RUNNING_CADENCE, skSamplePeriod, skSampleLatency)
         , mSensorGrade(SDK::Sensor::Type::GRADE, skSamplePeriod, skSampleLatency)
+        // A daily figure: once a minute is plenty. With the default period 0
+        // the simulator's sensor never reported (its timer needs a period).
+        , mSensorHrMetrics(SDK::Sensor::Type::HEART_RATE_METRICS_DAILY, 60000)
         , mTimeTracker(kernel.sys)
         , mAltitudeFilter(0.8f)
         , mAltitudeCounter()
@@ -119,6 +137,9 @@ void Service::run()
     if (!mActivitySummarySerializer.load(mSummary)) {
         LOG_WARNING("Failed to load activity summary\n");
     }
+
+    // HybridX Run: the athlete's numbers and the VO2max history.
+    loadVo2();
 
     // Recover any activity a previous boot left unfinished (power loss /
     // crash mid-recording), before any new track can start.
@@ -350,6 +371,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
             mGpsSpeedValid    = parser.isSpeedValid();
             mGpsDeadReckoning = parser.isDeadReckoning();
             mGpsSpeedFresh    = true;   // consumed by the pace smoother each tick
+            mSpeedLastMs      = mKernel.sys.getTimeMs();   // HybridX Run
+            mSpeedSeen        = true;
             // Only feed a current (valid-fix) speed into the aggregated metrics
             // so acquisition / fix-loss / dead-reckoning readings don't inflate
             // the max-speed statistics.
@@ -393,9 +416,22 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
             mHrSource     = static_cast<uint8_t>(parser.getSource());
             mHrOpticalBpm = static_cast<uint8_t>(parser.getOpticalBpm());
             mHrExternalBpm= static_cast<uint8_t>(parser.getExternalBpm());
+            mHrLastMs     = mKernel.sys.getTimeMs();   // HybridX Run
+            mHrSeen       = true;
             LOG_DEBUG("HR %.1f trust %.1f src %u (opt %u ext %u)\n",
                       parser.getBpm(), parser.getTrustLevel(), mHrSource,
                       mHrOpticalBpm, mHrExternalBpm);
+        }
+    } else if (mSensorHrMetrics.matchesDriver(handle)) {
+        // HybridX Run: the watch's daily resting HR, for the VO2max estimate.
+        SDK::SensorDataParser::HeartRateMetrics parser(data[0]);
+        if (parser.isDataValid()) {
+            const float   rhr = parser.getRhr();
+            const uint8_t bpm = (rhr > 0.0f && rhr < 255.0f) ? static_cast<uint8_t>(rhr + 0.5f) : 0;
+            if (bpm != mVo2Input.watchRestHr) {
+                LOG_INFO("Resting HR from the watch: %u\n", bpm);
+            }
+            mVo2Input.watchRestHr = bpm;
         }
     } else if (mSensorBatteryLevel.matchesDriver(handle)) {
         SDK::SensorDataParser::BatteryLevel parser(data[0]);
@@ -474,6 +510,7 @@ void Service::onStartGUI()
     }
 
     mSensorWristMotion.connect();
+    mSensorHrMetrics.connect();   // HybridX Run: resting HR
 
     sendInitialInfoToGui();
 }
@@ -484,6 +521,7 @@ void Service::onStopGUI()
 
     requestAccessoryRelease();
     mSensorWristMotion.disconnect();
+    mSensorHrMetrics.disconnect();
 }
 
 void Service::handleEvent(const CustomMessage::TrackStart& event)
@@ -752,6 +790,7 @@ void Service::sendInitialInfoToGui()
     SDK::send_msg<CustomMessage::SettingsUpd>(mKernel, mSettings, mIsImperial, mTimeFormat12h, hrThresholds, CustomMessage::kHrThresholdsCount);
     SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
     SDK::send_msg<CustomMessage::Battery>(mKernel, static_cast<uint8_t>(mBatterySoc.get()));
+    sendVo2Info();
 }
 
 void Service::startTrack(std::time_t utc)
@@ -791,6 +830,10 @@ void Service::startTrack(std::time_t utc)
 
     mSessionNotEmpty = false;
     mLapNotEmpty = false;
+
+    // HybridX Run: a fresh VO2max run; the last run's figures leave the screens.
+    mVo2Run.reset();
+    mVo2Info.hasRun = false;
 
     mSummary = ActivitySummary{};
     mSummary.laps.reserve(10);
@@ -911,6 +954,9 @@ void Service::processTrack()
 
     // Altitude, m
     mTrackData.elevation = mAltitudeCounter.getCurrent();
+
+    // HybridX Run: one second of the VO2max windows (a pause breaks a window).
+    feedVo2();
 
     // Intervals state machine - only while actively running (not paused)
     if (mIntervalsMode && mTrackState == Track::State::ACTIVE) {
@@ -1145,6 +1191,9 @@ void Service::stopTrack(bool discard)
 
         fitTrack.ascent    = mAltitudeCounter.getAscent();
         fitTrack.descent   = mAltitudeCounter.getDescent();
+
+        // HybridX Run: this run's VO2max, into the history and onto the summary.
+        finishVo2(endUtc);
 
         if (mActivityWriter.stop(fitTrack)) {
             notifyNewActivity();
@@ -1609,4 +1658,115 @@ void Service::onIntervalsPhaseChange(bool alert, bool manual)
         playVibroPattern(SDK::Message::RequestVibroPlay::Effect::SHORT_DOUBLE_CLICK_STRONG_1_100);
         playBuzzerPattern(150, 2);
     }
+}
+
+// -- HybridX Run: the VO2max estimate (docs/NOTES.md) ----------------------------------
+
+void Service::loadVo2()
+{
+    // Read once at start, as the SDK intends (Docs/app-config-fields.md 7.2):
+    // a change on the phone applies the next time the app opens. On the heap,
+    // once, as HybridX Race and Streak do: not in the 1 Hz path.
+    {
+        std::unique_ptr<SDK::AppConfig> cfg(new SDK::AppConfig(mKernel, RunConfig::kFileName,
+                                                               RunConfig::kFields, RunConfig::kFieldCount));
+        mVo2Input.birthYear     = static_cast<uint16_t>(cfg->getInt(RunConfig::kBirthYear));
+        mVo2Input.birthMonth    = static_cast<uint8_t>(cfg->getInt(RunConfig::kBirthMonth));
+        mVo2Input.enteredMaxHr  = static_cast<uint8_t>(cfg->getInt(RunConfig::kMaxHr));
+        mVo2Input.enteredRestHr = static_cast<uint8_t>(cfg->getInt(RunConfig::kRestingHr));
+        LOG_INFO("VO2 profile: born %u/%u, max HR %u, resting HR %u (0 = not set)\n",
+                 mVo2Input.birthMonth, mVo2Input.birthYear, mVo2Input.enteredMaxHr, mVo2Input.enteredRestHr);
+    }
+
+    char buf[RunVo2::Vo2History::kMaxJsonBytes];
+    size_t len = RunVo2::SafeFile::read(mKernel.fs, kVo2File, false, buf, sizeof(buf));
+    if (len == 0 || !mVo2History.fromJson(buf, len)) {
+        len = RunVo2::SafeFile::read(mKernel.fs, kVo2File, true, buf, sizeof(buf));
+        if (len == 0 || !mVo2History.fromJson(buf, len)) {
+            mVo2History.clear();
+            LOG_INFO("No VO2max history yet\n");
+        } else {
+            LOG_WARNING("vo2.json unreadable: using the backup\n");
+        }
+    }
+    mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
+
+    mVo2Info            = CustomMessage::Vo2Info{};
+    mVo2Info.rollingX10 = mVo2History.rollingX10();
+    mVo2Info.runs       = mVo2History.size();
+    LOG_INFO("VO2max history: %u runs, shown %u (x10), auto max HR %u\n",
+             mVo2Info.runs, mVo2Info.rollingX10, mVo2Input.autoMaxHr);
+}
+
+void Service::feedVo2()
+{
+    const uint32_t nowMs = mKernel.sys.getTimeMs();
+    // Unsigned deltas: the ms clock wraps.
+    const bool hrFresh    = mHrSeen && static_cast<uint32_t>(nowMs - mHrLastMs) <= kVo2FreshMs;
+    const bool speedFresh = mSpeedSeen && static_cast<uint32_t>(nowMs - mSpeedLastMs) <= kVo2FreshMs;
+
+    const float hr    = mHrCounter.getCurrent();
+    const float trust = mTrackData.hrTrustLevel;
+
+    RunVo2::Sample s;
+    s.active        = (mTrackState == Track::State::ACTIVE);
+    s.speedMs       = mGpsSpeedMs;
+    s.speedValid    = mGpsSpeedValid && speedFresh;
+    s.deadReckoning = mGpsDeadReckoning;
+    s.gradePct      = mGradeData.gradePct;
+    s.gradeValid    = mGradeData.gradeValid;
+    s.hrBpm         = (hrFresh && hr > 0.0f && hr < 255.0f) ? static_cast<uint8_t>(hr + 0.5f) : 0;
+    s.hrTrust       = (trust > 0.0f && trust < 255.0f) ? static_cast<uint8_t>(trust + 0.5f) : 0;
+    mVo2Run.addSecond(s);
+}
+
+void Service::finishVo2(std::time_t endUtc)
+{
+    // The auto max first, so a run that shows a higher max is judged with it.
+    if (mVo2Input.enteredMaxHr == 0) {
+        mVo2History.raiseAutoMaxHr(mVo2Run.sustainedMaxHr());
+        mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
+    }
+
+    const RunVo2::Profile   profile = RunVo2::resolveProfile(mVo2Input, endUtc);
+    const RunVo2::RunResult result  = mVo2Run.estimate(profile);
+    const RunVo2::WindowCounts& c   = mVo2Run.counts();
+    LOG_INFO("VO2 windows: %u kept, %u warm-up, %u gaps, %u unsteady, %u grade, %u overflow\n",
+             c.accepted, c.warmUp, c.gaps, c.unsteady, c.grade, c.overflow);
+    LOG_INFO("VO2 run: status %u (profile %u), %u (x10) from %u windows; max HR %u (source %u), rest %u\n",
+             static_cast<unsigned>(result.status), static_cast<unsigned>(result.profileStatus),
+             result.vo2x10, result.windowsUsed, profile.maxHr,
+             static_cast<unsigned>(profile.maxSource), profile.restHr);
+
+    if (result.status == RunVo2::RunStatus::Ok) {
+        mVo2History.add(RunVo2::RunRecord{static_cast<uint32_t>(endUtc), result.vo2x10, result.windowsUsed});
+    }
+
+    char buf[RunVo2::Vo2History::kMaxJsonBytes];
+    const size_t len = mVo2History.toJson(buf, sizeof(buf));
+    if (len == 0 || !RunVo2::SafeFile::write(mKernel.fs, kVo2File, buf, len)) {
+        LOG_ERROR("Could not save vo2.json\n");
+    }
+    const size_t sharedLen = mVo2History.toSharedJson(buf, sizeof(buf));
+    if (sharedLen == 0 || !mKernel.fs.mkdir(kSharedDir)
+        || !RunVo2::SafeFile::write(mKernel.fs, kSharedFile, buf, sharedLen)) {
+        LOG_WARNING("Could not save the public vo2max.json\n");
+    }
+
+    mVo2Info.rollingX10    = mVo2History.rollingX10();
+    mVo2Info.runs          = mVo2History.size();
+    mVo2Info.hasRun        = true;
+    mVo2Info.runStatus     = static_cast<uint8_t>(result.status);
+    mVo2Info.profileStatus = static_cast<uint8_t>(result.profileStatus);
+    mVo2Info.runX10        = result.status == RunVo2::RunStatus::Ok ? result.vo2x10 : 0;
+    mVo2Info.windowsUsed   = result.windowsUsed;
+    mVo2Info.maxHr         = profile.maxHr;
+    mVo2Info.maxSource     = static_cast<uint8_t>(profile.maxSource);
+    mVo2Info.restHr        = profile.restHr;
+    sendVo2Info();
+}
+
+void Service::sendVo2Info()
+{
+    SDK::send_msg<CustomMessage::Vo2Upd>(mKernel, mVo2Info);
 }

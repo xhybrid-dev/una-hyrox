@@ -20,13 +20,22 @@ Screen::~Screen()
 
 void Screen::create()
 {
+    if (mBuilt) {
+        return;
+    }
+    createRoot();
+    build();
+    mBuilt = true;
+}
+
+void Screen::createRoot()
+{
     if (mRoot) {
         return;
     }
     mRoot = lv_obj_create(nullptr);
     Theme::applyScreen(mRoot);
     lv_obj_add_event_cb(mRoot, &Screen::keyEventCb, LV_EVENT_KEY, this);
-    build();
 }
 
 void Screen::destroy()
@@ -35,7 +44,8 @@ void Screen::destroy()
         return;
     }
     lv_obj_delete(mRoot);
-    mRoot = nullptr;
+    mRoot  = nullptr;
+    mBuilt = false;
 }
 
 void Screen::keyEventCb(lv_event_t* e)

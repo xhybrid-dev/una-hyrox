@@ -83,11 +83,15 @@ void ScreenManager::switchNow(ScreenId id)
         mModel->bind(nullptr);
     }
 
-    // Build and show the new screen, then free the old one: the same order
-    // as the TouchGFX MVP application. Both widget trees exist for the
-    // duration of the switch, so the pool must hold the largest such pair;
-    // the peak logged below is what to size it by.
-    next->create();
+    // HybridX Run (HybridX Intervals' fix, from Trail's NOTES T3.2): free the
+    // old screen, then build the new one. RunLVGL built first and freed after
+    // (the TouchGFX MVP order), so both widget trees had to fit in LVGL's
+    // 40 KB pool at once; in the simulator, going from the start screen to the
+    // track screen ran out of it. Loading the new screen's empty root first
+    // means the old one is never the active screen when it is deleted, and
+    // nothing is drawn in between: the switch runs inside one
+    // lv_timer_handler() call.
+    next->createRoot();
     lv_screen_load(next->root());
     mCurrent = next;
 
@@ -97,6 +101,8 @@ void ScreenManager::switchNow(ScreenId id)
         // may still touch its objects.
         delete old;
     }
+
+    next->create();
 
     mModel->bind(next);
     next->onShow();

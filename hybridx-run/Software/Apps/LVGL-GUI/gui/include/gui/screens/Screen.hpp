@@ -33,6 +33,11 @@ public:
     /// Create the LVGL screen object and its widgets (calls build()).
     void create();
 
+    /// Create just the (empty, styled) LVGL screen object; create() then
+    /// builds into it. ScreenManager loads the empty root and frees the old
+    /// screen before building, so LVGL's pool only ever holds one screen.
+    void createRoot();
+
     /// Delete the LVGL screen object and everything on it.
     void destroy();
 
@@ -57,6 +62,8 @@ protected:
 
 private:
     static void keyEventCb(lv_event_t* e);
+
+    bool mBuilt = false;
 };
 
 #endif // SCREEN_HPP

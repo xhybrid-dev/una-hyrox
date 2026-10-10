@@ -35,6 +35,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type INTERVALS_PHASE_ALERT      = 0x00000009;
     constexpr SDK::MessageType::Type INTERVALS_WORKOUT_COMPLETED = 0x00000010;
     constexpr SDK::MessageType::Type ACCESSORY_STATUS          = 0x00000012;
+    constexpr SDK::MessageType::Type VO2_UPDATE                = 0x00000013;   // HybridX Run
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -188,6 +189,32 @@ namespace CustomMessage {
 
     struct IntervalsWorkoutCompleted : public SDK::MessageBase {
         IntervalsWorkoutCompleted() : SDK::MessageBase(INTERVALS_WORKOUT_COMPLETED) {}
+    };
+
+    // HybridX Run: the VO2max figures the screens show. Sent with the initial
+    // info and again when a track is saved.
+    struct Vo2Info {
+        uint16_t rollingX10    = 0;   ///< shown value, ml/kg/min x 10; 0 = none yet
+        uint8_t  runs          = 0;   ///< runs behind it
+        bool     hasRun        = false; ///< the run fields below describe a just-saved run
+        uint8_t  runStatus     = 0;   ///< RunVo2::RunStatus
+        uint8_t  profileStatus = 0;   ///< RunVo2::ProfileStatus
+        uint16_t runX10        = 0;   ///< this run's estimate x 10; 0 = none
+        uint16_t windowsUsed   = 0;
+        uint8_t  maxHr         = 0;
+        uint8_t  maxSource     = 0;   ///< RunVo2::MaxHrSource
+        uint8_t  restHr        = 0;
+    };
+
+    struct Vo2Upd : public SDK::MessageBase {
+        Vo2Info info;
+        Vo2Upd() : SDK::MessageBase(VO2_UPDATE), info{} {}
+
+        explicit Vo2Upd(const Vo2Info& info)
+            : Vo2Upd()
+        {
+            this->info = info;
+        }
     };
 
     // External-accessory link status forwarded from the kernel's

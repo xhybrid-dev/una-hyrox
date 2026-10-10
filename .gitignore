@@ -51,3 +51,4 @@ hybridx-run/build-tests/
 hybridx-run/Output/
 hybridx-run/Software/Output/
 hybridx-run/Software/Apps/LVGL-GUI/simulator/build/
+hybridx-run/Software/SharedData/

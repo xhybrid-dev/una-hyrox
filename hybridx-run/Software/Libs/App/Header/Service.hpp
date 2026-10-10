@@ -23,6 +23,11 @@
 #include "Commands.hpp"
 #include "WristTiltDetector.hpp"
 
+// HybridX Run: the VO2max estimate.
+#include "Vo2History.hpp"
+#include "Vo2Profile.hpp"
+#include "Vo2Run.hpp"
+
 class Service : public WristTiltDetector::IListener
 {
 public:
@@ -80,6 +85,7 @@ private:
     SDK::Sensor::Connection mSensorFusion;
     SDK::Sensor::Connection mSensorRunningCadence;
     SDK::Sensor::Connection mSensorGrade;
+    SDK::Sensor::Connection mSensorHrMetrics;   ///< HybridX Run: daily resting HR
     bool                    mIsSensorsConnected = false;
 
     struct {
@@ -186,7 +192,23 @@ private:
 
     SDK::Calibration::OutdoorStrideCalibrator mCalibrator;
 
+    // HybridX Run: the VO2max estimate (docs/NOTES.md).
+    RunVo2::Vo2Run         mVo2Run;
+    RunVo2::Vo2History     mVo2History;
+    RunVo2::ProfileInput   mVo2Input;          ///< from app_config.json, plus the watch's resting HR
+    CustomMessage::Vo2Info mVo2Info;
+    uint32_t               mHrLastMs    = 0;   ///< getTimeMs() of the latest HR sample
+    uint32_t               mSpeedLastMs = 0;   ///< getTimeMs() of the latest GPS speed sample
+    bool                   mHrSeen      = false;
+    bool                   mSpeedSeen   = false;
+
     // -- Lifecycle ------------------------------------------------------------
+
+    // HybridX Run
+    void loadVo2();
+    void feedVo2();
+    void finishVo2(std::time_t endUtc);
+    void sendVo2Info();
 
     void connectGps();
     void connectSensors(); // All except GPS
