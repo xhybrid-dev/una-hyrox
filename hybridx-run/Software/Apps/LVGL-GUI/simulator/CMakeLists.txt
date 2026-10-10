@@ -1,4 +1,4 @@
-# RunLVGL PC simulator: the app's service and LVGL GUI processes running
+# HybridX Run PC simulator (started from RunLVGL's): the app's service and LVGL GUI processes running
 # against the SDK's mock kernel, with the display in an SDL2 window.
 #
 # Windows (Visual Studio; uses the SDL2 shipped with TouchGFX, which is 32-bit):
@@ -17,7 +17,7 @@ if("$ENV{UNA_SDK}" STREQUAL "")
     message(FATAL_ERROR "UNA_SDK environment variable is not set. Point it at the SDK root.")
 endif()
 
-project(RunLVGLSimulator C CXX)
+project(HybridXRunSimulator C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,7 +37,7 @@ foreach(cfg Debug Release RelWithDebInfo MinSizeRel)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CFG} "${SIM_BIN_DIR}")
 endforeach()
 
-add_executable(RunLVGLSimulator
+add_executable(HybridXRunSimulator
     main.cpp
     ${GUI_APP_SOURCES}
     ${LIBS_SOURCES}
@@ -46,7 +46,7 @@ add_executable(RunLVGLSimulator
     ${UNA_SDK_SOURCES_SIMULATOR_LVGL}
 )
 
-target_include_directories(RunLVGLSimulator PRIVATE
+target_include_directories(HybridXRunSimulator PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}          # ConfigurationSimulator.hpp
     ${GUI_APP_INCLUDE_DIRS}
     ${LIBS_INCLUDE_DIRS}
@@ -56,20 +56,21 @@ target_include_directories(RunLVGLSimulator PRIVATE
 
 # The identity the service writes into settings and FIT files. The values
 # stand in for what the .uapp build derives from CMakeLists.txt and git.
-target_compile_definitions(RunLVGLSimulator PRIVATE
+target_compile_definitions(HybridXRunSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
-    APP_ID="A1B8E3F04C7D925E"
-    DEV_ID="UNA Simulator"
-    BUILD_VERSION="1.0.0-sim"
+    APP_ID="74CDEFFE3DBA395D"
+    APP_NAME="HybridXRun"
+    DEV_ID="HybridX Simulator"
+    BUILD_VERSION="0.1.0-sim"
 )
 
 find_package(Threads REQUIRED)
-target_link_libraries(RunLVGLSimulator PRIVATE Threads::Threads)
-una_simulator_link_sdl2(RunLVGLSimulator)
+target_link_libraries(HybridXRunSimulator PRIVATE Threads::Threads)
+una_simulator_link_sdl2(HybridXRunSimulator)
 
 if(MSVC)
-    target_compile_options(RunLVGLSimulator PRIVATE /W3 /MP)
+    target_compile_options(HybridXRunSimulator PRIVATE /W3 /MP)
 else()
-    target_compile_options(RunLVGLSimulator PRIVATE -Wall -Wextra -Wno-unused-parameter)
+    target_compile_options(HybridXRunSimulator PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()

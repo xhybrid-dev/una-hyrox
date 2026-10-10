@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    main.cpp
- * @brief   RunLVGL PC simulator.
+ * @brief   HybridX Run PC simulator (started from RunLVGL's).
  *
  * Runs the app's real service and LVGL GUI processes against the SDK's mock
  * kernel (SDK/Libs/Source/Simulator): simulated GPS, heart rate, pressure and
@@ -73,7 +73,7 @@ int main(int, char**)
 
     // The display, ticks and buttons the kernel would supply to the GUI.
     SDK::Simulator::LvglHost::Options options;
-    options.title = "RunLVGL";
+    options.title = "HybridX Run";
     options.scale = 2;
     SDK::Simulator::LvglHost host(appComm, serviceKernel.getKernel(), options);
     if (!host.init()) {

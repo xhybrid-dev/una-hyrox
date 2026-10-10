@@ -1,22 +1,27 @@
-# RunLVGL -- the Run activity app with its GUI process built on LVGL.
+# HybridX Run -- a run-recording app that also estimates VO2max, with its GUI
+# process built on LVGL. A test app: see ../../../docs/NOTES.md.
 #
-# The service process is a copy of Running's; only the GUI differs. Compare
-# with ../../../../Running/Software/Apps/Running-CMake/CMakeLists.txt: the
-# TOUCHGFX_* lines become GUI_PATH plus the *_GUI_LVGL SDK variables.
+# Started from the SDK's RunLVGL (Examples/Apps/RunLVGL/Software/Apps/
+# RunLVGL-CMake/CMakeLists.txt), as the standing rules require. The
+# differences: the name and ID, the Libs split into Core / App
+# (../../Libs/libs.cmake), and the version taken from run-v* tags
+# (../../cmake/run-version.cmake).
 cmake_minimum_required(VERSION 3.21)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
 
 # App configuration
-set(APP_NAME "RunLVGL")
-set(APP_USER_NAME "RunLVGL")
-set(APP_FILE_NAME "RunLVGL")
+set(APP_NAME "HybridXRun")
+set(APP_USER_NAME "HybridX Run")        # 11 bytes; app_merging.py truncates at 15
+set(APP_FILE_NAME "HybridXRun")
 set(APP_TYPE "Activity")
-set(DEV_ID "UNA")
-set(APP_ID "A1B8E3F04C7D925E")
+set(DEV_ID "HybridX")
+set(APP_ID "74CDEFFE3DBA395D")          # first 16 hex of md5("HybridXRun"); development ID
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")
 set(GUI_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../LVGL-GUI")
+# Output/ is git-ignored; the linker needs it to exist for its .map files.
+file(MAKE_DIRECTORY "${OUTPUT_PATH}")
 
 if("$ENV{UNA_SDK}" STREQUAL "")
     message(FATAL_ERROR "UNA_SDK environment variable is not set. Run SDK/Utilities/Scripts/set-una-sdk-env.ps1 or set UNA_SDK to the SDK root.")
@@ -40,7 +45,8 @@ include(${GUI_PATH}/lvgl-gui.cmake)
 
 project(${APP_NAME})
 
-# Set up version
+# Set up version: from run-v* tags, not the SDK's apps-v*.
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/run-version.cmake)
 una_app_setup_version(BUILD_VERSION ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Build service
@@ -56,9 +62,10 @@ set(SERVICE_INCLUDE_DIRS
 )
 una_app_build_service(${APP_NAME}Service.elf)
 
-# Build GUI (LVGL)
+# Build GUI (LVGL). It also compiles the VO2max core, for the text it shows.
 set(GUI_SOURCES
     ${GUI_APP_SOURCES}
+    ${RUN_CORE_SOURCES}
     ${UNA_SDK_SOURCES_COMMON}
     ${UNA_SDK_SOURCES_GUI_LVGL}
 )
