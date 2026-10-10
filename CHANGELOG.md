@@ -11,7 +11,11 @@ when it stamps `BUILD_VERSION` into the `.uapp`.
 
 ## [Unreleased]
 
-Everything below becomes 0.1.0 once it has run on a watch (Gate 6).
+## [0.1.0] - 2026-10-10
+
+The first release, for the UNA app store (App ID `5C4D6F49335E5E17`). Run on a
+watch in a real race on 1 October 2026; on-watch tests T22-T24 passed on
+10 October.
 
 ### Added
 
