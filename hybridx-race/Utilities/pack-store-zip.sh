@@ -155,7 +155,11 @@ fi
 
 echo
 echo "Package: $ZIP"
-unzip -l "$ZIP"
+if command -v unzip >/dev/null 2>&1; then
+    unzip -l "$ZIP"
+else
+    python3 -m zipfile -l "$ZIP"
+fi
 echo
 if [ "$MANIFEST_ID" = "$DEV_APP_ID" ]; then
     echo "Before uploading: the id in the manifest is a development APP_ID."
