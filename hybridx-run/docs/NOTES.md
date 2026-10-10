@@ -168,6 +168,10 @@ Pure C++ in `Software/Libs/Core`, no SDK headers, host-tested.
   The simulator's runner and heart rate are too noisy for a steady minute
   (and its "resting HR" is its running floor), so on the simulator the face
   shows a reason, not a figure. The arithmetic is the host tests' job.
+- Simulator, 12 minutes (720 s): 12 windows: 5 warm-up, 5 unsteady, 2
+  kept, so "Need 5 steady minutes", as expected of its noisy runner. The
+  seeded history was kept, the auto max HR recorded (158), no pool errors
+  (summary faces 74% peak).
 
 ## Gate R: what Jon tests (the field test)
 
