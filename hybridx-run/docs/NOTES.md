@@ -62,6 +62,48 @@ Published methods only.
 - Simulator builds and runs (dummy video driver, 5 s, clean shutdown).
 - Behaviour is still RunLVGL's.
 
+## R1: the VO2max core (10 October 2026)
+
+Pure C++ in `Software/Libs/Core`, no SDK headers, host-tested.
+- `Vo2Profile`: age from birth year and month (month unset = January) at the
+  watch's UTC; max HR entered > Tanaka (raised to the auto max if that is
+  higher) ; resting HR entered > the watch's daily figure. Status says what
+  is missing: birth year or max HR, resting HR, or a reserve under 40 bpm.
+- `Vo2Run`: fed once a second. One-minute windows; a pause drops the part
+  window. A window keeps its ACSM cost and mean HR only if it is past the
+  warm-up, has 55+ good seconds (HR trust 1-3, valid GPS speed without dead
+  reckoning, running pace), is steady (speed spread, HR range) and not steep.
+  `estimate()` applies the profile (%HRR floor, plausibility) and takes the
+  median; at least 5 windows. Also the auto max: the highest HR held for 5 s
+  with good trust. About 1 KB, fixed.
+- `Vo2History`: a ring of the last 10 runs plus the auto max; the shown value
+  is the latest 5 weighted by window count (capped at 30). Its own JSON
+  writer and bounded reader (integers only; anything malformed reads as
+  empty), and the SharedData file.
+- `Vo2Text`: "52.3", and the one-line reasons.
+
+### Provisional limits (`Vo2Config.hpp`), for Jon to tune
+
+| Limit | Value | Basis |
+|---|---|---|
+| Window | 60 s, 55 good seconds | chosen |
+| Warm-up ignored | 300 s | chosen: HR lag |
+| Slowest pace | 134 m/min (7:28 /km) | ACSM's running-equation range |
+| Speed spread | 8% | chosen |
+| HR range in a window | 10 bpm | chosen |
+| Grade | -3% to +10%; gentle downhill as 0 | ACSM covers level and uphill; limits chosen |
+| Lowest intensity | 50% HRR | chosen |
+| Plausible VO2max | 15-95 | chosen |
+| Windows per run | at least 5 | chosen |
+| Auto max hold | 5 s | chosen |
+| Shown value | latest 5 runs, weight cap 30 | chosen |
+
+### R1 verified
+- Host tests: 33 pass (`hybridx-run-host-tests`), also under ASan + UBSan.
+  The steady-run test checks the arithmetic by hand: 200 m/min level, HR 160,
+  rest 50, max 190 gives 54.4.
+- The core compiles for the watch (both processes) with no warnings.
+
 ## Sources
 - ACSM's Guidelines for Exercise Testing and Prescription, metabolic
   calculations (running equation).

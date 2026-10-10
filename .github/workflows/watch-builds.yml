@@ -196,3 +196,11 @@ jobs:
           cmake -S hybridx-trail/Tests/Host -B ci-build/trail-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/trail-tests -j"$(nproc)"
           ctest --test-dir ci-build/trail-tests --output-on-failure
+
+      - name: HybridX Run host tests
+        # The pure VO2max core (profile, steady windows, history and its JSON).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S hybridx-run/Tests/Host -B ci-build/run-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/run-tests -j"$(nproc)"
+          ctest --test-dir ci-build/run-tests --output-on-failure
