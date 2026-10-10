@@ -145,8 +145,9 @@ builds its apps, with ST's toolchain. To download the result:
    It is a zip holding one `.uapp` per app: HybridX Race, HybridX Streak's app,
    glance and probe (see `hybridx-streak/docs/PROBE.md`), HybridX Intervals
    (in development, from P3) and its retired Gate P0 probe (see
-   `hybridx-intervals/docs/PROBE.md`), and HybridX Trail and its Gate T0 probe
-   (see `hybridx-trail/docs/PROBE.md`).
+   `hybridx-intervals/docs/PROBE.md`), HybridX Trail and its Gate T0 probe
+   (see `hybridx-trail/docs/PROBE.md`), and HybridX Run, a test app that
+   estimates VO2max (see `hybridx-run/docs/NOTES.md`).
 
 Until the app is on the store, installing is a file copy:
 
