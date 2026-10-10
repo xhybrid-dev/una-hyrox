@@ -1786,3 +1786,12 @@ new files, including the two that failed in 5.26.
 
 `fit_naming_report.py` prints the naming fields of any file. The script no
 longer deletes the earlier rounds' H, J and K files, which are evidence.
+
+### 5.29 The portal's App ID (10 October 2026)
+
+Jon created the app on apps.unawatch.com (name "HybridX Race") and the portal
+issued App ID `5C4D6F49335E5E17`. It replaces the development ID `8C345EF26E3350E7` in
+`HybridXRace-CMake/CMakeLists.txt`, `Resources/app-manifest.json` and the
+simulator's `CMakeLists.txt`. The experiments under `docs/experiments/` keep
+the old ID: it is only a label in their test files. `pack-store-zip.sh` still
+treats the old one as the development ID and refuses it for a release.
