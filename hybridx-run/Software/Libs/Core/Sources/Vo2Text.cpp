@@ -9,6 +9,10 @@
 
 #include <cstdio>
 
+// The reasons fit one line of the summary face (about 20 characters in
+// Regular 16 on the round screen).
+static_assert(RunVo2::Config::kMinWindows == 5, "the reason below names 5 minutes");
+
 namespace RunVo2::Text
 {
 
@@ -32,12 +36,12 @@ const char* reason(const RunResult& r)
     case RunStatus::Ok:
         return "";
     case RunStatus::NotEnoughRunning:
-        return "Not enough steady running";
+        return "Need 5 steady minutes";
     case RunStatus::ProfileIncomplete:
         switch (r.profileStatus) {
-        case ProfileStatus::NeedsAge:        return "Set birth year or max HR";
+        case ProfileStatus::NeedsAge:        return "Set your birth year";
         case ProfileStatus::NeedsRestingHr:  return "Set resting HR";
-        case ProfileStatus::ReserveTooSmall: return "Check max and resting HR";
+        case ProfileStatus::ReserveTooSmall: return "Check HR settings";
         case ProfileStatus::Ok:              break;
         }
         break;

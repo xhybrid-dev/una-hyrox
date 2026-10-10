@@ -118,6 +118,9 @@ public:
     bool isTrackSummaryAvailable() const;
     const ActivitySummary& getTrackSummary() const;
 
+    // HybridX Run: the VO2max figures (all zero until the service sends them).
+    const CustomMessage::Vo2Info& getVo2Info() const { return mVo2Info; }
+
 private:
     // Fields required for GUI <-> Service communication
     ModelListener*           modelListener;
@@ -162,6 +165,7 @@ private:
     Track::State           mTrackState            {};
     const ActivitySummary* mActivitySummary = nullptr;
     Track::Data            mTrackData             {};
+    CustomMessage::Vo2Info mVo2Info              {};   ///< HybridX Run
 };
 
 #endif // MODEL_HPP

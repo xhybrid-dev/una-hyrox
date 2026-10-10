@@ -142,6 +142,55 @@ Pure C++ in `Software/Libs/Core`, no SDK headers, host-tested.
   "Set resting HR", as it should; auto max HR recorded (158).
 - Host tests unchanged (33), green.
 
+## R3: on the screens (10 October 2026)
+
+- **Start screen**: "VO2max 52.2" in small grey under the wheel, once there
+  is a figure (nothing before, so a first run looks like RunLVGL).
+- **Summary**: a VO2MAX face after HEART RATE (L2 from heart rate): this
+  run's figure over "THIS RUN", or the reason there is none ("Need 5 steady
+  minutes", "Set your birth year", "Set resting HR", "Check HR settings"; all
+  host-tested to fit one line); then "Recent 52.2 (3 runs)". While paused it
+  says "After saving": the estimate is made on save.
+- **Found in the simulator: the summary did not fit with a fifth face.**
+  RunLVGL builds all its summary faces up front (28.5 KB, 82% of LVGL's pool,
+  the app's peak); the VO2 face took it over and drawing the map failed.
+  Ported Trail's run-screen approach (its T3.2) to the summary: only the face
+  on display exists, and paging deletes it and builds the next. The summary
+  now takes about 9 KB; the app's peak is 76% (the run screen, unchanged).
+  Face changes log `LVGL pool (summary face)`.
+- `sim_run.sh` takes `SEED=1` (a three-run history, so the screens have a
+  recent figure) and photographs the summary faces.
+
+### R3 verified
+- Host tests: 34 (the reason-length test added), green.
+- Watch target compile check: 432,128 B `.uapp`, no warnings in our code.
+- Simulator: start, run, pause, save, every summary face; no pool errors.
+  The simulator's runner and heart rate are too noisy for a steady minute
+  (and its "resting HR" is its running floor), so on the simulator the face
+  shows a reason, not a figure. The arithmetic is the host tests' job.
+
+## Gate R: what Jon tests (the field test)
+
+1. **Install.** From the CI run's `watch-apps` artifact, copy
+   `HybridXRun_*.uapp` into `Apps/HybridXRun/` on the watch (as Race, README
+   "Installing on a watch"). Never a container build.
+2. **Your numbers.** In the same folder create `app_config.json`:
+   `{"schema":1,"values":{"birthYear":1986,"birthMonth":5,"maxHr":0,"restingHr":0}}`
+   with your own birth year and month. If you know your max HR from a test,
+   put it in `maxHr`; leave `restingHr` 0 to use the watch's.
+3. **Run** with the UNA on one wrist and a Garmin (with a VO2max) on the
+   other: three to five outdoor runs of 20+ minutes, mostly steady, on
+   fairly flat ground, after five minutes of easy warm-up.
+4. **Note** after each: the UNA's "THIS RUN" and "Recent" figures (or the
+   reason), Garmin's VO2max, the route (flat or hilly), and whether you used
+   a chest strap. I'll log them here and tune `Vo2Config.hpp`.
+5. **Check** after one phone sync that `Apps/HybridXRun/vo2.json` is still
+   there (the phone deletes activity files; this one should survive).
+
+Open questions for the field test: does the watch report a daily resting HR
+to apps (and when); does the GRADE sensor read sensibly; how often do wrist
+HR trust levels drop at tempo pace.
+
 ## Sources
 - ACSM's Guidelines for Exercise Testing and Prescription, metabolic
   calculations (running equation).

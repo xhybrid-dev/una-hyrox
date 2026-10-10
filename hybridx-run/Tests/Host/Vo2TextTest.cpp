@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cstring>
+
 #include "Vo2Text.hpp"
 
 using namespace RunVo2;
@@ -19,12 +21,24 @@ TEST(Vo2Text, Reasons)
     r.status = RunStatus::Ok;
     EXPECT_STREQ(Text::reason(r), "");
     r.status = RunStatus::NotEnoughRunning;
-    EXPECT_STREQ(Text::reason(r), "Not enough steady running");
+    EXPECT_STREQ(Text::reason(r), "Need 5 steady minutes");
     r.status = RunStatus::ProfileIncomplete;
     r.profileStatus = ProfileStatus::NeedsAge;
-    EXPECT_STREQ(Text::reason(r), "Set birth year or max HR");
+    EXPECT_STREQ(Text::reason(r), "Set your birth year");
     r.profileStatus = ProfileStatus::NeedsRestingHr;
     EXPECT_STREQ(Text::reason(r), "Set resting HR");
     r.profileStatus = ProfileStatus::ReserveTooSmall;
-    EXPECT_STREQ(Text::reason(r), "Check max and resting HR");
+    EXPECT_STREQ(Text::reason(r), "Check HR settings");
+}
+
+TEST(Vo2Text, ReasonsFitOneLine)
+{
+    RunResult r;
+    r.status = RunStatus::NotEnoughRunning;
+    EXPECT_LE(std::strlen(Text::reason(r)), 21u);
+    r.status = RunStatus::ProfileIncomplete;
+    for (auto p : {ProfileStatus::NeedsAge, ProfileStatus::NeedsRestingHr, ProfileStatus::ReserveTooSmall}) {
+        r.profileStatus = p;
+        EXPECT_LE(std::strlen(Text::reason(r)), 21u);
+    }
 }

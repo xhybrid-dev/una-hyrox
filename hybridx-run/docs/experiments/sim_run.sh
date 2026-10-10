@@ -11,6 +11,7 @@
 # (the host tests check the method).
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./sim_run.sh [seconds] [shots-dir] [app_config.json]
+#   SEED=1 first writes a three-run history, so the screens have a recent figure.
 set -u
 SECS=${1:-420}
 SHOTS=${2:-}
@@ -30,6 +31,10 @@ if [ -n "$CONFIG" ]; then
     cp "$CONFIG" "$SOFT/Output/app_config.json"
 else
     printf '{"schema":1,"values":{"birthYear":1986,"birthMonth":5}}' > "$SOFT/Output/app_config.json"
+fi
+if [ "${SEED:-0}" = 1 ]; then
+    printf '{"v":1,"autoMaxHr":0,"runs":[[1790500000,512,22],[1790900000,524,30],[1791300000,531,18]]}' \
+        > "$SOFT/Output/vo2.json"
 fi
 
 Xvfb $DISP -screen 0 800x800x24 >/dev/null 2>&1 & XPID=$!

@@ -834,6 +834,7 @@ void Service::startTrack(std::time_t utc)
     // HybridX Run: a fresh VO2max run; the last run's figures leave the screens.
     mVo2Run.reset();
     mVo2Info.hasRun = false;
+    sendVo2Info();
 
     mSummary = ActivitySummary{};
     mSummary.laps.reserve(10);

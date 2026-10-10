@@ -19,6 +19,7 @@
 #include "Settings.hpp"
 #include "Track.hpp"
 #include "ActivitySummary.hpp"
+#include "Commands.hpp"   // CustomMessage::Vo2Info (HybridX Run)
 
 class Model;
 
@@ -50,6 +51,7 @@ public:
     virtual void onIntervalsWorkoutCompleted() {}
     virtual void onActivitySummary(const ActivitySummary& summary) { (void)summary; }
     virtual void onAccessoryStatus(uint8_t state, const char* name) { (void)state; (void)name; }
+    virtual void onVo2Info(const CustomMessage::Vo2Info& info) { (void)info; }   ///< HybridX Run
 
 protected:
     Model* model;

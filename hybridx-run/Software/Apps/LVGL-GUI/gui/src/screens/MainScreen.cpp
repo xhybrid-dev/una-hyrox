@@ -11,6 +11,8 @@
 #include "gui/Assets.hpp"
 #include "gui/Strings.hpp"
 
+#include "Vo2Text.hpp"   // HybridX Run
+
 #define LOG_MODULE_PRX      "MainScreen"
 #define LOG_MODULE_LEVEL    LOG_LEVEL_INFO
 #include "SDK/UnaLogger/Logger.h"
@@ -48,6 +50,9 @@ void MainScreen::build()
     mButtons   = std::make_unique<Widgets::Buttons>(mRoot);
     mTitle     = std::make_unique<Widgets::Title>(mRoot, Strings::kAppNameUc);
     mSensorRow = std::make_unique<Widgets::SensorStatusRow>(mRoot, 0, 52, 240, 24);
+    // HybridX Run: the recent VO2max, small, under the wheel's lower item.
+    mVo2       = Theme::label(mRoot, Theme::Font::Regular16, "", 50, 206, 140, LV_TEXT_ALIGN_CENTER,
+                              Color::GRAY);
 
     mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,
                   Widgets::Buttons::AMBER, Widgets::Buttons::WHITE);
@@ -60,6 +65,7 @@ void MainScreen::onShow()
     mModel.resetIdleTimer();
     onGpsFix(mModel.hasGpsFix());
     onAccessoryStatus(mModel.getAccessoryState(), "");
+    onVo2Info(mModel.getVo2Info());
 }
 
 void MainScreen::onHide()
@@ -124,6 +130,17 @@ void MainScreen::onGpsFix(bool acquired)
     mGpsFix = acquired;
     mSensorRow->setGps(Widgets::SensorStatusRow::gpsState(acquired));
     updateBackground();
+}
+
+void MainScreen::onVo2Info(const CustomMessage::Vo2Info& info)
+{
+    // Nothing until there is a figure: a first-time user sees RunLVGL's screen.
+    if (info.rollingX10 == 0) {
+        lv_label_set_text(mVo2, "");
+        return;
+    }
+    char v[8];
+    lv_label_set_text_fmt(mVo2, "VO2max %s", RunVo2::Text::formatX10(info.rollingX10, v, sizeof(v)));
 }
 
 void MainScreen::onAccessoryStatus(uint8_t state, const char* /*name*/)

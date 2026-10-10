@@ -33,6 +33,7 @@ public:
     void onIdleTimeout() override;
     void onGpsFix(bool acquired) override;
     void onAccessoryStatus(uint8_t state, const char* name) override;
+    void onVo2Info(const CustomMessage::Vo2Info& info) override;   // HybridX Run
 
 protected:
     void build() override;
@@ -49,6 +50,7 @@ private:
     std::unique_ptr<Widgets::SensorStatusRow> mSensorRow;
     std::unique_ptr<Widgets::Buttons>         mButtons;
     std::unique_ptr<WheelMenu>                mMenu;
+    lv_obj_t*                                 mVo2 = nullptr;   ///< HybridX Run: "VO2max 52.3"
 };
 
 #endif // MAIN_SCREEN_HPP

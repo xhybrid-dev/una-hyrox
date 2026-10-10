@@ -386,6 +386,11 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             }
         } break;
 
+        case CustomMessage::VO2_UPDATE: {   // HybridX Run
+            mVo2Info = static_cast<CustomMessage::Vo2Upd*>(message)->info;
+            modelListener->onVo2Info(mVo2Info);
+        } break;
+
         case CustomMessage::ACCESSORY_STATUS: {
             auto* msg = static_cast<CustomMessage::AccessoryStatusUpd*>(message);
             if (mAccessoryState != msg->state) {

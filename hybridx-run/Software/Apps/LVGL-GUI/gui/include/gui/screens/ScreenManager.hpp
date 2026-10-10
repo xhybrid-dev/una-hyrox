@@ -57,6 +57,11 @@ class ScreenManager
 public:
     static ScreenManager& instance();
 
+    /// Log the use of LVGL's pool after building @p what (every screen switch
+    /// does; HybridX Run's summary also does on changing face, as Trail's run
+    /// screen).
+    static void logPool(const char* what);
+
     /// Bind the model and show the first screen.
     void start(Model& model, ScreenId first);
 
