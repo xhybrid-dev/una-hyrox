@@ -1795,3 +1795,11 @@ issued App ID `5C4D6F49335E5E17`. It replaces the development ID `8C345EF26E3350
 simulator's `CMakeLists.txt`. The experiments under `docs/experiments/` keep
 the old ID: it is only a label in their test files. `pack-store-zip.sh` still
 treats the old one as the development ID and refuses it for a release.
+
+### 5.30 Release 0.1.0 (10 October 2026)
+
+PRs #17 and #18 merged; Jon reports T22-T24 passed on the watch. `CHANGELOG.md`
+gains a 0.1.0 section, and the release commit is tagged `v0.1.0` and
+`apps-v0.1.0`. CI builds the tag with `--expect-version 0.1.0`, so its
+`race-store-zip` artifact is `HybridXRace-0.1.0.zip` with the portal's App ID,
+or there is no zip at all. That zip is the upload.

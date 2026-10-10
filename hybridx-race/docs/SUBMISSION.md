@@ -16,7 +16,7 @@ waiting on UNA (portal access) and on Jon (watch tests, one decision, the entry)
 | Store previews, icon, manifest | Done; previews retaken after the title fix |
 | Portal access | **Waiting on UNA** |
 | App ID | Needs the portal. Today's is a development ID, and the packager refuses a release with it |
-| Watch tests T22-T24 | **Jon**, on the CI build. T20 and T23 need the store install |
+| Watch tests T22-T24 | Passed (10 October). T20 and T23 need the store install |
 | Font licence (NOTES 5.5) | **Jon to raise with UNA.** Not a blocker we know of, but unanswered |
 | HYROX wording (D1) | **Jon's decision**, see below |
 
