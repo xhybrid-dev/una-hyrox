@@ -1204,8 +1204,11 @@ void Service::stopTrack(bool discard)
         fitTrack.ascent    = mAltitudeCounter.getAscent();
         fitTrack.descent   = mAltitudeCounter.getDescent();
 
-        // HybridX Run: this run's VO2max, into the history and onto the summary.
+        // HybridX Run: this run's VO2max, into the history, onto the summary
+        // and into the FIT file (NOTES, R4).
         finishVo2(endUtc);
+        fitTrack.vo2maxX10       = mVo2Info.runX10;
+        fitTrack.vo2maxRecentX10 = mVo2Info.rollingX10;
 
         if (mActivityWriter.stop(fitTrack)) {
             notifyNewActivity();

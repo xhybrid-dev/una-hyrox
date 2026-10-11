@@ -260,6 +260,52 @@ Known biases, not changed (they need Jon's field data before any tuning):
   version 2 with its three runs; the simulator's resting HR of 120 ignored;
   no pool errors.
 
+## R4: VO2max in the FIT file (11 October 2026)
+
+Asked by Jon, to see whether anything downstream shows it. Each saved run's
+FIT file now carries VO2max in two ways:
+- **Developer fields on the session** (as RunLVGL's battery and HR-source
+  fields, SDK `Docs/FitFiles-Structure.md`, "Developer Fields on Lap /
+  Session"): field 7 `vo2max` (this run) and field 8 `vo2max_recent` (the
+  figure shown on the watch), float32, units "ml/kg/min", so any reader shows
+  52.2 with no scale to know. No figure: FIT's invalid value.
+- **The FIT profile's own `max_met_data` message** (229) with `vo2_max` (field
+  2, uint16, scale 10, mL/kg/min), `update_time`, `sport` running,
+  `sub_sport` generic: the recent figure, written before the session, only
+  when there is one. Not in the SDK's `FitProfile.hpp`; the numbers are the
+  FIT SDK 21.171 profile as generated into fitdecode's `profile.py`, cited in
+  `ActivityWriter.cpp`. A tool that knows the profile (rather than developer
+  fields) has a chance to label it VO2max.
+- Not changed: the `.json` sidecar (its reader is unknown; an extra key is a
+  risk to the sync for no known gain) and the manifest's `customMeasures` (it
+  reaches the phone only with a store package, never a side-loaded build, and
+  how a measure maps to a FIT field is not documented).
+- Expectation, from Race (its NOTES 5.9: "The developer fields work perfectly
+  and are invisible anyway"): Garmin Connect and Strava do not show arbitrary
+  developer fields. The open question is UNA's app.
+- `docs/experiments/fit_vo2_report.py <file.fit>`: decodes a file (fitdecode,
+  CRC checked) and prints both fields and `max_met_data`.
+
+### R4 verified
+- Simulator, seeded history: the file decodes with its CRC; `vo2max` empty
+  (no steady 5 minutes on the simulator), `vo2max_recent` 52.2,
+  `max_met_data.vo2_max` 52.2. No history: both fields empty, no
+  `max_met_data`. Both branches of the writer exercised.
+- Watch target compile check: 433,440 B `.uapp`, no warnings in our code;
+  host tests 43, green.
+
+### Where to look (Jon)
+The phone deletes the `.fit` from the watch when it syncs, so to inspect a
+file yourself, copy it off first (USB, before the phone connects).
+1. **UNA's app**, after sync: the activity's detail screen. This is the real
+   question.
+2. **Strava**, via UNA's upload: expected not to show (Race's finding).
+3. **Garmin Connect**, uploading the copied `.fit` by hand (Import Data):
+   worth one try for `max_met_data`; developer fields are not shown.
+4. **The file itself**: `python3 hybridx-run/docs/experiments/fit_vo2_report.py
+   <file.fit>` (needs `pip install fitdecode`), or any FIT viewer that lists
+   developer fields.
+
 ## Gate R: what Jon tests (the field test)
 
 1. **Install.** From the CI run's `watch-apps` artifact, copy
