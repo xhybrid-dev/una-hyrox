@@ -1,0 +1,69 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "activity"
+  ],
+  "name": "HybridX Run",
+  "icon": "icon.png",
+  "binary": "HybridXRun.uapp",
+  "previews": "previews/",
+  "appVersion": "0.1.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [
+    "GPS",
+    "ACCELEROMETER",
+    "HR"
+  ],
+  "description": "Record your runs and get a VO2max estimate from steady running, worked out on the watch from pace, gradient and heart rate.",
+  "supportsLaps": true,
+  "supportsDistance": true,
+  "supportsTrack": true,
+  "supportsHeartbeat": true,
+  "supportsElevation": true,
+  "supportsStep": true,
+  "supportsSpeed": "pace",
+  "customMeasures": [],
+  "stravaExport": true,
+  "id": "74CDEFFE3DBA395D",
+  "configFile": "app_config.json",
+  "configFields": [
+    {
+      "id": "birthYear",
+      "type": "int",
+      "label": "Birth year",
+      "description": "Used for your age, which sets your max heart rate if you don't enter one. 0 leaves it unset.",
+      "default": 0,
+      "min": 0,
+      "max": 2020
+    },
+    {
+      "id": "birthMonth",
+      "type": "int",
+      "label": "Birth month",
+      "description": "1 for January to 12 for December. 0 counts as January.",
+      "default": 0,
+      "min": 0,
+      "max": 12
+    },
+    {
+      "id": "maxHr",
+      "type": "int",
+      "label": "Max heart rate",
+      "description": "Your measured max heart rate, if you know it: it makes the estimate more accurate. 0 calculates it from your age.",
+      "default": 0,
+      "min": 0,
+      "max": 230,
+      "unit": "bpm"
+    },
+    {
+      "id": "restingHr",
+      "type": "int",
+      "label": "Resting heart rate",
+      "description": "0 uses the resting heart rate your watch measures.",
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "unit": "bpm"
+    }
+  ]
+}

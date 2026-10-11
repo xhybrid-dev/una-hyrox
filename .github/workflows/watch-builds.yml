@@ -79,6 +79,9 @@ jobs:
           # hybridx-trail/docs/PROBE.md.
           build hybridx-trail/Software/Apps/HybridXTrail-CMake trail
           build hybridx-trail/Tools/Probe/Software/Apps/Probe-CMake trail-probe
+          # HybridX Run: a RunLVGL copy that estimates VO2max (a test app) --
+          # see hybridx-run/docs/NOTES.md.
+          build hybridx-run/Software/Apps/HybridXRun-CMake run
 
       - name: Collect
         run: |
@@ -91,6 +94,7 @@ jobs:
           cp hybridx-intervals/Tools/Probe/Output/*.uapp watch-apps/
           cp hybridx-trail/Output/*.uapp watch-apps/
           cp hybridx-trail/Tools/Probe/Output/*.uapp watch-apps/
+          cp hybridx-run/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -192,3 +196,19 @@ jobs:
           cmake -S hybridx-trail/Tests/Host -B ci-build/trail-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/trail-tests -j"$(nproc)"
           ctest --test-dir ci-build/trail-tests --output-on-failure
+
+      - name: HybridX Run settings declaration
+        # The manifest's configFields and the app's AppConfig table must agree
+        # (una-sdk Docs/app-config-fields.md 5.1).
+        run: |
+          python3 una-sdk/Utilities/Scripts/app_packer/validate_app_config.py \
+            --check hybridx-run/Resources/app-manifest.json \
+            --check-bounds hybridx-run/Software/Libs/App/Sources/AppConfigFields.cpp
+
+      - name: HybridX Run host tests
+        # The pure VO2max core (profile, steady windows, history and its JSON).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S hybridx-run/Tests/Host -B ci-build/run-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/run-tests -j"$(nproc)"
+          ctest --test-dir ci-build/run-tests --output-on-failure
