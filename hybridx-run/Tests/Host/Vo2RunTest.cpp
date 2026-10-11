@@ -158,7 +158,7 @@ TEST(Vo2Run, EasyEffortIsNotUsed)
     Vo2Run run;
     feed(run, steady(3.0f, 110), 20 * 60);   // %HRR 60/140 = 43%
     const RunResult r = run.estimate(profile());
-    EXPECT_EQ(r.status, RunStatus::NotEnoughRunning);
+    EXPECT_NE(r.status, RunStatus::Ok);
     EXPECT_EQ(r.windowsUsed, 0);
     EXPECT_EQ(run.counts().accepted, 15);   // kept; the profile decides
 }
@@ -188,6 +188,7 @@ TEST(Vo2Run, MedianResistsOutliers)
 TEST(Vo2Run, SustainedMaxNeedsAHold)
 {
     Vo2Run run;
+    feed(run, steady(3.3f, 150), 6 * 60);   // past the warm-up
     feed(run, steady(3.3f, 170), 60);
     feed(run, steady(3.3f, 199), 3);    // spike: too short
     feed(run, steady(3.3f, 170), 10);
@@ -199,6 +200,60 @@ TEST(Vo2Run, SustainedMaxNeedsAHold)
     low.hrTrust = 4;                    // untrusted: never counts
     feed(run, low, 30);
     EXPECT_EQ(run.sustainedMaxHr(), 186);
+}
+
+TEST(Vo2Run, SustainedMaxIgnoresTheWarmUp)
+{
+    Vo2Run run;
+    feed(run, steady(3.3f, 150), 60);
+    feed(run, steady(3.3f, 205), 10);   // an early optical artefact
+    feed(run, steady(3.3f, 150), 300);
+    EXPECT_EQ(run.sustainedMaxHr(), 150);
+}
+
+TEST(Vo2Run, TrustIsRunLvglsTestOnTheRawValue)
+{
+    // 1.0 and 3.0 count; 0.6 and 3.6 do not (no rounding first).
+    for (float t : {1.0f, 3.0f}) {
+        Sample s = steady();
+        s.hrTrust = t;
+        Vo2Run run;
+        feed(run, s, 20 * 60);
+        EXPECT_EQ(run.counts().accepted, 15) << t;
+    }
+    for (float t : {0.6f, 3.6f, 0.0f}) {
+        Sample s = steady();
+        s.hrTrust = t;
+        Vo2Run run;
+        feed(run, s, 20 * 60);
+        EXPECT_EQ(run.counts().gaps, 15) << t;
+        EXPECT_EQ(run.sustainedMaxHr(), 0) << t;
+    }
+}
+
+TEST(Vo2Run, TooEasySaysSo)
+{
+    Vo2Run run;
+    feed(run, steady(3.0f, 110), 20 * 60);   // %HRR 43%
+    const RunResult r = run.estimate(profile());
+    EXPECT_EQ(r.status, RunStatus::TooEasy);
+    EXPECT_EQ(r.tooEasy, 15);
+}
+
+TEST(Vo2Run, HeartRateAboveMaxSaysSo)
+{
+    Vo2Run run;
+    feed(run, steady(3.6f, 195), 20 * 60);   // above max 190
+    const RunResult r = run.estimate(profile());
+    EXPECT_EQ(r.status, RunStatus::HrAboveMax);
+    EXPECT_EQ(r.aboveMax, 15);
+}
+
+TEST(Vo2Run, ShortSteadyRunStillNeedsMoreRunning)
+{
+    Vo2Run run;
+    feed(run, steady(3.0f, 110), 8 * 60);   // 3 easy windows only
+    EXPECT_EQ(run.estimate(profile()).status, RunStatus::NotEnoughRunning);
 }
 
 TEST(Vo2Run, ResetForgets)

@@ -4,9 +4,9 @@
  * @brief   The athlete's numbers the estimate needs: age, max HR, resting HR.
  *
  * Max HR: the athlete's own value if entered; otherwise Tanaka's
- * 208 - 0.7 x age (Tanaka, Monahan and Seals 2001), raised to the highest
- * sustained reading seen on a run if that is higher (auto max, used only
- * when no value was entered). Resting HR: the athlete's own, else the
+ * 208 - 0.7 x age (Tanaka, Monahan and Seals 2001), raised to the auto max
+ * if that is higher (a sustained reading reached on two recent runs; used
+ * only when no value was entered). Resting HR: the athlete's own, else the
  * watch's daily figure.
  ******************************************************************************
  */
@@ -27,7 +27,7 @@ struct ProfileInput {
     uint8_t  enteredMaxHr  = 0;   ///< bpm; 0 = calculate
     uint8_t  enteredRestHr = 0;   ///< bpm; 0 = use the watch's
     uint8_t  watchRestHr   = 0;   ///< bpm from the daily metrics; 0 = none
-    uint8_t  autoMaxHr     = 0;   ///< highest sustained HR seen; 0 = none
+    uint8_t  autoMaxHr     = 0;   ///< Vo2History::autoMaxHr(): reached on two runs; 0 = none
 };
 
 enum class MaxHrSource : uint8_t { None, Entered, Formula, Observed };
@@ -49,6 +49,9 @@ struct Profile {
 
 /// Whole years of age at nowUtc. 0 if the birth year is unset or in the future.
 uint8_t ageAt(uint16_t birthYear, uint8_t birthMonth, std::time_t nowUtc);
+
+/// A resting HR inside the accepted range (Vo2Config: 30-100 bpm).
+bool plausibleRestHr(uint8_t bpm);
 
 /// Tanaka's age-predicted max HR, rounded to the nearest bpm.
 uint8_t tanakaMaxHr(uint8_t ageYears);

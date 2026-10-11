@@ -170,8 +170,9 @@ void TrackSummaryScreen::onShow()
 void TrackSummaryScreen::onActivitySummary(const ActivitySummary& summary)
 {
     mSummary = &summary;
-    setSummary(summary);
+    setSummary(summary);   // back to the first lap page...
     fillFace();
+    updateIndicator();     // ...and the indicator with it
 }
 
 void TrackSummaryScreen::onVo2Info(const CustomMessage::Vo2Info& /*info*/)
