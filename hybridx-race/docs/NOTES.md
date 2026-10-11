@@ -1823,3 +1823,13 @@ manifest only changed (made from the CI zip, not rebuilt): A drops
 example's keys, with `minSdkVersion`. Whichever the portal accepts decides
 the packager change. If B or C is needed, the phone settings (T23) are lost
 until the portal catches up with the SDK.
+
+**Resolved the same day.** A to C failed (C also showed the portal *requires*
+`manifest_version`, `description` and `minKernelVersion`, so it is not an old
+schema). UNA's own example manifests (`Docs/Tutorials/Files` and `Waypoint`)
+carry every key ours did except `previews`. Test D, the original manifest
+without the `"previews"` key, previews folder kept, **was accepted and is
+uploaded**. So the one key the portal rejects is `previews`, which
+`Docs/app-config-json.md` documents. `Resources/app-manifest.json` drops it, and
+`pack-store-zip.sh` strips it from any staged manifest. Worth telling UNA: their
+docs and portal disagree on it.

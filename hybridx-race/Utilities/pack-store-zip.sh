@@ -129,6 +129,10 @@ with open(src) as f:
     manifest = json.load(f)
 manifest["binary"] = binary
 manifest["appVersion"] = version
+# apps.unawatch.com rejects "previews" ("must NOT have additional properties"),
+# though Docs/app-config-json.md lists it; the previews/ folder itself is
+# accepted (NOTES.md 5.31).
+manifest.pop("previews", None)
 with open(dst, "w") as f:
     json.dump(manifest, f, indent=2)
     f.write("\n")
