@@ -610,11 +610,16 @@ is. Streak's has drawn on Jon's watch since its S4.
 
 ![The glance, mock-up from the real layout code](screens/w3-glance-preview.png)
 
+- **Everything keeps to the middle 172 px** (x = 34 to 206), in line with the
+  glances list's separator lines. The list's scroll arc covers both edges
+  (Gate W3, first look, below).
 - **On the left, the trend** in SemiBold 25, `82.2 kg`, as on Home. Under it,
-  the weekly change, `-0.4 kg/week` (`-- kg/week` until the log spans a week).
-  - `-0.4 kg this week`, Home's wording, is 150 px in Regular 18 and would not
-    fit the 132 px column; `-10.4 kg/week` is 128 px.
-- **On the right, 14 bars,** one per day, ending today.
+  the weekly change, `-0.4 kg/wk` (`-- kg/wk` until the log spans a week).
+  - The words column is 113 px: `123.4 kg` is 113 px in SemiBold 25 and
+    `-10.4 kg/wk` 106 px in Regular 18. Home's `-0.4 kg this week` (150 px)
+    would not fit.
+- **On the right, 14 bars,** one per day, ending today: 3 px wide with a 1 px
+  gap, 55 px in all.
   - Each bar is that day's weigh-in, with heights on the 14 days' own scale
     (`GraphScale`: at least 2 kg tall, so a 0.2 kg wobble stays small).
   - A missed day is a gap, over a dark grey baseline.
@@ -718,6 +723,54 @@ watch is the first place it is seen for real.
    trend should have moved.
 4. **Anything off** (a clipped word, a missing bar, the wrong numbers), a
    photo is ideal.
+
+### Gate W3, first look (12 October 2026)
+
+Jon installed the CI build (run 103) and sent a photo of the glances list.
+
+**What worked:**
+- The glance ran, read the SharedData copy and showed his trend, `82.2 kg`
+  (two weigh-ins on 12 October; the latest counts).
+- The weekly change line was there, and so were the baseline and that day's
+  white bar.
+
+**What was wrong:** the text did not display properly and the content was not
+aligned with the list. The photo shows why:
+- The glance gets the display's full width, 240 px. But the glances list draws
+  its separator lines (above and below each glance) only from about x = 34 to
+  206, and the titles of the other entries ("Streak", "Notifications") are
+  centred between them.
+- The list also draws a scroll arc over the left and right edges, about 10 px
+  thick, just inside the bezel.
+- The layout used x = 4 to 236. So `82.2 kg` started at the bezel, the `--` of
+  `-- kg/week` sat under the left arc and looked broken, and the bars ended
+  at the right bezel.
+
+These positions are measured from the photo against the 240 px display. They
+are approximate, and nothing in the SDK documents them.
+
+**Fix:** every layout keeps to the middle 172 px (`kSafeW` in
+`GlanceLayout.cpp`).
+- The full layout puts the words at the left separator and ends the bars at
+  the right one.
+- To fit the band:
+  - the bars are 3 px wide with a 1 px gap;
+  - the words column is 113 px;
+  - the change reads `-0.4 kg/wk`.
+- Compact and tiny centre their text within the same band.
+- **Guards:**
+  - `GlanceLayoutTest` now fails if any control of any layout, for any area
+    and budget, leaves the middle 172 px of a 240 px area;
+  - a trial run with the old full-width band failed it.
+- **Mock-up:** `glance_preview.py` now draws the list's separators above and
+  below each panel, so alignment shows before the watch.
+- **Streak's glance** uses the same 240 px from x = 4 (its mountain) and may
+  have the same overlap. Not changed here; Streak's own phase decides.
+- **Verified:**
+  - 113 host tests pass;
+  - the glance compiles for the watch (26,524 bytes, a compile check with stubs);
+  - the mock-up was checked by eye against the separators.
+- **Jon to check:** the glance on the watch again, from the next CI build.
 
 ## Open, for later phases
 
