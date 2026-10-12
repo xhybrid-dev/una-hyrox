@@ -133,6 +133,29 @@ jobs:
           path: hybridx-race/Output/HybridXRace-*.zip
           if-no-files-found: error
 
+      - name: X Weigh-in store package
+        # The same as Race's, from x-weighin/Utilities/pack-store-zip.sh: the
+        # app's .uapp, manifest, icon and previews (the glance stays a USB
+        # install). A dry run unless the push is a weighin-v* tag, when the
+        # script also refuses a binary whose version is not the tag's and a
+        # package still carrying the development APP_ID. See
+        # x-weighin/docs/SUBMISSION.md.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            weighin-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#weighin-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash x-weighin/Utilities/pack-store-zip.sh $EXPECT
+
+      - name: Upload the X Weigh-in store package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: weighin-store-zip
+          path: x-weighin/Output/XWeighIn-*.zip
+          if-no-files-found: error
+
   host-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20

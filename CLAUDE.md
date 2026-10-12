@@ -164,4 +164,6 @@ Strava. It is independent of the other apps.
     `docs/experiments/trend_chart.py <trend.csv> <out.png>`;
   - the glance (the simulator cannot run glances): a mock-up from the real
     layout code, `docs/experiments/glance_preview.py build-tests/glance_preview
-    <out.png>`.
+    <out.png>`;
+  - the store package (the app only): `Utilities/pack-store-zip.sh`
+    (CI artifact `weighin-store-zip`); the steps: `docs/SUBMISSION.md`.

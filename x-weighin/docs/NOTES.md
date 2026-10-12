@@ -112,6 +112,7 @@ UNA profile. Jon was told and agreed (12 October 2026).
 | W2 | The screens: Home (the trend), Graph (30 days), Recent, Body; weigh-in entry (starts at the last weight, 0.1 kg steps, hold to repeat); Saved | A week of weigh-ins on the watch |
 | W3 | The glance, a second `.uapp`: weight, weekly change, 14 days as bars | The glance on the watch |
 | W4 | The sweat-rate test: weigh before and after a session, enter what you drank; L/h and % of body mass lost | A training session |
+| W5 | The first store release, 1.0.0: the store package (the app only), its CI artifact, the store text (`SUBMISSION.md`). Before W4, by Jon's choice | W5: installed from the store; the phone settings work |
 
 **Sync is deferred.** The data stays on the watch.
 
@@ -792,6 +793,82 @@ The glance needs no change for that, so W3 is done unless those show a fault.
   against UTC, as expected.
 - **W4, the sweat-rate test, waits** until after the first release of this
   package.
+
+## W5: the first store release (12 October 2026)
+
+Jon wants this package on the store before the sweat-rate test. W5 gets
+everything ready, so that the release itself needs only:
+- the App ID from the portal;
+- Gate W2's week passing;
+- the tag `weighin-v1.0.0`.
+
+`SUBMISSION.md` holds the steps for the day and the store text.
+
+### What the package holds
+
+`Utilities/pack-store-zip.sh`, a copy of HybridX Race's script, builds
+`Output/XWeighIn-<version>.zip`:
+- `XWeighIn_<version>.uapp`;
+- `app-manifest.json`, with `binary` and `appVersion` taken from the `.uapp`;
+- `icon.png` (the 60×60 icon);
+- `previews/`: five 480×480 simulator screens (Home, Graph, Recent, Weigh in,
+  Saved), from `capture_screens.sh`. Body is left out because the simulator
+  has no profile height.
+
+The script refuses:
+- more than one `.uapp` in `Output/`;
+- a version that is not the tag's (`--expect-version`);
+- App IDs that differ between the app's CMakeLists, the manifest and the
+  simulator;
+- on a release, the development ID `6E1B68E38137C089`.
+
+Before it zips, it runs both SDK checks:
+- `min_kernel_version.py --stamp/--check`;
+- `validate_app_config.py`, against `AppConfigFields`.
+
+CI runs it on every push, after the watch builds, as **weighin-store-zip**.
+- On a `weighin-v*` tag it passes `--expect-version` itself.
+- Otherwise it is a dry run with the dev build.
+
+**The glance is not in the package.** None of the SDK's glance examples ships a
+manifest, and how one listing installs two `.uapp`s is still UNA's question 4
+(HybridX Streak NOTES S5.1). It stays a USB install from `watch-apps`.
+
+### Manifest changes
+
+- **`requiredHardware` is now `[]`.** HR was there for W0's resting-HR first
+  look, and W2 removed the sensor. Streak's is `[]` too, as in the SDK example
+  (`Docs/app-config-json.md` L73). Leaving HR there could hide the app from a
+  watch for a sensor it never opens.
+- **The description** now says what the app does: kg, the trend, the week's
+  change, the graph, BMI and resting kcal, and that weigh-ins stay on the
+  watch.
+- **The birth year's help text** no longer says "later": resting kcal is on the
+  Body page since W2. Only the text changed, so the user's value is kept
+  (`Docs/app-config-fields.md` §7.3).
+
+### W5 verified (12 October 2026)
+
+- **`pack-store-zip.sh` on the local dev build** (stubs, so a dry run):
+  - it stages, stamps, validates and zips 9 entries: the `.uapp`, the manifest,
+    `icon.png`, `previews/` and its five PNGs;
+  - `--expect-version 1.0.0` against the 0.0.0-dev binary is refused;
+  - a different App ID in the simulator's CMakeLists is refused;
+  - a `XWeighIn_1.0.0.uapp` with the development ID and `--expect-version 1.0.0`
+    is refused.
+- **`validate_app_config.py`:** passes (3 fields).
+- **Not rebuilt:** the source is unchanged, so the host tests (113) and both
+  builds still stand from W3.
+
+## Gate W5: what Jon tests (after the store install)
+
+1. **The app installs** from the store through the UNA app, and opens.
+2. **The settings screen.** In the UNA app, X Weigh-in's settings show Birth
+   year, Birth month and Sex. Set yours there. When you next open the app,
+   the Body page shows your age and resting kcal.
+3. **The log carries on.** Home shows your trend and history as before. The
+   store install either keeps `Apps/XWeighIn/weighins.csv` or restores it from
+   the SharedData copy.
 
 ## Open, for later phases
 
