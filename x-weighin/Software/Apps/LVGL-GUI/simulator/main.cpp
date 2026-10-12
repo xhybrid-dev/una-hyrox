@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    main.cpp
- * @brief   Waypoint LVGL PC simulator.
+ * @brief   X Weigh-in PC simulator (started from the SDK's Waypoint LVGL one).
  *
  * Runs the app's real service and LVGL GUI processes against the SDK's mock
  * kernel (SDK/Libs/Source/Simulator): simulated sensors, a directory as the
@@ -9,8 +9,8 @@
  * The display is an SDL2 window showing the same ABGR2222 frames the watch
  * would receive.
  *
- * Compare with ../../TouchGFX-GUI/simulator/main.cpp: the kernel objects and
- * threads are the same; SDK::Simulator::LvglHost replaces the TouchGFX HAL.
+ * The kernel objects and threads are those of the SDK's TouchGFX simulators;
+ * SDK::Simulator::LvglHost replaces the TouchGFX HAL.
  ******************************************************************************
  */
 
@@ -73,7 +73,7 @@ int main(int, char**)
 
     // The display, ticks and buttons the kernel would supply to the GUI.
     SDK::Simulator::LvglHost::Options options;
-    options.title = "Waypoint (LVGL)";
+    options.title = "X Weigh-in";
     options.scale = 2;
     SDK::Simulator::LvglHost host(appComm, serviceKernel.getKernel(), options);
     if (!host.init()) {

@@ -3,16 +3,17 @@
   "type": [
     "utility"
   ],
-  "name": "Waypoint (LVGL)",
-  "icon": "Resources/icon_60x60.png",
-  "binary": "WaypointLVGL_1.0.0.uapp",
-  "appVersion": "1.0.0",
+  "name": "X Weigh-in",
+  "icon": "icon.png",
+  "binary": "XWeighIn.uapp",
+  "previews": "previews/",
+  "appVersion": "0.1.0",
   "minKernelVersion": "1.4.0",
   "requiredHardware": [
-    "GPS"
+    "HR"
   ],
-  "description": "Navigate back to a point you saved earlier. Set the target from your phone, or stand somewhere and save it on the watch. The Waypoint tutorial with its GUI built on LVGL.",
-  "id": "F25DEC46C08405B8",
+  "description": "Weigh in on your watch in seconds. Your weights stay on the watch, and the trend shows where you are heading beneath the day-to-day swings.",
+  "id": "6E1B68E38137C089",
   "configFile": "app_config.json",
   "configFields": [
     {

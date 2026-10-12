@@ -1,23 +1,23 @@
-# Waypoint LVGL PC simulator: the app's service and LVGL GUI processes
-# running against the SDK's mock kernel, with the display in an SDL2 window.
+# X Weigh-in PC simulator: the app's service and LVGL GUI processes running
+# against the SDK's mock kernel, with the display in an SDL2 window. Started
+# from the SDK's Waypoint LVGL simulator.
 #
-# Windows (Visual Studio; uses the SDL2 shipped with TouchGFX, which is 32-bit):
-#   cmake -S . -B build -G "Visual Studio 18 2026" -A Win32
-#   (that generator needs CMake 4.2 or newer; with an older CMake use
-#   "Visual Studio 17 2022")
-#   cmake --build build --config Debug
 # Linux (needs libsdl2-dev):
 #   cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 #   cmake --build build
+# Windows (Visual Studio; uses the SDL2 shipped with TouchGFX, which is 32-bit):
+#   cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
+#   cmake --build build --config Debug
 # Run from build/bin so the mock file system lands in ../../../../../Output,
-# i.e. this tutorial's Software/Output (ignored by Docs/Tutorials/.gitignore).
+# i.e. x-weighin/Software/Output (git-ignored). Put an app_config.json there
+# to try the phone settings.
 cmake_minimum_required(VERSION 3.21)
 
 if("$ENV{UNA_SDK}" STREQUAL "")
     message(FATAL_ERROR "UNA_SDK environment variable is not set. Point it at the SDK root.")
 endif()
 
-project(WaypointLVGLSimulator C CXX)
+project(XWeighInSimulator C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,7 +37,7 @@ foreach(cfg Debug Release RelWithDebInfo MinSizeRel)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CFG} "${SIM_BIN_DIR}")
 endforeach()
 
-add_executable(WaypointLVGLSimulator
+add_executable(XWeighInSimulator
     main.cpp
     ${GUI_APP_SOURCES}
     ${LIBS_SOURCES}
@@ -46,7 +46,7 @@ add_executable(WaypointLVGLSimulator
     ${UNA_SDK_SOURCES_SIMULATOR_LVGL}
 )
 
-target_include_directories(WaypointLVGLSimulator PRIVATE
+target_include_directories(XWeighInSimulator PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}          # ConfigurationSimulator.hpp
     ${GUI_APP_INCLUDE_DIRS}
     ${LIBS_INCLUDE_DIRS}
@@ -55,20 +55,21 @@ target_include_directories(WaypointLVGLSimulator PRIVATE
 )
 
 # The identity the .uapp build derives from CMakeLists.txt and git.
-target_compile_definitions(WaypointLVGLSimulator PRIVATE
+target_compile_definitions(XWeighInSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
-    APP_ID="F25DEC46C08405B8"
-    DEV_ID="UNA Simulator"
-    BUILD_VERSION="1.0.0-sim"
+    APP_ID="6E1B68E38137C089"
+    APP_NAME="XWeighIn"
+    DEV_ID="HybridX Simulator"
+    BUILD_VERSION="0.1.0-sim"
 )
 
 find_package(Threads REQUIRED)
-target_link_libraries(WaypointLVGLSimulator PRIVATE Threads::Threads)
-una_simulator_link_sdl2(WaypointLVGLSimulator)
+target_link_libraries(XWeighInSimulator PRIVATE Threads::Threads)
+una_simulator_link_sdl2(XWeighInSimulator)
 
 if(MSVC)
-    target_compile_options(WaypointLVGLSimulator PRIVATE /W3 /MP)
+    target_compile_options(XWeighInSimulator PRIVATE /W3 /MP)
 else()
-    target_compile_options(WaypointLVGLSimulator PRIVATE -Wall -Wextra -Wno-unused-parameter)
+    target_compile_options(XWeighInSimulator PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()

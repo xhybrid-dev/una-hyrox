@@ -1,21 +1,27 @@
-# Waypoint with its GUI process built on LVGL. The service is the same
-# Software/Libs as Waypoint-CMake builds; only the GUI differs. Compare with
-# ../Waypoint-CMake/CMakeLists.txt: TOUCHGFX_PATH becomes GUI_PATH, and the
-# *_GUI SDK variables become *_GUI_LVGL.
+# X Weigh-in -- an on-watch weight tracker in kg, with its GUI process built on
+# LVGL. See ../../../docs/NOTES.md.
+#
+# Started from the SDK's Waypoint tutorial (Docs/Tutorials/Waypoint/Software/
+# Apps/WaypointLVGL-CMake/CMakeLists.txt). The differences: the name and ID,
+# the Libs split into Core / App (../../Libs/libs.cmake), the version taken
+# from weighin-v* tags (../../cmake/weighin-version.cmake), and the GUI RAM
+# HybridX Race and RunLVGL use.
 cmake_minimum_required(VERSION 3.21)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
 
 # App configuration
-set(APP_NAME "WaypointLVGL")
+set(APP_NAME "XWeighIn")
+set(APP_USER_NAME "X Weigh-in")         # 10 bytes; app_merging.py truncates at 15
+set(APP_FILE_NAME "XWeighIn")
 set(APP_TYPE "Utility")
-set(DEV_ID "UNA")
-set(APP_ID "F25DEC46C08405B8")
+set(DEV_ID "HybridX")
+set(APP_ID "6E1B68E38137C089")          # first 16 hex of md5("XWeighIn"); development ID
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
-# Its own output directory, beside the TouchGFX build's Output/: the app
-# manifest there is per app.
-set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../OutputLVGL")
+set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")
 set(GUI_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../LVGL-GUI")
+# Output/ is git-ignored; the linker needs it to exist for its .map files.
+file(MAKE_DIRECTORY "${OUTPUT_PATH}")
 
 if("$ENV{UNA_SDK}" STREQUAL "")
     message(FATAL_ERROR "UNA_SDK environment variable is not set. Point it at the SDK root.")
@@ -39,7 +45,7 @@ include(${GUI_PATH}/lvgl-gui.cmake)
 
 project(${APP_NAME})
 
-# Set up version
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/weighin-version.cmake)
 una_app_setup_version(BUILD_VERSION ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Build service
@@ -55,7 +61,8 @@ set(SERVICE_INCLUDE_DIRS
 )
 una_app_build_service(${APP_NAME}Service.elf)
 
-# Build GUI (LVGL)
+# Build GUI (LVGL). It sees the App and Core headers for the message contract
+# and the header-only helpers, but links none of their sources.
 set(GUI_SOURCES
     ${GUI_APP_SOURCES}
     ${UNA_SDK_SOURCES_COMMON}
@@ -70,9 +77,11 @@ set(GUI_INCLUDE_DIRS
 set(GUI_COMPILE_DEFINITIONS
     ${UNA_SDK_DEFINES_GUI_LVGL}
 )
-# LVGL's software renderer recurses deeper than TouchGFX; give the GUI task
-# more stack than the 10 KB default.
+# LVGL's software renderer recurses deeper than TouchGFX, and the image is
+# larger than the SDK defaults allow for; same values as HybridX Race and
+# RunLVGL.
 set(GUI_STACK_SIZE "24*1024")
+set(GUI_RAM_LENGTH "900K")
 una_app_build_gui(${APP_NAME}GUI.elf)
 
 # Build the complete app using SDK functions

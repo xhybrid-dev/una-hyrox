@@ -137,3 +137,22 @@ against a Garmin. It is independent of the other apps.
 - **Commands:**
   - host tests: `cmake -S hybridx-run/Tests/Host -B hybridx-run/build-tests && cmake --build hybridx-run/build-tests && hybridx-run/build-tests/hybridx-run-host-tests`;
   - simulator: `hybridx-run/Software/Apps/LVGL-GUI/simulator`.
+
+## X Weigh-in (`x-weighin/`)
+A sixth app: an on-watch weight tracker in kg. Weigh in on the watch, see the
+smoothed trend, work towards a goal. Height (and the starting weight) come from
+the UNA profile; birth date and sex are phone config fields. The data stays on
+the watch: no phone app, and no activity FIT files, so nothing syncs to UNA or
+Strava. It is independent of the other apps.
+- **Docs:** findings, decisions and phases (W0-W4): `x-weighin/docs/NOTES.md`.
+  Read it at the start of each Weigh-in phase.
+- **Rules:** the same standing rules as Race apply.
+- **Layout:** started from the SDK's Waypoint tutorial (LVGL). The pure core
+  `Software/Libs/Core`; the service `Software/Libs/App`; the GUI
+  `Software/Apps/LVGL-GUI`.
+- **Watch builds come from CI**, as for the others. Tags `weighin-vX.Y.Z`.
+- **Commands:**
+  - host tests: `cmake -S x-weighin/Tests/Host -B x-weighin/build-tests && cmake --build x-weighin/build-tests && x-weighin/build-tests/x-weighin-host-tests`;
+  - simulator: `x-weighin/Software/Apps/LVGL-GUI/simulator` (settings in
+    `Software/Output/app_config.json`);
+  - a run in the simulator, with screenshots: `docs/experiments/sim_run.sh [shots-dir] [app_config.json]`.
