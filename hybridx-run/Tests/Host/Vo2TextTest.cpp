@@ -22,6 +22,10 @@ TEST(Vo2Text, Reasons)
     EXPECT_STREQ(Text::reason(r), "");
     r.status = RunStatus::NotEnoughRunning;
     EXPECT_STREQ(Text::reason(r), "Need 5 steady minutes");
+    r.status = RunStatus::TooEasy;
+    EXPECT_STREQ(Text::reason(r), "Too easy to estimate");
+    r.status = RunStatus::HrAboveMax;
+    EXPECT_STREQ(Text::reason(r), "HR above your max");
     r.status = RunStatus::ProfileIncomplete;
     r.profileStatus = ProfileStatus::NeedsAge;
     EXPECT_STREQ(Text::reason(r), "Set your birth year");
@@ -35,6 +39,10 @@ TEST(Vo2Text, ReasonsFitOneLine)
 {
     RunResult r;
     r.status = RunStatus::NotEnoughRunning;
+    EXPECT_LE(std::strlen(Text::reason(r)), 21u);
+    r.status = RunStatus::TooEasy;
+    EXPECT_LE(std::strlen(Text::reason(r)), 21u);
+    r.status = RunStatus::HrAboveMax;
     EXPECT_LE(std::strlen(Text::reason(r)), 21u);
     r.status = RunStatus::ProfileIncomplete;
     for (auto p : {ProfileStatus::NeedsAge, ProfileStatus::NeedsRestingHr, ProfileStatus::ReserveTooSmall}) {

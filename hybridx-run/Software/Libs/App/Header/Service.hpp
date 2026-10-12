@@ -199,8 +199,10 @@ private:
     CustomMessage::Vo2Info mVo2Info;
     uint32_t               mHrLastMs    = 0;   ///< getTimeMs() of the latest HR sample
     uint32_t               mSpeedLastMs = 0;   ///< getTimeMs() of the latest GPS speed sample
+    uint32_t               mGradeLastMs = 0;   ///< getTimeMs() of the latest grade sample
     bool                   mHrSeen      = false;
     bool                   mSpeedSeen   = false;
+    bool                   mGradeSeen   = false;
 
     // -- Lifecycle ------------------------------------------------------------
 

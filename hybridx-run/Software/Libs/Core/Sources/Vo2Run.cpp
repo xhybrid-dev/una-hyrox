@@ -76,8 +76,8 @@ void Vo2Run::addSecond(const Sample& s)
     ++mActiveSec;
 
     // Auto max: the lowest of the last few good readings is a level held for
-    // that long; keep the highest such level.
-    if (goodHr(s)) {
+    // that long; keep the highest such level. Not in the warm-up.
+    if (goodHr(s) && mActiveSec > Config::kWarmUpSec) {
         mHold[mHoldNext] = s.hrBpm;
         mHoldNext = static_cast<uint8_t>((mHoldNext + 1) % Config::kAutoMaxHoldSec);
         if (mHoldCount < Config::kAutoMaxHoldSec) {
@@ -169,12 +169,18 @@ RunResult Vo2Run::estimate(const Profile& profile) const
     for (uint16_t i = 0; i < mWindowCount; ++i) {
         const float hr  = mWindows[i].hrX10 / 10.0f;
         const float hrr = (hr - rest) / reserve;
-        if (hrr * 100.0f < Config::kMinHrrPct || hrr > 1.0f) {
+        if (hrr > 1.0f) {
+            ++r.aboveMax;
+            continue;
+        }
+        if (hrr * 100.0f < Config::kMinHrrPct) {
+            ++r.tooEasy;
             continue;
         }
         const float cost = mWindows[i].costX10 / 10.0f;
         const float vo2  = 3.5f + (cost - 3.5f) / hrr;
         if (vo2 < Config::kMinPlausibleVo2 || vo2 > Config::kMaxPlausibleVo2) {
+            ++r.implausible;
             continue;
         }
         est[n++] = static_cast<uint16_t>(std::lround(vo2 * 10.0f));
@@ -182,7 +188,15 @@ RunResult Vo2Run::estimate(const Profile& profile) const
 
     r.windowsUsed = n;
     if (n < Config::kMinWindows) {
-        r.status = RunStatus::NotEnoughRunning;
+        // Say why: enough steady running that the profile then ruled out
+        // reads differently from too little steady running.
+        if (n + r.aboveMax >= Config::kMinWindows && r.aboveMax >= r.tooEasy) {
+            r.status = RunStatus::HrAboveMax;
+        } else if (n + r.tooEasy >= Config::kMinWindows) {
+            r.status = RunStatus::TooEasy;
+        } else {
+            r.status = RunStatus::NotEnoughRunning;
+        }
         return r;
     }
 

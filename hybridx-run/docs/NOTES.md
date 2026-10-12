@@ -95,7 +95,8 @@ Pure C++ in `Software/Libs/Core`, no SDK headers, host-tested.
 | Lowest intensity | 50% HRR | chosen |
 | Plausible VO2max | 15-95 | chosen |
 | Windows per run | at least 5 | chosen |
-| Auto max hold | 5 s | chosen |
+| Auto max hold | 5 s, after the warm-up | chosen |
+| Auto max confirmation | reached on 2 of the last 10 runs (review, 11 Oct) | chosen |
 | Shown value | latest 5 runs, weight cap 30 | chosen |
 
 ### R1 verified
@@ -172,6 +173,138 @@ Pure C++ in `Software/Libs/Core`, no SDK headers, host-tested.
   kept, so "Need 5 steady minutes", as expected of its noisy runner. The
   seeded history was kept, the auto max HR recorded (158), no pool errors
   (summary faces 74% peak).
+
+## Review (11 October 2026)
+
+A code review of the branch (the VO2max core, the service wiring, the GUI;
+not the verbatim RunLVGL copy), each finding then checked against the code,
+plus a review of the method itself.
+
+### Code findings
+
+| # | Finding | Verdict | Change |
+|---|---|---|---|
+| 1 | Auto max HR only ever rose, from any 5 s of trusted HR including the warm-up: one optical artefact (cadence lock) raised max HR, and so VO2max, on every later run, for good | Real, the most serious | Each saved run's sustained max goes into a 10-run ring; the auto max is the **second-highest** (reached on two runs), so one artefact cannot raise it and old values leave with their runs. Warm-up readings never count |
+| 2 | "Need 5 steady minutes" was shown when the steady minutes were there but too easy (under 50% HRR) | Real | New statuses: "Too easy to estimate", "HR above your max" (HR over the max HR in use: a max HR set too low) |
+| 3 | Grade had no freshness check: a stalled grade sensor fed its last value into every second | Real | Grade older than 2.5 s counts as unknown (level), as HR and speed already did |
+| 4 | A daily resting-HR sample of 0 (after midnight, before today's figure) wiped the known value | Real | Only a plausible figure (30-100) replaces the last; it is also kept in `vo2.json`, for a run that ends before the sensor first reports |
+| 5 | HR trust was rounded before the 1-3 test, so 0.6 counted and 3.6 did not match RunLVGL | Real | The core takes the raw float and applies RunLVGL's own test |
+| 6 | A late GPS or HR sample can be reused for two ticks; a window counts ticks, not wall seconds | Minor | No change: dropping reused samples would turn ordinary jitter into lost windows, and the tick comes from RunLVGL's monotonic time. Accepted |
+| 7 | The summary's page indicator was not updated when a new summary arrived | Real, cosmetic | Fixed |
+| 8 | `SafeFile` is a copy of Streak's | Deliberate | Kept: the apps are independent by design (CLAUDE.md); its header names its source |
+| 9 | A hand-rolled JSON reader where the SDK has one | Fair | The history now uses the SDK's `JsonStreamReader`/`Writer` (coreJSON), as Streak's state file does. File version 2; version 1 files still read; unknown keys are ignored, so a newer file no longer reads as empty (and then gets overwritten) |
+| 10 | The GUI compiled the whole core for one function | Minor | The GUI compiles only `Vo2Text` |
+
+The SDK's reader does no type or range check on integers (`strtoul` on
+whatever is there), so every value read from `vo2.json` is read as int64 and
+bounded by the core.
+
+### The method
+
+Sound, and as published:
+- the ACSM running equation (3.5 + 0.2 v + 0.9 v G; running speeds from
+  134 m/min);
+- %HRR = %VO2R (Swain and Leutholtz 1997), rearranged as
+  VO2max = 3.5 + (VO2 - 3.5) / %HRR;
+- Tanaka's 208 - 0.7 x age.
+The arithmetic is checked by hand in the host tests (54.4 for the reference
+run).
+
+Known biases, not changed (they need Jon's field data before any tuning):
+- **Max HR dominates.** 10 bpm too high gives about +7% VO2max. Tanaka's
+  formula can be 10 bpm or more out for an individual; the auto max can raise
+  it but never lower it. A measured max HR is the single best improvement.
+- **HR lag.** In the minute or two after a pace rise or a pause, HR is below
+  its steady value for the pace, which overstates VO2max. The 10 bpm range
+  test removes the steepest of these minutes and the median dilutes the rest.
+  Possible refinement: only count a window whose previous window was steady at
+  a similar pace.
+- **Cardiac drift.** On long steady runs HR creeps up at the same pace, so
+  late windows read low. The median of the whole run sits between.
+  Possible refinement: weight or limit to the first part of the run.
+- **Overground vs treadmill.** ACSM's equation comes from treadmill running.
+  Outdoors, air resistance adds a little cost, more at faster paces, so the
+  figure may read slightly low for fast runners.
+- **Running economy.** The equation assumes a typical runner; an economical
+  runner reads low, an uneconomical one high. No field estimate can see this.
+- **Shown value has no age limit.** The latest five runs count however old.
+  Possible refinement: ignore runs older than some weeks.
+- **Settings changes are not re-scored.** Past runs keep the figure worked
+  out with the max and resting HR of the day. After changing them, delete
+  `Apps/HybridXRun/vo2.json` over USB to start afresh.
+
+### Where the athlete sees VO2max
+
+- **On the watch, in HybridX Run only**: the start screen ("VO2max 52.2")
+  and the summary's VO2MAX page after each run.
+- **Not on the phone.** The UNA app syncs the activity's `.fit` file, which
+  does not carry VO2max (R2: no field added). `vo2.json` and
+  `SharedData/HybridX/vo2max.json` stay on the watch; other watch apps can read
+  the shared file, the phone cannot.
+- Ways to the phone, for Jon to choose:
+  1. a **FIT developer field** on the session (the SDK documents how:
+     `Docs/FitFiles-Structure.md`, "Developer Fields on Lap / Session"). The
+     file then carries it through the UNA app and on to Strava, but whether
+     either shows a developer field is not documented (the manifest's
+     `customMeasures` may be how UNA's app displays one; UNA to confirm);
+  2. **ask UNA** to sync `SharedData/HybridX/` (or the app's folder) to the
+     phone, alongside the activity request already drafted;
+  3. a small **Android companion** that reads `vo2.json` over the BLE File
+     Transfer Service, as Trail's Route Sender writes routes, and passes it
+     to the HybridX platform. Android only.
+
+### Review verified
+- Host tests: 43 (9 new or changed), green, also under ASan + UBSan.
+- Watch target compile check: 432,792 B `.uapp`, no warnings in our code.
+- Simulator, 120 s run from a version 1 history: read and rewritten as
+  version 2 with its three runs; the simulator's resting HR of 120 ignored;
+  no pool errors.
+
+## R4: VO2max in the FIT file (11 October 2026)
+
+Asked by Jon, to see whether anything downstream shows it. Each saved run's
+FIT file now carries VO2max in two ways:
+- **Developer fields on the session** (as RunLVGL's battery and HR-source
+  fields, SDK `Docs/FitFiles-Structure.md`, "Developer Fields on Lap /
+  Session"): field 7 `vo2max` (this run) and field 8 `vo2max_recent` (the
+  figure shown on the watch), float32, units "ml/kg/min", so any reader shows
+  52.2 with no scale to know. No figure: FIT's invalid value.
+- **The FIT profile's own `max_met_data` message** (229) with `vo2_max` (field
+  2, uint16, scale 10, mL/kg/min), `update_time`, `sport` running,
+  `sub_sport` generic: the recent figure, written before the session, only
+  when there is one. Not in the SDK's `FitProfile.hpp`; the numbers are the
+  FIT SDK 21.171 profile as generated into fitdecode's `profile.py`, cited in
+  `ActivityWriter.cpp`. A tool that knows the profile (rather than developer
+  fields) has a chance to label it VO2max.
+- Not changed: the `.json` sidecar (its reader is unknown; an extra key is a
+  risk to the sync for no known gain) and the manifest's `customMeasures` (it
+  reaches the phone only with a store package, never a side-loaded build, and
+  how a measure maps to a FIT field is not documented).
+- Expectation, from Race (its NOTES 5.9: "The developer fields work perfectly
+  and are invisible anyway"): Garmin Connect and Strava do not show arbitrary
+  developer fields. The open question is UNA's app.
+- `docs/experiments/fit_vo2_report.py <file.fit>`: decodes a file (fitdecode,
+  CRC checked) and prints both fields and `max_met_data`.
+
+### R4 verified
+- Simulator, seeded history: the file decodes with its CRC; `vo2max` empty
+  (no steady 5 minutes on the simulator), `vo2max_recent` 52.2,
+  `max_met_data.vo2_max` 52.2. No history: both fields empty, no
+  `max_met_data`. Both branches of the writer exercised.
+- Watch target compile check: 433,440 B `.uapp`, no warnings in our code;
+  host tests 43, green.
+
+### Where to look (Jon)
+The phone deletes the `.fit` from the watch when it syncs, so to inspect a
+file yourself, copy it off first (USB, before the phone connects).
+1. **UNA's app**, after sync: the activity's detail screen. This is the real
+   question.
+2. **Strava**, via UNA's upload: expected not to show (Race's finding).
+3. **Garmin Connect**, uploading the copied `.fit` by hand (Import Data):
+   worth one try for `max_met_data`; developer fields are not shown.
+4. **The file itself**: `python3 hybridx-run/docs/experiments/fit_vo2_report.py
+   <file.fit>` (needs `pip install fitdecode`), or any FIT viewer that lists
+   developer fields.
 
 ## Gate R: what Jon tests (the field test)
 
