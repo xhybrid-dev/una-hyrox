@@ -158,6 +158,21 @@ Strava. It is independent of the other apps.
   - host tests: `cmake -S x-weighin/Tests/Host -B x-weighin/build-tests && cmake --build x-weighin/build-tests && x-weighin/build-tests/x-weighin-host-tests`;
   - simulator: `x-weighin/Software/Apps/LVGL-GUI/simulator` (settings in
     `Software/Output/app_config.json`);
+  - a run in the simulator, with screenshots: `docs/experiments/sim_run.sh [shots-dir] [app_config.json]`.
+
+## X Velocity (`x-velocity/`)
+A seventh app, at the brief stage: a gym tool. It counts reps, measures bar speed
+per rep (velocity-based training, with a buzz when the set slows past a cut-off),
+and runs a jump test (height from flight time). It is independent of the other apps;
+its rep counter is meant to be reused by Race for wall balls and burpees later.
+- **Docs:** brief, plan and phases (V0-V5): `x-velocity/docs/X_VELOCITY_BRIEF.md`;
+  the desk study and findings: `NOTES.md`; the Gate V0 probe plan and Jon's
+  gym-session protocol: `PROBE.md`. Read the brief and `NOTES.md` at the start of
+  each Velocity phase, and work only on that phase.
+- **Rules:** the same standing rules as Race apply. Recorded probe sets are the
+  host-test data: never tune the counter on a set without adding it as a test.
+- **Watch builds come from CI**, as for the others. Tags `velocity-vX.Y.Z`
+  (the name is still Jon's decision, brief §11).
   - every screen in the simulator, and a weigh-in round trip:
     `docs/experiments/capture_screens.sh [out-dir]` (into `docs/screens/`);
   - a sample log: `build-tests/make_log <out.csv> [days] [seed]`; a log's trend
