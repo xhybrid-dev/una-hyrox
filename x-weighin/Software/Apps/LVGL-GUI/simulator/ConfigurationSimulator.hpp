@@ -4,9 +4,8 @@
  * @brief   Simulated sensor settings for the X Weigh-in PC simulator.
  *
  * Read by the SDK's simulated sensor layer (SDK/Libs/Source/Simulator).
- * X Weigh-in uses only the heart-rate block, for the daily resting HR (its
- * driver is registered with the heart-rate sensor). The GPS is off: the app
- * does not use it. The rest are the SDK's Waypoint values, unchanged.
+ * X Weigh-in connects no sensors (W0's resting-HR check is gone). The GPS is
+ * off; the rest are the SDK's Waypoint values, unchanged.
  ******************************************************************************
  */
 

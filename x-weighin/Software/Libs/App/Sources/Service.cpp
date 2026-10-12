@@ -1,15 +1,17 @@
 /**
  ******************************************************************************
  * @file    Service.cpp
- * @brief   X Weigh-in background logic. W0: the first look.
+ * @brief   X Weigh-in background logic.
  *
  * Started from the SDK's Waypoint tutorial service (its lifecycle and its
- * SDK::AppConfig handling); the GPS is gone. What it gathers:
- *   - the UNA profile's height and weight, from RequestSystemSettings (the
- *     SDK's Workout example reads the weight the same way);
- *   - the watch's daily resting HR, from HEART_RATE_METRICS_DAILY (as
- *     HybridX Run does);
- *   - birth year, birth month and sex, the phone settings.
+ * SDK::AppConfig handling). What it does:
+ *   - at start: reads the phone settings, brings the log and its SharedData
+ *     copy in step (LogStore::reconcile), and reads the log into the trend;
+ *   - when the screen opens: reads the UNA profile (height, and the weight the
+ *     weigh-in screen starts from before there is a log), and sends the home
+ *     state and the last 30 days;
+ *   - on SAVE_WEIGHIN: files the weigh-in under the local date and time,
+ *     appends it to both files, feeds the trend and sends everything again.
  ******************************************************************************
  *
  ******************************************************************************
@@ -17,11 +19,14 @@
 
 #include "Service.hpp"
 
+#include "BodyMetrics.hpp"
+#include "Calendar.hpp"
+#include "LogStore.hpp"
+#include "Trend.hpp"
+#include "WeighEntry.hpp"
 #include "WeighProfile.hpp"
 
 #include "SDK/Messages/MessageGuard.hpp"
-#include "SDK/Messages/SensorLayerMessages.hpp"
-#include "SDK/SensorLayer/DataParsers/SensorDataParserHeartRateMetrics.hpp"
 
 #define LOG_MODULE_PRX      "Service"
 #define LOG_MODULE_LEVEL    LOG_LEVEL_DEBUG
@@ -31,25 +36,52 @@
 
 namespace {
 
-/// How often the daily HR metrics report, ms. With the default of 0 the
-/// simulator's sensor never reports (hybridx-run NOTES, R2).
-constexpr float kHrMetricsPeriodMs = 60000.0f;
-
 /// How long to wait for the kernel's answer to RequestSystemSettings, ms.
 /// The SDK's Workout and Treadmill examples use the same.
 constexpr uint32_t kSettingsTimeoutMs = 100;
+
+/// The trend, built from the log. Static rather than a member or a local:
+/// about 1.2 KB, kept off the service's stack and off the heap.
+XWeighIn::Trend sTrend;
+
+const char *reconcileText(XWeighIn::LogStore::Reconcile r)
+{
+    using XWeighIn::LogStore::Reconcile;
+    switch (r) {
+        case Reconcile::Nothing:   return "in step";
+        case Reconcile::Restored:  return "restored from the SharedData copy";
+        case Reconcile::Refreshed: return "SharedData copy refreshed";
+        case Reconcile::Failed:    return "FAILED to bring the copy in step";
+    }
+    return "?";
+}
 
 } // namespace
 
 Service::Service(SDK::Kernel &kernel)
     : mKernel(SDK::KernelProviderService::GetInstance().getKernel())
-    , mSensorHrMetrics(SDK::Sensor::Type::HEART_RATE_METRICS_DAILY, kHrMetricsPeriodMs)
     , mBirthYear(0)
     , mBirthMonth(0)
-    , mState {}
+    , mSex(0)
+    , mHeightCm(0)
+    , mProfileHundredths(0)
+    , mRejected(0)
     , mGUIStarted(false)
 {
     (void)kernel;
+}
+
+Service::Now Service::now() const
+{
+    Now n;
+    n.utc = std::time(nullptr);
+    std::tm local {};
+    localtime_r(&n.utc, &local);
+    n.clockOk = XWeighIn::clockIsSet(n.utc);
+    n.day     = XWeighIn::daysFromCivil(local.tm_year + 1900, static_cast<uint32_t>(local.tm_mon + 1),
+                                        static_cast<uint32_t>(local.tm_mday));
+    n.minute  = static_cast<uint16_t>(local.tm_hour * 60 + local.tm_min);
+    return n;
 }
 
 void Service::loadConfiguration()
@@ -57,46 +89,48 @@ void Service::loadConfiguration()
     if (!mConfig) {
         return;
     }
-
     // getInt() clamps to the declared bounds, so these casts cannot truncate.
     mBirthYear  = static_cast<uint16_t>(mConfig->getInt(WeighInConfig::kBirthYear));
     mBirthMonth = static_cast<uint8_t>(mConfig->getInt(WeighInConfig::kBirthMonth));
-    mState.sex  = static_cast<uint8_t>(mConfig->getInt(WeighInConfig::kSex));
-    mState.configLoaded = mConfig->isLoaded();
+    mSex        = static_cast<uint8_t>(mConfig->getInt(WeighInConfig::kSex));
 
     LOG_INFO("settings %s: birth %u/%u, sex %u\n",
-             mState.configLoaded ? "loaded" : "not found (defaults)",
+             mConfig->isLoaded() ? "loaded" : "not found (defaults)",
              static_cast<unsigned>(mBirthMonth), static_cast<unsigned>(mBirthYear),
-             static_cast<unsigned>(mState.sex));
+             static_cast<unsigned>(mSex));
 }
 
 void Service::readProfile()
 {
-    mState.settingsRead     = false;
-    mState.heightCm         = 0;
-    mState.weightHundredths = 0;
-
     auto msg = SDK::make_msg<SDK::Message::RequestSystemSettings>(mKernel);
-    if (!msg) {
-        LOG_WARNING("no message for RequestSystemSettings\n");
-        return;
-    }
-    if (!msg.send(kSettingsTimeoutMs) || !msg.ok()) {
+    if (!msg || !msg.send(kSettingsTimeoutMs) || !msg.ok()) {
         LOG_WARNING("RequestSystemSettings was not answered\n");
         return;
     }
+    mHeightCm          = msg->heightCm;
+    mProfileHundredths = XWeighIn::kgToHundredths(msg->weightKg);
+    LOG_INFO("profile: height %lu cm, weight %ld.%02ld kg\n",
+             static_cast<unsigned long>(mHeightCm),
+             static_cast<long>(mProfileHundredths / 100),
+             static_cast<long>(mProfileHundredths % 100));
+}
 
-    mState.settingsRead     = true;
-    mState.heightCm         = msg->heightCm;
-    mState.weightHundredths = XWeighIn::kgToHundredths(msg->weightKg);
+void Service::loadLog()
+{
+    using namespace XWeighIn;
 
-    // The raw values, for the W0 record: the weight's hundredths show the
-    // profile's resolution. Whole and fraction separately: no %f.
-    LOG_INFO("profile: height %lu cm, weight %ld.%02ld kg, imperial %s\n",
-             static_cast<unsigned long>(msg->heightCm),
-             static_cast<long>(mState.weightHundredths / 100),
-             static_cast<long>(mState.weightHundredths % 100),
-             msg->imperialUnits ? "yes" : "no");
+    const LogStore::Reconcile r = LogStore::reconcile(mKernel.fs);
+    LOG_INFO("log: %s\n", reconcileText(r));
+
+    sTrend.reset();
+    const LogStore::ScanResult scan = LogStore::scan(mKernel.fs, LogStore::kLogFile, sTrend);
+    mRejected = scan.rejected;
+
+    const Summary s = sTrend.summary();
+    LOG_INFO("log: %s, %lu weigh-ins on %lu days, %lu lines rejected, %lu skipped\n",
+             scan.opened ? "read" : "none yet",
+             static_cast<unsigned long>(scan.entries), static_cast<unsigned long>(s.days),
+             static_cast<unsigned long>(scan.rejected), static_cast<unsigned long>(s.skipped));
 }
 
 void Service::run()
@@ -110,8 +144,7 @@ void Service::run()
                                      WeighInConfig::kFields,
                                      WeighInConfig::kFieldCount));
     loadConfiguration();
-
-    mSensorHrMetrics.connect();
+    loadLog();
 
     while (true) {
         SDK::MessageBase *msg;
@@ -119,7 +152,6 @@ void Service::run()
             switch (msg->getType()) {
             case SDK::MessageType::COMMAND_APP_STOP:
                 LOG_INFO("Force exit from the application\n");
-                mSensorHrMetrics.disconnect();
                 // We must release message because this is the last event.
                 mKernel.comm.releaseMessage(msg);
                 return;
@@ -134,16 +166,14 @@ void Service::run()
                 // The kernel does not stop a service when its GUI closes, and
                 // nothing else will ever reclaim the thread. X Weigh-in has no
                 // reason to run without its screen.
-                onStopGUI();
+                mGUIStarted = false;
                 // We must release message because this is the last event.
                 mKernel.comm.releaseMessage(msg);
                 return;
 
-            case SDK::MessageType::EVENT_SENSOR_LAYER_DATA: {
-                auto event = static_cast<SDK::Message::Sensor::EventData *>(msg);
-                SDK::Sensor::DataBatch data(event->data, event->count,
-                                            event->stride);
-                onSdlNewData(event->handle, data);
+            case CustomMessage::SAVE_WEIGHIN: {
+                auto *save = static_cast<CustomMessage::SaveWeighIn *>(msg);
+                saveWeighIn(save->hundredths);
             } break;
 
             default:
@@ -161,57 +191,87 @@ void Service::run()
 void Service::onStartGUI()
 {
     mGUIStarted = true;
-
-    // Read the profile each time the screen opens, so a weight changed in the
-    // UNA app shows without restarting the watch (one of Gate W0's checks).
     readProfile();
-
-    const std::time_t now = std::time(nullptr);
-    mState.clockSet = XWeighIn::clockIsSet(now);
-    mState.ageYears = XWeighIn::ageAt(mBirthYear, mBirthMonth, now);
-    if (!mState.clockSet) {
-        LOG_WARNING("The clock is not set: no age until it is\n");
-    }
-
-    sendFirstLook();
+    sendHome();
+    sendGraph();
 }
 
-void Service::onStopGUI()
+void Service::saveWeighIn(int32_t hundredths)
 {
-    mGUIStarted = false;
-    mSensorHrMetrics.disconnect();
+    using namespace XWeighIn;
+    using CustomMessage::SaveOutcome;
+
+    const Now n = now();
+    SaveOutcome outcome = SaveOutcome::Saved;
+
+    Entry e;
+    e.day        = n.day;
+    e.minute     = n.minute;
+    e.hundredths = hundredths;
+
+    if (!n.clockOk) {
+        // Without a date the weigh-in cannot be filed; refuse rather than log
+        // it under 1970.
+        outcome = SaveOutcome::ClockNotSet;
+    } else if (!isValidEntry(e)) {
+        outcome = SaveOutcome::Invalid;
+    } else if (!LogStore::appendBoth(mKernel.fs, e)) {
+        outcome = SaveOutcome::WriteFailed;
+    } else {
+        sTrend.onEntry(e);
+    }
+
+    LOG_INFO("weigh-in %ld.%02ld kg: %u\n",
+             static_cast<long>(hundredths / 100), static_cast<long>(hundredths % 100),
+             static_cast<unsigned>(outcome));
+
+    SDK::send_msg<CustomMessage::SaveResult>(mKernel, outcome, hundredths);
+    if (outcome == SaveOutcome::Saved) {
+        sendHome();
+        sendGraph();
+    }
 }
 
-void Service::onSdlNewData(uint16_t handle, SDK::Sensor::DataBatch &data)
+void Service::sendHome()
 {
-    if (!mSensorHrMetrics.matchesDriver(handle)) {
+    using namespace XWeighIn;
+
+    auto msg = SDK::make_msg<CustomMessage::HomeState>(mKernel);
+    if (!msg) {
         return;
     }
+    const Now     n = now();
+    const Summary s = sTrend.summary();
 
-    SDK::SensorDataParser::HeartRateMetrics parser(data[0]);
-    if (!parser.isDataValid()) {
-        return;
-    }
+    CustomMessage::HomeData &h = msg->home;
+    h.latest        = s.latest;
+    h.trend         = s.trend;
+    h.weekChange    = s.weekChange;
+    h.hasWeekChange = s.hasWeekChange;
+    h.lastDay       = s.lastDay;
+    h.days          = static_cast<uint16_t>(s.days > 0xFFFF ? 0xFFFF : s.days);
+    h.rejected      = static_cast<uint16_t>(mRejected > 0xFFFF ? 0xFFFF : mRejected);
+    h.clockSet      = n.clockOk;
+    h.today         = n.clockOk ? n.day : 0;
+    h.entryStart    = startValue(s.latest, mProfileHundredths);
+    h.entryFrom     = static_cast<uint8_t>(s.latest > 0             ? CustomMessage::EntryFrom::Log
+                                           : mProfileHundredths > 0 ? CustomMessage::EntryFrom::Profile
+                                                                    : CustomMessage::EntryFrom::Default);
+    h.heightCm      = mHeightCm;
+    h.ageYears      = ageAt(mBirthYear, mBirthMonth, n.utc);
+    h.sex           = mSex;
+    h.bmiTenths     = bmiTenths(s.trend, mHeightCm);
+    h.bmrKcal       = bmrKcal(s.trend, mHeightCm, h.ageYears, mSex);
 
-    const float   rhr = parser.getRhr();
-    const uint8_t bpm = (rhr > 0.0f && rhr < 255.0f) ? static_cast<uint8_t>(rhr + 0.5f) : 0;
-    if (bpm == mState.restHr) {
-        return;
-    }
-
-    LOG_INFO("Resting HR from the watch: %u\n", static_cast<unsigned>(bpm));
-    mState.restHr = bpm;
-    if (mGUIStarted) {
-        sendFirstLook();
-    }
+    msg.send();
 }
 
-void Service::sendFirstLook()
+void Service::sendGraph()
 {
-    auto look = SDK::make_msg<CustomMessage::FirstLook>(mKernel);
-    if (!look) {
+    auto msg = SDK::make_msg<CustomMessage::GraphData>(mKernel);
+    if (!msg) {
         return;
     }
-    look->state = mState;
-    look.send();
+    XWeighIn::fillWindow(sTrend, msg->window);
+    msg.send();
 }

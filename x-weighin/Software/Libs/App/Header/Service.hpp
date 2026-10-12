@@ -1,9 +1,8 @@
 /**
  ******************************************************************************
  * @file    Service.hpp
- * @brief   X Weigh-in background logic. W0: gather what the watch knows about
- *          the athlete (the UNA profile, the daily resting HR, the phone
- *          settings) and send it to the screen.
+ * @brief   X Weigh-in background logic: the weigh-in log, the trend, the
+ *          athlete's fixed numbers, and saving a weigh-in.
  ******************************************************************************
  *
  ******************************************************************************
@@ -17,9 +16,9 @@
 
 #include "SDK/AppConfig/AppConfig.hpp"
 #include "SDK/Kernel/KernelProviderService.hpp"
-#include "SDK/SensorLayer/SensorConnection.hpp"
-#include "SDK/SensorLayer/SensorDataBatch.hpp"
 
+#include <cstdint>
+#include <ctime>
 #include <memory>
 
 class Service
@@ -32,21 +31,31 @@ public:
     void run();
 
 private:
+    /// The local date and time, and whether the clock can be trusted.
+    struct Now {
+        std::time_t utc     = 0;
+        bool        clockOk = false;
+        int32_t     day     = 0;   ///< Local day number.
+        uint16_t    minute  = 0;   ///< Local minute of the day.
+    };
+    Now now() const;
+
     void onStartGUI();
-    void onStopGUI();
-    void onSdlNewData(uint16_t handle, SDK::Sensor::DataBatch &data);
 
-    /// Read the phone settings into mState.
+    /// Read the phone settings.
     void loadConfiguration();
-
-    /// Ask the kernel for the UNA profile (height, weight) into mState.
+    /// Ask the kernel for the UNA profile (height, weight).
     void readProfile();
+    /// Bring the log and its SharedData copy in step, then read the log
+    /// into the trend.
+    void loadLog();
+    /// Log one weigh-in now and answer the GUI.
+    void saveWeighIn(int32_t hundredths);
 
-    void sendFirstLook();
+    void sendHome();
+    void sendGraph();
 
-    SDK::Kernel             &mKernel;
-    /// The watch's daily heart-rate metrics, for the resting HR.
-    SDK::Sensor::Connection  mSensorHrMetrics;
+    SDK::Kernel &mKernel;
 
     /**
      * @brief   Read once when the service starts.
@@ -59,9 +68,11 @@ private:
 
     uint16_t mBirthYear;
     uint8_t  mBirthMonth;
-
-    CustomMessage::FirstLookState mState;
-    bool mGUIStarted;
+    uint8_t  mSex;
+    uint32_t mHeightCm;          ///< The UNA profile's height; 0 = not set.
+    int32_t  mProfileHundredths; ///< The UNA profile's weight; 0 = not set.
+    uint32_t mRejected;          ///< Log lines that did not parse.
+    bool     mGUIStarted;
 };
 
 #endif // SERVICE_HPP

@@ -69,6 +69,52 @@ TEST(FormatKg, BoundedBuffers)
     EXPECT_EQ(untouched[0], 'x');
 }
 
+namespace
+{
+std::string change(int32_t hundredths, uint8_t decimals)
+{
+    char buf[16];
+    formatChange(hundredths, decimals, buf, sizeof(buf));
+    return buf;
+}
+}  // namespace
+
+TEST(FormatChange, SignedWithoutJudgement)
+{
+    EXPECT_EQ(change(40, 1), "+0.4");
+    EXPECT_EQ(change(-40, 1), "-0.4");
+    EXPECT_EQ(change(-123, 2), "-1.23");
+    EXPECT_EQ(change(123, 2), "+1.23");
+    EXPECT_EQ(change(12345, 1), "+123.5");
+    EXPECT_EQ(change(150, 0), "+2");
+}
+
+TEST(FormatChange, RoundsHalfAwayFromZero)
+{
+    EXPECT_EQ(change(5, 1), "+0.1");
+    EXPECT_EQ(change(-5, 1), "-0.1");
+    EXPECT_EQ(change(-35, 1), "-0.4");
+}
+
+TEST(FormatChange, NothingHasNoSign)
+{
+    EXPECT_EQ(change(0, 1), "0.0");
+    EXPECT_EQ(change(4, 1), "0.0");
+    EXPECT_EQ(change(-4, 1), "0.0");
+    EXPECT_EQ(change(-49, 0), "0");
+    EXPECT_EQ(change(0, 2), "0.00");
+}
+
+TEST(FormatChange, OutOfRangeAndBuffers)
+{
+    EXPECT_EQ(change(10000000, 1), "--");
+    EXPECT_EQ(change(-10000000, 1), "--");
+    char buf[3];
+    EXPECT_EQ(formatChange(-123, 2, buf, sizeof(buf)), 5u);
+    EXPECT_STREQ(buf, "-1");
+    EXPECT_EQ(formatChange(40, 1, nullptr, 8), 0u);
+}
+
 TEST(SexLabel, FemaleMaleOrNothing)
 {
     EXPECT_STREQ(sexLabel(1), "female");
