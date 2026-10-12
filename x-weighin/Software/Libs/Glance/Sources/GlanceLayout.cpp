@@ -26,15 +26,20 @@ constexpr int16_t kBigHead = 32;   ///< SEMIBOLD_25, the full layout's trend
 constexpr int16_t kHead    = 25;   ///< SEMIBOLD_20, the compact layout's
 constexpr int16_t kLine    = 23;   ///< REGULAR_18 / MEDIUM_18
 
-// The full layout, for a 240 px wide area: 4 px in from each edge (a 60 px
-// strip across the middle of the round display is 232 px wide at its top and
-// bottom rows), the words in a 132 px column, a 4 px gap, then the bars.
-constexpr int16_t kEdge      = 4;
-constexpr int16_t kWordsW    = 132;   ///< "-10.4 kg/week" is 128 px in Regular 18
-constexpr int16_t kBarW      = 5;
-constexpr int16_t kBarGap    = 2;
-constexpr int16_t kBarsW     = kGlanceDays * kBarW + (kGlanceDays - 1) * kBarGap;   ///< 96
-constexpr int16_t kFullWidth = kEdge + kWordsW + 4 + kBarsW + kEdge;               ///< 240
+// Where the words and bars may go. The glance spans the display's full width,
+// but on the watch the glances list draws its separator lines only from about
+// x = 34 to 206 and a scroll arc over the left and right edges, so text near
+// an edge sat under the arc (Jon's photo, Gate W3). Every layout keeps to the
+// middle kSafeW px, in line with the separators, as the list's own titles do.
+constexpr int16_t kSafeW = 172;
+// The full layout in that band: the words in a column on the left, the bars
+// on the right, a 4 px gap between.
+constexpr int16_t kWordsW    = 113;   ///< "123.4 kg" is 113 px in SemiBold 25
+constexpr int16_t kBarW      = 3;
+constexpr int16_t kBarGap    = 1;
+constexpr int16_t kBarsW     = kGlanceDays * kBarW + (kGlanceDays - 1) * kBarGap;   ///< 55
+static_assert(kWordsW + 4 + kBarsW == kSafeW, "the words, the gap and the bars fill the band");
+constexpr int16_t kFullWidth = 240;   ///< the watch's area; anything narrower is compact
 constexpr int16_t kFullHeight    = kBigHead + kLine;   ///< 55
 constexpr int16_t kTwoLineHeight = kHead + kLine;      ///< 48
 // The bars stand on a 2 px baseline; the tallest is kBarsH.
@@ -76,7 +81,7 @@ void rect(Layout& out, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t colou
     s.colour = colour;
 }
 
-/// The two lines of words: "81.9 kg" and "-0.4 kg/week", or the empty state.
+/// The two lines of words: "81.9 kg" and "-0.4 kg/wk", or the empty state.
 struct Words {
     char head[GLANCE_TEXT_SIZE + 1] {};
     char line[GLANCE_TEXT_SIZE + 1] {};
@@ -101,7 +106,7 @@ void words(const View& v, Words& w)
     } else {
         std::snprintf(change, sizeof(change), "--");
     }
-    std::snprintf(w.line, sizeof(w.line), "%s kg/week", change);
+    std::snprintf(w.line, sizeof(w.line), "%s kg/wk", change);
 }
 
 /// The bars, right of the words: one per day with a weigh-in, scaled to the
@@ -142,11 +147,16 @@ void layout(const View& v, int16_t width, int16_t height, uint32_t maxControls, 
     Words w;
     words(v, w);
 
+    // The band everything keeps to, centred; an area narrower than the band
+    // (none reported yet) uses its full width.
+    const int16_t bw = width < kSafeW ? width : kSafeW;
+    const int16_t bx = static_cast<int16_t>((width - bw) / 2);
+
     if (height < kTwoLineHeight || maxControls < 2) {
         // Tiny: one line, as much as fits.
         out.kind        = Layout::Kind::Tiny;
         const int16_t h = height < kLine ? height : kLine;
-        text(out, 0, static_cast<int16_t>((height - h) / 2), width, h, v.hasData ? w.head : "Open X Weigh-in",
+        text(out, bx, static_cast<int16_t>((height - h) / 2), bw, h, v.hasData ? w.head : "Open X Weigh-in",
              GLANCE_FONT_POPPINS_MEDIUM_18, GLANCE_COLOR_WHITE, GLANCE_ALIGN_H_CENTER);
         return;
     }
@@ -154,24 +164,23 @@ void layout(const View& v, int16_t width, int16_t height, uint32_t maxControls, 
         // Compact: the two lines of words, centred.
         out.kind          = Layout::Kind::Compact;
         const int16_t top = static_cast<int16_t>((height - kTwoLineHeight) / 2);
-        text(out, 0, top, width, kHead, w.head, GLANCE_FONT_POPPINS_SEMIBOLD_20, GLANCE_COLOR_WHITE,
+        text(out, bx, top, bw, kHead, w.head, GLANCE_FONT_POPPINS_SEMIBOLD_20, GLANCE_COLOR_WHITE,
              GLANCE_ALIGN_H_CENTER);
-        text(out, 0, static_cast<int16_t>(top + kHead), width, kLine, w.line, GLANCE_FONT_POPPINS_REGULAR_18,
+        text(out, bx, static_cast<int16_t>(top + kHead), bw, kLine, w.line, GLANCE_FONT_POPPINS_REGULAR_18,
              GLANCE_COLOR_GRAY, GLANCE_ALIGN_H_CENTER);
         return;
     }
 
-    // Full: the words on the left, the bars on the right, the block centred
-    // in the area.
+    // Full: the words on the left of the band, the bars on the right,
+    // centred top to bottom.
     out.kind         = Layout::Kind::Full;
-    const int16_t ox = static_cast<int16_t>((width - kFullWidth) / 2);
     const int16_t oy = static_cast<int16_t>((height - (kBarsTop + kBarsH + kBaseH)) / 2);
     const int16_t ty = static_cast<int16_t>((height - kFullHeight) / 2);
-    text(out, static_cast<int16_t>(ox + kEdge), ty, kWordsW, kBigHead, w.head, GLANCE_FONT_POPPINS_SEMIBOLD_25,
-         GLANCE_COLOR_WHITE, GLANCE_ALIGN_H_LEFT);
-    text(out, static_cast<int16_t>(ox + kEdge), static_cast<int16_t>(ty + kBigHead), kWordsW, kLine, w.line,
-         GLANCE_FONT_POPPINS_REGULAR_18, GLANCE_COLOR_GRAY, GLANCE_ALIGN_H_LEFT);
-    bars(v, static_cast<int16_t>(ox + kFullWidth - kEdge - kBarsW), oy, out);
+    text(out, bx, ty, kWordsW, kBigHead, w.head, GLANCE_FONT_POPPINS_SEMIBOLD_25, GLANCE_COLOR_WHITE,
+         GLANCE_ALIGN_H_LEFT);
+    text(out, bx, static_cast<int16_t>(ty + kBigHead), kWordsW, kLine, w.line, GLANCE_FONT_POPPINS_REGULAR_18,
+         GLANCE_COLOR_GRAY, GLANCE_ALIGN_H_LEFT);
+    bars(v, static_cast<int16_t>(bx + bw - kBarsW), oy, out);
 }
 
 }  // namespace Glance

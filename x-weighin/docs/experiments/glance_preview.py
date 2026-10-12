@@ -10,6 +10,11 @@ point face as the watch does: digits only, anything else as '?'. Without the
 SDK, DejaVu Sans stands in. A mock-up until the watch shows the real thing.
 Copied from HybridX Streak's docs/experiments.
 
+On the watch the glances list draws a separator line above and below each
+glance across the middle 172 px only, and a scroll arc over both edges (NOTES,
+Gate W3). Each panel shows those separators, and darkens the edges, so the
+layout can be checked against them.
+
     glance_preview.py <glance_preview binary> <out.png> [w h controls]
 """
 import os
@@ -28,6 +33,8 @@ SIZES = {0: (18, "Regular"), 1: (10, "Medium"), 2: (18, "Medium"), 3: (25, "Medi
          5: (20, "SemiBold"), 6: (25, "SemiBold"), 7: (30, "SemiBold"), 8: (35, "SemiBold")}
 DIGITS_ONLY = {1}  # POPPINS_MEDIUM_10 holds '0'..'9' and '?' (HybridX Streak NOTES, S4.2)
 S = 2  # scale
+BAND = 172  # the list's separators span the middle of a 240 px glance
+LIST_BLUE = (70, 90, 255)
 POPPINS = os.path.join(os.environ.get("UNA_SDK", ""), "Docs/Tutorials/Buttons/Software/Apps/TouchGFX-GUI/assets/fonts")
 REAL = os.path.isfile(os.path.join(POPPINS, "Poppins-Regular.ttf"))
 
@@ -72,7 +79,7 @@ for line in lines:
 label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22)
 pad, gap = 24, 56
 W = max(max(p[1].width for p in panels) + 2 * pad, 720)
-H = sum(p[1].height + gap for p in panels) + pad + 40
+H = sum(p[1].height + gap + 12 for p in panels) + pad + 40
 sheet = Image.new("RGB", (W, H), (27, 31, 34))
 sd = ImageDraw.Draw(sheet)
 title = "X Weigh-in glance - mock-up (layout exact, %s)" % ("Poppins" if REAL else "font stand-in")
@@ -81,8 +88,22 @@ sd.text((pad, 14), title, font=label_font,
 y = 40 + pad
 for name, img, _ in panels:
     sd.text((pad, y), name, font=label_font, fill=(180, 186, 190))
-    sheet.paste(img, (pad, y + 28))
-    sd.rectangle([pad - 1, y + 27, pad + img.width, y + 28 + img.height], outline=(58, 64, 68))
-    y += img.height + gap
+    w = img.width // S
+    if w > BAND:
+        # Darken the edges the list's scroll arc covers.
+        edge = (w - BAND) // 2 * S
+        dark = Image.new("RGB", img.size, (0, 0, 0))
+        mask = Image.new("L", img.size, 0)
+        ImageDraw.Draw(mask).rectangle([0, 0, edge - 1, img.height], fill=150)
+        ImageDraw.Draw(mask).rectangle([img.width - edge, 0, img.width, img.height], fill=150)
+        img = Image.composite(dark, img, mask)
+    top = y + 40
+    sheet.paste(img, (pad, top))
+    sd.rectangle([pad - 1, top - 1, pad + img.width, top + img.height], outline=(58, 64, 68))
+    if w > BAND:
+        x0 = pad + (w - BAND) // 2 * S
+        for ly in (top - 9, top + img.height + 6):
+            sd.rectangle([x0, ly, x0 + BAND * S - 1, ly + 2], fill=LIST_BLUE)
+    y += img.height + gap + 12
 sheet.save(out)
 print("wrote", out)

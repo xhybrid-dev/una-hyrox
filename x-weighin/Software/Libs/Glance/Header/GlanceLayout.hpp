@@ -6,9 +6,11 @@
  *
  * The area and the control budget come from the watch at run time
  * (RequestGlanceConfig); Jon's watch gives 240x60 and 32 controls (HybridX
- * Streak NOTES, Gate 0). The layout adapts:
+ * Streak NOTES, Gate 0). The glances list draws its separators only across
+ * the middle 172 px, and a scroll arc over both edges, so everything keeps to
+ * that middle band (NOTES, Gate W3). The layout adapts:
  *   full     on the left the trend, "81.9 kg", and under it the weekly change,
- *            "-0.4 kg/week"; on the right the last 14 days as bars, one per
+ *            "-0.4 kg/wk"; on the right the last 14 days as bars, one per
  *            weigh-in, the newest in white, on a baseline (17 controls);
  *   compact  the two lines alone, centred (too few controls, or narrow);
  *   tiny     "81.9 kg" alone (a very short area).

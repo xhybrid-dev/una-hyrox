@@ -89,12 +89,21 @@ int widthOf(const Spec& s)
     return w;
 }
 
+/// The middle of the area the glances list lines up with: its separators run
+/// across the middle 172 px of the watch's 240, and its scroll arc covers both
+/// edges (NOTES, Gate W3).
+constexpr int16_t kBand = 172;
+
 void expectFits(const Layout& l, int16_t w, int16_t h, uint32_t maxControls, const std::string& what)
 {
     EXPECT_LE(l.count, maxControls) << what;
     EXPECT_LE(l.count, Layout::kMax) << what;
+    const int16_t bandL = w > kBand ? static_cast<int16_t>((w - kBand) / 2) : 0;
+    const int16_t bandR = w > kBand ? static_cast<int16_t>(bandL + kBand) : w;
     for (uint8_t i = 0; i < l.count; ++i) {
         const Spec& s = l.items[i];
+        EXPECT_GE(s.x, bandL) << what << " control " << int(i) << " left of the band";
+        EXPECT_LE(s.x + s.w, bandR) << what << " control " << int(i) << " right of the band";
         EXPECT_GE(s.x, 0) << what;
         EXPECT_GE(s.y, 0) << what;
         EXPECT_GT(s.w, 0) << what << " control " << int(i);
@@ -161,22 +170,27 @@ TEST(GlanceLayout, TheWatchGetsTheFullLayout)
     const Layout l = full(falling(8240, 14, -42));
     ASSERT_EQ(l.kind, Layout::Kind::Full);
     EXPECT_EQ(l.count, kFullControls);
+    // In line with the list's separators, x = 34 to 206: the words start at
+    // the left one and the bars end at the right one.
+    EXPECT_EQ(l.items[0].x, 34);
+    EXPECT_EQ(l.items[1].x, 34);
+    EXPECT_EQ(l.items[2].x + l.items[2].w, 206);
     ASSERT_EQ(l.items[0].type, Spec::Type::Text);
     EXPECT_STREQ(l.items[0].text, "81.9 kg");
     EXPECT_EQ(l.items[0].font, GLANCE_FONT_POPPINS_SEMIBOLD_25);
     ASSERT_EQ(l.items[1].type, Spec::Type::Text);
-    EXPECT_STREQ(l.items[1].text, "-0.4 kg/week");
+    EXPECT_STREQ(l.items[1].text, "-0.4 kg/wk");
     EXPECT_EQ(l.items[2].type, Spec::Type::Rect);   // the baseline
     EXPECT_EQ(l.items[2].colour, GLANCE_COLOR_GRAY_DARK);
 }
 
 TEST(GlanceLayout, TheWords)
 {
-    EXPECT_STREQ(full(falling(8240, 3, 0)).items[1].text, "-- kg/week");
-    EXPECT_STREQ(full(falling(8240, 14, 0)).items[1].text, "0.0 kg/week");
-    EXPECT_STREQ(full(falling(8240, 14, 35)).items[1].text, "+0.4 kg/week");
-    EXPECT_STREQ(full(falling(12000, 14, -1040)).items[1].text, "-10.4 kg/week");
-    EXPECT_STREQ(full(falling(30000, 14, 12345)).items[1].text, "+123 kg/week");
+    EXPECT_STREQ(full(falling(8240, 3, 0)).items[1].text, "-- kg/wk");
+    EXPECT_STREQ(full(falling(8240, 14, 0)).items[1].text, "0.0 kg/wk");
+    EXPECT_STREQ(full(falling(8240, 14, 35)).items[1].text, "+0.4 kg/wk");
+    EXPECT_STREQ(full(falling(12000, 14, -1040)).items[1].text, "-10.4 kg/wk");
+    EXPECT_STREQ(full(falling(30000, 14, 12345)).items[1].text, "+123 kg/wk");
 
     Layout empty;
     XWeighIn::Glance::layout(View {}, 240, 60, 32, empty);
@@ -212,8 +226,8 @@ TEST(GlanceLayout, ABarPerWeighInStandingOnTheBaseline)
         EXPECT_GE(b.x, l.items[1].x + l.items[1].w);
     }
     // Missed days leave their slots empty: after days 2 and 3, the next bar
-    // is three slots on from day 1's.
-    EXPECT_EQ(bars[2].x - bars[1].x, 3 * 7);
+    // is three slots on from day 1's (days 0 and 1 are one slot apart).
+    EXPECT_EQ(bars[2].x - bars[1].x, 3 * (bars[1].x - bars[0].x));
 }
 
 TEST(GlanceLayout, HeavierIsTallerAndTheNewestIsWhite)
@@ -271,5 +285,5 @@ TEST(GlanceLayout, FewControlsGiveTheCompactLayout)
     EXPECT_EQ(l.kind, Layout::Kind::Compact);
     ASSERT_EQ(l.count, 2);
     EXPECT_STREQ(l.items[0].text, "81.9 kg");
-    EXPECT_STREQ(l.items[1].text, "-0.4 kg/week");
+    EXPECT_STREQ(l.items[1].text, "-0.4 kg/wk");
 }
