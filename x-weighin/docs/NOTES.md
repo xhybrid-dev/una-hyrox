@@ -592,11 +592,15 @@ date,time,kg
   the SDK's outdoor stride calibrator writes it (`StrideLut::kDefaultPath`),
   as Streak NOTES E.3 records.
 
+### Gate W2, the second weigh-in (12 October 2026)
+
+Jon reports that the second reading works, and that the app's own copy
+(`Apps/XWeighIn/weighins.csv`) does too. **Appending to a file that already
+exists works on the watch**, so both platform behaviours W1 relied on are now
+shown. The gate itself, a week of weigh-ins, carries on. Still open from day 1:
+whether 15:30 was the right time.
+
 ## Open, for later phases
 
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type
   later discards the user's value (`Docs/app-config-fields.md` §7.3).
-- **One thing the watch has not yet shown**, which Gate W2 checks: appending
-  by opening for write without truncating, then seeking to the end (the SDK's
-  simulator documents that open mode, and FitWriter seeks on the watch).
-  Creating `Apps/SharedData/HybridX/weighins.csv` is shown (Gate W2, day 1).
