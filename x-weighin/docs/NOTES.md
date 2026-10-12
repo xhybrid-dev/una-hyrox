@@ -232,6 +232,33 @@ What the answers decide:
 - **If the height is missing:** it becomes a phone setting after all, with the
   conflict noted.
 
+### Gate W0, first run (12 October 2026)
+
+Jon installed the CI build (run 92) and his own `app_config.json`. The photo
+is in the conversation. The watch showed:
+
+| Row | Watch | Reading |
+|---|---|---|
+| Height | 182 cm | **The profile's height reaches the app** |
+| Weight | 82.00 kg | **The profile's weight reaches the app** |
+| Resting HR | 40 | The daily metric arrives (how soon, not yet noted) |
+| Age | 40, male | **The phone settings file works on the watch** |
+| Status | First look | Nothing missing |
+
+What this settles:
+- Height comes from the profile as planned. No phone setting is needed, so the
+  height conflict stays resolved the SDK's way.
+- W1 can take the starting weight from the profile.
+- The layout fits the real display, clear of the BACK (R2) marker.
+
+Still open from the gate:
+- **Resolution.** 82.00 cannot tell whole kg from tenths.
+- **A profile change (step 5).** Does a new weight show without a power-cycle?
+  Both are answered at once by entering a weight with a decimal (82.4, say) in
+  the UNA app, syncing, and reopening.
+- **The resting HR.** Does 40 match the UNA app's figure for today, and how
+  long did it take to appear?
+
 ## Open, for later phases
 
 - **Coaching thresholds (W1):**
