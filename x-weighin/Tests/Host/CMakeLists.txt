@@ -32,6 +32,7 @@ set(CORE_SOURCES
     "${CORE_LIBS}/Sources/LogStore.cpp"
     "${CORE_LIBS}/Sources/Trend.cpp"
     "${CORE_LIBS}/Sources/BodyMetrics.cpp"
+    "${CORE_LIBS}/Sources/Window.cpp"
 )
 set(CORE_INCLUDES
     "${CORE_LIBS}/Header"
@@ -46,6 +47,10 @@ add_executable(x-weighin-host-tests
     LogStoreTest.cpp
     TrendTest.cpp
     BodyMetricsTest.cpp
+    WeighEntryTest.cpp
+    DateTextTest.cpp
+    WindowTest.cpp
+    GraphScaleTest.cpp
     support/TreeFileSystem.cpp
     ${CORE_SOURCES}
 )

@@ -26,7 +26,7 @@ Model::Model()
 
 #if defined(SIMULATOR)
     LOG_INFO("Application is running through simulator!\n");
-    LOG_INFO("Keys: 4 = R2 (exit), Esc = close\n");
+    LOG_INFO("Keys: 1 = UP, 2 = DOWN, 3 = SELECT, 4 = BACK; Esc = close\n");
 #endif
 }
 
@@ -36,6 +36,12 @@ void Model::exitApp()
     SDK::LVGL::Port::GetInstance().setAppLifeCycleCallback(nullptr);
     SDK::LVGL::Port::GetInstance().setCustomMessageHandler(nullptr);
     mKernel.sys.exit();
+}
+
+void Model::saveWeighIn(int32_t hundredths)
+{
+    LOG_INFO("asking the service to save %ld\n", static_cast<long>(hundredths));
+    SDK::send_msg<CustomMessage::SaveWeighIn>(mKernel, hundredths);
 }
 
 void Model::onStart()
@@ -62,11 +68,30 @@ void Model::onStop()
 bool Model::customMessageHandler(SDK::MessageBase* msg)
 {
     switch (msg->getType()) {
-        case CustomMessage::FIRST_LOOK: {
-            auto* m = static_cast<CustomMessage::FirstLook*>(msg);
-            mLook   = m->state;
+        case CustomMessage::HOME_STATE: {
+            auto* m  = static_cast<CustomMessage::HomeState*>(msg);
+            mHome    = m->home;
+            mHasHome = true;
             if (modelListener) {
-                modelListener->onFirstLook(mLook);
+                modelListener->onHome();
+            }
+        } break;
+
+        case CustomMessage::GRAPH_DATA: {
+            auto* m = static_cast<CustomMessage::GraphData*>(msg);
+            mWindow = m->window;
+            if (modelListener) {
+                modelListener->onGraph();
+            }
+        } break;
+
+        case CustomMessage::SAVE_RESULT: {
+            auto* m      = static_cast<CustomMessage::SaveResult*>(msg);
+            mLastOutcome = m->outcome;
+            mLastSaved   = m->hundredths;
+            LOG_INFO("save outcome: %d\n", static_cast<int>(m->outcome));
+            if (modelListener) {
+                modelListener->onSaveResult();
             }
         } break;
 

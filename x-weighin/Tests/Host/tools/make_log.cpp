@@ -1,12 +1,13 @@
 /**
  * make_log: write a sample weigh-in log, as the app writes it.
  *
- *   make_log <out.csv> [days=60] [seed=1]
+ *   make_log <out.csv> [days=60] [seed=1] [end=2026-10-12]
  *
  * A slow loss of 0.35 kg a week from 84 kg, with the day-to-day swings a real
  * log shows (water, salt, a heavy meal), about one missed day in eight, and
  * one mistyped weigh-in corrected a minute later (the latest of a day counts).
- * Deterministic for a given seed. The log ends on 12 October 2026.
+ * Deterministic for a given seed. The log ends on <end> (YYYY-MM-DD), 12
+ * October 2026 by default; the simulator's fixture passes today's date.
  *
  * For the W1 smoothing chart and, later, the simulator. Not real data.
  */
@@ -49,7 +50,7 @@ bool writeLine(FILE* f, const Entry& e)
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: %s <out.csv> [days=60] [seed=1]\n", argv[0]);
+        std::fprintf(stderr, "usage: %s <out.csv> [days=60] [seed=1] [end=YYYY-MM-DD]\n", argv[0]);
         return 2;
     }
     const int days = argc > 2 ? std::atoi(argv[2]) : 60;
@@ -59,6 +60,17 @@ int main(int argc, char** argv)
         return 2;
     }
 
+    int32_t lastDay = daysFromCivil(2026, 10, 12);
+    if (argc > 4) {
+        int y = 0, m = 0, d = 0;
+        if (std::sscanf(argv[4], "%d-%d-%d", &y, &m, &d) != 3 ||
+            !isValidDate(y, static_cast<uint32_t>(m), static_cast<uint32_t>(d))) {
+            std::fprintf(stderr, "end must be a date, YYYY-MM-DD\n");
+            return 2;
+        }
+        lastDay = daysFromCivil(y, static_cast<uint32_t>(m), static_cast<uint32_t>(d));
+    }
+
     FILE* f = std::fopen(argv[1], "w");
     if (!f) {
         std::perror(argv[1]);
@@ -66,7 +78,6 @@ int main(int argc, char** argv)
     }
     std::fprintf(f, "%s\n", kLogHeader);
 
-    const int32_t lastDay  = daysFromCivil(2026, 10, 12);
     const int32_t firstDay = lastDay - days + 1;
     const int     typoDay  = days / 2;
     int written = 0;

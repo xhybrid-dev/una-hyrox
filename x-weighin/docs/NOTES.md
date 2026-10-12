@@ -109,7 +109,7 @@ UNA profile. Jon was told and agreed (12 October 2026).
 |---|---|---|
 | **W0** | Identity, layout, CI build. The first look: the profile's height and weight, the daily resting HR, age and sex, on one screen | W0: do the profile's values reach the app on the watch? |
 | W1 | The core, pure and host-tested: a weigh-in log (an append-only file in the app's folder, with a copy in SharedData), the smoothed trend (20% a day), the change per week, BMI, BMR | Passed: 20% a day, the file layout |
-| W2 | The screens: weigh-in entry (starts at the last weight, 0.1 kg steps), the saved summary, trend graph, history | A week of weigh-ins on the watch |
+| W2 | The screens: Home (the trend), Graph (30 days), Recent, Body; weigh-in entry (starts at the last weight, 0.1 kg steps, hold to repeat); Saved | A week of weigh-ins on the watch |
 | W3 | The glance, a second `.uapp`: weight, weekly change, 14 days as bars | The glance on the watch |
 | W4 | The sweat-rate test: weigh before and after a session, enter what you drank; L/h and % of body mass lost | A training session |
 
@@ -187,7 +187,8 @@ height and weight at 0, so they show as not set.
   - Ubuntu's `arm-none-eabi-gcc` with Race's syscall stubs, so the result is
     **not installable**. The watch copy comes from CI.
   - `XWeighIn_0.0.0-dev.uapp`, 192,736 bytes. No warnings.
-- **Simulator:** builds and runs (`docs/experiments/sim_run.sh`), with and
+- **Simulator:** builds and runs (`docs/experiments/sim_run.sh`, retired in W2
+  with the first look; `capture_screens.sh` replaces it), with and
   without `app_config.json`.
   - The settings are read: "birth 5/1986, sex 2" gives "Age 40, male".
   - The resting HR arrives after one period (60 s).
@@ -450,12 +451,127 @@ Both use integers only, and both take the trend weight, which W2 will show.
 **Gate W1: passed.** Next, W2: the weigh-in screen, the summary, the trend
 graph and history.
 
+## W2: the screens (12 October 2026)
+
+W2 makes the app usable. W0's first-look screen and its resting-HR sensor are
+gone; the Body page now shows the profile and the settings.
+
+### The buttons and pages
+
+Buttons as labelled on the watch: **UP** (L1), **DOWN** (L2), **SELECT** (R1),
+**BACK** (R2).
+
+| Screen | Shows | UP / DOWN | SELECT | BACK |
+|---|---|---|---|---|
+| **Home** | The trend, large (the headline); the weekly change; "Last 81.5, today" | Pages | Weigh in | Leave |
+| **Graph** | The last 30 days: the trend line, a dot per weigh-in, the scale, the dates | Pages | Weigh in | Leave |
+| **Recent** | The last 5 days weighed, newest first | Pages | Weigh in | Leave |
+| **Body** | BMI, resting kcal (BMR), height, age and sex, and what is missing | Pages | Weigh in | Leave |
+| **Weigh in** | The value, large, starting from the last weigh-in | ±0.1 kg; hold to repeat | Save | Cancel |
+| **Saved** | "Saved 81.8 kg", the new trend and weekly change; or "Not saved" and why | Home | Home | Home |
+
+- **Paging:** UP and DOWN cycle Home → Graph → Recent → Body and round again. A
+  row of four dots shows the page.
+- **The entry starts** from the last logged weight. With no log it starts from
+  the UNA profile's weight, else 70.0. The hint says which: "Last 81.5, today",
+  "From your UNA profile" or "UP and DOWN to set".
+- **Hold to repeat** (`HoldRepeat`): a tap is one step. A hold repeats after
+  0.6 s, every 200 ms at first, quickening to 50 ms. It is the SDK Timer
+  example's method; the watch sends press, release and click codes, and long
+  press is derived from them. A click that ends a repeating hold is not an
+  extra step.
+- **Saving:** the service files the weigh-in under the local date and time
+  (`localtime_r`, as Streak does) and appends it to both files.
+  - It refuses with "The clock is not set. Sync with the UNA app." rather than
+    file it under 1970.
+  - The Saved screen returns to Home after 3 s, or at any button.
+- **Missing values** read as "--" or "not set", and the Body page names the
+  first missing thing:
+  - "Height: the UNA profile";
+  - "Age, sex: app_config.json".
+
+![Home](screens/w2-1-home.png) ![Graph](screens/w2-2-graph.png)
+![Recent](screens/w2-3-recent.png) ![Body](screens/w2-4-body.png)
+![Weigh in](screens/w2-5-weighin.png) ![Saved](screens/w2-7-saved.png)
+![Home, no log](screens/w2-9-home-empty.png) ![Weigh in, no log](screens/w2-10-weighin-empty.png)
+
+These are simulator shots. The mock kernel gives no profile height or weight,
+so the Body page shows "Height not set" and the empty run starts at 70.0.
+
+### How it is built
+
+- **Core, header-only where the GUI uses it, host-tested:**
+  - `WeighEntry`: the start value, steps clamped to 1.0-500.0, and
+    `HoldRepeat`. Time is injected and deltas are unsigned, so the wrapping ms
+    clock is safe.
+  - `GraphScale`: the range from the data, padded 0.2 kg, at least 2 kg,
+    snapped to 0.5 kg, and the pixel mapping.
+  - `DateText`: "Mon 12 Oct", "12 Oct", "today", "yesterday", "3 days ago".
+  - `Window`: the last 30 days packed as `uint16` weights and trends, plus
+    `recentDays`.
+- **Service** (`Libs/App/Sources/Service.cpp`):
+  - at start: settings, then `LogStore::reconcile`, then a scan of
+    `weighins.csv` into a static `Trend`;
+  - when the screen opens: the profile, then `HomeState` and `GraphData`;
+  - on `SAVE_WEIGHIN`: `appendBoth`, the trend fed incrementally, then
+    `SaveResult`, `HomeState` and `GraphData`.
+  - Every message is `static_assert`ed to fit the kernel's 256-byte pool block
+    (`una-sdk/Docs/writing-a-clockface.md:310-318`). `GraphData` is about 130 B.
+- **GUI:** `Screen` and `ScreenManager` after the SDK's RunLVGL: the next screen
+  is built, then the old one freed, on the next LVGL pass.
+  - Six screens, in `Screens.hpp`, `Screen.cpp`, `PageScreens.cpp` and
+    `EntryScreens.cpp`.
+  - Fonts: Waypoint's, plus Poppins Light 60 (digits) and Regular 14, copied
+    from HybridX Run. SemiBold 30 is dropped as unused.
+- **Layout:** text is kept inside the round display and clear of the four
+  button marks. The graph's plot starts at x = 70 with its scale labels beside
+  it, and the Recent columns end at x = 200, clear of BACK.
+
+### W2 verified (12 October 2026)
+
+- **Host tests: 93 pass**, with no warnings. The new suites: StartValue 2,
+  StepEntry 1, HoldRepeat 8, DateText 4, Window 5, GraphScale 7.
+- **Watch target compile check** (Ubuntu toolchain with stubs, not installable):
+  no warnings. `XWeighIn_0.0.0-dev.uapp` is 236,148 bytes.
+- **Simulator** (`docs/experiments/capture_screens.sh`): every screen captured.
+  - The 40-day sample log (`make_log … 40 3 <today>`) reads with 0 lines rejected.
+  - A weigh-in 0.3 kg up saved `2026-10-12,13:13,81.80` to
+    `Software/Output/weighins.csv`, and the SharedData copy came out identical
+    (36 lines).
+  - On the first run, `reconcile` created the copy from the sample.
+  - LVGL's pool peaked at 58% of about 37 KB (on the Recent page).
+- Checked by eye against the round display: nothing clipped and nothing under a
+  button mark, after moving the graph's labels and the Recent columns in.
+
+## Gate W2: what Jon tests on the watch
+
+1. **Install** the CI build, as for W0: copy `XWeighIn_*.uapp` into
+   `Apps/XWeighIn/` over USB, eject, power-cycle. Keep `app_config.json`.
+2. **Weigh in every morning for a week.** Each time:
+   - SELECT, set the weight with UP and DOWN, then SELECT again;
+   - once, **hold** UP or DOWN: it should start repeating after about half a
+     second and speed up;
+   - once, weigh in **twice the same day**: the second should replace the first
+     on Home ("Last …") and in the trend.
+3. **Look at the pages** as the week fills: Graph (dots and the trend line),
+   Recent, Body (BMI and resting kcal, with your height and age).
+4. **Over USB at the end of the week:**
+   - `Apps/XWeighIn/weighins.csv` opens in a spreadsheet, one line per weigh-in;
+   - `Apps/SharedData/HybridX/weighins.csv` is the same.
+   This confirms the two things W1 relied on that the watch had not yet shown:
+   appending by seek, and writing the SharedData folder.
+5. **Optional:** uninstall the app, then reinstall it and copy
+   `app_config.json` back. The history should come back from the SharedData
+   copy.
+
+Anything that reads wrong (a clipped word, a slow button, a number that looks
+off), a photo is ideal.
+
 ## Open, for later phases
 
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type
   later discards the user's value (`Docs/app-config-fields.md` §7.3).
-- **Two things the watch has not yet shown** (W1 relies on them; W2's first
-  weigh-ins check them):
+- **Two things the watch has not yet shown**, which Gate W2 checks:
   - appending by opening for write without truncating, then seeking to the end
     (the SDK's simulator documents that open mode, and FitWriter seeks on the
     watch);
