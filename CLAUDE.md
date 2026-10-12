@@ -155,4 +155,7 @@ Strava. It is independent of the other apps.
   - host tests: `cmake -S x-weighin/Tests/Host -B x-weighin/build-tests && cmake --build x-weighin/build-tests && x-weighin/build-tests/x-weighin-host-tests`;
   - simulator: `x-weighin/Software/Apps/LVGL-GUI/simulator` (settings in
     `Software/Output/app_config.json`);
-  - a run in the simulator, with screenshots: `docs/experiments/sim_run.sh [shots-dir] [app_config.json]`.
+  - a run in the simulator, with screenshots: `docs/experiments/sim_run.sh [shots-dir] [app_config.json]`;
+  - a sample log: `build-tests/make_log <out.csv> [days] [seed]`; a log's trend
+    day by day: `build-tests/trend_csv <weighins.csv>`; its chart:
+    `docs/experiments/trend_chart.py <trend.csv> <out.png>`.

@@ -288,11 +288,157 @@ its phone settings and any thresholds are dropped from W1 and W2. They can come
 back later as phone settings, which an app update adds without losing the
 existing values (`Docs/app-config-fields.md` §7.3).
 
+## W1: the log, the trend and the body numbers (12 October 2026)
+
+Jon's decisions for W1:
+- the trend moves 10% a day ("I agree");
+- **if he weighs in more than once a day, the latest counts**. Every weigh-in
+  stays in the log.
+
+W1 is the pure core and its host tests. The service and the screen are
+unchanged: the first look still shows, and nothing writes a log yet (W2 does).
+
+### The log file
+
+`Apps/XWeighIn/weighins.csv`, a plain CSV that opens in a spreadsheet straight
+off the USB drive:
+
+```
+date,time,kg
+2026-10-12,07:31,82.30
+2026-10-13,07:28,82.10
+```
+
+- **The date and time are local**, as the watch showed them. The weight is in
+  kg with two decimals.
+- **Append-only** (`LogStore::append`): a weigh-in is never rewritten. A reset
+  mid-write can at worst leave a torn last line, which the reader skips, and
+  the next weigh-in starts on a new line.
+- **The reader is strict and forgiving**
+  (`WeighLog::parseLine`, `LogStore::scan`):
+  - a line must be exactly `YYYY-MM-DD,HH:MM,kg`, with 0-2 decimals, a real date
+    in 2000-2099, and 0.01-500 kg;
+  - the header and blank lines are skipped, and anything else is counted and
+    ignored, never fatal;
+  - Windows line endings are fine, so a hand edit on a PC still reads.
+  - It streams in 256-byte chunks with no heap, so the file's size doesn't
+    matter. A year of daily weigh-ins is about 8 KB.
+- **The copy:** `Apps/SharedData/HybridX/weighins.csv`, the same content. It
+  survives an uninstall, which deletes the app's own folder.
+  - `LogStore::reconcile`, run once at start:
+    - our own log missing: restore it from the copy (a reinstall);
+    - copy missing or a different size: rewrite it from our own log;
+    - our own log always wins when it exists.
+  - **To clear the history by hand, delete both files.**
+  - A copy streams into `<file>.tmp`, removes the old file, then renames,
+    because FatFs rename refuses an existing destination.
+
+### The trend (`Trend`)
+
+- **One weight per local day, the latest that day.** A later weigh-in the same
+  day undoes that day and redoes it. So a mistyped entry is fixed by weighing
+  again: the sample log below has a 92.80 corrected to 82.80 a minute later,
+  and the trend never sees the 92.80.
+- **Each day the trend moves 10% of the way to that day's weight,**
+  `t += (w - t) / 10` (J. Walker, *The Hacker's Diet*). The first weigh-in
+  starts it.
+  - It is held in fixed point at 1/10 000 kg, so the watch and the host agree
+    exactly.
+- **Missed days take a straight line** between the weigh-ins either side, and
+  the trend steps through each one. A week off neither freezes the trend nor
+  makes it jump, and weekly weighing works. A test checks that alternate-day
+  weigh-ins on a slope give the same trend as daily ones.
+- **An entry dated before the last day** (the clock went back) is skipped and
+  counted. It stays in the log.
+- **The weekly change** is the trend at the last day minus the trend 7 days
+  before. It is shown once the log spans 7 days, as a plain signed number
+  ("-0.4"), without judgement.
+- **The last 90 days** of each day's weight and trend are kept in a fixed ring
+  (1 KB), for the graph (W2) and the glance (W3).
+
+**What the smoothing does, on a sample log**
+(`docs/screens/w1-trend-sample.png`):
+
+![Sample log: weigh-ins, the 10% trend and a 7-day mean](screens/w1-trend-sample.png)
+
+- **The sample** (`make_log`, seed 1) is not real data: 60 days, a built-in loss
+  of 0.35 kg a week from 84 kg, day-to-day swings, about one missed day in eight,
+  and the one typo.
+- **Its table view** is `docs/experiments/w1-trend-sample.csv`.
+- **The trend is the smoothest line:** it ignores the single-day jumps (84.4,
+  84.6, 82.2) that move the 7-day mean.
+- **The price is lag.** On a steady change, a 10% trend runs about 9 days behind
+  ((1 − 0.1) / 0.1).
+  - Here the built-in weight on the last day is 81.05 kg; the trend says 81.54,
+    the 7-day mean 81.23, and that day's reading was 80.80.
+  - So the trend is "where you are heading", not today's weight.
+  - The weekly change still reads the rate well: -0.40 kg against the built-in
+    -0.35.
+
+### The body numbers (`BodyMetrics`)
+
+Both use integers only, and both take the trend weight, which W2 will show.
+- **BMI:** kg / m², to 0.1. The height comes from the UNA profile; a height
+  outside 50-272 cm counts as not set.
+- **Resting energy (BMR):** the Mifflin-St Jeor equation (Mifflin MD, St Jeor
+  ST et al., *Am J Clin Nutr* 1990;51:241-7):
+  - men: `10 × kg + 6.25 × cm − 5 × age + 5`;
+  - women: `10 × kg + 6.25 × cm − 5 × age − 161`;
+  - rounded to the nearest kcal.
+  - It needs the phone settings' age and sex. If any input is unset it gives 0,
+    which the screens show as not set.
+- **Check:** 82 kg, 182 cm, 40 years gives BMI 24.8, and BMR 1763 kcal (male)
+  or 1597 (female).
+
+### Tools (`Tests/Host`, built with the tests)
+
+- `make_log <out.csv> [days] [seed]` writes the sample log. It will also be W2's
+  simulator fixture.
+- `trend_csv <weighins.csv>` prints date, weight, trend and 7-day mean from the
+  app's own parser and trend, plus the summary the app would show. It works on
+  a real log copied off the watch.
+- `docs/experiments/trend_chart.py <trend.csv> <out.png>` draws the chart
+  above. It needs matplotlib.
+
+### W1 verified (12 October 2026)
+
+- **Host tests: 65 pass** in 12 suites, with no warnings under
+  `-Wall -Wextra -Wpedantic`.
+  - The new suites: Calendar 4, WeighLog 8, LogStore 17, Trend 15, BMI 2, BMR 2,
+    FormatChange 4.
+  - LogStore runs against Streak's in-memory tree (`support/TreeFileSystem`,
+    copied), with FatFs's rename rule. It covers:
+    - the header;
+    - torn lines;
+    - a 500-entry scan across chunk boundaries;
+    - restore and refresh;
+    - an unreachable SharedData.
+  - The expected trend values were worked out separately in Python with the
+    same fixed-point rule.
+- **Watch target compile check** (Ubuntu toolchain with stubs, not installable):
+  the new core compiles into the service with no warnings. The `.uapp`
+  (192,752 bytes) hardly grows, because nothing calls the core until W2.
+- **Simulator:** builds and runs; the first look is unchanged.
+- **Sample:** 52 weigh-ins over 60 days, read back with 0 lines rejected.
+
+## Gate W1: what Jon decides
+
+1. **The chart.** Does the 10% trend read right to you, knowing it runs about 9
+   days behind a steady change? Faster would mean 15% or 20% a day: more
+   responsive, but more wobble.
+2. **The file.** Is `date,time,kg` with local date and time what you want to
+   see over USB?
+
+Then W2: the weigh-in screen, the summary, the trend graph and history.
+
 ## Open, for later phases
 
-- **The trend's smoothing (W1):** the Hacker's Diet method (J. Walker) moves
-  the trend 10% of the way to each new weigh-in. To confirm with Jon.
-- **BMR (W1):** the Mifflin-St Jeor equation (Mifflin et al., 1990) needs
-  weight, height, age and sex. The phone settings now supply the last two.
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type
   later discards the user's value (`Docs/app-config-fields.md` §7.3).
+- **Two things the watch has not yet shown** (W1 relies on them; W2's first
+  weigh-ins check them):
+  - appending by opening for write without truncating, then seeking to the end
+    (the SDK's simulator documents that open mode, and FitWriter seeks on the
+    watch);
+  - creating `Apps/SharedData/HybridX/weighins.csv` (Streak and Run already
+    write in that folder).
