@@ -20,14 +20,8 @@ public:
 
     void bind(Model* m) { model = m; }
 
-    /// A new navigation state arrived from the service.
-    virtual void onNavUpdate(const CustomMessage::NavState& nav) { (void)nav; }
-
-    /// The outcome of a "save the current position" request.
-    virtual void onTargetSaved(CustomMessage::SaveOutcome outcome, float latitude, float longitude)
-    {
-        (void)outcome; (void)latitude; (void)longitude;
-    }
+    /// A new first look arrived from the service.
+    virtual void onFirstLook(const CustomMessage::FirstLookState& look) { (void)look; }
 
 protected:
     Model* model;

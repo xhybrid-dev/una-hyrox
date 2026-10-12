@@ -1,7 +1,15 @@
 /**
  ******************************************************************************
  * @file    Service.cpp
- * @brief   Waypoint background logic: read the configuration, follow the GPS.
+ * @brief   X Weigh-in background logic. W0: the first look.
+ *
+ * Started from the SDK's Waypoint tutorial service (its lifecycle and its
+ * SDK::AppConfig handling); the GPS is gone. What it gathers:
+ *   - the UNA profile's height and weight, from RequestSystemSettings (the
+ *     SDK's Workout example reads the weight the same way);
+ *   - the watch's daily resting HR, from HEART_RATE_METRICS_DAILY (as
+ *     HybridX Run does);
+ *   - birth year, birth month and sex, the phone settings.
  ******************************************************************************
  *
  ******************************************************************************
@@ -9,74 +17,37 @@
 
 #include "Service.hpp"
 
+#include "WeighProfile.hpp"
+
 #include "SDK/Messages/MessageGuard.hpp"
 #include "SDK/Messages/SensorLayerMessages.hpp"
-#include "SDK/SensorLayer/DataParsers/SensorDataParserGpsLocation.hpp"
+#include "SDK/SensorLayer/DataParsers/SensorDataParserHeartRateMetrics.hpp"
 
 #define LOG_MODULE_PRX      "Service"
 #define LOG_MODULE_LEVEL    LOG_LEVEL_DEBUG
 #include "SDK/UnaLogger/Logger.h"
 
-#include <cmath>
-#include <cstring>
+#include <ctime>
 
 namespace {
 
-constexpr float kEarthRadiusM = 6371000.0f;
+/// How often the daily HR metrics report, ms. With the default of 0 the
+/// simulator's sensor never reports (hybridx-run NOTES, R2).
+constexpr float kHrMetricsPeriodMs = 60000.0f;
 
-/// How far past the arrival radius the user must get before arriving again.
-constexpr float kReArmFactor = 1.5f;
-constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
-constexpr float kRadToDeg = 180.0f / 3.14159265358979323846f;
-
-/// Great-circle distance in metres. Haversine, which stays well behaved at the
-/// short ranges a waypoint is used over.
-float distanceMetres(float latA, float lonA, float latB, float lonB)
-{
-    const float dLat = (latB - latA) * kDegToRad;
-    const float dLon = (lonB - lonA) * kDegToRad;
-    const float sinLat = std::sin(dLat * 0.5f);
-    const float sinLon = std::sin(dLon * 0.5f);
-    const float a = sinLat * sinLat +
-            std::cos(latA * kDegToRad) * std::cos(latB * kDegToRad) *
-            sinLon * sinLon;
-    return 2.0f * kEarthRadiusM * std::asin(std::sqrt(a < 1.0f ? a : 1.0f));
-}
-
-/// Initial great-circle bearing, degrees clockwise from true north.
-float bearingDegrees(float latA, float lonA, float latB, float lonB)
-{
-    const float latAr = latA * kDegToRad;
-    const float latBr = latB * kDegToRad;
-    const float dLon = (lonB - lonA) * kDegToRad;
-    const float y = std::sin(dLon) * std::cos(latBr);
-    const float x = std::cos(latAr) * std::sin(latBr) -
-            std::sin(latAr) * std::cos(latBr) * std::cos(dLon);
-    float bearing = std::atan2(y, x) * kRadToDeg;
-    if (bearing < 0.0f) {
-        bearing += 360.0f;
-    }
-    return bearing;
-}
+/// How long to wait for the kernel's answer to RequestSystemSettings, ms.
+/// The SDK's Workout and Treadmill examples use the same.
+constexpr uint32_t kSettingsTimeoutMs = 100;
 
 } // namespace
 
 Service::Service(SDK::Kernel &kernel)
     : mKernel(SDK::KernelProviderService::GetInstance().getKernel())
-    , mSensorGPS(SDK::Sensor::Type::GPS_LOCATION, 0, 0)
-    , mWaypointName {}
-    , mTargetLatitude(0.0f)
-    , mTargetLongitude(0.0f)
-    , mArrivalRadiusM(0)
-    , mVibrateOnArrival(false)
-    , mTargetIsConfigured(false)
+    , mSensorHrMetrics(SDK::Sensor::Type::HEART_RATE_METRICS_DAILY, kHrMetricsPeriodMs)
+    , mBirthYear(0)
+    , mBirthMonth(0)
+    , mState {}
     , mGUIStarted(false)
-    , mHasFix(false)
-    , mLatitude(0.0f)
-    , mLongitude(0.0f)
-    , mDistanceM(0.0f)
-    , mBearingDeg(0.0f)
-    , mArrivalAnnounced(false)
 {
     (void)kernel;
 }
@@ -87,22 +58,45 @@ void Service::loadConfiguration()
         return;
     }
 
-    mConfig->getString("waypointName", mWaypointName, sizeof(mWaypointName));
-    mTargetLatitude = mConfig->getFloat("targetLatitude");
-    mTargetLongitude = mConfig->getFloat("targetLongitude");
-    mArrivalRadiusM = mConfig->getInt("arrivalRadiusM");
-    mVibrateOnArrival = mConfig->getBool("vibrateOnArrival");
+    // getInt() clamps to the declared bounds, so these casts cannot truncate.
+    mBirthYear  = static_cast<uint16_t>(mConfig->getInt(WeighInConfig::kBirthYear));
+    mBirthMonth = static_cast<uint8_t>(mConfig->getInt(WeighInConfig::kBirthMonth));
+    mState.sex  = static_cast<uint8_t>(mConfig->getInt(WeighInConfig::kSex));
+    mState.configLoaded = mConfig->isLoaded();
 
-    // has() separates "the user chose this" from "this is our default", so the
-    // screen can say so instead of navigating confidently to a made-up place.
-    mTargetIsConfigured = mConfig->has("targetLatitude") &&
-            mConfig->has("targetLongitude");
+    LOG_INFO("settings %s: birth %u/%u, sex %u\n",
+             mState.configLoaded ? "loaded" : "not found (defaults)",
+             static_cast<unsigned>(mBirthMonth), static_cast<unsigned>(mBirthYear),
+             static_cast<unsigned>(mState.sex));
+}
 
-    LOG_INFO("target '%s' %s, radius %ldm, vibrate %s\n",
-             mWaypointName,
-             mTargetIsConfigured ? "from configuration" : "NOT configured (default)",
-             static_cast<long>(mArrivalRadiusM),
-             mVibrateOnArrival ? "on" : "off");
+void Service::readProfile()
+{
+    mState.settingsRead     = false;
+    mState.heightCm         = 0;
+    mState.weightHundredths = 0;
+
+    auto msg = SDK::make_msg<SDK::Message::RequestSystemSettings>(mKernel);
+    if (!msg) {
+        LOG_WARNING("no message for RequestSystemSettings\n");
+        return;
+    }
+    if (!msg.send(kSettingsTimeoutMs) || !msg.ok()) {
+        LOG_WARNING("RequestSystemSettings was not answered\n");
+        return;
+    }
+
+    mState.settingsRead     = true;
+    mState.heightCm         = msg->heightCm;
+    mState.weightHundredths = XWeighIn::kgToHundredths(msg->weightKg);
+
+    // The raw values, for the W0 record: the weight's hundredths show the
+    // profile's resolution. Whole and fraction separately: no %f.
+    LOG_INFO("profile: height %lu cm, weight %ld.%02ld kg, imperial %s\n",
+             static_cast<unsigned long>(msg->heightCm),
+             static_cast<long>(mState.weightHundredths / 100),
+             static_cast<long>(mState.weightHundredths % 100),
+             msg->imperialUnits ? "yes" : "no");
 }
 
 void Service::run()
@@ -112,12 +106,12 @@ void Service::run()
     // Read the configuration here rather than in the constructor. The file the
     // companion app wrote is read once, so a change made on the phone applies
     // the next time this app starts.
-    mConfig.reset(new SDK::AppConfig(mKernel, WaypointConfig::kFileName,
-                                     WaypointConfig::kFields,
-                                     WaypointConfig::kFieldCount));
+    mConfig.reset(new SDK::AppConfig(mKernel, WeighInConfig::kFileName,
+                                     WeighInConfig::kFields,
+                                     WeighInConfig::kFieldCount));
     loadConfiguration();
 
-    mSensorGPS.connect();
+    mSensorHrMetrics.connect();
 
     while (true) {
         SDK::MessageBase *msg;
@@ -125,11 +119,7 @@ void Service::run()
             switch (msg->getType()) {
             case SDK::MessageType::COMMAND_APP_STOP:
                 LOG_INFO("Force exit from the application\n");
-                // Release the GPS explicitly rather than leaving it to the
-                // Connection destructor: this is the last message before the
-                // app is torn down, so the cleanup belongs here where it is
-                // visible.
-                mSensorGPS.disconnect();
+                mSensorHrMetrics.disconnect();
                 // We must release message because this is the last event.
                 mKernel.comm.releaseMessage(msg);
                 return;
@@ -142,10 +132,8 @@ void Service::run()
             case SDK::MessageType::COMMAND_APP_NOTIF_GUI_STOP:
                 LOG_INFO("GUI has stopped, exiting service\n");
                 // The kernel does not stop a service when its GUI closes, and
-                // nothing else will ever reclaim the thread. Waypoint has no
-                // reason to exist without its screen: staying alive would hold
-                // the GPS subscription open and keep buzzing on arrival after
-                // the user has left the app.
+                // nothing else will ever reclaim the thread. X Weigh-in has no
+                // reason to run without its screen.
                 onStopGUI();
                 // We must release message because this is the last event.
                 mKernel.comm.releaseMessage(msg);
@@ -157,10 +145,6 @@ void Service::run()
                                             event->stride);
                 onSdlNewData(event->handle, data);
             } break;
-
-            case CustomMessage::SAVE_TARGET_HERE:
-                saveTargetHere();
-                break;
 
             default:
                 break;
@@ -177,149 +161,57 @@ void Service::run()
 void Service::onStartGUI()
 {
     mGUIStarted = true;
-    // Give the screen the configured target straight away, so it has something
-    // to show before the first fix arrives.
-    sendNavUpdate();
+
+    // Read the profile each time the screen opens, so a weight changed in the
+    // UNA app shows without restarting the watch (one of Gate W0's checks).
+    readProfile();
+
+    const std::time_t now = std::time(nullptr);
+    mState.clockSet = XWeighIn::clockIsSet(now);
+    mState.ageYears = XWeighIn::ageAt(mBirthYear, mBirthMonth, now);
+    if (!mState.clockSet) {
+        LOG_WARNING("The clock is not set: no age until it is\n");
+    }
+
+    sendFirstLook();
 }
 
 void Service::onStopGUI()
 {
     mGUIStarted = false;
-    // Release the GPS so it is not left powered by an app the user has closed.
-    mSensorGPS.disconnect();
+    mSensorHrMetrics.disconnect();
 }
 
 void Service::onSdlNewData(uint16_t handle, SDK::Sensor::DataBatch &data)
 {
-    if (!mSensorGPS.matchesDriver(handle)) {
+    if (!mSensorHrMetrics.matchesDriver(handle)) {
         return;
     }
 
-    SDK::SensorDataParser::GpsLocation parser(data[0]);
+    SDK::SensorDataParser::HeartRateMetrics parser(data[0]);
     if (!parser.isDataValid()) {
         return;
     }
 
-    // isDataValid() only says the sample is a well-formed GPS record;
-    // isCoordinatesValid() is the fix itself. Without this second check a
-    // fix-less sample reads as latitude 0, longitude 0 -- a point in the Gulf of
-    // Guinea -- and the screen briefly shows a confident distance to it.
-    if (!parser.isCoordinatesValid()) {
-        // The fix is gone (or has not arrived yet). Say so rather than leaving a
-        // stale distance on screen looking live -- the position itself is kept,
-        // so a brief dropout does not lose the target.
-        if (mHasFix) {
-            mHasFix = false;
-            mArrivalAnnounced = false;
-            if (mGUIStarted) {
-                sendNavUpdate();
-            }
-        }
+    const float   rhr = parser.getRhr();
+    const uint8_t bpm = (rhr > 0.0f && rhr < 255.0f) ? static_cast<uint8_t>(rhr + 0.5f) : 0;
+    if (bpm == mState.restHr) {
         return;
     }
 
-    mLatitude = parser.getLatitude();
-    mLongitude = parser.getLongitude();
-    mHasFix = true;
-
-    mDistanceM = distanceMetres(mLatitude, mLongitude,
-                                mTargetLatitude, mTargetLongitude);
-    mBearingDeg = bearingDegrees(mLatitude, mLongitude,
-                                 mTargetLatitude, mTargetLongitude);
-
-    const float radiusM = static_cast<float>(mArrivalRadiusM);
-    const bool arrived = mDistanceM <= radiusM;
-
-    if (arrived && !mArrivalAnnounced) {
-        mArrivalAnnounced = true;
-        if (mVibrateOnArrival) {
-            auto vibro = SDK::make_msg<SDK::Message::RequestVibroPlay>(mKernel);
-            if (vibro) {
-                vibro->notes[0].effect =
-                        SDK::Message::RequestVibroPlay::Effect::ALERT_750MS_100;
-                vibro->notesCount = 1;
-                vibro.send();
-            }
-        }
-        LOG_INFO("arrived at '%s'\n", mWaypointName);
-    } else if (mArrivalAnnounced && mDistanceM > radiusM * kReArmFactor) {
-        // Re-arm once the user has genuinely left, so a second approach buzzes
-        // again. The margin matters: a fix sitting near the radius jitters
-        // either side of it by more than a GPS error, and re-arming on the
-        // first sample outside would buzz over and over without it.
-        mArrivalAnnounced = false;
-    }
-
+    LOG_INFO("Resting HR from the watch: %u\n", static_cast<unsigned>(bpm));
+    mState.restHr = bpm;
     if (mGUIStarted) {
-        sendNavUpdate();
+        sendFirstLook();
     }
 }
 
-void Service::saveTargetHere()
+void Service::sendFirstLook()
 {
-    if (!mConfig) {
+    auto look = SDK::make_msg<CustomMessage::FirstLook>(mKernel);
+    if (!look) {
         return;
     }
-
-    if (!mHasFix) {
-        LOG_WARNING("no fix yet; target unchanged\n");
-        SDK::send_msg<CustomMessage::TargetSaved>(
-                mKernel, CustomMessage::SaveOutcome::NoFix, mTargetLatitude,
-                mTargetLongitude);
-        return;
-    }
-
-    // Write the new target back into the same file the companion app owns. The
-    // setters clamp to the declared bounds, and save() swaps the file in
-    // atomically, so an interrupted write cannot lose the previous target.
-    mConfig->setFloat("targetLatitude", mLatitude);
-    mConfig->setFloat("targetLongitude", mLongitude);
-
-    if (!mConfig->save()) {
-        LOG_WARNING("could not save the new target\n");
-        // The setters already updated the in-memory values, so re-reading now
-        // would adopt coordinates that never reached the file -- the screen
-        // would navigate to a target the next launch will not know about. Keep
-        // serving the previous one and report the failure with it.
-        SDK::send_msg<CustomMessage::TargetSaved>(
-                mKernel, CustomMessage::SaveOutcome::WriteFailed, mTargetLatitude,
-                mTargetLongitude);
-        return;
-    }
-
-    // Re-read so the values in play are exactly what is now on disk.
-    loadConfiguration();
-
-    mDistanceM = 0.0f;
-    mBearingDeg = 0.0f;
-    mArrivalAnnounced = false;
-
-    SDK::send_msg<CustomMessage::TargetSaved>(
-            mKernel, CustomMessage::SaveOutcome::Saved, mTargetLatitude,
-            mTargetLongitude);
-    sendNavUpdate();
-}
-
-void Service::sendNavUpdate()
-{
-    auto update = SDK::make_msg<CustomMessage::NavUpdate>(mKernel);
-    if (!update) {
-        return;
-    }
-
-    CustomMessage::NavState &nav = update->nav;
-    std::strncpy(nav.waypointName, mWaypointName,
-                 sizeof(nav.waypointName) - 1);
-    nav.waypointName[sizeof(nav.waypointName) - 1] = '\0';
-    nav.distanceM = mDistanceM;
-    nav.bearingDeg = mBearingDeg;
-    nav.targetLatitude = mTargetLatitude;
-    nav.targetLongitude = mTargetLongitude;
-    nav.arrivalRadiusM = mArrivalRadiusM;
-    nav.hasFix = mHasFix;
-    nav.arrived = mHasFix &&
-            mDistanceM <= static_cast<float>(mArrivalRadiusM);
-    nav.targetIsConfigured = mTargetIsConfigured;
-
-    update.send();
+    look->state = mState;
+    look.send();
 }

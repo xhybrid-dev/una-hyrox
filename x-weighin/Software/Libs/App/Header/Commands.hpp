@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    Commands.hpp
- * @brief   Messages between the Waypoint service and its GUI.
+ * @brief   Messages between the X Weigh-in service and its GUI.
  ******************************************************************************
  *
  ******************************************************************************
@@ -9,8 +9,6 @@
 
 #ifndef COMMANDS_HPP
 #define COMMANDS_HPP
-
-#include "AppConfigFields.hpp"
 
 #include "SDK/Messages/MessageBase.hpp"
 #include "SDK/Messages/MessageTypes.hpp"
@@ -24,80 +22,34 @@
 namespace CustomMessage {
 
 // Service --> GUI
-constexpr SDK::MessageType::Type NAV_UPDATE = 0x00000001;
-constexpr SDK::MessageType::Type TARGET_SAVED = 0x00000002;
-
-// GUI --> Service
-constexpr SDK::MessageType::Type SAVE_TARGET_HERE = 0x00000010;
+constexpr SDK::MessageType::Type FIRST_LOOK = 0x00000001;
 
 /**
- * @brief   Everything the screen needs to draw one frame.
+ * @brief   W0's first look: what the watch knows about the athlete.
  *
- * Kept as plain data rather than as message fields: a MessageBase is
- * pool-allocated and non-copyable, so the GUI could not keep a copy of the
- * last update to redraw from.
+ * Plain integers only, so the GUI formats without floating point. Kept as
+ * plain data rather than as message fields: a MessageBase is pool-allocated
+ * and non-copyable, so the GUI could not keep a copy to redraw from.
  */
-struct NavState {
-    char    waypointName[WaypointConfig::kNameBytes];
-    float   distanceM;      ///< Distance to the target; valid only with a fix.
-    float   bearingDeg;     ///< 0..360 from true north; valid only with a fix.
-    float   targetLatitude;
-    float   targetLongitude;
-    int32_t arrivalRadiusM;
-    bool    hasFix;
-    bool    arrived;
-    /// True when the target came from the user rather than the app's default.
-    bool    targetIsConfigured;
+struct FirstLookState {
+    uint32_t heightCm;          ///< The UNA profile's height; 0 = not set.
+    int32_t  weightHundredths;  ///< The profile's weight in 0.01 kg; 0 = not set.
+    uint8_t  restHr;            ///< The watch's daily resting HR, bpm; 0 = none yet.
+    uint8_t  ageYears;          ///< From the birth year and month; 0 = unknown.
+    uint8_t  sex;               ///< Config field: 0 not set, 1 female, 2 male.
+    bool     settingsRead;      ///< The kernel answered RequestSystemSettings.
+    bool     configLoaded;      ///< app_config.json was found and parsed.
+    bool     clockSet;          ///< The clock reads 2026 or later.
 };
 
-/**
- * @brief   Service --> GUI: a new navigation state.
- *
- * Sent on every GPS fix, and once when the GUI starts so the screen has the
- * configured name and target before the first fix arrives.
- */
-struct NavUpdate : public SDK::MessageBase {
-    NavState nav;
+/// Service --> GUI: a new first look. Sent when the GUI starts, and again
+/// whenever the resting HR changes.
+struct FirstLook : public SDK::MessageBase {
+    FirstLookState state;
 
-    NavUpdate()
-        : SDK::MessageBase(NAV_UPDATE)
-        , nav {}
-    {}
-};
-
-/// Why a SAVE_TARGET_HERE request ended the way it did.
-enum class SaveOutcome : uint8_t {
-    Saved = 0,      ///< Written to the file and re-read.
-    NoFix,          ///< No GPS fix, so there was no position to store.
-    WriteFailed,    ///< There was a fix, but the file could not be written.
-};
-
-/// Service --> GUI: the outcome of a SAVE_TARGET_HERE request.
-struct TargetSaved : public SDK::MessageBase {
-    SaveOutcome outcome;
-    float       targetLatitude;      ///< The target now in effect.
-    float       targetLongitude;
-
-    TargetSaved()
-        : SDK::MessageBase(TARGET_SAVED)
-        , outcome(SaveOutcome::NoFix)
-        , targetLatitude(0.0f)
-        , targetLongitude(0.0f)
-    {}
-
-    explicit TargetSaved(SaveOutcome outcome, float latitude, float longitude)
-        : TargetSaved()
-    {
-        this->outcome = outcome;
-        this->targetLatitude = latitude;
-        this->targetLongitude = longitude;
-    }
-};
-
-/// GUI --> Service: store the current position as the new target.
-struct SaveTargetHere : public SDK::MessageBase {
-    SaveTargetHere()
-        : SDK::MessageBase(SAVE_TARGET_HERE)
+    FirstLook()
+        : SDK::MessageBase(FIRST_LOOK)
+        , state {}
     {}
 };
 

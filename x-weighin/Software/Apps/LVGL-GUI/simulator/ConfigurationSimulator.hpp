@@ -1,11 +1,12 @@
 /**
  ******************************************************************************
  * @file    ConfigurationSimulator.hpp
- * @brief   Simulated sensor settings for the Waypoint LVGL PC simulator.
+ * @brief   Simulated sensor settings for the X Weigh-in PC simulator.
  *
  * Read by the SDK's simulated sensor layer (SDK/Libs/Source/Simulator).
- * Waypoint navigates by the simulated GPS: a fix after the search time, then
- * a runner circling a track at the speed below.
+ * X Weigh-in uses only the heart-rate block, for the daily resting HR (its
+ * driver is registered with the heart-rate sensor). The GPS is off: the app
+ * does not use it. The rest are the SDK's Waypoint values, unchanged.
  ******************************************************************************
  */
 
@@ -15,7 +16,7 @@
 #include <iostream>
 
 // GPS sensor
-#define GSP_SIM_ENABLE               1  // 0 - Disable
+#define GSP_SIM_ENABLE               0  // 0 - Disable
 #define GSP_SIM_SPEED_MIN            15 // km/h
 #define GPS_SIM_SPEED_BASE           20 // km/h
 #define GPS_SIM_SPEED_MAX            25 // km/h

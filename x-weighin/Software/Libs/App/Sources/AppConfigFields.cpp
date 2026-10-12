@@ -9,20 +9,20 @@
 
 #include "AppConfigFields.hpp"
 
-namespace WaypointConfig {
+namespace WeighInConfig {
 
 using SDK::AppConfig;
 
-// Every value here must match Output/app-manifest.json exactly. CI checks it with
-// validate_app_config.py --check <app-manifest.json> --check-bounds <this file>.
+// Every value here must match Resources/app-manifest.json exactly. CI checks it
+// with validate_app_config.py --check <app-manifest.json> --check-bounds <this file>.
+// birthYear and birthMonth are HybridX Run's, ids and bounds alike. sex: 0 not
+// set, 1 female, 2 male (config fields have no enum type).
 const AppConfig::Field kFields[] = {
-    AppConfig::stringField("waypointName", "Waypoint", 1, 16),
-    AppConfig::floatField("targetLatitude", 51.5072f, -90.0f, 90.0f),
-    AppConfig::floatField("targetLongitude", -0.1276f, -180.0f, 180.0f),
-    AppConfig::intField("arrivalRadiusM", 25, 5, 500),
-    AppConfig::boolField("vibrateOnArrival", true),
+    AppConfig::intField("birthYear", 0, 0, 2020),
+    AppConfig::intField("birthMonth", 0, 0, 12),
+    AppConfig::intField("sex", 0, 0, 2),
 };
 
 const size_t kFieldCount = sizeof(kFields) / sizeof(kFields[0]);
 
-} // namespace WaypointConfig
+} // namespace WeighInConfig

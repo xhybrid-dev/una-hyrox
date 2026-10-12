@@ -223,3 +223,11 @@ jobs:
           python3 una-sdk/Utilities/Scripts/app_packer/validate_app_config.py \
             --check x-weighin/Resources/app-manifest.json \
             --check-bounds x-weighin/Software/Libs/App/Sources/AppConfigFields.cpp
+
+      - name: X Weigh-in host tests
+        # The pure core (age, the profile's weight as an integer, the text).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S x-weighin/Tests/Host -B ci-build/weighin-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/weighin-tests -j"$(nproc)"
+          ctest --test-dir ci-build/weighin-tests --output-on-failure

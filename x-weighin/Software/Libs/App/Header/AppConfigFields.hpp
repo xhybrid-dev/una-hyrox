@@ -10,8 +10,10 @@
  *
  *          Keep the table in one file, one entry per line, with plain literals:
  *          that is the form the checker parses.
- ******************************************************************************
  *
+ *          Height and weight are not here: the UNA profile already holds them
+ *          and the kernel hands them to every app (RequestSystemSettings), so
+ *          a second copy would drift (una-sdk Docs/app-config-fields.md 1.1).
  ******************************************************************************
  */
 
@@ -22,18 +24,20 @@
 
 #include <cstddef>
 
-namespace WaypointConfig {
+namespace WeighInConfig {
 
 /// The values file the companion app writes, as declared by "configFile".
 constexpr const char *kFileName = "app_config.json";
 
-/// Longest waypoint name in bytes (the field's maxLength), plus a terminator.
-constexpr size_t kNameBytes = 16 + 1;
+/// Field ids. Never rename one: a new id discards the user's value.
+constexpr const char *kBirthYear  = "birthYear";
+constexpr const char *kBirthMonth = "birthMonth";
+constexpr const char *kSex        = "sex";
 
 /// The declaration, mirroring app-manifest.json's "configFields".
 extern const SDK::AppConfig::Field kFields[];
 extern const size_t kFieldCount;
 
-} // namespace WaypointConfig
+} // namespace WeighInConfig
 
 #endif // APP_CONFIG_FIELDS_HPP
