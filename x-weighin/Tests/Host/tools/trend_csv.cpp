@@ -1,12 +1,15 @@
 /**
  * trend_csv: read a weigh-in log and print it day by day with the trend.
  *
- *   trend_csv <weighins.csv>
+ *   trend_csv <weighins.csv> [percent]
  *
  * stdout, a CSV: date,weight,trend,mean7 for each day the trend covers (the
  * last 90 days at most). weight is that day's counted weigh-in (the latest),
  * empty on a missed day. mean7 is a plain mean of the weigh-ins in the 7 days
  * up to that day, for comparison only: the app does not use it.
+ *
+ * percent is the trend's daily share (default: the app's, kTrendPercent), to
+ * compare settings on the same log.
  *
  * stderr: the summary the app would show.
  *
@@ -20,6 +23,7 @@
 #include "WeighText.hpp"
 
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <map>
 #include <string>
@@ -29,7 +33,7 @@ using namespace XWeighIn;
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: %s <weighins.csv>\n", argv[0]);
+        std::fprintf(stderr, "usage: %s <weighins.csv> [percent]\n", argv[0]);
         return 2;
     }
     std::ifstream in(argv[1]);
@@ -38,7 +42,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    Trend                      trend;
+    Trend                      trend(argc > 2 ? std::atoi(argv[2]) : kTrendPercent);
     std::map<int32_t, int32_t> latestOfDay;   // for mean7
     uint32_t                   rejected = 0;
     std::string                line;
@@ -91,7 +95,8 @@ int main(int argc, char** argv)
     char a[16], b[16];
     formatKg(s.latest, 2, a, sizeof(a));
     formatKg(s.trend, 2, b, sizeof(b));
-    std::fprintf(stderr, "%u days weighed, latest %s kg, trend %s kg", s.days, a, b);
+    std::fprintf(stderr, "%u days weighed, latest %s kg, trend (%d%%) %s kg",
+                 s.days, a, static_cast<int>(trend.percent()), b);
     if (s.hasWeekChange) {
         formatChange(s.weekChange, 2, a, sizeof(a));
         std::fprintf(stderr, ", %s kg this week", a);

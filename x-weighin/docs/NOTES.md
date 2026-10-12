@@ -108,7 +108,7 @@ UNA profile. Jon was told and agreed (12 October 2026).
 | Phase | Work | Gate |
 |---|---|---|
 | **W0** | Identity, layout, CI build. The first look: the profile's height and weight, the daily resting HR, age and sex, on one screen | W0: do the profile's values reach the app on the watch? |
-| W1 | The core, pure and host-tested: a weigh-in log (an append-only file in the app's folder, with a copy in SharedData), the smoothed trend, the change per week, BMI, BMR | Host tests; Jon confirms the smoothing |
+| W1 | The core, pure and host-tested: a weigh-in log (an append-only file in the app's folder, with a copy in SharedData), the smoothed trend (20% a day), the change per week, BMI, BMR | Passed: 20% a day, the file layout |
 | W2 | The screens: weigh-in entry (starts at the last weight, 0.1 kg steps), the saved summary, trend graph, history | A week of weigh-ins on the watch |
 | W3 | The glance, a second `.uapp`: weight, weekly change, 14 days as bars | The glance on the watch |
 | W4 | The sweat-rate test: weigh before and after a session, enter what you drank; L/h and % of body mass lost | A training session |
@@ -291,7 +291,8 @@ existing values (`Docs/app-config-fields.md` §7.3).
 ## W1: the log, the trend and the body numbers (12 October 2026)
 
 Jon's decisions for W1:
-- the trend moves 10% a day ("I agree");
+- the trend: first 10% a day ("I agree"), then, at Gate W1, **20% a day**
+  (see "Gate W1" below);
 - **if he weighs in more than once a day, the latest counts**. Every weigh-in
   stays in the log.
 
@@ -339,9 +340,11 @@ date,time,kg
   day undoes that day and redoes it. So a mistyped entry is fixed by weighing
   again: the sample log below has a 92.80 corrected to 82.80 a minute later,
   and the trend never sees the 92.80.
-- **Each day the trend moves 10% of the way to that day's weight,**
-  `t += (w - t) / 10` (J. Walker, *The Hacker's Diet*). The first weigh-in
-  starts it.
+- **Each day the trend moves 20% of the way to that day's weight,**
+  `t += (w - t) × 20%`: an exponential moving average, the method of J. Walker's
+  *The Hacker's Diet*, which uses 10%. The first weigh-in starts it.
+  - The share is `kTrendPercent` in `Trend.hpp`. `Trend(percent)` and
+    `trend_csv <log> <percent>` take another, to compare.
   - It is held in fixed point at 1/10 000 kg, so the watch and the host agree
     exactly.
 - **Missed days take a straight line** between the weigh-ins either side, and
@@ -359,21 +362,21 @@ date,time,kg
 **What the smoothing does, on a sample log**
 (`docs/screens/w1-trend-sample.png`):
 
-![Sample log: weigh-ins, the 10% trend and a 7-day mean](screens/w1-trend-sample.png)
+![Sample log: weigh-ins, the 20% trend and the 10% one](screens/w1-trend-sample.png)
 
 - **The sample** (`make_log`, seed 1) is not real data: 60 days, a built-in loss
   of 0.35 kg a week from 84 kg, day-to-day swings, about one missed day in eight,
   and the one typo.
-- **Its table view** is `docs/experiments/w1-trend-sample.csv`.
-- **The trend is the smoothest line:** it ignores the single-day jumps (84.4,
-  84.6, 82.2) that move the 7-day mean.
-- **The price is lag.** On a steady change, a 10% trend runs about 9 days behind
-  ((1 − 0.1) / 0.1).
-  - Here the built-in weight on the last day is 81.05 kg; the trend says 81.54,
-    the 7-day mean 81.23, and that day's reading was 80.80.
-  - So the trend is "where you are heading", not today's weight.
-  - The weekly change still reads the rate well: -0.40 kg against the built-in
-    -0.35.
+- **Its table views** are `docs/experiments/w1-trend-sample.csv` (20%) and
+  `w1-trend-sample-10.csv` (10%).
+- **Both trends ride over the single-day jumps** (84.4, 84.6, 82.2).
+- **The price of smoothing is lag.** On a steady change the trend runs about
+  (1 − p) / p days behind: 9 days at 10%, 4 days at 20%.
+  - Here the built-in weight on the last day is 81.05 kg. The 20% trend says
+    81.23 and the 10% one 81.54; that day's reading was 80.80.
+  - The trend is "where you are heading", not today's weight.
+  - The weekly change reads the rate: -0.47 kg at 20% and -0.40 at 10%,
+    against the built-in -0.35.
 
 ### The body numbers (`BodyMetrics`)
 
@@ -402,9 +405,9 @@ Both use integers only, and both take the trend weight, which W2 will show.
 
 ### W1 verified (12 October 2026)
 
-- **Host tests: 65 pass** in 12 suites, with no warnings under
-  `-Wall -Wextra -Wpedantic`.
-  - The new suites: Calendar 4, WeighLog 8, LogStore 17, Trend 15, BMI 2, BMR 2,
+- **Host tests: 66 pass** in 12 suites, with no warnings under
+  `-Wall -Wextra -Wpedantic` (after the Gate W1 change to 20%).
+  - The new suites: Calendar 4, WeighLog 8, LogStore 17, Trend 16, BMI 2, BMR 2,
     FormatChange 4.
   - LogStore runs against Streak's in-memory tree (`support/TreeFileSystem`,
     copied), with FatFs's rename rule. It covers:
@@ -421,15 +424,31 @@ Both use integers only, and both take the trend weight, which W2 will show.
 - **Simulator:** builds and runs; the first look is unchanged.
 - **Sample:** 52 weigh-ins over 60 days, read back with 0 lines rejected.
 
-## Gate W1: what Jon decides
+## Gate W1: what Jon decided (12 October 2026)
 
-1. **The chart.** Does the 10% trend read right to you, knowing it runs about 9
-   days behind a steady change? Faster would mean 15% or 20% a day: more
-   responsive, but more wobble.
-2. **The file.** Is `date,time,kg` with local date and time what you want to
-   see over USB?
+1. **The trend: more responsive**, "just enough to smooth out anomalies".
+   - The share was chosen by measurement, not by eye: 20 sample logs (`make_log`
+     seeds 1-20, 60 days each), each trend compared day by day with the
+     sample's built-in weight, ignoring the first 10 days.
 
-Then W2: the weigh-in screen, the summary, the trend graph and history.
+     | Share | Mean distance from the built-in weight | Largest one-day move | Wobble (s.d. of daily change) |
+     |---|---|---|---|
+     | 10% | 0.47 kg | 0.13 kg | 0.04 kg |
+     | 15% | 0.33 kg | 0.17 kg | 0.06 kg |
+     | **20%** | **0.26 kg** | **0.23 kg** | **0.08 kg** |
+     | 25% | 0.22 kg | 0.29 kg | 0.10 kg |
+     | 30% | 0.20 kg | 0.35 kg | 0.13 kg |
+
+   - **20%** roughly halves the 10% trend's lag, and a one-day anomaly still
+     moves the trend by only a fifth of its size. Past 20% the accuracy gain is
+     small and the wobble keeps growing.
+   - `kTrendPercent = 20`. The tests are updated, and a new one keeps 10% and
+     100% (no smoothing) as references.
+2. **The file layout** `date,time,kg`, in local time, is fine for the data
+   needed.
+
+**Gate W1: passed.** Next, W2: the weigh-in screen, the summary, the trend
+graph and history.
 
 ## Open, for later phases
 

@@ -68,7 +68,7 @@ void Trend::commit(int32_t day, int64_t unitsW)
         // between the two weigh-ins before it.
         const int64_t w = (k == gap) ? unitsW
                                      : mLastWeightUnits + divRound((unitsW - mLastWeightUnits) * k, gap);
-        mTrendUnits += divRound(w - mTrendUnits, kTrendDivisor);
+        mTrendUnits += divRound((w - mTrendUnits) * mPercent, 100);
         const int32_t d = mLastDay + static_cast<int32_t>(k);
         record(d, (k == gap) ? static_cast<int32_t>(unitsW / kTrendScale) : 0, mTrendUnits);
     }

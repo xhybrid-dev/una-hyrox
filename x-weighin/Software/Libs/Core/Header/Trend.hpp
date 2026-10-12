@@ -6,9 +6,11 @@
  * The method (Jon, 12 October 2026):
  *   - **One weight per local day: the latest that day.** A later weigh-in the
  *     same day replaces an earlier one, so a slip is fixed by weighing again.
- *   - **Each day the trend moves 10% of the way to that day's weight**,
- *     t += (w - t) / 10: the Hacker's Diet method (J. Walker, "The Hacker's
- *     Diet"). The first weigh-in starts the trend at that weight.
+ *   - **Each day the trend moves a fixed share of the way to that day's
+ *     weight**, t += (w - t) x p: an exponential moving average, the method of
+ *     J. Walker's "The Hacker's Diet" (which uses p = 10%). The app uses
+ *     kTrendPercent; the share can be set per Trend for comparisons. The first
+ *     weigh-in starts the trend at that weight.
  *   - **Missed days** take a straight line between the weigh-ins either side,
  *     and the trend steps through each of them. A week off then neither
  *     freezes the trend nor makes it jump, and weekly weighing still works.
@@ -37,8 +39,10 @@ namespace XWeighIn
 
 /// Trend units per 0.01 kg: the trend is held to 1/10 000 kg.
 constexpr int32_t kTrendScale  = 100;
-/// The share of the gap closed each day: 1 / kTrendDivisor, i.e. 10%.
-constexpr int32_t kTrendDivisor = 10;
+/// The share of the gap closed each day, in percent. Jon, Gate W1: more
+/// responsive than the Hacker's Diet's 10%, "just enough to smooth out
+/// anomalies" (NOTES, W1).
+constexpr int32_t kTrendPercent = 20;
 /// Days kept for the graph and the glance.
 constexpr int32_t kHistoryDays = 90;
 /// The span the weekly change is taken over.
@@ -65,7 +69,14 @@ struct Summary {
 class Trend : public EntryVisitor
 {
 public:
-    Trend() { reset(); }
+    /// @param percent  The share of the gap closed each day, 1-100 (clamped).
+    explicit Trend(int32_t percent = kTrendPercent)
+        : mPercent(percent < 1 ? 1 : (percent > 100 ? 100 : percent))
+    {
+        reset();
+    }
+
+    int32_t percent() const { return mPercent; }
 
     void reset();
 
@@ -93,6 +104,7 @@ private:
         uint32_t days;
     };
 
+    int32_t  mPercent;
     bool     mStarted;
     int32_t  mFirstDay;
     int32_t  mLastDay;

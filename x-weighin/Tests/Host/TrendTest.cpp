@@ -63,19 +63,44 @@ TEST(Trend, SteadyWeightStaysPut)
     EXPECT_EQ(s.weekChange, 0);
 }
 
-TEST(Trend, MovesTenPercentADay)
+TEST(Trend, MovesTwentyPercentADay)
 {
-    // A 1 kg step: the trend closes 10% of the gap each day, so 0.10 kg after
-    // one day and 1 - 0.9^7 = 52.2% after seven.
+    // The app's share (Jon, Gate W1). A 1 kg step: the trend closes 20% of the
+    // gap each day, so 0.20 kg after one day and 1 - 0.8^7 = 79% after seven.
+    ASSERT_EQ(kTrendPercent, 20);
     Trend t;
     t.onEntry(entry(kDay0, 8200));
     for (int i = 1; i <= 7; ++i) {
         t.onEntry(entry(kDay0 + i, 8300));
     }
-    EXPECT_EQ(trendAt(t, kDay0 + 1), 8210);
-    EXPECT_EQ(trendAt(t, kDay0 + 7), 8252);
-    EXPECT_EQ(t.summary().trend, 8252);
+    EXPECT_EQ(trendAt(t, kDay0 + 1), 8220);
+    EXPECT_EQ(trendAt(t, kDay0 + 2), 8236);
+    EXPECT_EQ(trendAt(t, kDay0 + 7), 8279);
+    EXPECT_EQ(t.summary().trend, 8279);
     EXPECT_EQ(t.summary().latest, 8300);
+}
+
+TEST(Trend, OtherSharesForComparison)
+{
+    // The Hacker's Diet's 10%: 0.10 kg after one day, 1 - 0.9^7 = 52.2% after seven.
+    Trend ten(10);
+    ten.onEntry(entry(kDay0, 8200));
+    for (int i = 1; i <= 7; ++i) {
+        ten.onEntry(entry(kDay0 + i, 8300));
+    }
+    EXPECT_EQ(trendAt(ten, kDay0 + 1), 8210);
+    EXPECT_EQ(trendAt(ten, kDay0 + 7), 8252);
+
+    // 100% is no smoothing at all: the trend is each day's weight.
+    Trend raw(100);
+    raw.onEntry(entry(kDay0, 8200));
+    raw.onEntry(entry(kDay0 + 1, 8300));
+    EXPECT_EQ(raw.summary().trend, 8300);
+
+    // Out of range shares are clamped.
+    EXPECT_EQ(Trend(0).percent(), 1);
+    EXPECT_EQ(Trend(250).percent(), 100);
+    EXPECT_EQ(Trend().percent(), kTrendPercent);
 }
 
 TEST(Trend, TheLatestWeighInOfADayCounts)
@@ -83,13 +108,13 @@ TEST(Trend, TheLatestWeighInOfADayCounts)
     Trend t;
     t.onEntry(entry(kDay0, 8200));
     t.onEntry(entry(kDay0 + 1, 8300, 7 * 60));
-    EXPECT_EQ(t.summary().trend, 8210);
+    EXPECT_EQ(t.summary().trend, 8220);
     t.onEntry(entry(kDay0 + 1, 8250, 7 * 60 + 2));   // weighed again, a typo fixed
     const Summary s = t.summary();
     EXPECT_EQ(s.days, 2u);
     EXPECT_EQ(s.latest, 8250);
-    EXPECT_EQ(s.trend, 8205);
-    EXPECT_EQ(trendAt(t, kDay0 + 1), 8205);
+    EXPECT_EQ(s.trend, 8210);
+    EXPECT_EQ(trendAt(t, kDay0 + 1), 8210);
 }
 
 TEST(Trend, TheLatestCountsOnTheFirstDayToo)
@@ -103,7 +128,7 @@ TEST(Trend, TheLatestCountsOnTheFirstDayToo)
     EXPECT_EQ(s.trend, 8000);
     // And the next day steps from 80.00, not 82.00.
     t.onEntry(entry(kDay0 + 1, 8100));
-    EXPECT_EQ(t.summary().trend, 8010);
+    EXPECT_EQ(t.summary().trend, 8020);
 }
 
 TEST(Trend, ReplacingAfterAGapRedoesTheFilledDays)
