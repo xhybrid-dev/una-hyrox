@@ -39,6 +39,14 @@ set(CORE_INCLUDES
     "${UNA_SDK_ROOT}/Libs/Header"
 )
 
+# The glance's pure parts (its service needs the kernel and is not here).
+# GlanceLayout uses the SDK's GlanceControl.h constants, a plain C header.
+set(GLANCE_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Glance")
+set(GLANCE_SOURCES
+    "${GLANCE_LIBS}/Sources/GlanceView.cpp"
+    "${GLANCE_LIBS}/Sources/GlanceLayout.cpp"
+)
+
 add_executable(x-weighin-host-tests
     WeighProfileTest.cpp
     WeighTextTest.cpp
@@ -51,11 +59,15 @@ add_executable(x-weighin-host-tests
     DateTextTest.cpp
     WindowTest.cpp
     GraphScaleTest.cpp
+    GlanceViewTest.cpp
+    GlanceLayoutTest.cpp
     support/TreeFileSystem.cpp
     ${CORE_SOURCES}
+    ${GLANCE_SOURCES}
 )
 target_include_directories(x-weighin-host-tests PRIVATE
     ${CORE_INCLUDES}
+    "${GLANCE_LIBS}/Header"
     "${CMAKE_CURRENT_LIST_DIR}"
 )
 target_link_libraries(x-weighin-host-tests PRIVATE GTest::gtest_main)
@@ -68,3 +80,8 @@ foreach(tool make_log trend_csv)
     add_executable(${tool} tools/${tool}.cpp ${CORE_SOURCES})
     target_include_directories(${tool} PRIVATE ${CORE_INCLUDES})
 endforeach()
+
+# The glance's controls for a few sample logs, for
+# docs/experiments/glance_preview.py to draw (the simulator cannot run glances).
+add_executable(glance_preview tools/glance_preview.cpp ${CORE_SOURCES} ${GLANCE_SOURCES})
+target_include_directories(glance_preview PRIVATE ${CORE_INCLUDES} "${GLANCE_LIBS}/Header")

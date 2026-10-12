@@ -54,6 +54,7 @@ hybridx-run/Software/Apps/LVGL-GUI/simulator/build/
 hybridx-run/Software/SharedData/
 x-weighin/build/
 x-weighin/build-tests/
+x-weighin/build-glance/
 x-weighin/Output/
 x-weighin/Software/Output/
 x-weighin/Software/Apps/LVGL-GUI/simulator/build/

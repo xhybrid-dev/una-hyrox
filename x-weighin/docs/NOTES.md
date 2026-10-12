@@ -600,6 +600,125 @@ exists works on the watch**, so both platform behaviours W1 relied on are now
 shown. The gate itself, a week of weigh-ins, carries on. Still open from day 1:
 whether 15:30 was the right time.
 
+## W3: the glance (12 October 2026)
+
+The glance shows the trend on the watch's glances screen, without opening the
+app. It is a second `.uapp`, `XWeighInGlance`, built as HybridX Streak's glance
+is. Streak's has drawn on Jon's watch since its S4.
+
+### What it shows
+
+![The glance, mock-up from the real layout code](screens/w3-glance-preview.png)
+
+- **On the left, the trend** in SemiBold 25, `82.2 kg`, as on Home. Under it,
+  the weekly change, `-0.4 kg/week` (`-- kg/week` until the log spans a week).
+  - `-0.4 kg this week`, Home's wording, is 150 px in Regular 18 and would not
+    fit the 132 px column; `-10.4 kg/week` is 128 px.
+- **On the right, 14 bars,** one per day, ending today.
+  - Each bar is that day's weigh-in, with heights on the 14 days' own scale
+    (`GraphScale`: at least 2 kg tall, so a 0.2 kg wobble stays small).
+  - A missed day is a gap, over a dark grey baseline.
+  - The newest bar is white and the rest are grey. Bars are neutral: the app is
+    a tracker.
+  - Days after the last weigh-in are empty, so a week off shows. With the clock
+    not set, the bars end at the log's last day.
+- **No log yet:** "X Weigh-in" / "Open it to weigh in".
+- **Fallbacks,** for an area or budget no watch has reported yet:
+  - Compact (fewer than 17 controls, or a smaller area): the two lines
+    centred;
+  - Tiny (under 48 px tall): `82.2 kg` alone.
+- **The label** on the glances screen is "X Weigh-in" (`APP_USER_NAME`).
+
+The picture is a mock-up drawn from the real code's output
+(`build-tests/glance_preview` → `docs/experiments/glance_preview.py`), in the
+SDK's Poppins. The PC simulator cannot run glances (Streak NOTES S0), so the
+watch is the first place it is seen for real.
+
+### How it is built
+
+- **What it reads:** `../SharedData/HybridX/weighins.csv`, the copy of the log
+  the app keeps identical to its own (W1).
+  - That folder is the one place outside its own a glance can open (Streak
+    NOTES, Gate 0, final look). Gate W2 showed the copy is written on the watch.
+  - The file goes through the same `LogStore::scan` and `Trend` as the app,
+    so the glance and Home always agree.
+  - **It never writes.** The app is the single writer, so there is nothing new
+    on the watch.
+- **When:** on `EVENT_GLANCE_START`, it asks for the area
+  (`RequestGlanceConfig`), reads the log and builds the form.
+  - It sends the form on the next `EVENT_GLANCE_TICK`.
+  - It exits on `EVENT_GLANCE_STOP`, so every look reads the log afresh.
+  - This is the SDK's GlanceSteps pattern, as Streak's
+    (`Docs/service-lifecycle.md` 3.3).
+- **Code** (`Software/Libs/Glance`, a third library beside Core and App):
+  - `GlanceView`: the headline and the 14 days, from the trend.
+  - `GlanceLayout`: the controls, as specs, for the area and budget the watch
+    reports.
+  - `Service`: Streak's glance service, trimmed. The trend, view and layout
+    are static, off the 10 KB stack and off the heap.
+  - The glance and the app each have their own `Service.hpp`, so `libs.cmake`
+    now lists Core, App and Glance separately, as Streak's does.
+- **Shapes:** text and filled rectangles only.
+  - Line controls do not draw on the watch (Streak NOTES S4.3), and the layout
+    has no way to make one.
+  - Words are plain ASCII in 18-25 point faces.
+- **Budget:** 2 texts, the baseline and up to 14 bars, so **17 controls** of
+  the 32 Jon's watch allows.
+  - The SDK's `Form` reserves 16, so it grows once while the glance is built.
+    That is once per look, not in a loop. Streak's full layout does the same.
+- **Project:** `Software/Apps/XWeighInGlance-CMake`.
+  - `APP_TYPE Glance`, with no GUI, no icons and no manifest.
+  - `APP_ID 5543E86906F4A1B3`: a development ID, the first 16 hex of
+    md5("XWeighInGlance").
+  - It writes to `Output/Glance/`, so `Output/` keeps one `.uapp`.
+  - CI builds it and puts `XWeighInGlance_*.uapp` in `watch-apps`.
+- **Not on the store,** like Streak's. How one store listing installs two
+  `.uapp`s is still a question for UNA (Streak PLAN, UNA question 4).
+
+### W3 verified (12 October 2026)
+
+- **Host tests: 113 pass**, with no warnings. The new suites:
+  - **GlanceView, 11 tests:**
+    - the bars end today, or at the last day without the clock;
+    - missed days, a stale log and the same-day rule;
+    - reading the SharedData copy from the glance's own folder, with the app's
+      log out of reach, and no copy.
+  - **GlanceLayout, 9 tests,** Streak's checks:
+    - every control lies inside the area, and the budget is kept, for 9 views ×
+      8 areas × 6 budgets;
+    - texts are ASCII and fit their boxes in the real Poppins widths
+      (SemiBold 25 added to `support/GlanceFontWidths.hpp` from the SDK's
+      tables);
+    - the bars stand on the baseline, in day order and clear of the words, and
+      a missed day leaves a gap.
+  - A check of the checks: narrowing the words column to 110 px makes the
+    width test fail on `-0.4 kg/week` (117 px).
+- **Watch target compile check** (Ubuntu toolchain with stubs, not
+  installable):
+  - `XWeighInGlance_0.0.0-dev.uapp` is 26,508 bytes;
+  - the app is unchanged at 236,148 bytes;
+  - no warnings in our files.
+- **The app after the `libs.cmake` split:**
+  - the simulator rebuilds;
+  - `capture_screens.sh` runs as before;
+  - a weigh-in reaches both files, identical.
+- **The mock-up,** checked by eye: the words are clear of the bars and nothing
+  is clipped.
+
+## Gate W3: what Jon tests on the watch
+
+1. **Install** the glance from the same CI run's `watch-apps`:
+   - create a new folder on the watch, `Apps/XWeighInGlance/`;
+   - copy `XWeighInGlance_*.uapp` into it;
+   - eject safely, and power-cycle the watch.
+   Leave `Apps/XWeighIn/` as it is.
+2. **Open the glances screen.** "X Weigh-in" should show your trend, the weekly
+   change and a bar for each weigh-in so far. A photo, please.
+3. **Weigh in with the app, then look at the glance again.** Today's bar and the
+   trend should have moved.
+4. **Anything off** (a clipped word, a missing bar, the wrong numbers), a
+   photo is ideal.
+
 ## Open, for later phases
 
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type

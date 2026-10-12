@@ -149,7 +149,9 @@ Strava. It is independent of the other apps.
 - **Rules:** the same standing rules as Race apply.
 - **Layout:** started from the SDK's Waypoint tutorial (LVGL). The pure core
   `Software/Libs/Core`; the service `Software/Libs/App`; the GUI
-  `Software/Apps/LVGL-GUI`.
+  `Software/Apps/LVGL-GUI`. The glance is a second `.uapp`
+  (`Apps/XWeighInGlance-CMake`, `Software/Libs/Glance`, as Streak's): it reads
+  the log's SharedData copy and never writes.
 - **Watch builds come from CI**, as for the others. Tags `weighin-vX.Y.Z`.
 - **Commands:**
   - host tests: `cmake -S x-weighin/Tests/Host -B x-weighin/build-tests && cmake --build x-weighin/build-tests && x-weighin/build-tests/x-weighin-host-tests`;
@@ -159,4 +161,7 @@ Strava. It is independent of the other apps.
     `docs/experiments/capture_screens.sh [out-dir]` (into `docs/screens/`);
   - a sample log: `build-tests/make_log <out.csv> [days] [seed]`; a log's trend
     day by day: `build-tests/trend_csv <weighins.csv>`; its chart:
-    `docs/experiments/trend_chart.py <trend.csv> <out.png>`.
+    `docs/experiments/trend_chart.py <trend.csv> <out.png>`;
+  - the glance (the simulator cannot run glances): a mock-up from the real
+    layout code, `docs/experiments/glance_preview.py build-tests/glance_preview
+    <out.png>`.
