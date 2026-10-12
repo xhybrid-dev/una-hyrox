@@ -1,7 +1,8 @@
 # X Weigh-in: notes
 
 An on-watch weight tracker in kg. You weigh in on the watch in a few seconds,
-see the smoothed trend beneath the day-to-day swings, and work towards a goal.
+and see the smoothed trend beneath the day-to-day swings. A tracker: no goals
+and no warnings for now.
 Started from the SDK's Waypoint tutorial (LVGL). Independent of the other apps.
 
 ## Why this app (12 October 2026)
@@ -26,9 +27,8 @@ Jon accepted the recommendations, with the changes below.
 - **kg only.** The watch's imperial setting is ignored.
 - **Height comes from the UNA profile, not the phone settings.** So does the
   starting weight. See "Where the request and the SDK disagree".
-- **Phone settings: birth year and month, and sex.** Goal fields come with the
-  goal screen (W2).
-- **First release:** weigh-in, smoothed trend, goal, and a glance. The
+- **Phone settings: birth year and month, and sex.**
+- **First release:** weigh-in, smoothed trend, and a glance. The
   sweat-rate test comes next.
 - **The trend is a smoothed average** (an exponential moving average), not a
   plain 7-day mean.
@@ -108,8 +108,8 @@ UNA profile. Jon was told and agreed (12 October 2026).
 | Phase | Work | Gate |
 |---|---|---|
 | **W0** | Identity, layout, CI build. The first look: the profile's height and weight, the daily resting HR, age and sex, on one screen | W0: do the profile's values reach the app on the watch? |
-| W1 | The core, pure and host-tested: a weigh-in log (an append-only file in the app's folder, with a copy in SharedData), the smoothed trend, the rate per week, goal projection, BMI, BMR | Jon sets the coaching thresholds |
-| W2 | The screens: weigh-in entry (starts at the last weight, 0.1 kg steps), the saved summary, trend graph, goal, history. Goal phone settings | A week of weigh-ins on the watch |
+| W1 | The core, pure and host-tested: a weigh-in log (an append-only file in the app's folder, with a copy in SharedData), the smoothed trend, the change per week, BMI, BMR | Host tests; Jon confirms the smoothing |
+| W2 | The screens: weigh-in entry (starts at the last weight, 0.1 kg steps), the saved summary, trend graph, history | A week of weigh-ins on the watch |
 | W3 | The glance, a second `.uapp`: weight, weekly change, 14 days as bars | The glance on the watch |
 | W4 | The sweat-rate test: weigh before and after a session, enter what you drank; L/h and % of body mass lost | A training session |
 
@@ -280,19 +280,19 @@ What it changes for W1:
 
 **Gate W0: passed.**
 
+### Jon's decision after the gate (12 October 2026)
+
+**A tracker only, for now.** There is no goal and no warning on the rate of
+change: the app shows the weekly change without judging it. The goal screen,
+its phone settings and any thresholds are dropped from W1 and W2. They can come
+back later as phone settings, which an app update adds without losing the
+existing values (`Docs/app-config-fields.md` §7.3).
+
 ## Open, for later phases
 
-- **Coaching thresholds (W1):**
-  - what weekly rate of loss or gain, as % of body mass per week, the app
-    should flag;
-  - whether it should flag at all.
-
-  Jon's call as the coach. Nothing is invented.
 - **The trend's smoothing (W1):** the Hacker's Diet method (J. Walker) moves
   the trend 10% of the way to each new weigh-in. To confirm with Jon.
 - **BMR (W1):** the Mifflin-St Jeor equation (Mifflin et al., 1990) needs
   weight, height, age and sex. The phone settings now supply the last two.
-- **Goal settings (W2):** config fields have no date type. A goal date needs
-  its own encoding: year, month and day fields, or weeks from the start.
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type
   later discards the user's value (`Docs/app-config-fields.md` §7.3).

@@ -140,7 +140,7 @@ against a Garmin. It is independent of the other apps.
 
 ## X Weigh-in (`x-weighin/`)
 A sixth app: an on-watch weight tracker in kg. Weigh in on the watch, see the
-smoothed trend, work towards a goal. Height (and the starting weight) come from
+smoothed trend (a tracker: no goals or warnings for now). Height (and the starting weight) come from
 the UNA profile; birth date and sex are phone config fields. The data stays on
 the watch: no phone app, and no activity FIT files, so nothing syncs to UNA or
 Strava. It is independent of the other apps.
