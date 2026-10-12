@@ -772,6 +772,20 @@ are approximate, and nothing in the SDK documents them.
   - the mock-up was checked by eye against the separators.
 - **Jon to check:** the glance on the watch again, from the next CI build.
 
+### Gate W3, second look (12 October 2026): the layout is right
+
+Jon installed CI run 111 and sent a photo of the glances list. He says it looks
+good.
+- `82.2 kg` and `-- kg/wk` start at the left separator, clear of the scroll arc.
+- The baseline and the day's white bar end at the right separator.
+- Every character draws.
+
+**Still to see over the coming days:**
+- the bars filling in, one a day;
+- the weekly change replacing `--` once the log spans a week.
+
+The glance needs no change for that, so W3 is done unless those show a fault.
+
 ## Open, for later phases
 
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type
