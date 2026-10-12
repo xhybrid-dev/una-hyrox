@@ -567,13 +567,36 @@ so the Body page shows "Height not set" and the empty run starts at 70.0.
 Anything that reads wrong (a clipped word, a slow button, a number that looks
 off), a photo is ideal.
 
+### Gate W2, day 1 (12 October 2026)
+
+Jon sent `Apps/SharedData/HybridX/weighins.csv` from the watch, with a photo of
+the folder listing:
+
+```
+date,time,kg
+2026-10-12,15:30,82.40
+```
+
+- **The SharedData copy works on the watch.** The app wrote the file next to
+  Streak's `streak.json`, byte for byte as `formatEntry` writes it: a header
+  and one weigh-in, 36 bytes, as the listing shows.
+- **The entry is in local time and the file stamp is not.** The listing shows
+  the file modified at 14:30 and the entry says 15:30. That is the BST offset
+  (+60 min, as Streak's probe read the clock: Streak NOTES, "Gate 0: first run
+  on Jon's watch"). The likely explanation: the entry uses `localtime_r`, as
+  planned, and the file system stamps files in UTC. Jon to confirm he weighed
+  in at about 15:30.
+- **Still to show:** appending to a file that already exists (the second
+  weigh-in on), and that `Apps/XWeighIn/weighins.csv` matches the copy.
+- In the same session Jon sent `Apps/SharedData/stride.json`. It is not ours:
+  the SDK's outdoor stride calibrator writes it (`StrideLut::kDefaultPath`),
+  as Streak NOTES E.3 records.
+
 ## Open, for later phases
 
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type
   later discards the user's value (`Docs/app-config-fields.md` §7.3).
-- **Two things the watch has not yet shown**, which Gate W2 checks:
-  - appending by opening for write without truncating, then seeking to the end
-    (the SDK's simulator documents that open mode, and FitWriter seeks on the
-    watch);
-  - creating `Apps/SharedData/HybridX/weighins.csv` (Streak and Run already
-    write in that folder).
+- **One thing the watch has not yet shown**, which Gate W2 checks: appending
+  by opening for write without truncating, then seeking to the end (the SDK's
+  simulator documents that open mode, and FitWriter seeks on the watch).
+  Creating `Apps/SharedData/HybridX/weighins.csv` is shown (Gate W2, day 1).
