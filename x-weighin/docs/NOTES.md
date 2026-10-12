@@ -259,6 +259,27 @@ Still open from the gate:
 - **The resting HR.** Does 40 match the UNA app's figure for today, and how
   long did it take to appear?
 
+### Gate W0, second run (12 October 2026)
+
+- **A profile change does not reach the watch.** Jon changed his weight in the
+  UNA app. After a sync, and again after a power-cycle, the app still showed
+  82.00 kg. So the profile weight is a starting value, not a live figure, and
+  its resolution can't be tested.
+- **The resting HR of 40 matches the UNA app.**
+- **Age can't come from the UNA app.** `RequestSystemSettings` has no birth
+  date (`CommandMessages.hpp:195-217`), and no other message carries one. Age
+  stays a phone setting.
+
+What it changes for W1:
+- **The weigh-in log is the source of truth.** The profile weight is used once,
+  as the entry's starting value, before the first weigh-in. After that, the
+  entry starts from the last logged weight.
+- **Asking UNA (optional).** When does the app push profile changes to the
+  watch? The drive-root `settings.json` seen in Streak's Gate 0 may show
+  whether the new weight reached the watch at all.
+
+**Gate W0: passed.**
+
 ## Open, for later phases
 
 - **Coaching thresholds (W1):**
