@@ -1,0 +1,47 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "utility"
+  ],
+  "name": "X Weigh-in",
+  "icon": "icon.png",
+  "binary": "XWeighIn.uapp",
+  "previews": "previews/",
+  "appVersion": "0.1.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [
+    "HR"
+  ],
+  "description": "Weigh in on your watch in seconds. Your weights stay on the watch, and the trend shows where you are heading beneath the day-to-day swings.",
+  "id": "6E1B68E38137C089",
+  "configFile": "app_config.json",
+  "configFields": [
+    {
+      "id": "birthYear",
+      "type": "int",
+      "label": "Birth year",
+      "description": "Used for your age, which later estimates the calories you burn at rest. 0 leaves it unset.",
+      "default": 0,
+      "min": 0,
+      "max": 2020
+    },
+    {
+      "id": "birthMonth",
+      "type": "int",
+      "label": "Birth month",
+      "description": "1 for January to 12 for December. 0 counts as January.",
+      "default": 0,
+      "min": 0,
+      "max": 12
+    },
+    {
+      "id": "sex",
+      "type": "int",
+      "label": "Sex",
+      "description": "1 for female, 2 for male. Used only to estimate the calories you burn at rest. 0 leaves it unset.",
+      "default": 0,
+      "min": 0,
+      "max": 2
+    }
+  ]
+}

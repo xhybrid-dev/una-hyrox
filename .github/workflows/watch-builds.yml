@@ -82,6 +82,10 @@ jobs:
           # HybridX Run: a RunLVGL copy that estimates VO2max (a test app) --
           # see hybridx-run/docs/NOTES.md.
           build hybridx-run/Software/Apps/HybridXRun-CMake run
+          # X Weigh-in: an on-watch weight tracker, and its glance -- see
+          # x-weighin/docs/NOTES.md.
+          build x-weighin/Software/Apps/XWeighIn-CMake weighin
+          build x-weighin/Software/Apps/XWeighInGlance-CMake weighin-glance
 
       - name: Collect
         run: |
@@ -95,6 +99,8 @@ jobs:
           cp hybridx-trail/Output/*.uapp watch-apps/
           cp hybridx-trail/Tools/Probe/Output/*.uapp watch-apps/
           cp hybridx-run/Output/*.uapp watch-apps/
+          cp x-weighin/Output/*.uapp watch-apps/
+          cp x-weighin/Output/Glance/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -212,3 +218,19 @@ jobs:
           cmake -S hybridx-run/Tests/Host -B ci-build/run-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/run-tests -j"$(nproc)"
           ctest --test-dir ci-build/run-tests --output-on-failure
+
+      - name: X Weigh-in settings declaration
+        # The manifest's configFields and the app's AppConfig table must agree
+        # (una-sdk Docs/app-config-fields.md 5.1).
+        run: |
+          python3 una-sdk/Utilities/Scripts/app_packer/validate_app_config.py \
+            --check x-weighin/Resources/app-manifest.json \
+            --check-bounds x-weighin/Software/Libs/App/Sources/AppConfigFields.cpp
+
+      - name: X Weigh-in host tests
+        # The pure core (age, the profile's weight as an integer, the text).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S x-weighin/Tests/Host -B ci-build/weighin-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/weighin-tests -j"$(nproc)"
+          ctest --test-dir ci-build/weighin-tests --output-on-failure

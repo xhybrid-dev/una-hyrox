@@ -146,8 +146,11 @@ builds its apps, with ST's toolchain. To download the result:
    glance and probe (see `hybridx-streak/docs/PROBE.md`), HybridX Intervals
    (in development, from P3) and its retired Gate P0 probe (see
    `hybridx-intervals/docs/PROBE.md`), HybridX Trail and its Gate T0 probe
-   (see `hybridx-trail/docs/PROBE.md`), and HybridX Run, a test app that
-   estimates VO2max (see `hybridx-run/docs/NOTES.md`).
+   (see `hybridx-trail/docs/PROBE.md`), HybridX Run, a test app that
+   estimates VO2max (see `hybridx-run/docs/NOTES.md`), and X Weigh-in, an
+   on-watch weight tracker, and its glance (in development; see
+   `x-weighin/docs/NOTES.md`). A glance goes in a folder of its own, named
+   like its file: `Apps/HXStreakGlance/`, `Apps/XWeighInGlance/`.
 
 Until the app is on the store, installing is a file copy:
 
