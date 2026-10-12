@@ -786,6 +786,13 @@ good.
 
 The glance needs no change for that, so W3 is done unless those show a fault.
 
+### Jon's decisions after Gate W3 (12 October 2026)
+
+- **The time is fine.** The 15:30 entry against the 14:30 file stamp is BST
+  against UTC, as expected.
+- **W4, the sweat-rate test, waits** until after the first release of this
+  package.
+
 ## Open, for later phases
 
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type
