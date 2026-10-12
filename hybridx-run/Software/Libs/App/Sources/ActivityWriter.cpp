@@ -22,6 +22,17 @@ using Field = fit::FitWriter::Field;
 using DevFieldDef = fit::FitWriter::DevField;
 
 namespace {
+    // HybridX Run: the FIT profile's max_met_data message, which carries a
+    // VO2max estimate. Not in the SDK's FitProfile.hpp; numbers from the FIT
+    // SDK 21.171 profile (as generated into fitdecode's profile.py): message
+    // 229; update_time 0 (date_time), vo2_max 2 (uint16, scale 10, mL/kg/min),
+    // sport 5, sub_sport 6 (enums).
+    constexpr uint16_t kMesgMaxMetData = 229;
+    const Field kMaxMetUpdateTime{0, fit::BaseType::UInt32};
+    const Field kMaxMetVo2Max{2, fit::BaseType::UInt16};
+    const Field kMaxMetSport{5, fit::BaseType::Enum};
+    const Field kMaxMetSubSport{6, fit::BaseType::Enum};
+
     // Native record fields shared by every record variant (HR/cadence/etc.).
     // GPS adds position; battery adds developer fields. Field order here defines
     // the on-wire order and must match the value-write order in addRecord().
@@ -89,6 +100,9 @@ void ActivityWriter::start(const AppInfo& info)
     writeFieldDescription(DF_HR_SOURCE, "hr_source", nullptr, fit::BaseType::UInt8);
     writeFieldDescription(DF_HR_OPTICAL, "hr_optical", "bpm", fit::BaseType::UInt8);
     writeFieldDescription(DF_HR_EXTERNAL, "hr_external", "bpm", fit::BaseType::UInt8);
+    // HybridX Run: float32 so any reader shows 52.3 with no scale to know.
+    writeFieldDescription(DF_VO2MAX, "vo2max", "ml/kg/min", fit::BaseType::Float32);
+    writeFieldDescription(DF_VO2MAX_RECENT, "vo2max_recent", "ml/kg/min", fit::BaseType::Float32);
 
     // event
     mFit->defineMessage(L_EVENT, fit::mesgNum(fit::MesgNum::Event),
@@ -114,7 +128,10 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Session::TotalAscent, fit::field::Session::TotalDescent,
          fit::field::Session::NumLaps, fit::field::Session::Sport,
          fit::field::Session::SubSport, fit::field::Session::AvgHeartRate,
-         fit::field::Session::MaxHeartRate});
+         fit::field::Session::MaxHeartRate},
+        {{DF_VO2MAX, 4, 0}, {DF_VO2MAX_RECENT, 4, 0}});   // HybridX Run
+    mFit->defineMessage(L_MAX_MET, kMesgMaxMetData,
+        {kMaxMetUpdateTime, kMaxMetVo2Max, kMaxMetSport, kMaxMetSubSport});
     mFit->defineMessage(L_ACTIVITY, fit::mesgNum(fit::MesgNum::Activity),
         {fit::field::Activity::Timestamp, fit::field::Activity::TotalTimerTime,
          fit::field::Activity::LocalTimestamp, fit::field::Activity::NumSessions});
@@ -346,7 +363,19 @@ bool ActivityWriter::stop(const TrackData& track)
 
     bool ok = mFit->ok();
 
-    ok = mFit->data(L_SESSION)
+    // HybridX Run: the athlete's current VO2max (the figure shown), in the
+    // profile's own message, before the session it belongs to.
+    if (track.vo2maxRecentX10 != 0) {
+        ok = mFit->data(L_MAX_MET)
+            .u32(unixToFitTimestamp(track.timestamp))
+            .u16(track.vo2maxRecentX10)
+            .u8(static_cast<uint8_t>(fit::Sport::Running))
+            .u8(static_cast<uint8_t>(fit::SubSport::Generic))
+            .write() && ok;
+    }
+
+    fit::FitWriter::Data session = mFit->data(L_SESSION);
+    session
         .u32(unixToFitTimestamp(track.timestamp))
         .u32(unixToFitTimestamp(track.timeStart))
         .u32(static_cast<uint32_t>(track.elapsed * 1000))
@@ -361,8 +390,17 @@ bool ActivityWriter::stop(const TrackData& track)
         .u8(static_cast<uint8_t>(fit::Sport::Running))
         .u8(static_cast<uint8_t>(fit::SubSport::Generic))
         .u8(static_cast<uint8_t>(track.hrAvg))
-        .u8(static_cast<uint8_t>(track.hrMax))
-        .write() && ok;
+        .u8(static_cast<uint8_t>(track.hrMax));
+    // HybridX Run: the developer fields, at the tail; FIT's invalid value when
+    // there is no figure.
+    for (const uint16_t x10 : {track.vo2maxX10, track.vo2maxRecentX10}) {
+        if (x10 != 0) {
+            session.f32(static_cast<float>(x10) / 10.0f);
+        } else {
+            session.invalid(fit::BaseType::Float32);
+        }
+    }
+    ok = session.write() && ok;
 
     ok = mFit->data(L_ACTIVITY)
         .u32(unixToFitTimestamp(track.timestamp))

@@ -67,6 +67,53 @@ inline size_t formatKg(int32_t hundredths, uint8_t decimals, char* out, size_t o
     return n > 0 ? static_cast<size_t>(n) : 0;
 }
 
+/**
+ * @brief   A change in hundredths of a kg as "+0.4", "-0.4" or "0.0" (1
+ *          decimal; 0 and 2 decimals likewise), rounding half away from zero.
+ *          A change that rounds to nothing has no sign. Plain ASCII '-', no
+ *          unit, and no judgement: the app is a tracker.
+ * @return  The length of the full text, as formatKg().
+ */
+inline size_t formatChange(int32_t hundredths, uint8_t decimals, char* out, size_t outSize)
+{
+    constexpr int32_t kMaxFormatHundredths = 9999999;
+
+    if (out == nullptr || outSize == 0) {
+        return 0;
+    }
+    if (hundredths > kMaxFormatHundredths || hundredths < -kMaxFormatHundredths) {
+        const int n = std::snprintf(out, outSize, "--");
+        return n > 0 ? static_cast<size_t>(n) : 0;
+    }
+    const bool negative = hundredths < 0;
+    const int  mag      = static_cast<int>(negative ? -hundredths : hundredths);
+
+    int whole = 0;
+    int frac  = 0;
+    int n     = 0;
+    if (decimals == 0) {
+        whole = (mag + 50) / 100;
+    } else if (decimals == 1) {
+        const int tenths = (mag + 5) / 10;
+        whole = tenths / 10;
+        frac  = tenths % 10;
+    } else {
+        whole = mag / 100;
+        frac  = mag % 100;
+    }
+    const char sign = (whole == 0 && frac == 0) ? '\0' : (negative ? '-' : '+');
+    const char signText[2] = { sign, '\0' };
+
+    if (decimals == 0) {
+        n = std::snprintf(out, outSize, "%s%d", signText, whole);
+    } else if (decimals == 1) {
+        n = std::snprintf(out, outSize, "%s%d.%d", signText, whole, frac);
+    } else {
+        n = std::snprintf(out, outSize, "%s%d.%02d", signText, whole, frac);
+    }
+    return n > 0 ? static_cast<size_t>(n) : 0;
+}
+
 }  // namespace XWeighIn
 
 #endif  // XWEIGHIN_WEIGH_TEXT_HPP

@@ -387,6 +387,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
         if (parser.isDataValid()) {
             mGradeData.gradePct   = parser.getGradePct();
             mGradeData.gradeValid = parser.isGradeValid();
+            mGradeLastMs          = mKernel.sys.getTimeMs();   // HybridX Run
+            mGradeSeen            = true;
             LOG_DEBUG("Grade:    %.2f %% (valid %u)\n",
                       mGradeData.gradePct, mGradeData.gradeValid);
         }
@@ -426,12 +428,21 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
         // HybridX Run: the watch's daily resting HR, for the VO2max estimate.
         SDK::SensorDataParser::HeartRateMetrics parser(data[0]);
         if (parser.isDataValid()) {
+            // Only a plausible figure replaces the last one: the daily value
+            // reads 0 after midnight until today's exists, and a run that
+            // crosses midnight must not lose it. Kept in vo2.json too, for a
+            // run that ends before the sensor first reports.
             const float   rhr = parser.getRhr();
             const uint8_t bpm = (rhr > 0.0f && rhr < 255.0f) ? static_cast<uint8_t>(rhr + 0.5f) : 0;
-            if (bpm != mVo2Input.watchRestHr) {
-                LOG_INFO("Resting HR from the watch: %u\n", bpm);
+            if (RunVo2::plausibleRestHr(bpm)) {
+                if (bpm != mVo2Input.watchRestHr) {
+                    LOG_INFO("Resting HR from the watch: %u\n", bpm);
+                }
+                mVo2Input.watchRestHr = bpm;
+                mVo2History.setWatchRestHr(bpm);
+            } else {
+                LOG_DEBUG("Resting HR from the watch ignored: %u\n", bpm);
             }
-            mVo2Input.watchRestHr = bpm;
         }
     } else if (mSensorBatteryLevel.matchesDriver(handle)) {
         SDK::SensorDataParser::BatteryLevel parser(data[0]);
@@ -1193,8 +1204,11 @@ void Service::stopTrack(bool discard)
         fitTrack.ascent    = mAltitudeCounter.getAscent();
         fitTrack.descent   = mAltitudeCounter.getDescent();
 
-        // HybridX Run: this run's VO2max, into the history and onto the summary.
+        // HybridX Run: this run's VO2max, into the history, onto the summary
+        // and into the FIT file (NOTES, R4).
         finishVo2(endUtc);
+        fitTrack.vo2maxX10       = mVo2Info.runX10;
+        fitTrack.vo2maxRecentX10 = mVo2Info.rollingX10;
 
         if (mActivityWriter.stop(fitTrack)) {
             notifyNewActivity();
@@ -1690,13 +1704,15 @@ void Service::loadVo2()
             LOG_WARNING("vo2.json unreadable: using the backup\n");
         }
     }
-    mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
+    mVo2Input.autoMaxHr   = mVo2History.autoMaxHr();
+    mVo2Input.watchRestHr = mVo2History.watchRestHr();   // until the sensor reports
 
     mVo2Info            = CustomMessage::Vo2Info{};
     mVo2Info.rollingX10 = mVo2History.rollingX10();
     mVo2Info.runs       = mVo2History.size();
-    LOG_INFO("VO2max history: %u runs, shown %u (x10), auto max HR %u\n",
-             mVo2Info.runs, mVo2Info.rollingX10, mVo2Input.autoMaxHr);
+    LOG_INFO("VO2max history: %u runs, shown %u (x10), auto max HR %u from %u runs, resting HR %u\n",
+             mVo2Info.runs, mVo2Info.rollingX10, mVo2Input.autoMaxHr, mVo2History.runMaxCount(),
+             mVo2Input.watchRestHr);
 }
 
 void Service::feedVo2()
@@ -1705,6 +1721,7 @@ void Service::feedVo2()
     // Unsigned deltas: the ms clock wraps.
     const bool hrFresh    = mHrSeen && static_cast<uint32_t>(nowMs - mHrLastMs) <= kVo2FreshMs;
     const bool speedFresh = mSpeedSeen && static_cast<uint32_t>(nowMs - mSpeedLastMs) <= kVo2FreshMs;
+    const bool gradeFresh = mGradeSeen && static_cast<uint32_t>(nowMs - mGradeLastMs) <= kVo2FreshMs;
 
     const float hr    = mHrCounter.getCurrent();
     const float trust = mTrackData.hrTrustLevel;
@@ -1715,29 +1732,32 @@ void Service::feedVo2()
     s.speedValid    = mGpsSpeedValid && speedFresh;
     s.deadReckoning = mGpsDeadReckoning;
     s.gradePct      = mGradeData.gradePct;
-    s.gradeValid    = mGradeData.gradeValid;
+    s.gradeValid    = mGradeData.gradeValid && gradeFresh;   // stale: taken as level
     s.hrBpm         = (hrFresh && hr > 0.0f && hr < 255.0f) ? static_cast<uint8_t>(hr + 0.5f) : 0;
-    s.hrTrust       = (trust > 0.0f && trust < 255.0f) ? static_cast<uint8_t>(trust + 0.5f) : 0;
+    s.hrTrust       = trust;   // the raw value: the core applies RunLVGL's 1-3 test
     mVo2Run.addSecond(s);
 }
 
 void Service::finishVo2(std::time_t endUtc)
 {
-    // The auto max first, so a run that shows a higher max is judged with it.
-    if (mVo2Input.enteredMaxHr == 0) {
-        mVo2History.raiseAutoMaxHr(mVo2Run.sustainedMaxHr());
-        mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
-    }
+    // This run's sustained max joins the last runs'; the auto max is the
+    // second-highest of them (Vo2Config kAutoMaxConfirmRuns), so one artefact
+    // cannot raise it. Recorded even when a max HR is entered, so clearing
+    // that later finds candidates; used only when none is entered.
+    mVo2History.addRunMax(mVo2Run.sustainedMaxHr());
+    mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
 
     const RunVo2::Profile   profile = RunVo2::resolveProfile(mVo2Input, endUtc);
     const RunVo2::RunResult result  = mVo2Run.estimate(profile);
     const RunVo2::WindowCounts& c   = mVo2Run.counts();
     LOG_INFO("VO2 windows: %u kept, %u warm-up, %u gaps, %u unsteady, %u grade, %u overflow\n",
              c.accepted, c.warmUp, c.gaps, c.unsteady, c.grade, c.overflow);
-    LOG_INFO("VO2 run: status %u (profile %u), %u (x10) from %u windows; max HR %u (source %u), rest %u\n",
+    LOG_INFO("VO2 run: status %u (profile %u), %u (x10) from %u windows (%u too easy, %u above max, %u implausible); "
+             "max HR %u (source %u), rest %u, run max %u\n",
              static_cast<unsigned>(result.status), static_cast<unsigned>(result.profileStatus),
-             result.vo2x10, result.windowsUsed, profile.maxHr,
-             static_cast<unsigned>(profile.maxSource), profile.restHr);
+             result.vo2x10, result.windowsUsed, result.tooEasy, result.aboveMax, result.implausible,
+             profile.maxHr, static_cast<unsigned>(profile.maxSource), profile.restHr,
+             mVo2Run.sustainedMaxHr());
 
     if (result.status == RunVo2::RunStatus::Ok) {
         mVo2History.add(RunVo2::RunRecord{static_cast<uint32_t>(endUtc), result.vo2x10, result.windowsUsed});

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(hybridx-run-host-tests CXX)
+project(hybridx-run-host-tests C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,8 +11,9 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Core is plain C++ with no SDK headers; the SDK provides the pinned
-# GoogleTest fetch.
+# Core is plain C++ apart from the SDK's JSON reader and writer (over coreJSON),
+# which the history file uses, as HybridX Streak's state file does. The SDK
+# also provides the pinned GoogleTest fetch.
 if(NOT DEFINED ENV{UNA_SDK})
     message(FATAL_ERROR
         "UNA_SDK is not set. Point it at the una-sdk checkout, e.g.\n"
@@ -24,6 +25,11 @@ set(UNA_SDK_ROOT "$ENV{UNA_SDK}")
 include("${UNA_SDK_ROOT}/Tests/Host/cmake/FetchGoogleTest.cmake")
 
 set(CORE_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Core")
+set(SDK_JSON_SOURCES
+    "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamReader.cpp"
+    "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamWriter.cpp"
+    "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/core_json.c"
+)
 
 add_executable(hybridx-run-host-tests
     Vo2ProfileTest.cpp
@@ -34,8 +40,13 @@ add_executable(hybridx-run-host-tests
     "${CORE_LIBS}/Sources/Vo2Run.cpp"
     "${CORE_LIBS}/Sources/Vo2History.cpp"
     "${CORE_LIBS}/Sources/Vo2Text.cpp"
+    ${SDK_JSON_SOURCES}
 )
-target_include_directories(hybridx-run-host-tests PRIVATE "${CORE_LIBS}/Header")
+target_include_directories(hybridx-run-host-tests PRIVATE
+    "${CORE_LIBS}/Header"
+    "${UNA_SDK_ROOT}/Libs/Header"
+    "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
+)
 target_link_libraries(hybridx-run-host-tests PRIVATE GTest::gtest_main)
 
 enable_testing()

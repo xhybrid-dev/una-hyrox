@@ -51,6 +51,11 @@ uint8_t ageAt(uint16_t birthYear, uint8_t birthMonth, std::time_t nowUtc)
     return static_cast<uint8_t>(age);
 }
 
+bool plausibleRestHr(uint8_t bpm)
+{
+    return bpm >= Config::kMinRestingHr && bpm <= Config::kMaxRestingHr;
+}
+
 uint8_t tanakaMaxHr(uint8_t ageYears)
 {
     // 208 - 0.7 x age in tenths, rounded half up: (2080 - 7 x age + 5) / 10.
@@ -78,12 +83,9 @@ Profile resolveProfile(const ProfileInput& in, std::time_t nowUtc)
         return p;
     }
 
-    auto plausibleRest = [](uint8_t bpm) {
-        return bpm >= Config::kMinRestingHr && bpm <= Config::kMaxRestingHr;
-    };
-    if (plausibleRest(in.enteredRestHr)) {
+    if (plausibleRestHr(in.enteredRestHr)) {
         p.restHr = in.enteredRestHr;
-    } else if (plausibleRest(in.watchRestHr)) {
+    } else if (plausibleRestHr(in.watchRestHr)) {
         p.restHr = in.watchRestHr;
     } else {
         p.status = ProfileStatus::NeedsRestingHr;

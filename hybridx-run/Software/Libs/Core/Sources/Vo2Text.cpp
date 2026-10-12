@@ -37,6 +37,10 @@ const char* reason(const RunResult& r)
         return "";
     case RunStatus::NotEnoughRunning:
         return "Need 5 steady minutes";
+    case RunStatus::TooEasy:
+        return "Too easy to estimate";
+    case RunStatus::HrAboveMax:
+        return "HR above your max";
     case RunStatus::ProfileIncomplete:
         switch (r.profileStatus) {
         case ProfileStatus::NeedsAge:        return "Set your birth year";

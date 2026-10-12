@@ -58,16 +58,24 @@ inline constexpr uint16_t kMinWindows = 5;
 /// Accepted windows kept per run (4 hours of running).
 inline constexpr uint16_t kMaxWindows = 240;
 
-/// HR trust levels the kernel calls good (RunLVGL's own test, 1 to 3).
-inline constexpr uint8_t kMinHrTrust = 1;
-inline constexpr uint8_t kMaxHrTrust = 3;
+/// HR trust levels the kernel calls good: RunLVGL's own test on the raw
+/// float, 1 to 3 inclusive (its Service.cpp, the FIT heart-rate gate).
+inline constexpr float kMinHrTrust = 1.0f;
+inline constexpr float kMaxHrTrust = 3.0f;
 
 /// Believable heart-rate range, bpm.
 inline constexpr uint8_t kMinHrBpm = 30;
 inline constexpr uint8_t kMaxHrBpm = 230;
 
-/// Auto max HR: seconds a reading must be held to count.
+/// Auto max HR: seconds a reading must be held to count. Readings in the
+/// warm-up never count (optical sensors are least reliable there).
 inline constexpr uint8_t kAutoMaxHoldSec = 5;
+
+/// Auto max HR is the second-highest of the last kHistoryRuns runs' sustained
+/// maxima: a value must be reached on two runs, so one artefact (an optical
+/// sensor locking on to cadence) cannot raise it, and an old value leaves as
+/// its run rolls out of the history.
+inline constexpr uint8_t kAutoMaxConfirmRuns = 2;
 
 /// Resting HR range accepted from the watch or the athlete, bpm.
 inline constexpr uint8_t kMinRestingHr = 30;

@@ -37,7 +37,7 @@ struct Sample {
     float   gradePct      = 0.0f;
     bool    gradeValid    = false;
     uint8_t hrBpm         = 0;
-    uint8_t hrTrust       = 0;
+    float   hrTrust       = 0.0f;   ///< the kernel's raw trust level
 };
 
 /// Why a window was not kept (counts are for the NOTES and the tests).
@@ -50,10 +50,13 @@ struct WindowCounts {
     uint16_t overflow   = 0;   ///< accepted but no room left
 };
 
+// Values are sent to the GUI as uint8_t (CustomMessage::Vo2Info): append only.
 enum class RunStatus : uint8_t {
     Ok,
     ProfileIncomplete,   ///< see Profile::status
-    NotEnoughRunning,    ///< fewer than kMinWindows usable windows
+    NotEnoughRunning,    ///< fewer than kMinWindows steady windows
+    TooEasy,             ///< steady windows, but under the intensity floor
+    HrAboveMax,          ///< steady windows, but HR above the max HR in use
 };
 
 struct RunResult {
@@ -61,6 +64,9 @@ struct RunResult {
     ProfileStatus profileStatus = ProfileStatus::Ok;
     uint16_t      vo2x10        = 0;   ///< ml/kg/min x 10
     uint16_t      windowsUsed   = 0;   ///< windows behind the estimate
+    uint16_t      tooEasy       = 0;   ///< steady windows under the intensity floor
+    uint16_t      aboveMax      = 0;   ///< steady windows with HR above max HR
+    uint16_t      implausible   = 0;   ///< steady windows giving a result outside 15-95
 };
 
 class Vo2Run
@@ -75,7 +81,8 @@ public:
     /// The estimate so far, with this profile. Can be called at any time.
     RunResult estimate(const Profile& profile) const;
 
-    /// Highest HR held for kAutoMaxHoldSec with good trust; 0 if none.
+    /// Highest HR held for kAutoMaxHoldSec with good trust after the
+    /// warm-up; 0 if none.
     uint8_t sustainedMaxHr() const { return mSustainedMax; }
 
     const WindowCounts& counts() const { return mCounts; }

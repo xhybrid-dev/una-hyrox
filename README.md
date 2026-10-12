@@ -148,7 +148,9 @@ builds its apps, with ST's toolchain. To download the result:
    `hybridx-intervals/docs/PROBE.md`), HybridX Trail and its Gate T0 probe
    (see `hybridx-trail/docs/PROBE.md`), HybridX Run, a test app that
    estimates VO2max (see `hybridx-run/docs/NOTES.md`), and X Weigh-in, an
-   on-watch weight tracker (in development; see `x-weighin/docs/NOTES.md`).
+   on-watch weight tracker, and its glance (in development; see
+   `x-weighin/docs/NOTES.md`). A glance goes in a folder of its own, named
+   like its file: `Apps/HXStreakGlance/`, `Apps/XWeighInGlance/`.
 
 Until the app is on the store, installing is a file copy:
 

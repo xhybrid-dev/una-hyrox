@@ -20,8 +20,14 @@ public:
 
     void bind(Model* m) { model = m; }
 
-    /// A new first look arrived from the service.
-    virtual void onFirstLook(const CustomMessage::FirstLookState& look) { (void)look; }
+    /// A new home state arrived (at start, and after a save).
+    virtual void onHome() {}
+
+    /// New 30-day data arrived.
+    virtual void onGraph() {}
+
+    /// A save finished (the model holds the outcome).
+    virtual void onSaveResult() {}
 
 protected:
     Model* model;

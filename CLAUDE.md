@@ -128,11 +128,12 @@ A fifth app, and a test: the SDK's RunLVGL copied, plus a VO2max estimate
 worked out live during the run (ACSM running equation, %HRR ≈ %VO2R, max HR
 entered or Tanaka from birth year and month). It exists to check the method
 against a Garmin. It is independent of the other apps.
-- **Docs:** findings, decisions, method and phases (R0-R3):
+- **Docs:** findings, decisions, method, phases (R0-R3) and the review:
   `hybridx-run/docs/NOTES.md`. Read it at the start of each Run phase.
 - **Rules:** the same standing rules as Race apply.
-- **Layout:** the pure VO2max core `Software/Libs/Core`; the service (from
-  RunLVGL) `Software/Libs/App`; the GUI `Software/Apps/LVGL-GUI`.
+- **Layout:** the pure VO2max core `Software/Libs/Core` (its only SDK use is
+  the JSON reader and writer); the service (from RunLVGL) `Software/Libs/App`;
+  the GUI `Software/Apps/LVGL-GUI`.
 - **Watch builds come from CI**, as for the others. Tags `run-vX.Y.Z`.
 - **Commands:**
   - host tests: `cmake -S hybridx-run/Tests/Host -B hybridx-run/build-tests && cmake --build hybridx-run/build-tests && hybridx-run/build-tests/hybridx-run-host-tests`;
@@ -140,7 +141,7 @@ against a Garmin. It is independent of the other apps.
 
 ## X Weigh-in (`x-weighin/`)
 A sixth app: an on-watch weight tracker in kg. Weigh in on the watch, see the
-smoothed trend, work towards a goal. Height (and the starting weight) come from
+smoothed trend (a tracker: no goals or warnings for now). Height (and the starting weight) come from
 the UNA profile; birth date and sex are phone config fields. The data stays on
 the watch: no phone app, and no activity FIT files, so nothing syncs to UNA or
 Strava. It is independent of the other apps.
@@ -149,7 +150,9 @@ Strava. It is independent of the other apps.
 - **Rules:** the same standing rules as Race apply.
 - **Layout:** started from the SDK's Waypoint tutorial (LVGL). The pure core
   `Software/Libs/Core`; the service `Software/Libs/App`; the GUI
-  `Software/Apps/LVGL-GUI`.
+  `Software/Apps/LVGL-GUI`. The glance is a second `.uapp`
+  (`Apps/XWeighInGlance-CMake`, `Software/Libs/Glance`, as Streak's): it reads
+  the log's SharedData copy and never writes.
 - **Watch builds come from CI**, as for the others. Tags `weighin-vX.Y.Z`.
 - **Commands:**
   - host tests: `cmake -S x-weighin/Tests/Host -B x-weighin/build-tests && cmake --build x-weighin/build-tests && x-weighin/build-tests/x-weighin-host-tests`;
@@ -170,3 +173,11 @@ its rep counter is meant to be reused by Race for wall balls and burpees later.
   host-test data: never tune the counter on a set without adding it as a test.
 - **Watch builds come from CI**, as for the others. Tags `velocity-vX.Y.Z`
   (the name is still Jon's decision, brief §11).
+  - every screen in the simulator, and a weigh-in round trip:
+    `docs/experiments/capture_screens.sh [out-dir]` (into `docs/screens/`);
+  - a sample log: `build-tests/make_log <out.csv> [days] [seed]`; a log's trend
+    day by day: `build-tests/trend_csv <weighins.csv>`; its chart:
+    `docs/experiments/trend_chart.py <trend.csv> <out.png>`;
+  - the glance (the simulator cannot run glances): a mock-up from the real
+    layout code, `docs/experiments/glance_preview.py build-tests/glance_preview
+    <out.png>`.

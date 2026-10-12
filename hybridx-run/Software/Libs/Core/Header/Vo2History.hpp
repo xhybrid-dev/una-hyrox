@@ -4,14 +4,22 @@
  * @brief   The last runs' estimates, the value shown, and their files.
  *
  * The phone deletes activity files after sync, so the app keeps its own small
- * history: a fixed ring of the last kHistoryRuns estimates and the auto max
- * HR, saved as vo2.json in the app's folder. The value shown is the mean of
- * the latest kRollingRuns, each weighted by its window count (capped).
+ * history, saved as vo2.json in the app's folder:
+ *   - the last kHistoryRuns estimates; the value shown is the mean of the
+ *     latest kRollingRuns, each weighted by its window count (capped);
+ *   - the last kHistoryRuns runs' sustained max HR; the auto max HR is the
+ *     second-highest of them (reached on two runs, kAutoMaxConfirmRuns);
+ *   - the last plausible resting HR the watch reported, for a run that ends
+ *     before today's figure arrives.
  *
- * The JSON is written and read here as plain text, so the host tests cover it;
- * the service does the file I/O. Integers only (no %f):
- *   {"v":1,"autoMaxHr":188,"runs":[[1791000000,523,24],...]}   oldest first
- * Anything malformed reads as an empty history, never a crash.
+ * Written and read with the SDK's JSON writer and reader (coreJSON), as HybridX
+ * Streak's state file is, so the host tests cover it; the service does the file
+ * I/O. Integers only:
+ *   {"v":2,"restHr":52,"maxes":[186,184],"runs":[[1791000000,523,24],...]}
+ * oldest first. Version 1 files (R1-R3: "autoMaxHr" instead of "maxes" and
+ * "restHr") are read. Unknown keys are ignored, so a newer file still reads;
+ * a known key with a bad value fails the whole file (the service then tries
+ * the backup), never a crash.
  ******************************************************************************
  */
 
@@ -37,7 +45,7 @@ class Vo2History
 public:
     void clear() { *this = Vo2History{}; }
 
-    /// Add a run, dropping the oldest when full.
+    /// Add a run's estimate, dropping the oldest when full.
     void add(const RunRecord& r);
 
     uint8_t size() const { return mCount; }
@@ -48,14 +56,25 @@ public:
     /// The value to show, x 10; 0 when there are no runs.
     uint16_t rollingX10() const;
 
-    uint8_t autoMaxHr() const { return mAutoMaxHr; }
-    /// Raise (never lower) the auto max HR.
-    void raiseAutoMaxHr(uint8_t bpm);
+    /// Record a saved run's sustained max HR (0 or implausible: ignored),
+    /// dropping the oldest when full.
+    void addRunMax(uint8_t bpm);
+
+    uint8_t runMaxCount() const { return mMaxCount; }
+
+    /// The auto max HR: the kAutoMaxConfirmRuns-th highest run max kept; 0
+    /// until that many runs have one.
+    uint8_t autoMaxHr() const;
+
+    /// The watch's resting HR, kept only if plausible (Vo2Profile's range).
+    void    setWatchRestHr(uint8_t bpm);
+    uint8_t watchRestHr() const { return mWatchRestHr; }
 
     /// Write vo2.json into buf; returns the length, or 0 if it did not fit.
     size_t toJson(char* buf, size_t cap) const;
 
-    /// Read vo2.json. On any error the history is left empty and false returned.
+    /// Read vo2.json (version 1 or 2). On any error the history is left
+    /// empty and false returned.
     bool fromJson(const char* text, size_t len);
 
     /// The shared file other HybridX apps may read
@@ -64,13 +83,18 @@ public:
     size_t toSharedJson(char* buf, size_t cap) const;
 
     /// Largest toJson() output, for sizing buffers.
-    static constexpr size_t kMaxJsonBytes = 64 + Config::kHistoryRuns * 32;
+    static constexpr size_t kMaxJsonBytes = 64 + Config::kHistoryRuns * (32 + 4);
 
 private:
     RunRecord mRuns[Config::kHistoryRuns] = {};
     uint8_t   mFirst = 0;
     uint8_t   mCount = 0;
-    uint8_t   mAutoMaxHr = 0;
+
+    uint8_t   mMaxes[Config::kHistoryRuns] = {};
+    uint8_t   mMaxFirst = 0;
+    uint8_t   mMaxCount = 0;
+
+    uint8_t   mWatchRestHr = 0;
 };
 
 }  // namespace RunVo2

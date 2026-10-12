@@ -62,10 +62,11 @@ set(SERVICE_INCLUDE_DIRS
 )
 una_app_build_service(${APP_NAME}Service.elf)
 
-# Build GUI (LVGL). It also compiles the VO2max core, for the text it shows.
+# Build GUI (LVGL). It also compiles the one part of the VO2max core it uses:
+# the text it shows.
 set(GUI_SOURCES
     ${GUI_APP_SOURCES}
-    ${RUN_CORE_SOURCES}
+    ${RUN_CORE_GUI_SOURCES}
     ${UNA_SDK_SOURCES_COMMON}
     ${UNA_SDK_SOURCES_GUI_LVGL}
 )
