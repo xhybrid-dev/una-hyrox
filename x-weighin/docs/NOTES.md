@@ -982,9 +982,13 @@ listing. `docs/experiments/store_images.py` makes them, and
 **What is real:**
 - The screens are real: simulator captures for the app, and the real layout
   code's output for the glance.
-- Only the watch body, the backgrounds and the headlines are drawn.
-- The headlines claim no more than SUBMISSION.md's checked store text.
-- The watch has no maker's logo.
+- The watch is UNA's own render, from the SDK's Figma UI Resource Pack
+  (`Docs/Templates/Figma-UI-Kit/`, a zip of 2000×2000 renders with the screen
+  transparent). Jon pointed to it.
+  - The first version drew a generic watch.
+  - The renders are read from `$UNA_SDK`, not copied in.
+- Only the backgrounds and the headlines are drawn, and the headlines claim no
+  more than SUBMISSION.md's checked store text.
 
 The portal gives no image sizes, so these are common ones.
 

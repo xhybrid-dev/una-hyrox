@@ -8,9 +8,8 @@ Everything on a watch screen is real, never redrawn by hand:
   - the glance is drawn from the real layout code's output
     (Tests/Host/tools/glance_preview), as glance_preview.py does, because the
     simulator cannot run glances.
-Only the watch body around the screen, the headlines and the backgrounds are
-drawn here. The watch is a plain round sports watch with four buttons, as
-labelled on Jon's watch (UP, DOWN, SELECT, BACK). It carries no maker's logo.
+The watch is UNA's own render from the SDK's Figma UI Resource Pack, read
+from $UNA_SDK. Only the backgrounds and the headlines are drawn here.
 
     UNA_SDK=... store_images.py <glance_preview binary> <out-dir>
 
@@ -20,10 +19,12 @@ writes:
     <out-dir>/app/marketing/   1080x1080 feature cards and a 1920x1080 banner
     <out-dir>/glance/...       the same three for the glance
 """
+import io
 import os
 import shutil
 import subprocess
 import sys
+import zipfile
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -48,44 +49,44 @@ def font(weight, size):
 
 # -- The watch --------------------------------------------------------------
 
-def watch(screen, face=600):
-    """A round watch with the 240x240 @2x screen at @p face px, on a transparent
-    canvas sized to fit it."""
-    case_r = int(face * 0.70)
-    bezel_r = int(face * 0.61)
-    size = int(face * 1.62)
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    c = size // 2
-    # Strap stubs top and bottom, to the canvas edge.
-    sw = int(face * 0.33)
-    d.rounded_rectangle([c - sw, 0, c + sw, size - 1], int(face * 0.07), fill=(22, 24, 27))
-    # Four buttons, two a side.
-    bw, bh = int(face * 0.05), int(face * 0.15)
-    for sgn in (-1, 1):
-        for dy in (-0.30, 0.30):
-            x, y = c + sgn * (case_r - bw // 3), c + int(dy * face)
-            d.rounded_rectangle([x - bw, y - bh // 2, x + bw, y + bh // 2], bw // 2, fill=(44, 47, 51))
-    # Case, bezel ring, the black around the screen.
-    d.ellipse([c - case_r, c - case_r, c + case_r, c + case_r], fill=(30, 33, 36))
-    r2 = case_r - int(face * 0.02)
-    d.ellipse([c - r2, c - r2, c + r2, c + r2], fill=(16, 18, 20))
-    d.ellipse([c - bezel_r, c - bezel_r, c + bezel_r, c + bezel_r], fill=(6, 7, 8))
-    # Button labels on the bezel ring, as on the watch.
-    lab = font("Medium", max(12, int(face * 0.038)))
-    rl = (bezel_r + r2) / 2 / 2 ** 0.5
-    for text, sx, sy in (("UP", -1, -1), ("DOWN", -1, 1), ("SELECT", 1, -1), ("BACK", 1, 1)):
-        d.text((c + sx * rl, c + sy * rl), text, font=lab, fill=(118, 124, 128), anchor="mm")
-    # The screen, round.
-    scr = screen.convert("RGB").resize((face, face), Image.LANCZOS)
-    mask = Image.new("L", (face, face), 0)
-    ImageDraw.Draw(mask).ellipse([0, 0, face - 1, face - 1], fill=255)
-    img.paste(scr, (c - face // 2, c - face // 2), mask)
-    # A faint glass highlight.
-    glare = Image.new("RGBA", (face, face), (0, 0, 0, 0))
-    ImageDraw.Draw(glare).ellipse([-face * 0.3, -face * 0.55, face * 0.9, face * 0.35], fill=(255, 255, 255, 6))
-    img.alpha_composite(Image.composite(glare, Image.new("RGBA", (face, face)), mask), (c - face // 2, c - face // 2))
-    return img
+# UNA's own watch renders, from the SDK's Figma UI Resource Pack
+# (una-sdk Docs/Templates/Figma-UI-Kit/UNA-Watch-UI-Resource-Pack.fig, a zip;
+# Docs/figma-ui-kit.rst). Each is 2000x2000 with the screen left transparent:
+# a 734 px circle centred at (999.5, 1010.5), measured from the alpha channel.
+# Read from $UNA_SDK at run time, not copied into this repository.
+FIG = os.path.join(os.environ.get("UNA_SDK", ""), "Docs/Templates/Figma-UI-Kit/UNA-Watch-UI-Resource-Pack.fig")
+RENDERS = {"black": "images/7fcc1a77ec68190d68598271ef7001237214c36d",
+           "teal": "images/4ae4be5e2931ad615f699b142316f5a8f66563f5",
+           "white": "images/8a9fead257a6c70ffc99d9fe6f3c0ba3fc144d36"}
+HOLE_CX, HOLE_CY, HOLE_D = 999.5, 1010.5, 734
+CROP = (418, 201, 1583, 1797)   # the watch's own extent, plus a 10 px margin
+_renders = {}
+
+
+def render(colour):
+    if colour not in _renders:
+        if not os.path.isfile(FIG):
+            sys.exit("The SDK's Figma pack is not at %s: set UNA_SDK" % FIG)
+        with zipfile.ZipFile(FIG) as z, z.open(RENDERS[colour]) as f:
+            _renders[colour] = Image.open(io.BytesIO(f.read())).convert("RGBA")
+    return _renders[colour]
+
+
+def watch(screen, height=1000, colour="black"):
+    """UNA's watch render, @p height px tall, with the 240x240 @2x @p screen in
+    its screen opening."""
+    w = render(colour)
+    base = Image.new("RGBA", w.size, (0, 0, 0, 0))
+    # The screen slightly larger than the opening, so no gap shows at its edge.
+    d = HOLE_D + 6
+    scr = screen.convert("RGB").resize((d, d), Image.LANCZOS)
+    mask = Image.new("L", (d, d), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, d - 1, d - 1], fill=255)
+    base.paste(scr, (int(HOLE_CX - d / 2 + 0.5), int(HOLE_CY - d / 2 + 0.5)), mask)
+    base.alpha_composite(w)
+    base = base.crop(CROP)
+    scale = height / base.height
+    return base.resize((int(base.width * scale), height), Image.LANCZOS)
 
 
 def shadowed(img):
@@ -142,8 +143,9 @@ def card(screen, title, body, brand, path, w=1080, h=1080):
     for line in wrap(d, body, font("Regular", 34), w - 140):
         d.text((70, y), line, font=font("Regular", 34), fill=GREY)
         y += 46
-    wt = shadowed(watch(screen, face=410))
-    img.alpha_composite(wt, ((w - wt.width) // 2, max(y + 10, h - wt.height + 10)))
+    top = y + 20
+    wt = shadowed(watch(screen, height=h - top - 20))
+    img.alpha_composite(wt, ((w - wt.width) // 2, top))
     img.convert("RGB").save(path)
     print("wrote", os.path.relpath(path, REPO))
 
@@ -161,10 +163,10 @@ def banner(screens, title, sub, brand, path, w=1920, h=1080):
     for line in wrap(d, sub, font("Regular", 40), 700):
         d.text((110, y), line, font=font("Regular", 40), fill=GREY)
         y += 54
-    # (face, centre x, centre y): the first screen in front, the others behind.
-    spots = [(310, 1420, 540), (220, 1080, 570), (220, 1740, 570)]
-    for scr, (face, x, yy) in reversed(list(zip(screens, spots))):
-        wt = shadowed(watch(scr, face=face))
+    # (height, centre x, centre y, colour): the first in front, the others behind.
+    spots = [(880, 1390, 545, "black"), (600, 1060, 560, "teal"), (600, 1690, 560, "white")]
+    for scr, (ht, x, yy, col) in reversed(list(zip(screens, spots))):
+        wt = shadowed(watch(scr, height=ht, colour=col))
         img.alpha_composite(wt, (x - wt.width // 2, yy - wt.height // 2))
     img.convert("RGB").save(path)
     print("wrote", os.path.relpath(path, REPO))
@@ -237,7 +239,7 @@ def main():
         shutil.copy(src, os.path.join(app, "previews", n + ".png"))
         shots[n] = Image.open(src)
         m = background(1080, 1080)
-        wt = shadowed(watch(shots[n], face=600))
+        wt = shadowed(watch(shots[n], height=1000))
         m.alpha_composite(wt, ((1080 - wt.width) // 2, (1080 - wt.height) // 2))
         m.convert("RGB").save(os.path.join(app, "mockups", n + ".png"))
         print("wrote", os.path.relpath(os.path.join(app, "mockups", n + ".png"), REPO))
@@ -270,7 +272,7 @@ def main():
             ("3-first-days", "The first three days")]
     for fname, pname in pick:
         m = background(1080, 1080)
-        wt = shadowed(watch(screens[pname], face=600))
+        wt = shadowed(watch(screens[pname], height=1000))
         m.alpha_composite(wt, ((1080 - wt.width) // 2, (1080 - wt.height) // 2))
         m.convert("RGB").save(os.path.join(gl, "mockups", fname + ".png"))
         print("wrote", os.path.relpath(os.path.join(gl, "mockups", fname + ".png"), REPO))
