@@ -938,7 +938,13 @@ Jon created both listings on apps.unawatch.com:
 
 ### Tagged 1.0.0 (13 October 2026)
 
-- **At Jon's request,** the branch's latest commit is tagged `weighin-v1.0.0`.
+- **At Jon's request,** the release commit (c2e21ba, "X Weigh-in 1.0.0") is
+  to be tagged `weighin-v1.0.0`.
+  - **This session cannot push tags.** The git proxy drops the push ("unexpected
+    disconnect"), while branch pushes work. The GitHub tools here cannot make a
+    tag either.
+  - So Jon creates it on GitHub as a release, which pushes the tag and starts
+    *Watch builds* (SUBMISSION.md, "Making the tag on GitHub").
   - That is before Gate W2's week has finished; Jon had two days of weigh-ins
     on the watch.
   - PR #27 merged the branch only up to the glance fix (026be31). The W5

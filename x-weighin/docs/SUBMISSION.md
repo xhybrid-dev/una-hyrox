@@ -153,3 +153,18 @@ Your X Weigh-in trend on the glances screen. Needs the X Weigh-in app.
 Until the app is on the store these come from `Apps/XWeighIn/app_config.json`
 over USB. The store install is the first time the UNA app's settings screen
 writes that file. That makes it Gate W5's main check.
+
+## Making the tag on GitHub
+
+Claude's session cannot push tags, so the tag `weighin-v1.0.0` is made on
+GitHub, as a release:
+1. Open the repository on GitHub, then **Releases** (right-hand column), then
+   **Draft a new release**.
+2. **Choose a tag**: type `weighin-v1.0.0` and choose **Create new tag on
+   publish**.
+3. **Target**: choose the branch `claude/x-weighin`. Its newest commit is the
+   release commit, "X Weigh-in 1.0.0".
+4. **Title**: `X Weigh-in 1.0.0`. **Publish release.**
+5. The new tag starts *Watch builds* under **Actions**, in about five
+   minutes. Its **weighin-store-zip** holds `XWeighIn-1.0.0.zip` and
+   `Glance/XWeighInGlance-1.0.0.zip`.
