@@ -936,6 +936,21 @@ Jon created both listings on apps.unawatch.com:
 - the tag `weighin-v1.0.0`;
 - Jon's uploads (`SUBMISSION.md`, from step 3).
 
+### Tagged 1.0.0 (13 October 2026)
+
+- **At Jon's request,** the branch's latest commit is tagged `weighin-v1.0.0`.
+  - That is before Gate W2's week has finished; Jon had two days of weigh-ins
+    on the watch.
+  - PR #27 merged the branch only up to the glance fix (026be31). The W5
+    commits, the packages and the App IDs, are on `claude/x-weighin`, so the
+    tag goes there.
+- **CHANGELOG:** "Unreleased" became 1.0.0.
+- **CI on the tag** builds `XWeighIn_1.0.0.uapp` and
+  `XWeighInGlance_1.0.0.uapp`, and packs both with `--expect-version 1.0.0`.
+  That refuses a wrong version or a development ID.
+- **The zips** are in `weighin-store-zip`: `XWeighIn-1.0.0.zip` and
+  `Glance/XWeighInGlance-1.0.0.zip`.
+
 ## Gate W5: what Jon tests (after the store install)
 
 1. **Both install** from the store through the UNA app: X Weigh-in opens, and
