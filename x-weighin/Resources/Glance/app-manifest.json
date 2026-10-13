@@ -1,0 +1,15 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "glance"
+  ],
+  "name": "X Weigh-in Glance",
+  "icon": "icon.png",
+  "binary": "XWeighInGlance.uapp",
+  "previews": "previews/",
+  "appVersion": "0.1.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [],
+  "description": "Your X Weigh-in trend on the glances screen: your trend weight, the change over the last week, and your last 14 days of weigh-ins as bars. Needs the X Weigh-in app, where you weigh in; the glance only shows what the app has logged.",
+  "id": "5543E86906F4A1B3"
+}

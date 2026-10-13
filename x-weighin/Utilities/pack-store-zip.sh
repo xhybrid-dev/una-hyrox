@@ -4,9 +4,10 @@
 # (hybridx-race/Utilities/pack-store-zip.sh), with X Weigh-in's names and
 # paths, and the simulator's APP_ID checked too.
 #
-# The glance (XWeighInGlance, built into Output/Glance/) is NOT packaged: it
-# stays a USB install until UNA says how one store listing installs two .uapps
-# (docs/NOTES.md, W3 and W5; HybridX Streak NOTES S5.1).
+# Two store listings, two packages (docs/NOTES.md, W5): the app, and with
+# --glance its glance (XWeighInGlance, built into Output/Glance/), listed on its
+# own and depending on the app. Same checks for both; the glance has no phone
+# settings and no simulator.
 #
 # The layout is the one Docs/deploy.md specifies: the .uapp, app-manifest.json,
 # icon.png, and a previews/ folder of screenshots. Everything the manifest says
@@ -14,7 +15,7 @@
 # never drift apart, and both SDK validators must pass before a zip is written.
 #
 # Usage:
-#   UNA_SDK=/path/to/una-sdk ./pack-store-zip.sh [--expect-version X.Y.Z]
+#   UNA_SDK=/path/to/una-sdk ./pack-store-zip.sh [--glance] [--expect-version X.Y.Z]
 #
 # --expect-version asserts; it does not override. A release build is expected to
 # say "./pack-store-zip.sh --expect-version 1.0.0" and have the script refuse if
@@ -28,17 +29,35 @@
 set -euo pipefail
 
 APP=$(cd "$(dirname "$0")/.." && pwd)
-OUT="$APP/Output"
-STAGE="$OUT/Release"
 PACKER="${UNA_SDK:-}/Utilities/Scripts/app_packer"
 
 EXPECT_VERSION=""
+GLANCE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --expect-version) EXPECT_VERSION="${2:-}"; shift 2 ;;
+        --glance) GLANCE=1; shift ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
+
+# What differs between the two packages.
+if [ "$GLANCE" = 1 ]; then
+    NAME="XWeighInGlance"
+    OUT="$APP/Output/Glance"
+    RES="$APP/Resources/Glance"
+    CMAKE_LISTS="$APP/Software/Apps/XWeighInGlance-CMake/CMakeLists.txt"
+    SIM_LISTS=""                                   # a glance has no simulator
+    DEV_APP_ID="5543E86906F4A1B3"                  # first 16 hex of md5("XWeighInGlance")
+else
+    NAME="XWeighIn"
+    OUT="$APP/Output"
+    RES="$APP/Resources"
+    CMAKE_LISTS="$APP/Software/Apps/XWeighIn-CMake/CMakeLists.txt"
+    SIM_LISTS="$APP/Software/Apps/LVGL-GUI/simulator/CMakeLists.txt"
+    DEV_APP_ID="6E1B68E38137C089"                  # first 16 hex of md5("XWeighIn")
+fi
+STAGE="$OUT/Release"
 
 if [ -z "${UNA_SDK:-}" ]; then
     echo "UNA_SDK is not set." >&2
@@ -62,8 +81,8 @@ case ${#UAPPS[@]} in
 esac
 BINARY="${UAPPS[0]}"
 
-# XWeighIn_1.0.0.uapp -> 1.0.0, XWeighIn_0.0.0-dev.uapp -> 0.0.0-dev.
-VERSION=$(printf '%s' "$BINARY" | sed -n 's/^XWeighIn_\(.*\)\.uapp$/\1/p')
+# XWeighIn_1.0.0.uapp -> 1.0.0, XWeighInGlance_0.0.0-dev.uapp -> 0.0.0-dev.
+VERSION=$(printf '%s' "$BINARY" | sed -n "s/^${NAME}_\(.*\)\.uapp\$/\1/p")
 if [ -z "$VERSION" ]; then
     echo "Cannot read a version out of '$BINARY'." >&2
     exit 1
@@ -88,15 +107,16 @@ esac
 # pasted in all three, and the
 # portal matches new versions to the app by it (Docs/deploy.md), so one place
 # updated and one forgotten is exactly the mistake worth refusing.
-DEV_APP_ID="6E1B68E38137C089"   # first 16 hex of md5("XWeighIn")
 CMAKE_ID=$(sed -n 's/^set(APP_ID "\([0-9A-Fa-f]\{16\}\)").*/\1/p' \
-           "$APP/Software/Apps/XWeighIn-CMake/CMakeLists.txt" | head -n 1)
-SIM_ID=$(sed -n 's/.*APP_ID="\([0-9A-Fa-f]\{16\}\)".*/\1/p' \
-         "$APP/Software/Apps/LVGL-GUI/simulator/CMakeLists.txt" | head -n 1)
+           "$CMAKE_LISTS" | head -n 1)
+SIM_ID="$CMAKE_ID"
+if [ -n "$SIM_LISTS" ]; then
+    SIM_ID=$(sed -n 's/.*APP_ID="\([0-9A-Fa-f]\{16\}\)".*/\1/p' "$SIM_LISTS" | head -n 1)
+fi
 MANIFEST_ID=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' \
-              "$APP/Resources/app-manifest.json")
+              "$RES/app-manifest.json")
 if [ -z "$CMAKE_ID" ]; then
-    echo "Cannot read APP_ID out of XWeighIn-CMake/CMakeLists.txt." >&2
+    echo "Cannot read APP_ID out of $CMAKE_LISTS." >&2
     exit 1
 fi
 if [ "$CMAKE_ID" != "$MANIFEST_ID" ]; then
@@ -123,17 +143,18 @@ cp "$OUT/$BINARY" "$STAGE/$BINARY"
 cp "$APP/Resources/icon_60x60.png" "$STAGE/icon.png"
 
 shopt -s nullglob
-PREVIEWS=("$APP/Resources/previews"/*.png)
+PREVIEWS=("$RES/previews"/*.png)
 shopt -u nullglob
 if [ ${#PREVIEWS[@]} -eq 0 ]; then
-    echo "No previews in Resources/previews -- see docs/experiments/capture_screens.sh." >&2
+    echo "No previews in $RES/previews -- see docs/experiments/capture_screens.sh" >&2
+    echo "(the app) or glance_preview.py --store (the glance)." >&2
     exit 1
 fi
 cp "${PREVIEWS[@]}" "$STAGE/previews/"
 
 # The manifest names the binary and the version it was built from, not what a
 # human last typed into it.
-python3 - "$APP/Resources/app-manifest.json" "$STAGE/app-manifest.json" \
+python3 - "$RES/app-manifest.json" "$STAGE/app-manifest.json" \
          "$BINARY" "$VERSION" <<'PY'
 import json, sys
 src, dst, binary, version = sys.argv[1:5]
@@ -150,12 +171,17 @@ PY
 
 python3 "$PACKER/min_kernel_version.py" --stamp "$STAGE/app-manifest.json"
 python3 "$PACKER/min_kernel_version.py" --check "$STAGE/app-manifest.json"
-python3 "$PACKER/validate_app_config.py" \
-        --check "$STAGE/app-manifest.json" \
-        --check-bounds "$APP/Software/Libs/App/Sources/AppConfigFields.cpp" \
-        --check-bounds "$APP/Software/Libs/App/Header/AppConfigFields.hpp"
+if [ "$GLANCE" = 1 ]; then
+    # No phone settings: the validator checks there are none to mismatch.
+    python3 "$PACKER/validate_app_config.py" --check "$STAGE/app-manifest.json"
+else
+    python3 "$PACKER/validate_app_config.py" \
+            --check "$STAGE/app-manifest.json" \
+            --check-bounds "$APP/Software/Libs/App/Sources/AppConfigFields.cpp" \
+            --check-bounds "$APP/Software/Libs/App/Header/AppConfigFields.hpp"
+fi
 
-ZIP="$OUT/XWeighIn-$VERSION.zip"
+ZIP="$OUT/$NAME-$VERSION.zip"
 rm -f "$ZIP"
 if command -v zip >/dev/null 2>&1; then
     (cd "$STAGE" && zip -q -r "$ZIP" .)
@@ -176,10 +202,9 @@ echo
 if [ "$MANIFEST_ID" = "$DEV_APP_ID" ]; then
     echo "Before uploading: the id in the manifest is a development APP_ID."
     echo "Create the app on apps.unawatch.com, paste its App ID into"
-    echo "Software/Apps/XWeighIn-CMake/CMakeLists.txt, Resources/app-manifest.json and"
-    echo "Software/Apps/LVGL-GUI/simulator/CMakeLists.txt, re-run cmake, rebuild, and"
-    echo "re-run this script."
+    echo "$CMAKE_LISTS"
+    echo "and $RES/app-manifest.json${SIM_LISTS:+ and $SIM_LISTS},"
+    echo "re-run cmake, rebuild, and re-run this script."
 else
-    echo "App ID $MANIFEST_ID matches in CMakeLists.txt, app-manifest.json and the simulator."
+    echo "App ID $MANIFEST_ID matches in CMakeLists.txt and app-manifest.json${SIM_LISTS:+ and the simulator}."
 fi
-echo "The glance (XWeighInGlance) is not in this package: it stays a USB install."

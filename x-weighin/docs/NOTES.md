@@ -112,7 +112,7 @@ UNA profile. Jon was told and agreed (12 October 2026).
 | W2 | The screens: Home (the trend), Graph (30 days), Recent, Body; weigh-in entry (starts at the last weight, 0.1 kg steps, hold to repeat); Saved | A week of weigh-ins on the watch |
 | W3 | The glance, a second `.uapp`: weight, weekly change, 14 days as bars | The glance on the watch |
 | W4 | The sweat-rate test: weigh before and after a session, enter what you drank; L/h and % of body mass lost | A training session |
-| W5 | The first store release, 1.0.0: the store package (the app only), its CI artifact, the store text (`SUBMISSION.md`). Before W4, by Jon's choice | W5: installed from the store; the phone settings work |
+| W5 | The first store release, 1.0.0: two store listings, the app and its glance, their packages, the CI artifact, the store text (`SUBMISSION.md`). Before W4, by Jon's choice | W5: both installed from the store; the phone settings work |
 
 **Sync is deferred.** The data stays on the watch.
 
@@ -628,7 +628,7 @@ is. Streak's has drawn on Jon's watch since its S4.
     a tracker.
   - Days after the last weigh-in are empty, so a week off shows. With the clock
     not set, the bars end at the log's last day.
-- **No log yet:** "X Weigh-in" / "Open it to weigh in".
+- **No log yet:** "X Weigh-in" / "No weigh-ins yet" (it was "Open it to weigh in" until W5).
 - **Fallbacks,** for an area or budget no watch has reported yet:
   - Compact (fewer than 17 controls, or a smaller area): the two lines
     centred;
@@ -830,9 +830,9 @@ CI runs it on every push, after the watch builds, as **weighin-store-zip**.
 - On a `weighin-v*` tag it passes `--expect-version` itself.
 - Otherwise it is a dry run with the dev build.
 
-**The glance is not in the package.** None of the SDK's glance examples ships a
-manifest, and how one listing installs two `.uapp`s is still UNA's question 4
-(HybridX Streak NOTES S5.1). It stays a USB install from `watch-apps`.
+**The glance was first left out of the package**, because one listing installs
+one `.uapp` (HybridX Streak NOTES S5.1). Jon looked into it on 13 October, and
+it needs its own listing. See "The glance's own listing" below.
 
 ### Manifest changes
 
@@ -860,9 +860,59 @@ manifest, and how one listing installs two `.uapp`s is still UNA's question 4
 - **Not rebuilt:** the source is unchanged, so the host tests (113) and both
   builds still stand from W3.
 
+### The glance's own listing (13 October 2026)
+
+**Jon's decision:** the glance goes on the store as a second listing, **X
+Weigh-in Glance**, dependent on the app. Expecting users to install over USB is
+not realistic.
+
+**What was added:**
+- **`Resources/Glance/app-manifest.json`:**
+  - `type ["glance"]`, `name "X Weigh-in Glance"`, `requiredHardware []`;
+  - no phone settings;
+  - its development ID `5543E86906F4A1B3`;
+  - a description saying it needs the app.
+  None of the SDK's glance examples ships a manifest, so this follows
+  `Docs/app-config-json.md`: the type list allows `glance`.
+  `validate_app_config.py` passes it.
+- **Previews:** three 480×480 PNGs in `Resources/Glance/previews/`.
+  - They are made by `glance_preview.py --store` from the real layout code.
+  - Each shows the glance at the middle of a round screen, between the
+    list's separators, as on the watch (Gate W3).
+  - The simulator cannot run glances, so these are drawn, not captured.
+- **The icon:** the app's scale icon, `Resources/icon_60x60.png`.
+- **`pack-store-zip.sh --glance`:**
+  - packages `Output/Glance/XWeighInGlance_<ver>.uapp` into
+    `Output/Glance/XWeighInGlance-<ver>.zip`;
+  - makes the same version and App ID checks: the glance's CMakeLists against
+    its manifest, and its own development ID refused on a release;
+  - checks with the SDK's validator that it has no settings.
+- **CI** runs both. `weighin-store-zip` holds `XWeighIn-<ver>.zip` and
+  `Glance/XWeighInGlance-<ver>.zip`. The one tag `weighin-v1.0.0` versions both.
+- **The glance's empty state** was "X Weigh-in" / "Open it to weigh in". It is
+  now "X Weigh-in" / "No weigh-ins yet", which is also true for someone who
+  installed the glance without the app.
+
+**Verified** (13 October 2026):
+- 113 host tests pass, and the glance compiles for the watch.
+- `pack-store-zip.sh --glance` dry run: 7 entries (the `.uapp`, the manifest,
+  `icon.png`, `previews/` and its three PNGs).
+- The glance package refuses:
+  - `--expect-version 1.0.0` against the dev binary;
+  - its development ID on a `1.0.0` binary;
+  - an ID in the manifest that differs from its CMakeLists.
+- The app package is unchanged and still passes.
+
+**Still unknown, until the release:**
+- whether the portal accepts a glance-only listing;
+- how the phone app shows it.
+
+Jon found that a separate listing is the route; the first upload will show it.
+
 ## Gate W5: what Jon tests (after the store install)
 
-1. **The app installs** from the store through the UNA app, and opens.
+1. **Both install** from the store through the UNA app: X Weigh-in opens, and
+   X Weigh-in Glance appears in the glances list with your trend.
 2. **The settings screen.** In the UNA app, X Weigh-in's settings show Birth
    year, Birth month and Sex. Set yours there. When you next open the app,
    the Body page shows your age and resting kcal.

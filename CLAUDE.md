@@ -165,5 +165,8 @@ Strava. It is independent of the other apps.
   - the glance (the simulator cannot run glances): a mock-up from the real
     layout code, `docs/experiments/glance_preview.py build-tests/glance_preview
     <out.png>`;
-  - the store package (the app only): `Utilities/pack-store-zip.sh`
-    (CI artifact `weighin-store-zip`); the steps: `docs/SUBMISSION.md`.
+  - the store packages (two listings: the app, and the glance, which needs
+    it): `Utilities/pack-store-zip.sh` and `--glance` (CI artifact
+    `weighin-store-zip`); the glance's previews: `glance_preview.py
+    build-tests/glance_preview <out.png> --store Resources/Glance/previews`;
+    the steps: `docs/SUBMISSION.md`.

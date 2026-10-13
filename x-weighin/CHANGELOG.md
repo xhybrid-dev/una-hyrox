@@ -12,7 +12,8 @@ strips the prefix for the SDK's version script. The steps are in
 ## [Unreleased]
 
 Everything below becomes 1.0.0, the first store release, once Gate W2 (a week
-of weigh-ins on the watch) has passed and the portal has issued the App ID.
+of weigh-ins on the watch) has passed and the portal has issued the two App
+IDs, one for the app and one for its glance.
 
 ### Added
 
@@ -39,7 +40,8 @@ of weigh-ins on the watch) has passed and the portal has issued the App ID.
   - A copy in `Apps/SharedData/HybridX/` is kept in step and restores a missing
     log.
   - Nothing is written as an activity, so nothing reaches the UNA app or Strava.
-- **The glance** (`XWeighInGlance`, a separate `.uapp` installed over USB, not
-  part of the store package):
+- **X Weigh-in Glance**, a separate store listing (`XWeighInGlance`) that
+  needs the app:
   - the trend, the week's change and the last 14 days as bars;
-  - kept between the glances list's separator lines.
+  - kept between the glances list's separator lines;
+  - "No weigh-ins yet" until the app has logged one.

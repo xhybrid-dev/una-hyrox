@@ -133,13 +133,13 @@ jobs:
           path: hybridx-race/Output/HybridXRace-*.zip
           if-no-files-found: error
 
-      - name: X Weigh-in store package
-        # The same as Race's, from x-weighin/Utilities/pack-store-zip.sh: the
-        # app's .uapp, manifest, icon and previews (the glance stays a USB
-        # install). A dry run unless the push is a weighin-v* tag, when the
-        # script also refuses a binary whose version is not the tag's and a
-        # package still carrying the development APP_ID. See
-        # x-weighin/docs/SUBMISSION.md.
+      - name: X Weigh-in store packages
+        # The same as Race's, from x-weighin/Utilities/pack-store-zip.sh: two
+        # store listings, so two zips, the app and (--glance) its glance, each
+        # with its .uapp, manifest, icon and previews. A dry run unless the push
+        # is a weighin-v* tag, when the script also refuses a binary whose
+        # version is not the tag's and a package still carrying a development
+        # APP_ID. See x-weighin/docs/SUBMISSION.md.
         run: |
           export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
           EXPECT=""
@@ -148,12 +148,16 @@ jobs:
           esac
           # shellcheck disable=SC2086
           bash x-weighin/Utilities/pack-store-zip.sh $EXPECT
+          # shellcheck disable=SC2086
+          bash x-weighin/Utilities/pack-store-zip.sh --glance $EXPECT
 
-      - name: Upload the X Weigh-in store package
+      - name: Upload the X Weigh-in store packages
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: weighin-store-zip
-          path: x-weighin/Output/XWeighIn-*.zip
+          path: |
+            x-weighin/Output/XWeighIn-*.zip
+            x-weighin/Output/Glance/XWeighInGlance-*.zip
           if-no-files-found: error
 
   host-tests:
