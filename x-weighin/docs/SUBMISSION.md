@@ -24,7 +24,7 @@ Everything that can be done without the portal is done. What is left:
 | App: previews, icon, manifest | Done. Five 480×480 screens in `Resources/previews/`, the scale icon, and the manifest with the phone settings |
 | Glance: previews, icon, manifest | Done. Three 480×480 previews in `Resources/Glance/previews/`, drawn from the real layout code (the simulator cannot run glances). The same icon. `Resources/Glance/app-manifest.json`, with no phone settings |
 | Gate W2 (a week of weigh-ins) | **Running.** Release after it passes |
-| App IDs | **Need the portal, one per listing.** Today's are development IDs (app `6E1B68E38137C089`, glance `5543E86906F4A1B3`), and the packager refuses a release with either |
+| App IDs | **Issued by the portal (13 October 2026) and in place:** the app `E60C06AC406AE6B1`, the glance `63F628D5251835AD`. They replace the development IDs `6E1B68E38137C089` and `5543E86906F4A1B3`, which the packager refuses on a release |
 | Version | 1.0.0 for both, from the one tag `weighin-v1.0.0` |
 
 ## The release day (about half an hour of Jon's time)

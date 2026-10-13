@@ -11,7 +11,7 @@
   "minKernelVersion": "1.4.0",
   "requiredHardware": [],
   "description": "Weigh in on your watch in seconds, in kg. A smoothed trend shows where your weight is heading beneath the day-to-day swings, with the change over the last week, a 30-day graph, your BMI and the calories you burn at rest. Your weigh-ins stay on the watch.",
-  "id": "6E1B68E38137C089",
+  "id": "E60C06AC406AE6B1",
   "configFile": "app_config.json",
   "configFields": [
     {

@@ -12,8 +12,8 @@ strips the prefix for the SDK's version script. The steps are in
 ## [Unreleased]
 
 Everything below becomes 1.0.0, the first store release, once Gate W2 (a week
-of weigh-ins on the watch) has passed and the portal has issued the two App
-IDs, one for the app and one for its glance.
+of weigh-ins on the watch) has passed. The portal has issued the two App IDs:
+`E60C06AC406AE6B1` for the app and `63F628D5251835AD` for its glance.
 
 ### Added
 

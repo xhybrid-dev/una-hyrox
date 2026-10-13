@@ -909,6 +909,33 @@ not realistic.
 
 Jon found that a separate listing is the route; the first upload will show it.
 
+### The portal's App IDs (13 October 2026)
+
+Jon created both listings on apps.unawatch.com:
+
+| Listing | App ID | Development ID it replaces |
+|---|---|---|
+| X Weigh-in | `E60C06AC406AE6B1` | `6E1B68E38137C089` |
+| X Weigh-in Glance | `63F628D5251835AD` | `5543E86906F4A1B3` |
+
+- **Where the IDs now are:**
+  - the app's ID: `XWeighIn-CMake/CMakeLists.txt`, `Resources/app-manifest.json`
+    and the simulator's `CMakeLists.txt`;
+  - the glance's ID: `XWeighInGlance-CMake/CMakeLists.txt` and
+    `Resources/Glance/app-manifest.json`.
+- **Verified:**
+  - both rebuilt `.uapp`s carry their new ID;
+  - both dry-run packages report "App ID … matches";
+  - the simulator rebuilds.
+- `pack-store-zip.sh` still names the development IDs, so it refuses them if
+  they ever come back.
+
+**What is left for 1.0.0:**
+- Gate W2's week passing;
+- the merge (PR #27);
+- the tag `weighin-v1.0.0`;
+- Jon's uploads (`SUBMISSION.md`, from step 3).
+
 ## Gate W5: what Jon tests (after the store install)
 
 1. **Both install** from the store through the UNA app: X Weigh-in opens, and
