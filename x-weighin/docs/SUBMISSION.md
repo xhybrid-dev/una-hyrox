@@ -162,8 +162,8 @@ GitHub, as a release:
    **Draft a new release**.
 2. **Choose a tag**: type `weighin-v1.0.0` and choose **Create new tag on
    publish**.
-3. **Target**: choose the branch `claude/x-weighin`. Its newest commit is the
-   release commit, "X Weigh-in 1.0.0".
+3. **Target**: choose the branch `claude/x-weighin`. Its newest commit holds
+   the release (1.0.0 in the CHANGELOG; only docs follow it).
 4. **Title**: `X Weigh-in 1.0.0`. **Publish release.**
 5. The new tag starts *Watch builds* under **Actions**, in about five
    minutes. Its **weighin-store-zip** holds `XWeighIn-1.0.0.zip` and
