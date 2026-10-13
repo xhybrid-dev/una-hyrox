@@ -957,6 +957,18 @@ Jon created both listings on apps.unawatch.com:
 - **The zips** are in `weighin-store-zip`: `XWeighIn-1.0.0.zip` and
   `Glance/XWeighInGlance-1.0.0.zip`.
 
+### Released (13 October 2026)
+
+- **The tag:** Jon made `weighin-v1.0.0` on GitHub as a release, on bcf0e12
+  (the release commit plus a docs wording fix).
+- **The build:** *Watch builds* run 122 on the tag is green. With
+  `--expect-version 1.0.0`, the packager checked both zips for the version and
+  the portal App IDs before writing them.
+- **Jon:** "All built and installed and looks good."
+- **Still open:**
+  - the rest of Gate W2's week;
+  - the Gate W5 checks below, on the store install.
+
 ## Gate W5: what Jon tests (after the store install)
 
 1. **Both install** from the store through the UNA app: X Weigh-in opens, and
