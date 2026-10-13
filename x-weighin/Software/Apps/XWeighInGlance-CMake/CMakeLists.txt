@@ -13,7 +13,7 @@ set(APP_USER_NAME "X Weigh-in")         # the label on the glances screen
 set(APP_FILE_NAME "XWeighInGlance")
 set(APP_TYPE "Glance")
 set(DEV_ID "HybridX")
-set(APP_ID "5543E86906F4A1B3")          # first 16 hex of md5("XWeighInGlance"); development ID
+set(APP_ID "63F628D5251835AD")          # issued by the UNA portal (13 Oct 2026); the development ID was 5543E86906F4A1B3
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 # Its own output folder, so the app's Output/ keeps exactly one .uapp.
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output/Glance")

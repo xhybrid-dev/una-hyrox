@@ -58,7 +58,7 @@ target_include_directories(XWeighInSimulator PRIVATE
 target_compile_definitions(XWeighInSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
-    APP_ID="6E1B68E38137C089"
+    APP_ID="E60C06AC406AE6B1"
     APP_NAME="XWeighIn"
     DEV_ID="HybridX Simulator"
     BUILD_VERSION="0.1.0-sim"

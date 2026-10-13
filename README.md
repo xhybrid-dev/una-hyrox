@@ -194,6 +194,12 @@ the C++ field table — and only then writes
 > packaging script refuses a release where the two files differ, or where the ID
 > is still the development one.
 
+**X Weigh-in** has two store listings: the app, and X Weigh-in Glance, which
+needs the app. `x-weighin/Utilities/pack-store-zip.sh` (and `--glance`)
+build both packages into the **weighin-store-zip** artifact, as a release on
+a `weighin-v*` tag.
+`x-weighin/docs/SUBMISSION.md` is the step-by-step.
+
 ## Versions
 
 `BUILD_VERSION` comes from git tags, and the SDK's version script matches

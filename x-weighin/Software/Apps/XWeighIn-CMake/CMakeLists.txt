@@ -15,7 +15,7 @@ set(APP_USER_NAME "X Weigh-in")         # 10 bytes; app_merging.py truncates at 
 set(APP_FILE_NAME "XWeighIn")
 set(APP_TYPE "Utility")
 set(DEV_ID "HybridX")
-set(APP_ID "6E1B68E38137C089")          # first 16 hex of md5("XWeighIn"); development ID
+set(APP_ID "E60C06AC406AE6B1")          # issued by the UNA portal (13 Oct 2026); the development ID was 6E1B68E38137C089
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")

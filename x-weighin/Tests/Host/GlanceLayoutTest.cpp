@@ -197,7 +197,7 @@ TEST(GlanceLayout, TheWords)
     EXPECT_EQ(empty.kind, Layout::Kind::Compact);
     ASSERT_EQ(empty.count, 2);
     EXPECT_STREQ(empty.items[0].text, "X Weigh-in");
-    EXPECT_STREQ(empty.items[1].text, "Open it to weigh in");
+    EXPECT_STREQ(empty.items[1].text, "No weigh-ins yet");
 
     Layout tiny;
     XWeighIn::Glance::layout(falling(8240, 14, -42), 240, 30, 32, tiny);
