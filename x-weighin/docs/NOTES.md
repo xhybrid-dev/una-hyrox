@@ -969,6 +969,25 @@ Jon created both listings on apps.unawatch.com:
   - the rest of Gate W2's week;
   - the Gate W5 checks below, on the store install.
 
+### Store images (13 October 2026)
+
+At Jon's request, `docs/store/` holds two sets of store images, one per
+listing. `docs/experiments/store_images.py` makes them, and
+`docs/store/README.md` lists them:
+- **previews:** the packages' 480×480 screens;
+- **mock-ups:** each screen on a drawn watch, 1080×1080;
+- **marketing cards:** 1080×1080, four for the app and three for the glance;
+- **a banner** for each, 1920×1080.
+
+**What is real:**
+- The screens are real: simulator captures for the app, and the real layout
+  code's output for the glance.
+- Only the watch body, the backgrounds and the headlines are drawn.
+- The headlines claim no more than SUBMISSION.md's checked store text.
+- The watch has no maker's logo.
+
+The portal gives no image sizes, so these are common ones.
+
 ## Gate W5: what Jon tests (after the store install)
 
 1. **Both install** from the store through the UNA app: X Weigh-in opens, and
