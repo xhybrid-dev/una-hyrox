@@ -936,6 +936,62 @@ Jon created both listings on apps.unawatch.com:
 - the tag `weighin-v1.0.0`;
 - Jon's uploads (`SUBMISSION.md`, from step 3).
 
+### Tagged 1.0.0 (13 October 2026)
+
+- **At Jon's request,** the release commit (c2e21ba, "X Weigh-in 1.0.0") is
+  to be tagged `weighin-v1.0.0`.
+  - **This session cannot push tags.** The git proxy drops the push ("unexpected
+    disconnect"), while branch pushes work. The GitHub tools here cannot make a
+    tag either.
+  - So Jon creates it on GitHub as a release, which pushes the tag and starts
+    *Watch builds* (SUBMISSION.md, "Making the tag on GitHub").
+  - That is before Gate W2's week has finished; Jon had two days of weigh-ins
+    on the watch.
+  - PR #27 merged the branch only up to the glance fix (026be31). The W5
+    commits, the packages and the App IDs, are on `claude/x-weighin`, so the
+    tag goes there.
+- **CHANGELOG:** "Unreleased" became 1.0.0.
+- **CI on the tag** builds `XWeighIn_1.0.0.uapp` and
+  `XWeighInGlance_1.0.0.uapp`, and packs both with `--expect-version 1.0.0`.
+  That refuses a wrong version or a development ID.
+- **The zips** are in `weighin-store-zip`: `XWeighIn-1.0.0.zip` and
+  `Glance/XWeighInGlance-1.0.0.zip`.
+
+### Released (13 October 2026)
+
+- **The tag:** Jon made `weighin-v1.0.0` on GitHub as a release, on bcf0e12
+  (the release commit plus a docs wording fix).
+- **The build:** *Watch builds* run 122 on the tag is green. With
+  `--expect-version 1.0.0`, the packager checked both zips for the version and
+  the portal App IDs before writing them.
+- **Jon:** "All built and installed and looks good."
+- **Still open:**
+  - the rest of Gate W2's week;
+  - the Gate W5 checks below, on the store install.
+
+### Store images (13 October 2026)
+
+At Jon's request, `docs/store/` holds two sets of store images, one per
+listing. `docs/experiments/store_images.py` makes them, and
+`docs/store/README.md` lists them:
+- **previews:** the packages' 480×480 screens;
+- **mock-ups:** each screen on a drawn watch, 1080×1080;
+- **marketing cards:** 1080×1080, four for the app and three for the glance;
+- **a banner** for each, 1920×1080.
+
+**What is real:**
+- The screens are real: simulator captures for the app, and the real layout
+  code's output for the glance.
+- The watch is UNA's own render, from the SDK's Figma UI Resource Pack
+  (`Docs/Templates/Figma-UI-Kit/`, a zip of 2000×2000 renders with the screen
+  transparent). Jon pointed to it.
+  - The first version drew a generic watch.
+  - The renders are read from `$UNA_SDK`, not copied in.
+- Only the backgrounds and the headlines are drawn, and the headlines claim no
+  more than SUBMISSION.md's checked store text.
+
+The portal gives no image sizes, so these are common ones.
+
 ## Gate W5: what Jon tests (after the store install)
 
 1. **Both install** from the store through the UNA app: X Weigh-in opens, and

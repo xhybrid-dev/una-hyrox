@@ -11,9 +11,12 @@ strips the prefix for the SDK's version script. The steps are in
 
 ## [Unreleased]
 
-Everything below becomes 1.0.0, the first store release, once Gate W2 (a week
-of weigh-ins on the watch) has passed. The portal has issued the two App IDs:
-`E60C06AC406AE6B1` for the app and `63F628D5251835AD` for its glance.
+## [1.0.0] - 2026-10-13
+
+The first store release, tagged `weighin-v1.0.0`. Two listings: X Weigh-in
+(App ID `E60C06AC406AE6B1`) and X Weigh-in Glance (App ID
+`63F628D5251835AD`), which needs the app. Tagged at Jon's request on
+13 October, two days into Gate W2's week of weigh-ins.
 
 ### Added
 

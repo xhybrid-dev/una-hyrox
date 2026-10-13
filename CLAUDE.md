@@ -185,4 +185,6 @@ its rep counter is meant to be reused by Race for wall balls and burpees later.
     it): `Utilities/pack-store-zip.sh` and `--glance` (CI artifact
     `weighin-store-zip`); the glance's previews: `glance_preview.py
     build-tests/glance_preview <out.png> --store Resources/Glance/previews`;
-    the steps: `docs/SUBMISSION.md`.
+    the steps: `docs/SUBMISSION.md`;
+  - store images (previews, mock-ups, marketing, one set per listing):
+    `docs/experiments/store_images.py build-tests/glance_preview docs/store`.
