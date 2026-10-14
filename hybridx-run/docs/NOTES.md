@@ -477,3 +477,12 @@ window's good seconds, 1.000 = none; empty logs from before R6b simply lack the 
   simulated speed), so this shows the plumbing, **not the size of the effect**.
 - Not verified: the effect on a real run, and against Jon's Garmin. That needs a field run on the
   CI build: compare the report's corrected and raw figures and the Garmin's.
+
+### R6 CI (run 138 on `fe0fa67`: green)
+Both jobs passed: the watch build (every app, ST's toolchain) and the host tests, including Run's
+59. The `watch-apps` artifact (a zip of all the `.uapp` files) is 1,810,144 bytes against
+1,781,923 on the previous run (136), **+28,221 bytes**. Run is the only app whose code changed
+between the two, so that growth is Run's: the structured-workout engine, screens and FIT reader
+UNA added. Run's own `.uapp` size was not read separately (the log's storage host is blocked from
+the container); earlier figures were 419,996 B at R0 and 430,276 B at R2. The app linked with the
+56 KB LVGL pool, so RAM fits. Still no run on a watch.
