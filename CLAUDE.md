@@ -104,7 +104,9 @@ independent of Race and Streak.
     set, else Ubuntu's `android-sdk-platform-23 aapt apksigner zipalign
     dalvik-exchange` (dl.google.com is blocked in the container).
 
-## HybridX Intervals (`hybridx-intervals/`)
+## HybridX Intervals (`hybridx-intervals/`) — RETIRED (14 October 2026)
+No further work: UNA is building structured workouts into Running (see
+`hybridx-race/docs/NOTES.md` 5.25). Code and notes stay for reference only.
 A fourth app: structured workouts (warm-up, work and rest steps with pace or
 heart-rate targets, repeats, cool-down) for running. It is independent of Race,
 Streak and Trail.

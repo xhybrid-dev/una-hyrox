@@ -395,3 +395,5 @@ HR trust levels drop at tempo pace.
 ## SDK v1.6.0 (14 October 2026)
 
 The SDK released v1.6.0 (structured workouts, GPS speed filter, buzzer pitch, shared `:/Workouts`). Our pin is unchanged (`a7a995a1`); ABI 3 / kernel 1.4.0 at both. What it means for this app, and the plan to move the pin, are in `hybridx-race/docs/NOTES.md`, "Amendment — UNA SDK v1.6.0 reviewed" (5.21-5.24).
+
+**Decision (14 October 2026):** re-sync with UNA's updated Run app (v1.6.0) and add `GpsSpeedFilter`. See `hybridx-race/docs/NOTES.md` 5.25.

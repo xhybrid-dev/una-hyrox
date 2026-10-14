@@ -1941,3 +1941,48 @@ Same method as 5.17-5.18, done on a branch:
    packer-derived 1.4.0 and do not use `frequency` as the only way to tell cues
    apart.
 5. Tag nothing; releases are separate.
+
+### 5.25 Decisions after the v1.6 review (Jon, 14 October 2026)
+
+| App | Decision |
+|---|---|
+| Intervals | **Retired.** UNA is developing structured workouts in Running; ours would duplicate it. Code and notes stay in the repo for reference, nothing further is built. A workout-*building* platform is a possible later opportunity (UNA may have one planned): not started. |
+| Run (VO2max) | Update with the changes in UNA's updated Run app (RunLVGL at v1.6.0), including `GpsSpeedFilter`. Re-sync is a deliberate step: the app was a verbatim copy at `a7a995a1`, so diff first. Field-test numbers before and after will not compare directly. |
+| Race | (a) **Pace-plan mode**, a configurable option when setting up the activity; targets are user-entered (no invented HYROX pacing data). (b) **Distinct cues** via buzzer pitch. (c) Explore structured workouts (see 5.26). (d) **Field test of burpee and wall-ball rep counting** from the IMU. |
+| Streak | **No change.** It needs to see every activity, and v1.6 does not widen what it can see. Stays as is. |
+| Trail | Take the alert improvements (deadband/dwell, repeat-after-gap, distinct tones). **Still blocked** on getting GPX files onto the watch: UNA has no phone delivery; the BLE route (Route Sender) remains the plan. |
+| Weigh-in | Small update: entry screens (non-circular wheel, per-item hints). |
+| Velocity | Not mentioned: unchanged (still at brief stage). |
+
+### 5.26 Can an app put workouts in `:/Workouts`? (answer from the SDK)
+
+**No.** `Docs/shared-data.md` (SDK `ee53d24`): folders at the volume root, today
+only `:/Workouts`, "are read-only to apps. Opening a file in one for writing
+returns `false`, and so do `write()`, `truncate()`, `rename()`, `remove()` and
+`mkdir()`." So Race cannot drop preformatted workouts there on install.
+
+Caveats worth knowing:
+- The **simulator does not enforce this**: a write to `:/` succeeds there and
+  fails on the watch. Never test a write to `:/Workouts` in the simulator and
+  trust it.
+- The only writable path out of an app's root is `../SharedData/`. But
+  `SDK::Workout::Library` scans only `:/Workouts` and `:/Workouts/Schedule`
+  (constants in `WorkoutLibrary.hpp:38-40`), so UNA's Running would not list
+  files from `SharedData`.
+- Users (or a phone/desktop tool) can seed `:/Workouts` over USB; the folder is
+  visible as mass storage. That is the route for a coach platform today.
+- **Not established:** whether an installed `.uapp` can carry extra data files
+  that land in the app's own folder. Check the packer before relying on it.
+- What an app *can* do: read FIT workouts with `FitWorkoutReader` from any path
+  it can open (its own folder, or `:/Workouts`), and run them with the SDK
+  engine inside its own screens. So Race could ship its own HYROX sessions as
+  data and run them itself, but not make them appear in UNA's Running.
+
+### 5.27 Next steps, in order (each its own phase, plan mode first)
+
+1. Pin bump to `sdk-v1.6.0` (5.24 method), all apps built and tested.
+2. Run: re-sync to RunLVGL v1.6.0 and add `GpsSpeedFilter`.
+3. Race: pace-plan option and distinct cues; then the structured-workout
+   exploration; the rep-count field test needs a probe plan first (shared with
+   Velocity's V0).
+4. Trail alert work and Weigh-in entry screens.
