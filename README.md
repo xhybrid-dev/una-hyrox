@@ -71,6 +71,10 @@ cd una-sdk && git checkout a7a995a1 && git submodule update --init --recursive
 tested against. The SDK ABI it carries is 3, which means the watch needs kernel
 firmware **1.4.0 or newer**.
 
+UNA released SDK `sdk-v1.6.0` (`bd04a5b8`) on 13 October 2026. It keeps ABI 3, so the
+firmware floor is still 1.4.0, but the pin has not moved yet: see
+`hybridx-race/docs/NOTES.md`, 5.21-5.24, for what changed and the plan to move it.
+
 **2. Point `UNA_SDK` at it.** Every build reads this.
 
 ```bash

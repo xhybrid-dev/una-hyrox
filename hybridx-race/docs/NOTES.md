@@ -1833,3 +1833,111 @@ uploaded**. So the one key the portal rejects is `previews`, which
 `Docs/app-config-json.md` documents. `Resources/app-manifest.json` drops it, and
 `pack-store-zip.sh` strips it from any staged manifest. Worth telling UNA: their
 docs and portal disagree on it.
+
+---
+
+## Amendment — UNA SDK v1.6.0 reviewed; pin not yet moved (14 October 2026)
+
+This is the shared record for all the apps in this repository (Streak, Trail,
+Intervals, Run, Weigh-in and Velocity point here). Notes only: **no code, no
+pin and no CI change was made.** The pin stays `a7a995a1`.
+
+### 5.21 Where we stand
+
+| | |
+|---|---|
+| Pinned (`UNA_SDK_REF` in `watch-builds.yml`) | `a7a995a1` (22 Sep 2026; 17 commits *before* the `sdk-v1.5.0` tag) |
+| Latest SDK release | `sdk-v1.6.0` = `bd04a5b8` (13 Oct 2026, "Una Watch 1.6.0") |
+| Distance | 83 commits from the pin to v1.6.0 (17 of them up to v1.5.0) |
+| SDK ABI (`KERNEL_INTERFACE_VERSION`) | 3 at the pin **and** at v1.6.0 |
+| `abi_kernel_map.json` | identical at both: ABI 3 -> kernel firmware **1.4.0** |
+
+So the v1.6 SDK does not raise the kernel floor: `minKernelVersion` stays
+1.4.0 for every app, and apps built on v1.6 are not gated to firmware 1.6 by
+the packer. Read from the SDK, not inferred. **Not established:** whether the
+v1.6 *features* below need firmware 1.6 on the watch. The release notes do not
+say, and I found no separate firmware changelog (UNA site, search). Ask UNA
+before promising any v1.6 feature to users (and see 5.24).
+
+So we are actually behind v1.5.0 as well as v1.6.0. The README/NOTES wording
+`apps-v1.5.0-rc4-8-ga7a995a1` is the `git describe` of the pin, not a release.
+
+### 5.22 What v1.6.0 contains
+
+From the GitHub release notes and the 83 commits (headers diffed against the
+pin):
+
+**Watch users**
+- Structured workouts in Running: steps with live pace or heart-rate target
+  gauge, zone alerts, a beep each second near a step's end. Workouts are FIT
+  workout files, loaded over USB for now (phone support "to come"). The
+  built-in Intervals mode now runs on the same engine, one lap per step.
+- Steadier pace: GPS speed corrected against the position track, pace smoothed
+  over 8 s.
+- Use the watch while charging (Back exits the charging screen); face picker
+  lists up to 99 faces.
+- Reliability: daily steps and health data survive a hard reboot; a flooding
+  app no longer resets the watch.
+
+**Developers (additive; nothing in the diff removes or changes an existing
+API we call)**
+- New `SDK::Workout` library (`Libs/Header/SDK/Workout/`): `WorkoutEngine`,
+  `WorkoutProgram`, `Intervals` builder, `TargetGauge`, `WorkoutAlerts`,
+  `WorkoutLibrary`, `ScheduleState` (needs `UNA_SDK_SOURCES_JSON`),
+  `StepLabel`. CMake: new `UNA_SDK_SOURCES_WORKOUT`, now part of
+  `UNA_SDK_SOURCES_SERVICE`; `StepLabel.cpp` also joins the GUI source sets.
+- New `FitWorkoutReader` / `FitWorkoutWriter` (in `UNA_SDK_SOURCES_FIT`);
+  `FitProfile.hpp` extended. `--gc-sections` drops them from apps that do not
+  use them.
+- New `Metrics/GpsSpeedFilter.hpp` (the pace correction).
+- Buzzer notes carry a pitch: `IBuzzer::Note::frequency` and
+  `RequestBuzzerPlay::Note::{reserved, frequency}`, 500-20000 Hz, 0 = default.
+  Uses former padding; `Note` stays 8 bytes (static_assert). A kernel without
+  it plays every note at the default pitch.
+- Shared, read-only `:/Workouts` folder (and `:/Workouts/Schedule`, files
+  named `YYYY-MM-DD.fit`), read through `WorkoutLibrary`. Also read-only `:/`
+  volume-root folders beside SharedData, and a documented SharedData
+  convention (docs commits `5b82605`..`ee53d24`).
+- LVGL: `LV_MEM_SIZE` now overridable per app (default still 40 KB; RunLVGL
+  sets 56 KB); `WheelMenu::setCircular(bool)`; per-slot hints
+  (`itemTip`, `centerTipColor`).
+- Simulator keeps volume-root paths in a `Volume` folder; host test doubles
+  list files in the in-memory file system.
+- IMU frames timestamped from the BMI270 hardware counter.
+
+**Between the pin and v1.5.0** (the pin was cut before the tag): over-aligned
+and nothrow `new` no longer pull the exception runtime into every app;
+`APP_GLANCE_INTF` withdrawn in CMake (the error says what to do); font pruning
+and a CI font check; `ACCELEROMETER` documented in m/s^2 and `FUSION`
+acceleration as including gravity. `APP_GLANCE_INTF` was checked: no app in
+this repository sets it, so its withdrawal does not affect us.
+
+### 5.23 What it means per app (assessed from headers and diffs, not built)
+
+| App | Effect | Action |
+|---|---|---|
+| Race | None required. Buzzer pitch could separate split/finish cues; `GpsSpeedFilter` is an option for run pace. | none now |
+| Streak | Counts activities from any app: structured-workout runs are ordinary activities, but confirm the FIT files from v1.6 Running (laps per step) still parse in its reader. Glance builds are unaffected by the `APP_GLANCE_INTF` withdrawal. | test on the new pin |
+| Trail | Pitched buzzer could make the off-course alert distinct. Copies RunLVGL (`a7a995a1`); RunLVGL changed a lot in v1.6 (Service.cpp, Commands.hpp). | do not re-sync; copy stays verbatim at its pin |
+| Intervals | **Overlaps** UNA's own structured workouts (FIT files, `:/Workouts`, on-watch builder `buildIntervals()`). Ours is JSON files in `Workouts/`. | Jon's decision: stay JSON, read FIT too, or defer to UNA's. Raise before P2/P3 work |
+| Run | Copies RunLVGL (`a7a995a1`). GpsSpeedFilter changes the speed behind pace; may shift the VO2max estimate's speed input. | re-check a field-test run on the new pin before trusting comparisons with Garmin |
+| Weigh-in | Glance builds unaffected (see Streak). LVGL pool and Wheel changes are opt-in. | test on the new pin |
+| Velocity | IMU timestamps from the hardware counter are directly relevant to the probe (V0) and to rep timing. | read `SensorsLayer.md` at the new pin before the V0 probe |
+
+### 5.24 Plan to align (not done; needs Jon's go-ahead)
+
+Same method as 5.17-5.18, done on a branch:
+1. Check `LV_MEM_SIZE` and message-struct use in each app against the diffs
+   above (`APP_GLANCE_INTF` already checked).
+2. Scratch worktree of the SDK at `sdk-v1.6.0`; build host tests, simulator and
+   watch targets for all seven apps with no code changes; run the simulator
+   sessions each app's phase notes describe.
+3. If clean: move `UNA_SDK_REF` to `bd04a5b8`, update `README.md` (it says
+   `apps-v1.5.0-rc4-8-ga7a995a1`), `THIRD-PARTY-LICENSES.md`, and the pin
+   mentions in each app's NOTES (those are historical for the copies of
+   RunLVGL: leave them).
+4. Ask UNA: does a v1.6 feature need firmware 1.6 on the watch, and is there a
+   firmware changelog? Until answered, keep `minKernelVersion` at the
+   packer-derived 1.4.0 and do not use `frequency` as the only way to tell cues
+   apart.
+5. Tag nothing; releases are separate.
