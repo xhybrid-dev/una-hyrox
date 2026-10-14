@@ -2007,7 +2007,18 @@ screens) and ended with the same queue-drain log lines as in 5.17.
 
 **Not done locally:** the watch target. The container has no ST toolchain, and Ubuntu's compiler
 only links with stubs (5.20), so the watch build is CI's job. The push triggers `Watch builds`;
-its result is recorded below once known.
+its result:
+
+**CI, run 136 on `66ea2c2`: green.** Every app built with ST's toolchain on the new pin and
+the host-test job passed. Artifact sizes against the last green run on the old pin (run 135):
+`watch-apps` 1,781,923 bytes against 1,796,417 (a zip of all the `.uapp` files, so a total, not
+per app; 0.8% smaller, no sign the new Workout sources are being linked into apps that do not
+use them), `race-store-zip` 243,783 against 243,624, `weighin-store-zip` 196,298 against
+203,150. Per-app `.uapp` sizes were not compared. The real `una-sdk/` checkout is now at
+`bd04a5b8`, so new sessions follow the pin.
+
+**Still unproven:** nothing here has run on a watch. A watch build that compiles and links says
+nothing about v1.6 behaviour on the device, or about which firmware the new features need.
 
 **Found along the way**
 - The simulator links its binary into each app's own `build/bin` (git-ignored), not into the
