@@ -143,3 +143,54 @@ against a Garmin. It is independent of the other apps.
     `docs/experiments/capture_vo2.sh [out-dir]` (into `docs/screens/`);
   - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
     log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>`.
+  - simulator: `hybridx-run/Software/Apps/LVGL-GUI/simulator`.
+
+## X Weigh-in (`x-weighin/`)
+A sixth app: an on-watch weight tracker in kg. Weigh in on the watch, see the
+smoothed trend (a tracker: no goals or warnings for now). Height (and the starting weight) come from
+the UNA profile; birth date and sex are phone config fields. The data stays on
+the watch: no phone app, and no activity FIT files, so nothing syncs to UNA or
+Strava. It is independent of the other apps.
+- **Docs:** findings, decisions and phases (W0-W4): `x-weighin/docs/NOTES.md`.
+  Read it at the start of each Weigh-in phase.
+- **Rules:** the same standing rules as Race apply.
+- **Layout:** started from the SDK's Waypoint tutorial (LVGL). The pure core
+  `Software/Libs/Core`; the service `Software/Libs/App`; the GUI
+  `Software/Apps/LVGL-GUI`. The glance is a second `.uapp`
+  (`Apps/XWeighInGlance-CMake`, `Software/Libs/Glance`, as Streak's): it reads
+  the log's SharedData copy and never writes.
+- **Watch builds come from CI**, as for the others. Tags `weighin-vX.Y.Z`.
+- **Commands:**
+  - host tests: `cmake -S x-weighin/Tests/Host -B x-weighin/build-tests && cmake --build x-weighin/build-tests && x-weighin/build-tests/x-weighin-host-tests`;
+  - simulator: `x-weighin/Software/Apps/LVGL-GUI/simulator` (settings in
+    `Software/Output/app_config.json`);
+  - a run in the simulator, with screenshots: `docs/experiments/sim_run.sh [shots-dir] [app_config.json]`.
+
+## X Velocity (`x-velocity/`)
+A seventh app, at the brief stage: a gym tool. It counts reps, measures bar speed
+per rep (velocity-based training, with a buzz when the set slows past a cut-off),
+and runs a jump test (height from flight time). It is independent of the other apps;
+its rep counter is meant to be reused by Race for wall balls and burpees later.
+- **Docs:** brief, plan and phases (V0-V5): `x-velocity/docs/X_VELOCITY_BRIEF.md`;
+  the desk study and findings: `NOTES.md`; the Gate V0 probe plan and Jon's
+  gym-session protocol: `PROBE.md`. Read the brief and `NOTES.md` at the start of
+  each Velocity phase, and work only on that phase.
+- **Rules:** the same standing rules as Race apply. Recorded probe sets are the
+  host-test data: never tune the counter on a set without adding it as a test.
+- **Watch builds come from CI**, as for the others. Tags `velocity-vX.Y.Z`
+  (the name is still Jon's decision, brief §11).
+  - every screen in the simulator, and a weigh-in round trip:
+    `docs/experiments/capture_screens.sh [out-dir]` (into `docs/screens/`);
+  - a sample log: `build-tests/make_log <out.csv> [days] [seed]`; a log's trend
+    day by day: `build-tests/trend_csv <weighins.csv>`; its chart:
+    `docs/experiments/trend_chart.py <trend.csv> <out.png>`;
+  - the glance (the simulator cannot run glances): a mock-up from the real
+    layout code, `docs/experiments/glance_preview.py build-tests/glance_preview
+    <out.png>`;
+  - the store packages (two listings: the app, and the glance, which needs
+    it): `Utilities/pack-store-zip.sh` and `--glance` (CI artifact
+    `weighin-store-zip`); the glance's previews: `glance_preview.py
+    build-tests/glance_preview <out.png> --store Resources/Glance/previews`;
+    the steps: `docs/SUBMISSION.md`;
+  - store images (previews, mock-ups, marketing, one set per listing):
+    `docs/experiments/store_images.py build-tests/glance_preview docs/store`.

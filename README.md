@@ -146,8 +146,11 @@ builds its apps, with ST's toolchain. To download the result:
    glance and probe (see `hybridx-streak/docs/PROBE.md`), HybridX Intervals
    (in development, from P3) and its retired Gate P0 probe (see
    `hybridx-intervals/docs/PROBE.md`), HybridX Trail and its Gate T0 probe
-   (see `hybridx-trail/docs/PROBE.md`), and HybridX Run, a test app that
-   estimates VO2max (see `hybridx-run/docs/NOTES.md`).
+   (see `hybridx-trail/docs/PROBE.md`), HybridX Run, a test app that
+   estimates VO2max (see `hybridx-run/docs/NOTES.md`), and X Weigh-in, an
+   on-watch weight tracker, and its glance (in development; see
+   `x-weighin/docs/NOTES.md`). A glance goes in a folder of its own, named
+   like its file: `Apps/HXStreakGlance/`, `Apps/XWeighInGlance/`.
 
 Until the app is on the store, installing is a file copy:
 
@@ -190,6 +193,12 @@ the C++ field table — and only then writes
 > both files and commit. The mobile app matches versions by that ID. The
 > packaging script refuses a release where the two files differ, or where the ID
 > is still the development one.
+
+**X Weigh-in** has two store listings: the app, and X Weigh-in Glance, which
+needs the app. `x-weighin/Utilities/pack-store-zip.sh` (and `--glance`)
+build both packages into the **weighin-store-zip** artifact, as a release on
+a `weighin-v*` tag.
+`x-weighin/docs/SUBMISSION.md` is the step-by-step.
 
 ## Versions
 

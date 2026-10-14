@@ -52,3 +52,15 @@ hybridx-run/Output/
 hybridx-run/Software/Output/
 hybridx-run/Software/Apps/LVGL-GUI/simulator/build/
 hybridx-run/Software/SharedData/
+
+# CI's own build folders (.github/workflows/watch-builds.yml). Untracked and
+# not ignored, they made every untagged CI build version itself "-dirty".
+ci-build/
+watch-apps/
+x-weighin/build/
+x-weighin/build-tests/
+x-weighin/build-glance/
+x-weighin/Output/
+x-weighin/Software/Output/
+x-weighin/Software/Apps/LVGL-GUI/simulator/build/
+x-weighin/Software/SharedData/

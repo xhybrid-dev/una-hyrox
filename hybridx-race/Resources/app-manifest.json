@@ -6,7 +6,6 @@
   "name": "HybridX Race",
   "icon": "icon.png",
   "binary": "HybridXRace.uapp",
-  "previews": "previews/",
   "appVersion": "0.1.0",
   "minKernelVersion": "1.4.0",
   "requiredHardware": [

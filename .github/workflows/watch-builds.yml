@@ -82,6 +82,10 @@ jobs:
           # HybridX Run: a RunLVGL copy that estimates VO2max (a test app) --
           # see hybridx-run/docs/NOTES.md.
           build hybridx-run/Software/Apps/HybridXRun-CMake run
+          # X Weigh-in: an on-watch weight tracker, and its glance -- see
+          # x-weighin/docs/NOTES.md.
+          build x-weighin/Software/Apps/XWeighIn-CMake weighin
+          build x-weighin/Software/Apps/XWeighInGlance-CMake weighin-glance
 
       - name: Collect
         run: |
@@ -95,6 +99,8 @@ jobs:
           cp hybridx-trail/Output/*.uapp watch-apps/
           cp hybridx-trail/Tools/Probe/Output/*.uapp watch-apps/
           cp hybridx-run/Output/*.uapp watch-apps/
+          cp x-weighin/Output/*.uapp watch-apps/
+          cp x-weighin/Output/Glance/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -125,6 +131,33 @@ jobs:
         with:
           name: race-store-zip
           path: hybridx-race/Output/HybridXRace-*.zip
+          if-no-files-found: error
+
+      - name: X Weigh-in store packages
+        # The same as Race's, from x-weighin/Utilities/pack-store-zip.sh: two
+        # store listings, so two zips, the app and (--glance) its glance, each
+        # with its .uapp, manifest, icon and previews. A dry run unless the push
+        # is a weighin-v* tag, when the script also refuses a binary whose
+        # version is not the tag's and a package still carrying a development
+        # APP_ID. See x-weighin/docs/SUBMISSION.md.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            weighin-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#weighin-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash x-weighin/Utilities/pack-store-zip.sh $EXPECT
+          # shellcheck disable=SC2086
+          bash x-weighin/Utilities/pack-store-zip.sh --glance $EXPECT
+
+      - name: Upload the X Weigh-in store packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: weighin-store-zip
+          path: |
+            x-weighin/Output/XWeighIn-*.zip
+            x-weighin/Output/Glance/XWeighInGlance-*.zip
           if-no-files-found: error
 
   host-tests:
@@ -212,3 +245,19 @@ jobs:
           cmake -S hybridx-run/Tests/Host -B ci-build/run-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/run-tests -j"$(nproc)"
           ctest --test-dir ci-build/run-tests --output-on-failure
+
+      - name: X Weigh-in settings declaration
+        # The manifest's configFields and the app's AppConfig table must agree
+        # (una-sdk Docs/app-config-fields.md 5.1).
+        run: |
+          python3 una-sdk/Utilities/Scripts/app_packer/validate_app_config.py \
+            --check x-weighin/Resources/app-manifest.json \
+            --check-bounds x-weighin/Software/Libs/App/Sources/AppConfigFields.cpp
+
+      - name: X Weigh-in host tests
+        # The pure core (age, the profile's weight as an integer, the text).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S x-weighin/Tests/Host -B ci-build/weighin-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/weighin-tests -j"$(nproc)"
+          ctest --test-dir ci-build/weighin-tests --output-on-failure
