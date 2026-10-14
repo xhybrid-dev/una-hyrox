@@ -103,6 +103,24 @@ void Model::saveSettings(const Settings& sett)
     SDK::send_msg<CustomMessage::SettingsSave>(mKernel, mSettings);
 }
 
+void Model::saveVo2Profile(uint16_t birthYear, uint8_t birthMonth, uint8_t maxHr, uint8_t restHr, bool tuningLog)
+{
+    // Shown at once; the service's reply brings the resolved profile.
+    mVo2Info.birthYear  = birthYear;
+    mVo2Info.birthMonth = birthMonth;
+    mVo2Info.setMaxHr   = maxHr;
+    mVo2Info.setRestHr  = restHr;
+    mVo2Info.tuningLog  = tuningLog;
+    if (auto msg = SDK::make_msg<CustomMessage::Vo2ProfileSave>(mKernel)) {
+        msg->birthYear  = birthYear;
+        msg->birthMonth = birthMonth;
+        msg->maxHr      = maxHr;
+        msg->restHr     = restHr;
+        msg->tuningLog  = tuningLog;
+        msg.send();
+    }
+}
+
 // GPS
 bool Model::hasGpsFix() const
 {

@@ -30,6 +30,8 @@ const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
     { Style::Icon, "Intervals", nullptr, &poppins_semibold_30, nullptr, Color::WHITE, false,
       &img_intervals_40x43, { 30, 10, 87, 140 },
       &img_intervals_24x26, { 62, 17, 97, 130 } },
+    // ID_VO2 (HybridX Run, R5)
+    { Style::Simple, "VO2max" },
     // ID_SETTINGS
     { Style::Simple, "Settings" },
 };
@@ -101,6 +103,9 @@ void MainScreen::confirm()
             // No GPS-fix check here: the intervals menu is always reachable so
             // the workout can be configured indoors. The check happens on Start.
             ScreenManager::instance().goTo(ScreenId::MenuIntervals);
+            break;
+        case Menu::ID_VO2:
+            ScreenManager::instance().goTo(ScreenId::Vo2);
             break;
         case Menu::ID_SETTINGS:
             ScreenManager::instance().goTo(ScreenId::MenuSettings);

@@ -92,3 +92,37 @@ TEST(Vo2Profile, ReserveTooSmall)
     in.enteredMaxHr = 120; in.enteredRestHr = 90;
     EXPECT_EQ(resolveProfile(in, kNow).status, ProfileStatus::ReserveTooSmall);
 }
+
+TEST(Vo2Profile, RestingHrSourceIsReported)
+{
+    ProfileInput in;
+    in.enteredMaxHr = 185;
+    in.watchRestHr  = 55;
+    EXPECT_EQ(resolveProfile(in, kNow).restSource, RestHrSource::Watch);
+    in.enteredRestHr = 48;
+    EXPECT_EQ(resolveProfile(in, kNow).restSource, RestHrSource::Entered);
+    in.enteredRestHr = 0;
+    in.watchRestHr   = 0;
+    EXPECT_EQ(resolveProfile(in, kNow).restSource, RestHrSource::None);
+}
+
+TEST(Vo2Profile, CivilFromUtc)
+{
+    Civil c = civilFromUtc(kNow);
+    EXPECT_EQ(c.year, 2026);
+    EXPECT_EQ(c.month, 10);
+    EXPECT_EQ(c.day, 10);
+    EXPECT_EQ(c.hour, 12);
+    c = civilFromUtc(0);
+    EXPECT_EQ(c.year, 1970);
+    EXPECT_EQ(c.month, 1);
+    EXPECT_EQ(c.day, 1);
+    c = civilFromUtc(1709164800);   // a leap day
+    EXPECT_EQ(c.month, 2);
+    EXPECT_EQ(c.day, 29);
+    c = civilFromUtc(951782399);    // 2000-02-28T23:59:59Z
+    EXPECT_EQ(c.day, 28);
+    EXPECT_EQ(c.hour, 23);
+    EXPECT_EQ(c.minute, 59);
+    EXPECT_EQ(c.second, 59);
+}

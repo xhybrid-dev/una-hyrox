@@ -43,7 +43,13 @@ cd "$BIN"
 DISPLAY=$DISP stdbuf -oL -eL ./HybridXRunSimulator > "$LOG" 2>&1 & SIMPID=$!
 cleanup() { kill -9 $SIMPID 2>/dev/null; kill $XPID 2>/dev/null; }
 trap cleanup EXIT
-sleep 8                                   # the simulated GPS finds a fix after ~5 s
+# Wait for the simulated GPS fix (RunLVGL's first-fix buzz is logged): a
+# Start pressed before it opens the "no GPS" confirmation instead.
+for _ in $(seq 60); do
+    grep -q "Mock.Buzzer::play" "$LOG" && break
+    sleep 1
+done
+sleep 2
 
 WID=$(DISPLAY=$DISP xdotool search --name 'HybridX Run' | head -1)
 [ -n "$WID" ] || { echo "FATAL: no simulator window" >&2; exit 1; }
@@ -73,3 +79,9 @@ find "$SOFT/Output" "$SOFT/SharedData" -maxdepth 3 \( -name "*.fit" -o -name "vo
 for f in "$SOFT/Output/vo2.json" "$SOFT/SharedData/HybridX/vo2max.json"; do
     [ -f "$f" ] && { echo "$f:"; cat "$f"; echo; }
 done
+echo "--- tuning log"
+for f in "$SOFT"/Output/Logs/vo2_*.csv; do
+    [ -f "$f" ] && { echo "$f:"; cat "$f"; }
+done
+echo "--- app_config.json"
+cat "$SOFT/Output/app_config.json" 2>/dev/null; echo

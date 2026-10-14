@@ -306,23 +306,77 @@ file yourself, copy it off first (USB, before the phone connects).
    <file.fit>` (needs `pip install fitdecode`), or any FIT viewer that lists
    developer fields.
 
+## R5: the VO2max page, settings on the watch, the tuning log (14 October 2026)
+
+Jon's choices (R5 plan): the page shows the overview first, then the runs;
+on-watch settings and the tuning log in the same phase; a history reset and a
+glance later.
+
+- **Start wheel**: Start, Intervals, **VO2max**, Settings.
+- **VO2max page** (`Vo2Screen`): the figure shown, "+0.4 since last run"
+  (the shown figure before the latest run, `Vo2History::rollingX10Before`),
+  then "Max HR 180 (age)" and "Rest HR 52 (watch)", or what the profile
+  still needs. L2 pages to the last 10 runs, five a page, newest first, by
+  local date. R1: the profile menu. One page built at a time.
+- **VO2 profile menu** (`MenuVo2ProfileScreen`, as RunLVGL's lap alerts):
+  birth date, max HR, resting HR (each with the value in use as its tip) and
+  a tuning-log toggle. Pickers (`Vo2PickerScreen`): one centred number in
+  RunLVGL's picker faces, as the two-column `TwoTonePicker` cannot hold a
+  four-digit year; birth date is month then year; "---" is automatic; stepping
+  up from automatic starts at the value in use (`Vo2Settings`, host-tested).
+  A save goes to the service (`VO2_PROFILE_SAVE`), which writes
+  `app_config.json` back with the same `AppConfig` it read, as Race does: no
+  more hand-made JSON over USB.
+- **Tuning log** (config field `tuningLog`, on by default):
+  `Apps/HybridXRun/Logs/vo2_<start>.csv`, named as the run's activity file.
+  A `#` context line (start, max and resting HR in use with their sources,
+  age), the header, one row a minute, a `#` result line on save; deleted on
+  discard. Columns: `window, active_s, good_s, outcome` (kept, warmup, gaps,
+  unsteady, grade, overflow), `speed_m_min, spread_pct, grade_pct, hr_avg,
+  hr_min, hr_max, cost` (ACSM, ml/kg/min). About 4 KB an hour; `Logs/` is not
+  under `Activity/`, so the phone's sync leaves it. Nothing deletes old logs:
+  clear the folder over USB now and then.
+- `docs/experiments/vo2_log_report.py [--max-hr N] [--rest-hr N] [--rows]
+  log.csv`: counts by outcome, each kept window's VO2max the app's way, the
+  median; the overrides show what another max HR would have given.
+- Found on the way: the speed spread lost a steady pace's variance to
+  single-precision rounding (0.1% for a constant pace); now summed as
+  deviations from the window's first sample. Found in the simulator: the
+  scripts pressed Start before the simulated GPS fix on a slow start;
+  `sim_run.sh` now waits for RunLVGL's first-fix buzz.
+
+### R5 verified
+- Host tests: 58 (15 new), also under ASan + UBSan; the 43 earlier ones
+  unchanged.
+- Watch target compile check: 446,672 B `.uapp`, no warnings in our code.
+- Simulator: `capture_vo2.sh` walks every new screen (captures in
+  `docs/screens/vo2-*.png`); the saves rewrote `app_config.json` (born June
+  1985, max HR 182, tuning log off); LVGL pool peak 66%. `sim_run.sh`, 150 s:
+  the log has its context, two warm-up rows and the result.
+- `vo2_log_report.py` on a hand-made log reproduces the watch's 54.4, and 52.6
+  with `--max-hr 185`.
+
 ## Gate R: what Jon tests (the field test)
 
 1. **Install.** From the CI run's `watch-apps` artifact, copy
    `HybridXRun_*.uapp` into `Apps/HybridXRun/` on the watch (as Race, README
    "Installing on a watch"). Never a container build.
-2. **Your numbers.** In the same folder create `app_config.json`:
-   `{"schema":1,"values":{"birthYear":1986,"birthMonth":5,"maxHr":0,"restingHr":0}}`
-   with your own birth year and month. If you know your max HR from a test,
-   put it in `maxHr`; leave `restingHr` 0 to use the watch's.
+2. **Your numbers, on the watch.** Open HybridX Run, scroll to **VO2max**,
+   press R1 for the page, R1 again for the profile: set your birth date, and
+   your max HR if you know it from a test (leave it on "---" otherwise).
+   Leave resting HR on "---" to use the watch's. The tuning log is on.
 3. **Run** with the UNA on one wrist and a Garmin (with a VO2max) on the
    other: three to five outdoor runs of 20+ minutes, mostly steady, on
    fairly flat ground, after five minutes of easy warm-up.
-4. **Note** after each: the UNA's "THIS RUN" and "Recent" figures (or the
+4. **Before the phone syncs**, copy off over USB: `Apps/HybridXRun/Logs/`
+   and the run's `.fit` from `Apps/HybridXRun/Activity/<month>/` (the sync
+   deletes the `.fit`).
+5. **Note** after each: the UNA's "THIS RUN" and "Recent" figures (or the
    reason), Garmin's VO2max, the route (flat or hilly), and whether you used
-   a chest strap. I'll log them here and tune `Vo2Config.hpp`.
-5. **Check** after one phone sync that `Apps/HybridXRun/vo2.json` is still
-   there (the phone deletes activity files; this one should survive).
+   a chest strap. Send me those with the logs; I'll tune `Vo2Config.hpp`
+   from them (`vo2_log_report.py`).
+6. **Check** after one phone sync that `Apps/HybridXRun/vo2.json` and
+   `Logs/` are still there, and whether UNA's app shows VO2max (R4).
 
 Open questions for the field test: does the watch report a daily resting HR
 to apps (and when); does the GRADE sensor read sensibly; how often do wrist

@@ -50,6 +50,12 @@ enum class ScreenId : uint8_t {
     TrackSaved,
     TrackDiscarded,
     TrackSummary,
+    // HybridX Run: VO2max (R5)
+    Vo2,
+    MenuVo2Profile,
+    Vo2PickBirth,
+    Vo2PickMaxHr,
+    Vo2PickRestHr,
 };
 
 class ScreenManager

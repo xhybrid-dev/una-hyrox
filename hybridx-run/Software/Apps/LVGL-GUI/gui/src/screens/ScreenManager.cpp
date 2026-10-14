@@ -34,6 +34,9 @@
 #include "gui/screens/TrackLapScreen.hpp"
 #include "gui/screens/TrackResultScreen.hpp"
 #include "gui/screens/TrackSummaryScreen.hpp"
+#include "gui/screens/Vo2Screen.hpp"
+#include "gui/screens/MenuVo2ProfileScreen.hpp"
+#include "gui/screens/Vo2PickerScreen.hpp"
 
 ScreenManager& ScreenManager::instance()
 {
@@ -160,6 +163,12 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::TrackSaved:                return new TrackResultScreen(m, TrackResultScreen::Result::Saved);
         case ScreenId::TrackDiscarded:            return new TrackResultScreen(m, TrackResultScreen::Result::Discarded);
         case ScreenId::TrackSummary:              return new TrackSummaryScreen(m);
+
+        case ScreenId::Vo2:                       return new Vo2Screen(m);
+        case ScreenId::MenuVo2Profile:            return new MenuVo2ProfileScreen(m);
+        case ScreenId::Vo2PickBirth:              return new Vo2PickerScreen(m, Vo2PickerScreen::Kind::Birth);
+        case ScreenId::Vo2PickMaxHr:              return new Vo2PickerScreen(m, Vo2PickerScreen::Kind::MaxHr);
+        case ScreenId::Vo2PickRestHr:             return new Vo2PickerScreen(m, Vo2PickerScreen::Kind::RestHr);
     }
     return nullptr;
 }

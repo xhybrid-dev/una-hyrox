@@ -64,6 +64,13 @@
       "min": 0,
       "max": 100,
       "unit": "bpm"
+    },
+    {
+      "id": "tuningLog",
+      "type": "bool",
+      "label": "Tuning log",
+      "description": "Write a minute-by-minute log of each run to the watch's Logs folder, for checking the VO2max estimate.",
+      "default": true
     }
   ]
 }

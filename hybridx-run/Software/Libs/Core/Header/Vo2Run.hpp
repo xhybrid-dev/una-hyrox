@@ -51,6 +51,25 @@ struct WindowCounts {
 };
 
 // Values are sent to the GUI as uint8_t (CustomMessage::Vo2Info): append only.
+/// What happened to a window (the tuning log; Vo2Log names them).
+enum class WindowOutcome : uint8_t { Kept, WarmUp, Gaps, Unsteady, Grade, Overflow };
+
+/// One closed window, as the tuning log records it. Means are over the good
+/// seconds; all zero when there were none.
+struct WindowLog {
+    uint16_t      index        = 0;   ///< 1 = the run's first window
+    uint32_t      activeSec    = 0;   ///< active seconds at the window's end
+    uint16_t      goodSec      = 0;
+    WindowOutcome outcome      = WindowOutcome::Gaps;
+    uint16_t      speedMMinX10 = 0;   ///< mean speed, m/min x 10
+    uint16_t      spreadX10    = 0;   ///< speed spread, % x 10
+    int16_t       gradeX10     = 0;   ///< mean grade, % x 10 (unknown seconds as 0)
+    uint16_t      hrX10        = 0;   ///< mean HR, bpm x 10
+    uint8_t       hrMin        = 0;
+    uint8_t       hrMax        = 0;
+    uint16_t      costX10      = 0;   ///< ACSM oxygen cost, ml/kg/min x 10
+};
+
 enum class RunStatus : uint8_t {
     Ok,
     ProfileIncomplete,   ///< see Profile::status
@@ -87,6 +106,10 @@ public:
 
     const WindowCounts& counts() const { return mCounts; }
 
+    /// The window that closed since the last call, for the tuning log; false
+    /// when none has. Call once per addSecond().
+    bool popWindowLog(WindowLog& out);
+
 private:
     struct Window {
         uint16_t costX10;   ///< ACSM VO2, ml/kg/min x 10
@@ -99,8 +122,12 @@ private:
     // Current window.
     uint16_t mSec       = 0;
     uint16_t mGood      = 0;
-    float    mSumSpeed  = 0.0f;
-    float    mSumSpeed2 = 0.0f;
+    // Speed sums are of the deviation from the window's first good sample
+    // (a shifted sum): E[x^2] - E[x]^2 on raw single-precision speeds loses
+    // the variance of a steady pace to rounding.
+    float    mSpeedRef  = 0.0f;
+    float    mSumSpeed  = 0.0f;   ///< sum of (speed - mSpeedRef)
+    float    mSumSpeed2 = 0.0f;   ///< sum of (speed - mSpeedRef)^2
     float    mSumGrade  = 0.0f;
     uint32_t mSumHr     = 0;
     uint8_t  mMinHr     = 255;
@@ -108,6 +135,10 @@ private:
     bool     mTooSteep  = false;
 
     uint32_t mActiveSec = 0;
+    uint16_t mWindowIndex = 0;
+
+    WindowLog mLog;
+    bool      mLogReady = false;
 
     Window   mWindows[Config::kMaxWindows] = {};
     uint16_t mWindowCount = 0;

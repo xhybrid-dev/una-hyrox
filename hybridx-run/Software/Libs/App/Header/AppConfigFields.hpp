@@ -30,6 +30,7 @@ constexpr const char* kBirthYear  = "birthYear";
 constexpr const char* kBirthMonth = "birthMonth";
 constexpr const char* kMaxHr      = "maxHr";
 constexpr const char* kRestingHr  = "restingHr";
+constexpr const char* kTuningLog  = "tuningLog";
 
 extern const SDK::AppConfig::Field kFields[];
 extern const size_t kFieldCount;

@@ -194,3 +194,20 @@ TEST(Vo2History, SharedJson)
     EXPECT_STREQ(buf, "{\"v\":1,\"vo2maxX10\":523,\"runs\":1,\"utc\":1791000000}");
     EXPECT_EQ(h.toSharedJson(buf, 8), 0u);
 }
+
+TEST(Vo2History, RollingBeforeTheLatestRun)
+{
+    Vo2History h;
+    EXPECT_EQ(h.rollingX10Before(), 0);
+    h.add(RunRecord{1, 500, 10});
+    EXPECT_EQ(h.rollingX10Before(), 0);   // first run: no earlier figure
+    h.add(RunRecord{2, 520, 10});
+    EXPECT_EQ(h.rollingX10Before(), 500);
+    EXPECT_EQ(h.rollingX10(), 510);
+    for (uint32_t i = 3; i <= 7; ++i) {
+        h.add(RunRecord{i, 540, 10});
+    }
+    // Before the 7th run: runs 2-6 (520, 540 x4) -> 536; now: runs 3-7 -> 540.
+    EXPECT_EQ(h.rollingX10Before(), 536);
+    EXPECT_EQ(h.rollingX10(), 540);
+}

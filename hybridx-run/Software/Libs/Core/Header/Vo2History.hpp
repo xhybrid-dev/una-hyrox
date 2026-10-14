@@ -54,7 +54,11 @@ public:
     const RunRecord& at(uint8_t i) const;
 
     /// The value to show, x 10; 0 when there are no runs.
-    uint16_t rollingX10() const;
+    uint16_t rollingX10() const { return rollingOver(mCount); }
+
+    /// The value as it was before the latest run (for the trend); 0 when
+    /// there was none.
+    uint16_t rollingX10Before() const { return mCount ? rollingOver(static_cast<uint8_t>(mCount - 1)) : 0; }
 
     /// Record a saved run's sustained max HR (0 or implausible: ignored),
     /// dropping the oldest when full.
@@ -86,6 +90,9 @@ public:
     static constexpr size_t kMaxJsonBytes = 64 + Config::kHistoryRuns * (32 + 4);
 
 private:
+    /// The weighted mean of the latest kRollingRuns of the first n runs kept.
+    uint16_t rollingOver(uint8_t n) const;
+
     RunRecord mRuns[Config::kHistoryRuns] = {};
     uint8_t   mFirst = 0;
     uint8_t   mCount = 0;
