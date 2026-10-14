@@ -44,6 +44,9 @@ void Vo2Run::reset()
     // service's 10 KB stack.
     clearWindow();
     mActiveSec    = 0;
+    mWindowIndex  = 0;
+    mLog          = WindowLog{};
+    mLogReady     = false;
     mWindowCount  = 0;
     mCounts       = WindowCounts{};
     mHoldCount    = 0;
@@ -55,6 +58,7 @@ void Vo2Run::clearWindow()
 {
     mSec       = 0;
     mGood      = 0;
+    mSpeedRef  = 0.0f;
     mSumSpeed  = 0.0f;
     mSumSpeed2 = 0.0f;
     mSumGrade  = 0.0f;
@@ -97,9 +101,13 @@ void Vo2Run::addSecond(const Sample& s)
         mTooSteep = true;
     }
     if (goodHr(s) && goodSpeed(s)) {
+        if (mGood == 0) {
+            mSpeedRef = s.speedMs;
+        }
         ++mGood;
-        mSumSpeed  += s.speedMs;
-        mSumSpeed2 += s.speedMs * s.speedMs;
+        const float d = s.speedMs - mSpeedRef;
+        mSumSpeed  += d;
+        mSumSpeed2 += d * d;
         // No valid grade: taken as level. The SDK's GRADE sensor has its own
         // validity; a missing one should not cost the window.
         mSumGrade  += gradeOk ? s.gradePct : 0.0f;
@@ -114,42 +122,75 @@ void Vo2Run::addSecond(const Sample& s)
     }
 }
 
+bool Vo2Run::popWindowLog(WindowLog& out)
+{
+    if (!mLogReady) {
+        return false;
+    }
+    out = mLog;
+    mLogReady = false;
+    return true;
+}
+
 void Vo2Run::closeWindow()
 {
+    // The window's figures first (the tuning log wants them whatever the
+    // outcome), then the same tests in the same order as before.
+    WindowLog& log = mLog;
+    log           = WindowLog{};
+    log.index     = ++mWindowIndex;
+    log.activeSec = mActiveSec;
+    log.goodSec   = mGood;
+    mLogReady     = true;
+
+    float mean = 0.0f, spread = 0.0f, grade = 0.0f, meanHr = 0.0f, cost = 0.0f;
+    if (mGood > 0) {
+        const float n   = static_cast<float>(mGood);
+        const float dm  = mSumSpeed / n;
+        mean            = mSpeedRef + dm;
+        const float var = std::max(0.0f, mSumSpeed2 / n - dm * dm);
+        spread          = 100.0f * std::sqrt(var) / mean;
+        grade           = mSumGrade / n;
+        meanHr          = static_cast<float>(mSumHr) / n;
+        cost            = acsmRunningVo2(mean, grade);
+        log.speedMMinX10 = static_cast<uint16_t>(std::lround(mean * 600.0f));
+        log.spreadX10    = static_cast<uint16_t>(std::lround(std::min(spread, 6000.0f) * 10.0f));
+        log.gradeX10     = static_cast<int16_t>(std::lround(std::max(-3000.0f, std::min(grade, 3000.0f)) * 10.0f));
+        log.hrX10        = static_cast<uint16_t>(std::lround(meanHr * 10.0f));
+        log.hrMin        = mMinHr;
+        log.hrMax        = mMaxHr;
+        log.costX10      = static_cast<uint16_t>(std::lround(cost * 10.0f));
+    }
+
     if (mActiveSec <= Config::kWarmUpSec) {
         ++mCounts.warmUp;
+        log.outcome = WindowOutcome::WarmUp;
         return;
     }
     if (mGood < Config::kMinGoodSecPerWindow) {
         ++mCounts.gaps;
+        log.outcome = WindowOutcome::Gaps;
         return;
     }
     if (mTooSteep) {
         ++mCounts.grade;
+        log.outcome = WindowOutcome::Grade;
         return;
     }
-
-    const float n      = static_cast<float>(mGood);
-    const float mean   = mSumSpeed / n;
-    const float var    = std::max(0.0f, mSumSpeed2 / n - mean * mean);
-    const float spread = 100.0f * std::sqrt(var) / mean;
     if (spread > Config::kMaxSpeedSpreadPct || (mMaxHr - mMinHr) > Config::kMaxHrRangeBpm) {
         ++mCounts.unsteady;
+        log.outcome = WindowOutcome::Unsteady;
         return;
     }
-
     if (mWindowCount >= Config::kMaxWindows) {
         ++mCounts.overflow;
+        log.outcome = WindowOutcome::Overflow;
         return;
     }
 
-    const float cost   = acsmRunningVo2(mean, mSumGrade / n);
-    const float meanHr = static_cast<float>(mSumHr) / n;
-    mWindows[mWindowCount++] = Window{
-        static_cast<uint16_t>(std::lround(cost * 10.0f)),
-        static_cast<uint16_t>(std::lround(meanHr * 10.0f)),
-    };
+    mWindows[mWindowCount++] = Window{log.costX10, log.hrX10};
     ++mCounts.accepted;
+    log.outcome = WindowOutcome::Kept;
 }
 
 RunResult Vo2Run::estimate(const Profile& profile) const

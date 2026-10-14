@@ -55,12 +55,15 @@ const RunRecord& Vo2History::at(uint8_t i) const
     return mRuns[(mFirst + i) % Config::kHistoryRuns];
 }
 
-uint16_t Vo2History::rollingX10() const
+uint16_t Vo2History::rollingOver(uint8_t n) const
 {
     uint32_t sum = 0;
     uint32_t weight = 0;
-    const uint8_t from = mCount > Config::kRollingRuns ? mCount - Config::kRollingRuns : 0;
-    for (uint8_t i = from; i < mCount; ++i) {
+    if (n > mCount) {
+        n = mCount;
+    }
+    const uint8_t from = n > Config::kRollingRuns ? n - Config::kRollingRuns : 0;
+    for (uint8_t i = from; i < n; ++i) {
         const RunRecord& r = at(i);
         const uint32_t w = r.windows < Config::kMaxRunWeight ? r.windows : Config::kMaxRunWeight;
         sum    += static_cast<uint32_t>(r.vo2x10) * w;

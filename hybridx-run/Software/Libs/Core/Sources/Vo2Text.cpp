@@ -30,6 +30,70 @@ const char* formatX10(uint16_t x10, char* buf, size_t cap)
     return buf;
 }
 
+const char* profileReason(ProfileStatus s)
+{
+    switch (s) {
+    case ProfileStatus::NeedsAge:        return "Set your birth year";
+    case ProfileStatus::NeedsRestingHr:  return "Set resting HR";
+    case ProfileStatus::ReserveTooSmall: return "Check HR settings";
+    case ProfileStatus::Ok:              break;
+    }
+    return "";
+}
+
+const char* shortDate(uint8_t day, uint8_t month, char* buf, size_t cap)
+{
+    static const char* const kMonths[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    if (buf == nullptr || cap == 0) {
+        return "";
+    }
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+        buf[0] = '\0';
+        return buf;
+    }
+    std::snprintf(buf, cap, "%u %s", static_cast<unsigned>(day), kMonths[month - 1]);
+    return buf;
+}
+
+const char* trend(uint16_t nowX10, uint16_t beforeX10, char* buf, size_t cap)
+{
+    if (buf == nullptr || cap == 0) {
+        return "";
+    }
+    if (nowX10 == 0 || beforeX10 == 0) {
+        buf[0] = '\0';
+    } else if (nowX10 == beforeX10) {
+        std::snprintf(buf, cap, "Same as last run");
+    } else {
+        const bool     up = nowX10 > beforeX10;
+        const unsigned d  = up ? nowX10 - beforeX10 : beforeX10 - nowX10;
+        std::snprintf(buf, cap, "%c%u.%u since last run", up ? '+' : '-', d / 10, d % 10);
+    }
+    return buf;
+}
+
+const char* maxSourceLabel(MaxHrSource s)
+{
+    switch (s) {
+    case MaxHrSource::Entered:  return "entered";
+    case MaxHrSource::Formula:  return "age";
+    case MaxHrSource::Observed: return "runs";
+    case MaxHrSource::None:     break;
+    }
+    return "";
+}
+
+const char* restSourceLabel(RestHrSource s)
+{
+    switch (s) {
+    case RestHrSource::Entered: return "entered";
+    case RestHrSource::Watch:   return "watch";
+    case RestHrSource::None:    break;
+    }
+    return "";
+}
+
 const char* reason(const RunResult& r)
 {
     switch (r.status) {
@@ -42,13 +106,7 @@ const char* reason(const RunResult& r)
     case RunStatus::HrAboveMax:
         return "HR above your max";
     case RunStatus::ProfileIncomplete:
-        switch (r.profileStatus) {
-        case ProfileStatus::NeedsAge:        return "Set your birth year";
-        case ProfileStatus::NeedsRestingHr:  return "Set resting HR";
-        case ProfileStatus::ReserveTooSmall: return "Check HR settings";
-        case ProfileStatus::Ok:              break;
-        }
-        break;
+        return profileReason(r.profileStatus);
     }
     return "";
 }

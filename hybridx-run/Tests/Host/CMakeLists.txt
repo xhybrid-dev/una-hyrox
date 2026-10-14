@@ -36,10 +36,14 @@ add_executable(hybridx-run-host-tests
     Vo2RunTest.cpp
     Vo2HistoryTest.cpp
     Vo2TextTest.cpp
+    Vo2LogTest.cpp
+    Vo2SettingsTest.cpp
     "${CORE_LIBS}/Sources/Vo2Profile.cpp"
     "${CORE_LIBS}/Sources/Vo2Run.cpp"
     "${CORE_LIBS}/Sources/Vo2History.cpp"
     "${CORE_LIBS}/Sources/Vo2Text.cpp"
+    "${CORE_LIBS}/Sources/Vo2Log.cpp"
+    "${CORE_LIBS}/Sources/Vo2Settings.cpp"
     ${SDK_JSON_SOURCES}
 )
 target_include_directories(hybridx-run-host-tests PRIVATE

@@ -264,3 +264,78 @@ TEST(Vo2Run, ResetForgets)
     EXPECT_EQ(run.counts().accepted, 0);
     EXPECT_EQ(run.sustainedMaxHr(), 0);
 }
+
+TEST(Vo2Run, WindowLogRecordsEveryWindow)
+{
+    Vo2Run run;
+    WindowLog w;
+    EXPECT_FALSE(run.popWindowLog(w));
+    for (int i = 0; i < 59; ++i) {
+        run.addSecond(steady());
+        EXPECT_FALSE(run.popWindowLog(w));
+    }
+    run.addSecond(steady());
+    ASSERT_TRUE(run.popWindowLog(w));
+    EXPECT_EQ(w.index, 1);
+    EXPECT_EQ(w.activeSec, 60u);
+    EXPECT_EQ(w.goodSec, 60);
+    EXPECT_EQ(w.outcome, WindowOutcome::WarmUp);
+    EXPECT_EQ(w.speedMMinX10, 2000);   // 200.0 m/min
+    EXPECT_EQ(w.spreadX10, 0);
+    EXPECT_EQ(w.gradeX10, 0);
+    EXPECT_EQ(w.hrX10, 1600);
+    EXPECT_EQ(w.hrMin, 160);
+    EXPECT_EQ(w.hrMax, 160);
+    EXPECT_EQ(w.costX10, 435);         // 3.5 + 0.2 x 200
+    EXPECT_FALSE(run.popWindowLog(w));  // once per window
+
+    feed(run, steady(), 5 * 60);
+    ASSERT_TRUE(run.popWindowLog(w));
+    EXPECT_EQ(w.index, 6);
+    EXPECT_EQ(w.outcome, WindowOutcome::Kept);
+}
+
+TEST(Vo2Run, WindowLogOutcomes)
+{
+    Vo2Run run;
+    WindowLog w;
+    feed(run, steady(), 6 * 60);
+    run.popWindowLog(w);
+
+    Sample bad = steady();
+    bad.hrTrust = 0.0f;
+    feed(run, bad, 60);
+    ASSERT_TRUE(run.popWindowLog(w));
+    EXPECT_EQ(w.outcome, WindowOutcome::Gaps);
+    EXPECT_EQ(w.goodSec, 0);
+    EXPECT_EQ(w.hrX10, 0);           // nothing to average
+
+    feed(run, steady(3.0f, 160, 12.0f), 60);
+    ASSERT_TRUE(run.popWindowLog(w));
+    EXPECT_EQ(w.outcome, WindowOutcome::Grade);
+    EXPECT_EQ(w.gradeX10, 120);
+
+    for (int i = 0; i < 60; ++i) {
+        run.addSecond(steady(i % 2 ? 2.6f : 3.6f));
+    }
+    ASSERT_TRUE(run.popWindowLog(w));
+    EXPECT_EQ(w.outcome, WindowOutcome::Unsteady);
+    EXPECT_GT(w.spreadX10, 80);
+
+    feed(run, steady(3.0f, 160, -2.0f), 60);
+    ASSERT_TRUE(run.popWindowLog(w));
+    EXPECT_EQ(w.outcome, WindowOutcome::Kept);
+    EXPECT_EQ(w.gradeX10, -20);      // logged as measured; costed as level
+    EXPECT_EQ(w.costX10, 395);       // 3.5 + 0.2 x 180
+}
+
+TEST(Vo2Run, APauseLogsNoWindow)
+{
+    Vo2Run run;
+    WindowLog w;
+    feed(run, steady(), 30);
+    Sample paused = steady();
+    paused.active = false;
+    feed(run, paused, 120);
+    EXPECT_FALSE(run.popWindowLog(w));
+}

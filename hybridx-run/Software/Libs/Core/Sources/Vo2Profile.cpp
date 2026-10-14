@@ -16,7 +16,7 @@ namespace
 {
 
 // Civil date from days since 1970-01-01 (H. Hinnant's days_from_civil inverse).
-void civilFromDays(int64_t z, int32_t& y, uint32_t& m)
+void civilFromDays(int64_t z, int32_t& y, uint32_t& m, uint32_t& d)
 {
     z += 719468;
     const int64_t  era = (z >= 0 ? z : z - 146096) / 146097;
@@ -24,11 +24,31 @@ void civilFromDays(int64_t z, int32_t& y, uint32_t& m)
     const uint32_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
     const uint32_t doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     const uint32_t mp  = (5 * doy + 2) / 153;
+    d = doy - (153 * mp + 2) / 5 + 1;
     m = mp < 10 ? mp + 3 : mp - 9;
     y = static_cast<int32_t>(yoe + era * 400 + (m <= 2 ? 1 : 0));
 }
 
 }  // namespace
+
+Civil civilFromUtc(std::time_t utc)
+{
+    Civil c;
+    int64_t days = static_cast<int64_t>(utc) / 86400;
+    int64_t secs = static_cast<int64_t>(utc) % 86400;
+    if (secs < 0) {
+        secs += 86400;
+        --days;
+    }
+    uint32_t m = 1, d = 1;
+    civilFromDays(days, c.year, m, d);
+    c.day    = static_cast<uint8_t>(d);
+    c.month  = static_cast<uint8_t>(m);
+    c.hour   = static_cast<uint8_t>(secs / 3600);
+    c.minute = static_cast<uint8_t>((secs % 3600) / 60);
+    c.second = static_cast<uint8_t>(secs % 60);
+    return c;
+}
 
 uint8_t ageAt(uint16_t birthYear, uint8_t birthMonth, std::time_t nowUtc)
 {
@@ -38,8 +58,8 @@ uint8_t ageAt(uint16_t birthYear, uint8_t birthMonth, std::time_t nowUtc)
     const uint8_t month = (birthMonth >= 1 && birthMonth <= 12) ? birthMonth : 1;
 
     int32_t  y = 0;
-    uint32_t m = 0;
-    civilFromDays(static_cast<int64_t>(nowUtc) / 86400, y, m);
+    uint32_t m = 0, d = 0;
+    civilFromDays(static_cast<int64_t>(nowUtc) / 86400, y, m, d);
 
     int32_t age = y - static_cast<int32_t>(birthYear);
     if (m < month) {
@@ -84,9 +104,11 @@ Profile resolveProfile(const ProfileInput& in, std::time_t nowUtc)
     }
 
     if (plausibleRestHr(in.enteredRestHr)) {
-        p.restHr = in.enteredRestHr;
+        p.restHr     = in.enteredRestHr;
+        p.restSource = RestHrSource::Entered;
     } else if (plausibleRestHr(in.watchRestHr)) {
-        p.restHr = in.watchRestHr;
+        p.restHr     = in.watchRestHr;
+        p.restSource = RestHrSource::Watch;
     } else {
         p.status = ProfileStatus::NeedsRestingHr;
         return p;
