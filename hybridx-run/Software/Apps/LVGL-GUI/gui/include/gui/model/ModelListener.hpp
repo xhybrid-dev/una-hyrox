@@ -20,8 +20,7 @@
 #include "Track.hpp"
 #include "ActivitySummary.hpp"
 #include "Commands.hpp"   // CustomMessage::Vo2Info (HybridX Run)
-
-class Model;
+#include "gui/model/Model.hpp"
 
 class ModelListener
 {
@@ -52,6 +51,10 @@ public:
     virtual void onActivitySummary(const ActivitySummary& summary) { (void)summary; }
     virtual void onAccessoryStatus(uint8_t state, const char* name) { (void)state; (void)name; }
     virtual void onVo2Info(const CustomMessage::Vo2Info& info) { (void)info; }   ///< HybridX Run
+    virtual void onWorkoutList() {}
+    virtual void onWorkoutDetails() {}
+    virtual void onWorkoutData(const Model::WorkoutFace& face) { (void)face; }
+    virtual void onWorkoutStep(bool next) { (void)next; }
 
 protected:
     Model* model;

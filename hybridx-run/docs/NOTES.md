@@ -397,3 +397,47 @@ HR trust levels drop at tempo pace.
 The SDK released v1.6.0 (structured workouts, GPS speed filter, buzzer pitch, shared `:/Workouts`). Our pin is unchanged (`a7a995a1`); ABI 3 / kernel 1.4.0 at both. What it means for this app, and the plan to move the pin, are in `hybridx-race/docs/NOTES.md`, "Amendment — UNA SDK v1.6.0 reviewed" (5.21-5.24).
 
 **Decision (14 October 2026):** re-sync with UNA's updated Run app (v1.6.0) and add `GpsSpeedFilter`. See `hybridx-race/docs/NOTES.md` 5.25.
+
+## R6a: UNA's RunLVGL (sdk-v1.6.0) merged in (14 October 2026)
+
+Run is a copy of RunLVGL, so v1.6.0's changes (structured workouts, the GPS speed filter, the
+56 KB LVGL pool, assorted fixes) were brought in with a **three-way merge**, not by copying
+files over: base = RunLVGL at `a7a995a1` (what Run was copied from), theirs = RunLVGL at
+`sdk-v1.6.0`, ours = Run. `git merge-file` per file, with the SDK's `Libs/Header` and
+`Libs/Sources` mapped to our `Libs/App/Header` and `Libs/App/Sources`.
+
+| Result | Files |
+|---|---|
+| Untouched by us, taken from UNA | 27 |
+| New in v1.6.0 (workout screens, `WorkoutUi`, `WorkoutFaces`, `WorkoutLabel`, ...) | 13 |
+| Merged cleanly | 3 |
+| Conflicted, resolved by hand | 12 (20 hunks) |
+
+**How the conflicts were resolved.** Every `HybridX Run` block was kept; UNA's structure was
+adopted around them.
+- **Message IDs collided.** UNA's `WORKOUT_LIST`..`WORKOUT_STEP` took `0x13`-`0x16` and
+  `WORKOUT_DETAILS_REQUEST`/`WORKOUT_END` `0x17`-`0x18`, which our `VO2_UPDATE` and
+  `VO2_PROFILE_SAVE` already used (`0x13`, `0x14`). Ours moved to `0x19` and `0x1A`. They are only
+  ever used by name and never stored, so nothing else changes.
+- **Menu.** `Root::Id` is now Start, Workouts, Intervals, VO2max, Settings; the item table and the
+  enum agree (checked). `vo2Profile` is still reset with the other children.
+- **FIT local message numbers.** `L_MAX_MET` (ours) and `L_MEMO_GLOB` (UNA's workout writer) both
+  kept: 13 and 14, under FIT's limit of 15 local message types.
+- **Service.** Our speed and grade freshness stamps (`mSpeedLastMs`, `mSpeedSeen`) now sit inside
+  UNA's peak-speed logic; the VO2 reset in `trackStart` stays, and UNA's `mLapCarryMs = 0`; UNA
+  moved the `mSummary` set-up lower (it sizes the lap reserve for workout steps), so ours was
+  dropped as a duplicate.
+- Simulator `CMakeLists.txt` takes UNA's `LV_MEM_SIZE` 56 KB with our app ID and name.
+  `HybridXRun-CMake` got the same define from the merge.
+
+**Behaviour of ours is unchanged in this commit:** the VO2 windows still read the receiver's raw
+speed (`mGpsSpeedMs`). The corrected speed comes in R6b, so any change in results is separable.
+
+### R6a verified
+- Host tests: 58 pass (core unchanged).
+- Simulator builds against `sdk-v1.6.0` with no warnings in `hybridx-run/` and no conflict
+  markers left. `sim_run.sh` (150 s, with a seeded history): the run starts, saves a FIT, the VO2
+  lines, `vo2.json`, the SharedData copy and the tuning log are all written as before.
+- Screens: the main menu shows Workouts and the recent VO2max; the VO2 page is intact; the
+  Workouts list opens (empty in the simulator: "Copy .fit files to the Workouts folder").
+- Not yet: the watch build (CI) and its size and RAM; no watch run.
