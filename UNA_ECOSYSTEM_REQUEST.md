@@ -71,3 +71,26 @@ sets) that I can send separately.
 Many thanks,
 Jon Lee
 HybridX
+
+---
+
+## Forum post (short, no reference to our apps)
+
+**Title:** Feature ideas: letting watch apps share data and receive files
+
+> A few ideas that would let third-party watch apps do much more:
+>
+> 1. **A shared activity summary.** After each activity, a short summary (date,
+>    type, duration, distance, heart rate) is saved to the watch's shared
+>    folder, so any app can see the whole week's training, not just its own.
+>    Streak, training-load and recovery apps would all benefit.
+> 2. **Shared data reaching the phone.** The UNA app copies the shared folder
+>    to the phone when it syncs, so results an app works out on the watch
+>    aren't stuck there.
+> 3. **Sending files to a watch app.** Share a file in the UNA app (a GPX
+>    route, a workout plan, a race course) and pick which watch app receives
+>    it. Each app would list the file types it accepts, as it lists its
+>    settings today. Right now the only way in is a USB cable, and on iPhone
+>    there's no other route.
+>
+> Is anything like this planned? Thanks.
