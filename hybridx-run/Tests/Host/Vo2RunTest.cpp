@@ -287,12 +287,40 @@ TEST(Vo2Run, WindowLogRecordsEveryWindow)
     EXPECT_EQ(w.hrMin, 160);
     EXPECT_EQ(w.hrMax, 160);
     EXPECT_EQ(w.costX10, 435);         // 3.5 + 0.2 x 200
+    EXPECT_EQ(w.speedScaleX1000, 0);   // no correction supplied: not known
     EXPECT_FALSE(run.popWindowLog(w));  // once per window
 
     feed(run, steady(), 5 * 60);
     ASSERT_TRUE(run.popWindowLog(w));
     EXPECT_EQ(w.index, 6);
     EXPECT_EQ(w.outcome, WindowOutcome::Kept);
+}
+
+// The speed correction the service applied (GpsSpeedFilter's scale) is logged as the mean over
+// the window's good seconds, so a run's logs show how much correction the VO2max had.
+TEST(Vo2Run, WindowLogRecordsTheSpeedCorrection)
+{
+    Vo2Run run;
+    WindowLog w;
+    Sample a = steady();
+    a.speedScale = 1.02f;
+    Sample b = steady();
+    b.speedScale = 1.06f;
+    feed(run, a, 30);
+    feed(run, b, 30);
+    ASSERT_TRUE(run.popWindowLog(w));
+    EXPECT_EQ(w.goodSec, 60);
+    EXPECT_EQ(w.speedScaleX1000, 1040);   // mean of 1.02 and 1.06
+
+    // A second without a usable speed is not part of the mean.
+    Sample bad = steady();
+    bad.speedValid = false;
+    bad.speedScale = 9.0f;
+    feed(run, a, 59);
+    run.addSecond(bad);
+    ASSERT_TRUE(run.popWindowLog(w));
+    EXPECT_EQ(w.goodSec, 59);
+    EXPECT_EQ(w.speedScaleX1000, 1020);
 }
 
 TEST(Vo2Run, WindowLogOutcomes)

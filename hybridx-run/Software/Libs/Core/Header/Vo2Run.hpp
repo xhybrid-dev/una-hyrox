@@ -38,6 +38,7 @@ struct Sample {
     bool    gradeValid    = false;
     uint8_t hrBpm         = 0;
     float   hrTrust       = 0.0f;   ///< the kernel's raw trust level
+    float   speedScale    = 0.0f;   ///< the GPS speed correction in force (1.0 = none); 0 = not known
 };
 
 /// Why a window was not kept (counts are for the NOTES and the tests).
@@ -68,6 +69,7 @@ struct WindowLog {
     uint8_t       hrMin        = 0;
     uint8_t       hrMax        = 0;
     uint16_t      costX10      = 0;   ///< ACSM oxygen cost, ml/kg/min x 10
+    uint16_t      speedScaleX1000 = 0; ///< mean GPS speed correction, x 1000; 0 = not known
 };
 
 enum class RunStatus : uint8_t {
@@ -129,6 +131,7 @@ private:
     float    mSumSpeed  = 0.0f;   ///< sum of (speed - mSpeedRef)
     float    mSumSpeed2 = 0.0f;   ///< sum of (speed - mSpeedRef)^2
     float    mSumGrade  = 0.0f;
+    float    mSumScale  = 0.0f;   ///< sum of the speed correction over the good seconds
     uint32_t mSumHr     = 0;
     uint8_t  mMinHr     = 255;
     uint8_t  mMaxHr     = 0;

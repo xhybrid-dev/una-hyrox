@@ -62,6 +62,7 @@ void Vo2Run::clearWindow()
     mSumSpeed  = 0.0f;
     mSumSpeed2 = 0.0f;
     mSumGrade  = 0.0f;
+    mSumScale  = 0.0f;
     mSumHr     = 0;
     mMinHr     = 255;
     mMaxHr     = 0;
@@ -111,6 +112,7 @@ void Vo2Run::addSecond(const Sample& s)
         // No valid grade: taken as level. The SDK's GRADE sensor has its own
         // validity; a missing one should not cost the window.
         mSumGrade  += gradeOk ? s.gradePct : 0.0f;
+        mSumScale  += s.speedScale;
         mSumHr     += s.hrBpm;
         mMinHr      = std::min(mMinHr, s.hrBpm);
         mMaxHr      = std::max(mMaxHr, s.hrBpm);
@@ -160,6 +162,7 @@ void Vo2Run::closeWindow()
         log.hrMin        = mMinHr;
         log.hrMax        = mMaxHr;
         log.costX10      = static_cast<uint16_t>(std::lround(cost * 10.0f));
+        log.speedScaleX1000 = static_cast<uint16_t>(std::lround(std::max(0.0f, std::min(mSumScale / n, 65.0f)) * 1000.0f));
     }
 
     if (mActiveSec <= Config::kWarmUpSec) {

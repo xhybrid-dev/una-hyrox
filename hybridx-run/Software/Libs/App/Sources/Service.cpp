@@ -2141,8 +2141,15 @@ void Service::feedVo2()
 
     RunVo2::Sample s;
     s.active        = (mTrackState == Track::State::ACTIVE);
-    s.speedMs       = mGpsSpeedMs;
-    s.speedValid    = mGpsSpeedValid && speedFresh;
+    // The corrected speed, not the receiver's raw one: the AG3335's speed over ground reads
+    // 0.7% (open road) to 5.8% (tree cover) low against the position track, and the ACSM cost is
+    // proportional to speed, so the raw figure biased VO2max low by about the same amount.
+    // getInstantSpeed() is the latest sample times the filter's scale, at the same 1 Hz as the
+    // raw feed was; hasCurrentSample() is false on a tick without a current fix. The filter was
+    // ticked earlier in processTrack(). (R6b)
+    s.speedMs       = mSpeedFilter.getInstantSpeed();
+    s.speedValid    = mSpeedFilter.hasCurrentSample() && speedFresh;
+    s.speedScale    = mSpeedFilter.getScale();
     s.deadReckoning = mGpsDeadReckoning;
     s.gradePct      = mGradeData.gradePct;
     s.gradeValid    = mGradeData.gradeValid && gradeFresh;   // stale: taken as level

@@ -46,6 +46,16 @@ struct X10 {
     }
 };
 
+/// "1.034" from an x1000 value.
+struct X1000 {
+    char s[12];
+    explicit X1000(uint32_t v)
+    {
+        std::snprintf(s, sizeof(s), "%lu.%03lu", static_cast<unsigned long>(v / 1000),
+                      static_cast<unsigned long>(v % 1000));
+    }
+};
+
 }  // namespace
 
 const char* outcomeName(WindowOutcome o)
@@ -110,15 +120,15 @@ size_t contextLine(std::time_t startUtc, const Profile& p, char* buf, size_t cap
 size_t headerLine(char* buf, size_t cap)
 {
     return put(buf, cap,
-               "window,active_s,good_s,outcome,speed_m_min,spread_pct,grade_pct,hr_avg,hr_min,hr_max,cost\n");
+               "window,active_s,good_s,outcome,speed_m_min,spread_pct,grade_pct,hr_avg,hr_min,hr_max,cost,scale\n");
 }
 
 size_t windowLine(const WindowLog& w, char* buf, size_t cap)
 {
-    return put(buf, cap, "%u,%lu,%u,%s,%s,%s,%s,%s,%u,%u,%s\n",
+    return put(buf, cap, "%u,%lu,%u,%s,%s,%s,%s,%s,%u,%u,%s,%s\n",
                w.index, static_cast<unsigned long>(w.activeSec), w.goodSec, outcomeName(w.outcome),
                X10(w.speedMMinX10).s, X10(w.spreadX10).s, X10(w.gradeX10).s, X10(w.hrX10).s,
-               w.hrMin, w.hrMax, X10(w.costX10).s);
+               w.hrMin, w.hrMax, X10(w.costX10).s, X1000(w.speedScaleX1000).s);
 }
 
 size_t resultLine(const RunResult& r, const Profile& p, uint8_t runMaxHr, char* buf, size_t cap)

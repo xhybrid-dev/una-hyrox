@@ -147,7 +147,8 @@ against a Garmin. It is independent of the other apps.
     [app_config.json]` (`SEED=1` for a history); the VO2max screens:
     `docs/experiments/capture_vo2.sh [out-dir]` (into `docs/screens/`);
   - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
-    log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>`.
+    log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>` (also shows
+    what the raw GPS speed would have given, from the `scale` column).
   - simulator: `hybridx-run/Software/Apps/LVGL-GUI/simulator`.
 
 ## X Weigh-in (`x-weighin/`)

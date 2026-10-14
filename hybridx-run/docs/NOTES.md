@@ -441,3 +441,39 @@ speed (`mGpsSpeedMs`). The corrected speed comes in R6b, so any change in result
 - Screens: the main menu shows Workouts and the recent VO2max; the VO2 page is intact; the
   Workouts list opens (empty in the simulator: "Copy .fit files to the Workouts folder").
 - Not yet: the watch build (CI) and its size and RAM; no watch run.
+
+## R6b: VO2max on UNA's corrected speed (14 October 2026)
+
+**The change.** `feedVo2()` now feeds the windows `mSpeedFilter.getInstantSpeed()` (the latest
+sample times the filter's scale) with `hasCurrentSample()` as the validity gate, in place of the
+receiver's raw `mGpsSpeedMs`. Same 1 Hz cadence and the same freshness and dead-reckoning gates
+as before; `getSpeed()` (the 2-tick mean) was not used, so the window's 8% spread test sees the
+same kind of per-second values as it did. UNA's filter is ticked earlier in `processTrack()`, so
+the VO2 feed reads the current second.
+
+**Why.** UNA measured the receiver's speed over ground against the position track on eight
+simultaneous recordings: 0.7% low on an open road race, 5.8% low under tree cover, while the
+position track matched an odometer to 1.2%. The ACSM running cost is `3.5 + 0.2 v + ...`, and
+v is the term that carries almost all of it, so a speed that reads low by a few percent made the
+VO2max low by about as much. The filter measures the correction itself (an exponential average
+of position distance over Doppler distance, time constant 180 s) and applies it.
+
+**What to expect.** The same run now reads higher: roughly +1% of VO2max on open road, up to
+about +5% under trees, e.g. 54.4 becomes 56.4 on a 4% correction (the hand-checked case in
+`vo2_log_report.py`). The correction needs about 3 minutes to settle; the VO2 warm-up is 300 s,
+so no kept window used a half-converged scale (about 80% settled at the first kept window).
+
+**Tuning log.** A `scale` column is appended to each window line (the mean correction over the
+window's good seconds, 1.000 = none; empty logs from before R6b simply lack the column).
+`vo2_log_report.py` now also prints what the same windows would have given on the raw speed
+(speed / scale), so one log shows the size of the correction. Hand-checked: 200 m/min, scale
+1.040, HR 160 (rest 50, max 190) gives 54.4 corrected and 52.5 raw.
+
+### R6b verified
+- Host tests: 59 pass (one new: the window log records the mean correction over good seconds
+  only; the log format test updated).
+- Simulator: builds with no warnings in `hybridx-run/`; a 200 s run writes the log with the
+  `scale` column. In the simulator the scale is about 1.000 (its simulated track agrees with its
+  simulated speed), so this shows the plumbing, **not the size of the effect**.
+- Not verified: the effect on a real run, and against Jon's Garmin. That needs a field run on the
+  CI build: compare the report's corrected and raw figures and the Garmin's.
