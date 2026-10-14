@@ -1839,8 +1839,8 @@ docs and portal disagree on it.
 ## Amendment — UNA SDK v1.6.0 reviewed; pin not yet moved (14 October 2026)
 
 This is the shared record for all the apps in this repository (Streak, Trail,
-Intervals, Run, Weigh-in and Velocity point here). Notes only: **no code, no
-pin and no CI change was made.** The pin stays `a7a995a1`.
+Intervals, Run, Weigh-in and Velocity point here). Notes only at the time: no
+code, pin or CI change. The pin was moved afterwards: see 5.28.
 
 ### 5.21 Where we stand
 
@@ -1924,7 +1924,7 @@ this repository sets it, so its withdrawal does not affect us.
 | Weigh-in | Glance builds unaffected (see Streak). LVGL pool and Wheel changes are opt-in. | test on the new pin |
 | Velocity | IMU timestamps from the hardware counter are directly relevant to the probe (V0) and to rep timing. | read `SensorsLayer.md` at the new pin before the V0 probe |
 
-### 5.24 Plan to align (not done; needs Jon's go-ahead)
+### 5.24 Plan to align (done in 5.28)
 
 Same method as 5.17-5.18, done on a branch:
 1. Check `LV_MEM_SIZE` and message-struct use in each app against the diffs
@@ -1986,3 +1986,33 @@ Caveats worth knowing:
    exploration; the rep-count field test needs a probe plan first (shared with
    Velocity's V0).
 4. Trail alert work and Weigh-in entry screens.
+
+### 5.28 Pin moved to sdk-v1.6.0 (14 October 2026)
+
+`UNA_SDK_REF` is now `bd04a5b8ebc7cb56cdbabe7071bad0468f9f7249` (`sdk-v1.6.0`), up from
+`a7a995a1`. No app code changed. Done the 5.17 way: verified in a scratch checkout of the tag
+(submodules initialised; `ThirdParty` is the same tree at both commits, so LVGL is unchanged)
+before the pin was edited.
+
+**Host tests, same on both SDKs** (old pin run first as the baseline): Race 100, Streak 115,
+Trail 144, Intervals 113, Run 58, Weigh-in 113, all passing. Race's core is pure, so its tests
+only use the SDK's test framework; the other four compile SDK sources.
+
+**Simulators**, all six built against v1.6.0 (Ninja, Debug) with no errors. Warnings: 45 against
+44 on the old pin, the one extra being the SDK's own new `WorkoutLibrary.cpp:184`
+(`-Wformat-truncation` on a `snprintf` whose file-name length the code already checks is under
+64 bytes, so benign; SDK code, not ours to edit). Each simulator ran 12 s under Xvfb with no
+crash or assert. Race was driven through its full capture script (`capture_screens.sh`, 20
+screens) and ended with the same queue-drain log lines as in 5.17.
+
+**Not done locally:** the watch target. The container has no ST toolchain, and Ubuntu's compiler
+only links with stubs (5.20), so the watch build is CI's job. The push triggers `Watch builds`;
+its result is recorded below once known.
+
+**Found along the way**
+- The simulator links its binary into each app's own `build/bin` (git-ignored), not into the
+  chosen build directory, so a build against another SDK silently replaces the one you were
+  about to run. Rebuild before running after switching SDKs.
+- `APP_GLANCE_INTF` is withdrawn in v1.5 and no app sets it. The two glance apps are
+  `APP_TYPE Glance`, so only their packed header byte changes (0x22 to 0x02, both read as a glance).
+- SDK ABI is 3 at both commits, so `minKernelVersion` stays 1.4.0 (5.21).

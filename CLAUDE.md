@@ -7,8 +7,8 @@ This workspace holds two folders:
   and sets `UNA_SDK`; bump the SDK there and new sessions follow.
 - `hybridx-race/`: our app, a HYROX-format race timer for the UNA Watch.
 
-SDK status: pinned at `a7a995a1`; UNA's `sdk-v1.6.0` is reviewed but not adopted. See
-`hybridx-race/docs/NOTES.md` 5.21-5.24 before any SDK or firmware-compatibility work.
+SDK status: pinned at `sdk-v1.6.0` (`bd04a5b8`) since 14 October 2026. See
+`hybridx-race/docs/NOTES.md` 5.21-5.28 before any SDK or firmware-compatibility work.
 
 ## Before any work
 1. Read `hybridx-race/docs/HYBRIDX_RACE_BRIEF.md` in full at the start of each phase.
