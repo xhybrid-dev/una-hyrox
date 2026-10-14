@@ -41,10 +41,27 @@ const char* profileReason(ProfileStatus s)
     return "";
 }
 
+namespace
+{
+const char* const kMonths[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+}  // namespace
+
+const char* monthYear(uint8_t month, uint16_t year, char* buf, size_t cap)
+{
+    if (buf == nullptr || cap == 0) {
+        return "";
+    }
+    if (month < 1 || month > 12 || year == 0) {
+        std::snprintf(buf, cap, "Not set");
+    } else {
+        std::snprintf(buf, cap, "%s %u", kMonths[month - 1], static_cast<unsigned>(year));
+    }
+    return buf;
+}
+
 const char* shortDate(uint8_t day, uint8_t month, char* buf, size_t cap)
 {
-    static const char* const kMonths[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
     if (buf == nullptr || cap == 0) {
         return "";
     }

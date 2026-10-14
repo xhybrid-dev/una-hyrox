@@ -58,6 +58,9 @@ TEST(Vo2Text, Dates)
     EXPECT_STREQ(Text::shortDate(1, 1, buf, sizeof(buf)), "1 Jan");
     EXPECT_STREQ(Text::shortDate(0, 1, buf, sizeof(buf)), "");
     EXPECT_STREQ(Text::shortDate(5, 13, buf, sizeof(buf)), "");
+    EXPECT_STREQ(Text::monthYear(5, 1986, buf, sizeof(buf)), "May 1986");
+    EXPECT_STREQ(Text::monthYear(0, 1986, buf, sizeof(buf)), "Not set");
+    EXPECT_STREQ(Text::monthYear(5, 0, buf, sizeof(buf)), "Not set");
 }
 
 TEST(Vo2Text, Trend)

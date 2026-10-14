@@ -55,8 +55,15 @@ struct Position {
 // -----------------------------------------------------------------------------
 
 struct Root {
-    enum Id { ID_START = 0, ID_INTERVALS, ID_SETTINGS,
+    // HybridX Run: ID_VO2 added before Settings (the VO2max page, R5).
+    enum Id { ID_START = 0, ID_INTERVALS, ID_VO2, ID_SETTINGS,
               ID_COUNT, ID_DEFAULT = ID_START };
+
+    /// HybridX Run: the VO2max profile menu (R5).
+    struct Vo2Profile {
+        enum Id { ID_BIRTH = 0, ID_MAX_HR, ID_REST_HR, ID_TUNING_LOG,
+                  ID_COUNT, ID_DEFAULT = ID_BIRTH };
+    };
 
     struct Intervals {
         enum Id {
@@ -180,8 +187,9 @@ struct Nav : Position<Root> {
     TrackViewNav  track;      // TrackView page + nested TrackAction
     IntervalsNav  intervals;  // Intervals menu + nested run/rest metrics
     SettingsNav   settings;   // Settings menu + nested alerts
+    Position<Root::Vo2Profile> vo2Profile;   // HybridX Run: the VO2max profile menu
 
-    void resetChildren() { track.reset(); intervals.reset(); settings.reset(); }
+    void resetChildren() { track.reset(); intervals.reset(); settings.reset(); vo2Profile.reset(); }
     void reset()         { Position<Root>::reset(); resetChildren(); }
 };
 

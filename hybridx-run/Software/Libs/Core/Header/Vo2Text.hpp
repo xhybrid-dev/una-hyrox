@@ -28,6 +28,9 @@ const char* profileReason(ProfileStatus s);
 /// "12 Oct"; "" for an impossible date. Returns buf.
 const char* shortDate(uint8_t day, uint8_t month, char* buf, size_t cap);
 
+/// "May 1986"; "Not set" when either is unset or impossible. Returns buf.
+const char* monthYear(uint8_t month, uint16_t year, char* buf, size_t cap);
+
 /// "+0.8 since last run", "-1.2 since last run", "Same as last run", or ""
 /// with no earlier figure. Returns buf.
 const char* trend(uint16_t nowX10, uint16_t beforeX10, char* buf, size_t cap);
