@@ -459,8 +459,8 @@ VO2max low by about as much. The filter measures the correction itself (an expon
 of position distance over Doppler distance, time constant 180 s) and applies it.
 
 **What to expect.** The same run now reads higher: roughly +1% of VO2max on open road, up to
-about +5% under trees, e.g. 54.4 becomes 56.4 on a 4% correction (the hand-checked case in
-`vo2_log_report.py`). The correction needs about 3 minutes to settle; the VO2 warm-up is 300 s,
+about +5% under trees: a 4% correction moves 52.5 to 54.4 in the hand-checked case below (about
++2 ml/kg/min). The correction needs about 3 minutes to settle; the VO2 warm-up is 300 s,
 so no kept window used a half-converged scale (about 80% settled at the first kept window).
 
 **Tuning log.** A `scale` column is appended to each window line (the mean correction over the
