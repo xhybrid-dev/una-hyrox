@@ -36,6 +36,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type INTERVALS_WORKOUT_COMPLETED = 0x00000010;
     constexpr SDK::MessageType::Type ACCESSORY_STATUS          = 0x00000012;
     constexpr SDK::MessageType::Type VO2_UPDATE                = 0x00000013;   // HybridX Run
+    constexpr SDK::MessageType::Type VO2_PROFILE_SAVE          = 0x00000014;   // HybridX Run, GUI -> Service
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -192,10 +193,15 @@ namespace CustomMessage {
     };
 
     // HybridX Run: the VO2max figures the screens show. Sent with the initial
-    // info and again when a track is saved.
+    // info, when a track starts and is saved, and after a profile change.
     struct Vo2Info {
+        static constexpr uint8_t kMaxRows = 10;   ///< RunVo2::Config::kHistoryRuns
+
         uint16_t rollingX10    = 0;   ///< shown value, ml/kg/min x 10; 0 = none yet
+        uint16_t beforeX10     = 0;   ///< the shown value before the latest run (trend)
         uint8_t  runs          = 0;   ///< runs behind it
+
+        // The run just saved (the summary's VO2MAX page).
         bool     hasRun        = false; ///< the run fields below describe a just-saved run
         uint8_t  runStatus     = 0;   ///< RunVo2::RunStatus
         uint8_t  profileStatus = 0;   ///< RunVo2::ProfileStatus
@@ -204,6 +210,30 @@ namespace CustomMessage {
         uint8_t  maxHr         = 0;
         uint8_t  maxSource     = 0;   ///< RunVo2::MaxHrSource
         uint8_t  restHr        = 0;
+
+        // The VO2max page: the last runs, newest first, as local dates.
+        struct Row {
+            uint8_t  day    = 0;
+            uint8_t  month  = 0;
+            uint16_t vo2x10 = 0;
+        };
+        Row      rows[kMaxRows] {};
+        uint8_t  rowCount      = 0;
+
+        // The profile as it stands now (RunVo2::resolveProfile at send time).
+        uint8_t  nowStatus     = 0;   ///< RunVo2::ProfileStatus
+        uint8_t  nowAge        = 0;
+        uint8_t  nowMaxHr      = 0;
+        uint8_t  nowMaxSource  = 0;   ///< RunVo2::MaxHrSource
+        uint8_t  nowRestHr     = 0;
+        uint8_t  nowRestSource = 0;   ///< RunVo2::RestHrSource
+
+        // What the athlete set (0 = not set / automatic), for the pickers.
+        uint16_t birthYear     = 0;
+        uint8_t  birthMonth    = 0;
+        uint8_t  setMaxHr      = 0;
+        uint8_t  setRestHr     = 0;
+        bool     tuningLog     = true;
     };
 
     struct Vo2Upd : public SDK::MessageBase {
@@ -215,6 +245,17 @@ namespace CustomMessage {
         {
             this->info = info;
         }
+    };
+
+    // HybridX Run: the athlete's numbers set on the watch (0 = not set /
+    // automatic), written back to app_config.json by the service.
+    struct Vo2ProfileSave : public SDK::MessageBase {
+        uint16_t birthYear  = 0;
+        uint8_t  birthMonth = 0;
+        uint8_t  maxHr      = 0;
+        uint8_t  restHr     = 0;
+        bool     tuningLog  = true;
+        Vo2ProfileSave() : SDK::MessageBase(VO2_PROFILE_SAVE) {}
     };
 
     // External-accessory link status forwarded from the kernel's
@@ -294,6 +335,13 @@ namespace CustomMessage {
     struct ManualLap : public SDK::MessageBase {
         ManualLap() : SDK::MessageBase(MANUAL_LAP) {}
     };
+
+    // HybridX Run: a message is allocated from the kernel's 256-byte pool
+    // blocks (HybridX Streak's Commands.hpp, kMaxMessageBytes); the VO2
+    // messages, the largest this app adds, must fit one.
+    constexpr size_t kMaxMessageBytes = 256u;
+    static_assert(sizeof(Vo2Upd) <= kMaxMessageBytes, "Vo2Upd exceeds the 256-byte kernel pool block");
+    static_assert(sizeof(Vo2ProfileSave) <= kMaxMessageBytes, "Vo2ProfileSave exceeds the 256-byte kernel pool block");
 
 
 } // namespace CustomMessage

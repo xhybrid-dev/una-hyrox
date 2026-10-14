@@ -5,6 +5,7 @@
 #include <cmath>
 #include <memory>
 #include <cstring>
+#include <cstdio>
 
 #include "Settings.hpp"
 #include "ActivitySummary.hpp"
@@ -118,6 +119,7 @@ Service::Service(SDK::Kernel &kernel)
 
 Service::~Service()
 {
+    closeVo2Log(false);   // HybridX Run: keep what a stopped app had logged
     disconnect();   // Cleanup resources
 }
 
@@ -186,6 +188,10 @@ void Service::run()
                 case CustomMessage::SETTINGS_SAVE:  {
                     LOG_DEBUG("SETTINGS_SAVE\n");
                     handleEvent(*static_cast<CustomMessage::SettingsSave*>(msg));
+                } break;
+
+                case CustomMessage::VO2_PROFILE_SAVE:  {   // HybridX Run
+                    handleEvent(*static_cast<CustomMessage::Vo2ProfileSave*>(msg));
                 } break;
 
                 case CustomMessage::TRACK_START:  {
@@ -846,6 +852,7 @@ void Service::startTrack(std::time_t utc)
     mVo2Run.reset();
     mVo2Info.hasRun = false;
     sendVo2Info();
+    openVo2Log(utc);
 
     mSummary = ActivitySummary{};
     mSummary.laps.reserve(10);
@@ -1219,6 +1226,7 @@ void Service::stopTrack(bool discard)
         }
     } else {
         mActivityWriter.discard();
+        closeVo2Log(true);   // HybridX Run: a discarded run's log goes too
     }
 
     mTrackState = Track::State::INACTIVE;
@@ -1682,16 +1690,17 @@ void Service::loadVo2()
     // Read once at start, as the SDK intends (Docs/app-config-fields.md 7.2):
     // a change on the phone applies the next time the app opens. On the heap,
     // once, as HybridX Race and Streak do: not in the 1 Hz path.
-    {
-        std::unique_ptr<SDK::AppConfig> cfg(new SDK::AppConfig(mKernel, RunConfig::kFileName,
-                                                               RunConfig::kFields, RunConfig::kFieldCount));
-        mVo2Input.birthYear     = static_cast<uint16_t>(cfg->getInt(RunConfig::kBirthYear));
-        mVo2Input.birthMonth    = static_cast<uint8_t>(cfg->getInt(RunConfig::kBirthMonth));
-        mVo2Input.enteredMaxHr  = static_cast<uint8_t>(cfg->getInt(RunConfig::kMaxHr));
-        mVo2Input.enteredRestHr = static_cast<uint8_t>(cfg->getInt(RunConfig::kRestingHr));
-        LOG_INFO("VO2 profile: born %u/%u, max HR %u, resting HR %u (0 = not set)\n",
-                 mVo2Input.birthMonth, mVo2Input.birthYear, mVo2Input.enteredMaxHr, mVo2Input.enteredRestHr);
-    }
+    // Kept (R5), so a change made on the watch is written back to the same
+    // file the phone writes, as HybridX Race does.
+    mConfig.reset(new SDK::AppConfig(mKernel, RunConfig::kFileName, RunConfig::kFields, RunConfig::kFieldCount));
+    mVo2Input.birthYear     = static_cast<uint16_t>(mConfig->getInt(RunConfig::kBirthYear));
+    mVo2Input.birthMonth    = static_cast<uint8_t>(mConfig->getInt(RunConfig::kBirthMonth));
+    mVo2Input.enteredMaxHr  = static_cast<uint8_t>(mConfig->getInt(RunConfig::kMaxHr));
+    mVo2Input.enteredRestHr = static_cast<uint8_t>(mConfig->getInt(RunConfig::kRestingHr));
+    mVo2TuningLog           = mConfig->getBool(RunConfig::kTuningLog);
+    LOG_INFO("VO2 profile: born %u/%u, max HR %u, resting HR %u (0 = not set), tuning log %u\n",
+             mVo2Input.birthMonth, mVo2Input.birthYear, mVo2Input.enteredMaxHr, mVo2Input.enteredRestHr,
+             mVo2TuningLog);
 
     char buf[RunVo2::Vo2History::kMaxJsonBytes];
     size_t len = RunVo2::SafeFile::read(mKernel.fs, kVo2File, false, buf, sizeof(buf));
@@ -1736,6 +1745,12 @@ void Service::feedVo2()
     s.hrBpm         = (hrFresh && hr > 0.0f && hr < 255.0f) ? static_cast<uint8_t>(hr + 0.5f) : 0;
     s.hrTrust       = trust;   // the raw value: the core applies RunLVGL's 1-3 test
     mVo2Run.addSecond(s);
+
+    // The tuning log: one row per closed window (about once a minute).
+    RunVo2::WindowLog w;
+    if (mVo2Run.popWindowLog(w) && mVo2LogFile) {
+        writeVo2Log(RunVo2::Log::windowLine(w, mVo2LogLine, sizeof(mVo2LogLine)));
+    }
 }
 
 void Service::finishVo2(std::time_t endUtc)
@@ -1761,6 +1776,11 @@ void Service::finishVo2(std::time_t endUtc)
 
     if (result.status == RunVo2::RunStatus::Ok) {
         mVo2History.add(RunVo2::RunRecord{static_cast<uint32_t>(endUtc), result.vo2x10, result.windowsUsed});
+    }
+    if (mVo2LogFile) {
+        writeVo2Log(RunVo2::Log::resultLine(result, profile, mVo2Run.sustainedMaxHr(),
+                                            mVo2LogLine, sizeof(mVo2LogLine)));
+        closeVo2Log(false);
     }
 
     char buf[RunVo2::Vo2History::kMaxJsonBytes];
@@ -1789,5 +1809,117 @@ void Service::finishVo2(std::time_t endUtc)
 
 void Service::sendVo2Info()
 {
+    fillVo2Page();
     SDK::send_msg<CustomMessage::Vo2Upd>(mKernel, mVo2Info);
+}
+
+void Service::fillVo2Page()
+{
+    CustomMessage::Vo2Info& v = mVo2Info;
+    v.rollingX10 = mVo2History.rollingX10();
+    v.beforeX10  = mVo2History.rollingX10Before();
+    v.runs       = mVo2History.size();
+
+    // The last runs, newest first, by local date.
+    v.rowCount = 0;
+    for (uint8_t i = mVo2History.size(); i > 0 && v.rowCount < CustomMessage::Vo2Info::kMaxRows; --i) {
+        const RunVo2::RunRecord& r  = mVo2History.at(static_cast<uint8_t>(i - 1));
+        const std::tm            tm = mTimeTracker.getLocalTime(static_cast<std::time_t>(r.utc));
+        CustomMessage::Vo2Info::Row& row = v.rows[v.rowCount++];
+        row.day    = static_cast<uint8_t>(tm.tm_mday);
+        row.month  = static_cast<uint8_t>(tm.tm_mon + 1);
+        row.vo2x10 = r.vo2x10;
+    }
+
+    const RunVo2::Profile now = RunVo2::resolveProfile(mVo2Input, mTimeTracker.getExpectedUTC());
+    v.nowStatus     = static_cast<uint8_t>(now.status);
+    v.nowAge        = now.ageYears;
+    v.nowMaxHr      = now.maxHr;
+    v.nowMaxSource  = static_cast<uint8_t>(now.maxSource);
+    v.nowRestHr     = now.restHr;
+    v.nowRestSource = static_cast<uint8_t>(now.restSource);
+
+    v.birthYear  = mVo2Input.birthYear;
+    v.birthMonth = mVo2Input.birthMonth;
+    v.setMaxHr   = mVo2Input.enteredMaxHr;
+    v.setRestHr  = mVo2Input.enteredRestHr;
+    v.tuningLog  = mVo2TuningLog;
+}
+
+void Service::handleEvent(const CustomMessage::Vo2ProfileSave& event)
+{
+    mVo2Input.birthYear     = event.birthYear;
+    mVo2Input.birthMonth    = event.birthMonth;
+    mVo2Input.enteredMaxHr  = event.maxHr;
+    mVo2Input.enteredRestHr = event.restHr;
+    mVo2TuningLog           = event.tuningLog;
+    LOG_INFO("VO2 profile set on the watch: born %u/%u, max HR %u, resting HR %u, tuning log %u\n",
+             event.birthMonth, event.birthYear, event.maxHr, event.restHr, event.tuningLog);
+
+    // Written back to the file the phone writes (setInt clamps to the field's
+    // range), so the two agree; last writer wins, as in HybridX Race.
+    if (mConfig) {
+        mConfig->setInt(RunConfig::kBirthYear, event.birthYear);
+        mConfig->setInt(RunConfig::kBirthMonth, event.birthMonth);
+        mConfig->setInt(RunConfig::kMaxHr, event.maxHr);
+        mConfig->setInt(RunConfig::kRestingHr, event.restHr);
+        mConfig->setBool(RunConfig::kTuningLog, event.tuningLog);
+        if (!mConfig->save()) {
+            LOG_WARNING("Could not save app_config.json\n");
+        }
+    }
+    sendVo2Info();
+}
+
+void Service::openVo2Log(std::time_t startUtc)
+{
+    closeVo2Log(false);
+    if (!mVo2TuningLog) {
+        return;
+    }
+    // Named as the run's activity file is (local time), so the two pair up.
+    const std::tm t = mTimeTracker.getLocalTime(startUtc);
+    char path[48];
+    std::snprintf(path, sizeof(path), "Logs/vo2_%04d%02d%02dT%02d%02d%02d.csv",
+                  t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+    if (!mKernel.fs.mkdir("Logs")) {
+        LOG_WARNING("Could not create Logs/\n");
+    }
+    mVo2LogFile = mKernel.fs.file(path);
+    if (!mVo2LogFile || !mVo2LogFile->open(true, true)) {
+        LOG_WARNING("Could not open the tuning log %s\n", path);
+        mVo2LogFile.reset();
+        return;
+    }
+    LOG_INFO("Tuning log: %s\n", path);
+    const RunVo2::Profile p = RunVo2::resolveProfile(mVo2Input, startUtc);
+    writeVo2Log(RunVo2::Log::contextLine(startUtc, p, mVo2LogLine, sizeof(mVo2LogLine)));
+    writeVo2Log(RunVo2::Log::headerLine(mVo2LogLine, sizeof(mVo2LogLine)));
+}
+
+void Service::writeVo2Log(size_t len)
+{
+    if (!mVo2LogFile || len == 0) {
+        return;
+    }
+    size_t written = 0;
+    if (!mVo2LogFile->write(mVo2LogLine, len, written) || written != len || !mVo2LogFile->flush()) {
+        // A full or failing disk must not touch the run: stop logging it.
+        LOG_WARNING("Tuning log write failed; logging stopped for this run\n");
+        closeVo2Log(false);
+    }
+}
+
+void Service::closeVo2Log(bool remove)
+{
+    if (!mVo2LogFile) {
+        return;
+    }
+    if (mVo2LogFile->isOpen()) {
+        mVo2LogFile->close();
+    }
+    if (remove) {
+        mVo2LogFile->remove();
+    }
+    mVo2LogFile.reset();
 }

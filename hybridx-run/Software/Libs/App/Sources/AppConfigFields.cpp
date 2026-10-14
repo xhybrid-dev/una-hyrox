@@ -19,6 +19,7 @@ const AppConfig::Field kFields[] = {
     AppConfig::intField("birthMonth", 0, 0, 12),
     AppConfig::intField("maxHr", 0, 0, 230),
     AppConfig::intField("restingHr", 0, 0, 100),
+    AppConfig::boolField("tuningLog", true),
 };
 
 const size_t kFieldCount = sizeof(kFields) / sizeof(kFields[0]);

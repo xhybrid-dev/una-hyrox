@@ -24,7 +24,13 @@
 #include "WristTiltDetector.hpp"
 
 // HybridX Run: the VO2max estimate.
+#include <memory>
+
+#include "SDK/AppConfig/AppConfig.hpp"
+#include "SDK/Interfaces/IFileSystem.hpp"
+
 #include "Vo2History.hpp"
+#include "Vo2Log.hpp"
 #include "Vo2Profile.hpp"
 #include "Vo2Run.hpp"
 
@@ -197,6 +203,12 @@ private:
     RunVo2::Vo2History     mVo2History;
     RunVo2::ProfileInput   mVo2Input;          ///< from app_config.json, plus the watch's resting HR
     CustomMessage::Vo2Info mVo2Info;
+    std::unique_ptr<SDK::AppConfig> mConfig;   ///< app_config.json, kept for write-back (R5)
+    bool                   mVo2TuningLog = true;
+
+    // The tuning log (R5): one CSV per run in Logs/, open while the track is.
+    std::unique_ptr<SDK::Interface::IFile> mVo2LogFile;
+    char                   mVo2LogLine[RunVo2::Log::kMaxLineBytes] = {};
     uint32_t               mHrLastMs    = 0;   ///< getTimeMs() of the latest HR sample
     uint32_t               mSpeedLastMs = 0;   ///< getTimeMs() of the latest GPS speed sample
     uint32_t               mGradeLastMs = 0;   ///< getTimeMs() of the latest grade sample
@@ -211,6 +223,11 @@ private:
     void feedVo2();
     void finishVo2(std::time_t endUtc);
     void sendVo2Info();
+    void fillVo2Page();
+    void handleEvent(const CustomMessage::Vo2ProfileSave& event);
+    void openVo2Log(std::time_t startUtc);
+    void writeVo2Log(size_t len);
+    void closeVo2Log(bool remove);
 
     void connectGps();
     void connectSensors(); // All except GPS
