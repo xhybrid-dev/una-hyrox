@@ -57,7 +57,7 @@ was put in the plan and is still open for him to change):
 | Phase | Work | Gate |
 |---|---|---|
 | **K0** | Identity, scaffold, CI build; one screen that counts rows, sets and a reset, in memory | K0: do the four buttons feel right, is the screen readable while knitting? |
-| K1 | The core, pure and host-tested: counter, undo, targets, store, text | Host tests pass; file layout agreed |
+| K1 | The core, pure and host-tested: counter, store, text. **Done so far: the saved count** (below). Still to come here: undo, targets | Host tests pass; the count survives a close and a power cycle |
 | K2 | The real screen: next-set feedback, reset with confirm, hold-to-undo, resume from file, buzz | A real knitting session |
 | K3 | Phone settings | Settings reach the watch over USB |
 | K4 | A glance, a second `.uapp` | Glance on the watch |
@@ -139,3 +139,81 @@ What the answers decide:
 - **If a press only wakes the screen:** the first press after a dim needs a
   rule, which changes K2.
 - **If R1 is hard to hit blind:** the button mapping is revisited before K1.
+
+## K1 (part): the count is remembered (15 October 2026)
+
+Jon, after K0 worked on the watch: closing the app lost the numbers. Now the
+app reopens exactly where it was.
+
+- **The file:** `Apps/Knitting/state.txt`, plain text, readable over USB:
+
+  ```
+  knitting 1
+  rows=8
+  set=2
+  total=16
+  ```
+
+- **Saved after every change** (a row, a next set, a reset that changed anything).
+  The service sends the new numbers to the screen first and writes second, so a
+  slow flash write never delays what you see. A failed write is logged and
+  ignored; the next change tries again.
+- **Loaded once, when the service starts.** Order: `state.txt`, then
+  `state.txt.bak`, then a fresh counter at set 1. The service still exits when
+  the screen closes; nothing is lost by that, as everything was saved when it
+  changed.
+- **Crash-safe:** the write goes through `SafeFile`, a copy of HybridX Streak's
+  and Run's (write `state.txt.tmp`, flush, keep the old file as `.bak`, rename
+  into place). A reset or a flat battery at any point leaves the new file or the
+  previous one. So no checksum is needed in the file itself.
+- **Strict reader:** exactly the version line and the three keys, in order, digits
+  only, a final newline. Anything else (a torn file, CRLF from a hand edit, a
+  negative number, another version) counts as unusable and falls back. A number
+  that parses but is out of range is pulled inside the limits, so a hand-edited
+  `rows=123456` opens as 999.
+- **Not saved:** nothing else is state yet. There is no copy in `SharedData`, so
+  uninstalling the app (which deletes its folder) loses the count; updating by
+  copying a new `.uapp` over the old one does not touch the file. A copy can be
+  added as Weigh-in has if wanted.
+- **New files:** `Core/Header/{SafeFile,StateCodec,StateStore}.hpp` and their
+  sources; `RowCounter::reset()` now says whether it changed anything, so a
+  reset on a fresh counter does not write.
+
+### K1 (part) verified (15 October 2026)
+
+- **Host tests:** 24 pass (was 8). New: the codec's layout, round trip at the
+  start and the limits, the buffer-size edge, 12 kinds of bad file, every
+  truncation of a good file, clamping; the store's save and load, the latest
+  save wins, a corrupt or missing file falls back to the backup, both bad gives a
+  fresh counter, a failed save keeps the old copy.
+- **Simulator** (`docs/experiments/resume_check.sh`): 8 rows, next set, 3 rows,
+  R2; reopen shows 3 rows, Set 2, Total 11. Reset, R2, reopen shows 0, Set 1,
+  Total 0. A damaged `state.txt` beside a good `.bak` opens from the backup (2 rows,
+  Total 3), with a warning in the log.
+- **Watch target, local compile check:** `Knitting_0.0.0-dev.uapp`, 183,040 bytes
+  (181,296 before), no warnings from our code. **Not installable**; the watch copy
+  comes from CI.
+- **Not verified:** nothing has run on a watch yet. The simulator's mock file
+  system is a folder on the PC, not the watch's FAT volume.
+
+![Before closing](screens/k1-2-before-close.png)
+![Reopened](screens/k1-3-reopened.png)
+
+### Gate K1 (saved count): what Jon tests on the watch
+
+1. **Install** the new CI build as before: replace `Knitting_0.0.0-dev.uapp` in
+   `Apps/Knitting/`, eject safely, power-cycle.
+2. **Count** a few rows, start a second set, count two more. Note the numbers.
+3. **Press R2 to close the app, then open it again.** The same numbers should show.
+4. **Power-cycle the watch** (hold power, off, on) and open it again: the same numbers.
+5. **Over USB, open `Apps/Knitting/state.txt`.** It should show the same three numbers.
+6. **L2 (reset)** still resets at once, and now wipes the saved count too. Reopen to
+   see that a reset one is remembered as 0.
+
+What the answers decide:
+- **If the numbers come back after 3 but not after 4:** the write is not
+  reaching the flash before power-off; the save moves earlier or flushes more.
+- **If a press feels slower than in K0:** the write is in the way; it moves to a
+  quieter moment.
+- **Reset is easy to hit by accident**, and now costs the saved count: the
+  hold-to-confirm in the plan (K2) comes next.

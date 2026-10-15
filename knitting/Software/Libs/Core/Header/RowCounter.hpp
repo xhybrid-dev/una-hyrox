@@ -64,8 +64,16 @@ public:
         return true;
     }
 
-    /// Back to the start: no rows, set 1.
-    void reset() { mState = CounterState(); }
+    /// Back to the start: no rows, set 1. False when it already was, so
+    /// nothing changed and nothing needs saving.
+    bool reset()
+    {
+        const CounterState fresh;
+        const bool changed = mState.rows != fresh.rows || mState.set != fresh.set
+                          || mState.total != fresh.total;
+        mState = fresh;
+        return changed;
+    }
 
 private:
     /// A state read from a file is not trusted: pull it inside the limits.

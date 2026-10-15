@@ -23,10 +23,26 @@ include("${UNA_SDK_ROOT}/Tests/Host/cmake/FetchGoogleTest.cmake")
 
 set(CORE_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Core")
 
+set(CORE_SOURCES
+    "${CORE_LIBS}/Sources/SafeFile.cpp"
+    "${CORE_LIBS}/Sources/StateCodec.cpp"
+    "${CORE_LIBS}/Sources/StateStore.cpp"
+)
+
+# The state store runs on the SDK's IFileSystem interface (a header), tested
+# against an in-memory tree (support/TreeFileSystem, copied from X Weigh-in).
 add_executable(knitting-host-tests
     RowCounterTest.cpp
+    StateCodecTest.cpp
+    StateStoreTest.cpp
+    support/TreeFileSystem.cpp
+    ${CORE_SOURCES}
 )
-target_include_directories(knitting-host-tests PRIVATE "${CORE_LIBS}/Header")
+target_include_directories(knitting-host-tests PRIVATE
+    "${CORE_LIBS}/Header"
+    "${UNA_SDK_ROOT}/Libs/Header"
+    "${CMAKE_CURRENT_LIST_DIR}/support"
+)
 target_link_libraries(knitting-host-tests PRIVATE GTest::gtest_main)
 
 enable_testing()

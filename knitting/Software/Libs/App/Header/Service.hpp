@@ -25,8 +25,12 @@ public:
 private:
     void sendUpdate();
 
-    SDK::Kernel     &mKernel;
-    Knitting::RowCounter mCounter;
+    /// Write the counter to its file. Called after the screen has been told,
+    /// so a slow write never delays the number on screen.
+    void saveState();
+
+    SDK::Kernel          &mKernel;
+    Knitting::RowCounter  mCounter;
 };
 
 #endif // SERVICE_HPP

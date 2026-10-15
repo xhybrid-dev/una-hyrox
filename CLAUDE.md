@@ -215,7 +215,7 @@ set number and the total rows (small). Buttons: R1 counts a row, L1 starts the n
 set, L2 resets, R2 exits. It is an activity-free utility: no GPS, no FIT files,
 nothing syncs. It is independent of the other apps.
 - **Docs:** findings, decisions and phases (K0-K5): `knitting/docs/NOTES.md`.
-  Read it at the start of each Rows phase, and work only on that phase.
+  Read it at the start of each Knitting phase, and work only on that phase.
 - **Rules:** the same standing rules as Race apply.
 - **Layout:** as X Weigh-in: the pure core `Software/Libs/Core` (header-only where
   the GUI uses it), the service and messages `Software/Libs/App`, the GUI
