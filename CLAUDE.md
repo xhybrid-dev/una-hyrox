@@ -208,22 +208,22 @@ its rep counter is meant to be reused by Race for wall balls and burpees later.
   - store images (previews, mock-ups, marketing, one set per listing):
     `docs/experiments/store_images.py build-tests/glance_preview docs/store`.
 
-## X Rows (`x-rows/`)
+## Knitting (`knitting/`)
 An eighth app: a knitting counter. Press a button for every row, group rows into
 sets (rows and sets, like reps and sets), and see the rows in this set (big), the
 set number and the total rows (small). Buttons: R1 counts a row, L1 starts the next
 set, L2 resets, R2 exits. It is an activity-free utility: no GPS, no FIT files,
 nothing syncs. It is independent of the other apps.
-- **Docs:** findings, decisions and phases (K0-K5): `x-rows/docs/NOTES.md`.
+- **Docs:** findings, decisions and phases (K0-K5): `knitting/docs/NOTES.md`.
   Read it at the start of each Rows phase, and work only on that phase.
 - **Rules:** the same standing rules as Race apply.
 - **Layout:** as X Weigh-in: the pure core `Software/Libs/Core` (header-only where
   the GUI uses it), the service and messages `Software/Libs/App`, the GUI
-  `Software/Apps/LVGL-GUI`, the watch build `Software/Apps/XRows-CMake`.
-- **Watch builds come from CI**, as for the others. Tags `rows-vX.Y.Z`.
+  `Software/Apps/LVGL-GUI`, the watch build `Software/Apps/Knitting-CMake`.
+- **Watch builds come from CI**, as for the others. Tags `knitting-vX.Y.Z`.
 - **Commands:**
-  - host tests: `cmake -S x-rows/Tests/Host -B x-rows/build-tests && cmake --build x-rows/build-tests && x-rows/build-tests/x-rows-host-tests`;
-  - simulator: `x-rows/Software/Apps/LVGL-GUI/simulator` (keys 1-4 are L1, L2, R1, R2);
+  - host tests: `cmake -S knitting/Tests/Host -B knitting/build-tests && cmake --build knitting/build-tests && knitting/build-tests/knitting-host-tests`;
+  - simulator: `knitting/Software/Apps/LVGL-GUI/simulator` (keys 1-4 are L1, L2, R1, R2);
   - a run in the simulator, with screenshots: `docs/experiments/capture_screens.sh [out-dir]`
     (into `docs/screens/`). It needs Xvfb, xdotool and ImageMagick.
   - a local watch compile check needs Race's `syscall_stubs.c` built with
