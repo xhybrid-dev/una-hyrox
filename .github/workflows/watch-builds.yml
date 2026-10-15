@@ -86,6 +86,8 @@ jobs:
           # x-weighin/docs/NOTES.md.
           build x-weighin/Software/Apps/XWeighIn-CMake weighin
           build x-weighin/Software/Apps/XWeighInGlance-CMake weighin-glance
+          # Knitting: a knitting row and set counter -- see knitting/docs/NOTES.md.
+          build knitting/Software/Apps/Knitting-CMake knitting
 
       - name: Collect
         run: |
@@ -101,6 +103,7 @@ jobs:
           cp hybridx-run/Output/*.uapp watch-apps/
           cp x-weighin/Output/*.uapp watch-apps/
           cp x-weighin/Output/Glance/*.uapp watch-apps/
+          cp knitting/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -266,3 +269,11 @@ jobs:
           cmake -S x-weighin/Tests/Host -B ci-build/weighin-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/weighin-tests -j"$(nproc)"
           ctest --test-dir ci-build/weighin-tests --output-on-failure
+
+      - name: Knitting host tests
+        # The pure counter (rows, sets, total, limits).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S knitting/Tests/Host -B ci-build/knitting-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/knitting-tests -j"$(nproc)"
+          ctest --test-dir ci-build/knitting-tests --output-on-failure
