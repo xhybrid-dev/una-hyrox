@@ -5,6 +5,7 @@
 #include <ctime>
 #include <cmath>
 #include <memory>
+#include <new>
 #include <cstring>
 #include <cstdio>
 #include <utility>
@@ -36,6 +37,7 @@
 // HybridX Run
 #include "AppConfigFields.hpp"
 #include "SafeFile.hpp"
+#include "Vo2TrailIngest.hpp"
 
 #include "SDK/Calibration/StrideMath.hpp"
 #include "SDK/Workout/StepLabel.hpp"
@@ -2120,6 +2122,9 @@ void Service::loadVo2()
     mVo2Input.autoMaxHr   = mVo2History.autoMaxHr();
     mVo2Input.watchRestHr = mVo2History.watchRestHr();   // until the sensor reports
 
+    // Runs HybridX Trail has recorded since this app last opened count too.
+    ingestTrailRuns();
+
     mVo2Info            = CustomMessage::Vo2Info{};
     mVo2Info.rollingX10 = mVo2History.rollingX10();
     mVo2Info.runs       = mVo2History.size();
@@ -2194,16 +2199,7 @@ void Service::finishVo2(std::time_t endUtc)
         closeVo2Log(false);
     }
 
-    char buf[RunVo2::Vo2History::kMaxJsonBytes];
-    const size_t len = mVo2History.toJson(buf, sizeof(buf));
-    if (len == 0 || !RunVo2::SafeFile::write(mKernel.fs, kVo2File, buf, len)) {
-        LOG_ERROR("Could not save vo2.json\n");
-    }
-    const size_t sharedLen = mVo2History.toSharedJson(buf, sizeof(buf));
-    if (sharedLen == 0 || !mKernel.fs.mkdir(kSharedDir)
-        || !RunVo2::SafeFile::write(mKernel.fs, kSharedFile, buf, sharedLen)) {
-        LOG_WARNING("Could not save the public vo2max.json\n");
-    }
+    saveVo2Files();
 
     mVo2Info.rollingX10    = mVo2History.rollingX10();
     mVo2Info.runs          = mVo2History.size();
@@ -2216,6 +2212,120 @@ void Service::finishVo2(std::time_t endUtc)
     mVo2Info.maxSource     = static_cast<uint8_t>(profile.maxSource);
     mVo2Info.restHr        = profile.restHr;
     sendVo2Info();
+}
+
+void Service::saveVo2Files()
+{
+    char buf[RunVo2::Vo2History::kMaxJsonBytes];
+    const size_t len = mVo2History.toJson(buf, sizeof(buf));
+    if (len == 0 || !RunVo2::SafeFile::write(mKernel.fs, kVo2File, buf, len)) {
+        LOG_ERROR("Could not save vo2.json\n");
+    }
+    const size_t sharedLen = mVo2History.toSharedJson(buf, sizeof(buf));
+    if (sharedLen == 0 || !mKernel.fs.mkdir(kSharedDir)
+        || !RunVo2::SafeFile::write(mKernel.fs, kSharedFile, buf, sharedLen)) {
+        LOG_WARNING("Could not save the public vo2max.json\n");
+    }
+}
+
+namespace
+{
+
+/// One of Trail's files: the primary, else its backup, whichever has a header
+/// that reads. Returns the length, or 0.
+size_t readTrailSlot(SDK::Interface::IFileSystem& fs, uint8_t slot, char* buf, size_t cap,
+                     RunVo2::WindowFileInfo& info)
+{
+    for (int backup = 0; backup < 2; ++backup) {
+        const size_t len = RunVo2::SafeFile::read(fs, RunVo2::kWindowFilePaths[slot], backup != 0, buf, cap);
+        if (len > 0) {
+            RunVo2::WindowFileReader reader(buf, len);
+            if (reader.open(info)) {
+                return len;
+            }
+        }
+    }
+    info = RunVo2::WindowFileInfo{};
+    return 0;
+}
+
+}  // namespace
+
+void Service::ingestTrailRuns()
+{
+    // Each run Trail left (newest three) above the history's Trail mark, oldest
+    // first: its windows are judged by this app's rules and profile, exactly as a
+    // run recorded here, and the run joins the history in time order. Once, at
+    // start: the apps never run together. A temporary 8 KB buffer, not a stack
+    // array (10 KB stack).
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[RunVo2::kWindowFileBytes]);
+    if (!buf) {
+        LOG_WARNING("No memory to read Trail's runs\n");
+        return;
+    }
+
+    uint32_t ids[RunVo2::kWindowFileSlots] = {};
+    for (uint8_t i = 0; i < RunVo2::kWindowFileSlots; ++i) {
+        RunVo2::WindowFileInfo info;
+        if (readTrailSlot(mKernel.fs, i, buf.get(), RunVo2::kWindowFileBytes, info) > 0) {
+            ids[i] = info.runId;
+        }
+    }
+
+    const std::time_t now = std::time(nullptr);
+    bool changed = false;
+    for (uint8_t step = 0; step < RunVo2::kWindowFileSlots; ++step) {
+        const int slot = RunVo2::nextWindowFileSlot(ids, RunVo2::kWindowFileSlots, mVo2History.trailMarkUtc());
+        if (slot < 0) {
+            break;
+        }
+        ids[slot] = 0;
+
+        // Without a profile there is nothing to score against: leave the run
+        // for another day (the mark is not moved).
+        if (RunVo2::resolveProfile(mVo2Input, now).status != RunVo2::ProfileStatus::Ok) {
+            LOG_INFO("Trail run waiting: no VO2 profile yet\n");
+            break;
+        }
+
+        RunVo2::WindowFileInfo info;
+        const size_t len = readTrailSlot(mKernel.fs, static_cast<uint8_t>(slot), buf.get(),
+                                         RunVo2::kWindowFileBytes, info);
+        if (len == 0) {
+            continue;
+        }
+        const RunVo2::IngestStatus st =
+            RunVo2::judgeWindowFile(buf.get(), len, mVo2History.trailMarkUtc(), mVo2Run, info);
+        if (st == RunVo2::IngestStatus::NotAFile || st == RunVo2::IngestStatus::AlreadyCounted) {
+            continue;
+        }
+        mVo2History.setTrailMarkUtc(info.runId);   // counted, or corrupt and never retried
+        changed = true;
+        if (st == RunVo2::IngestStatus::Corrupt) {
+            LOG_WARNING("Trail run %lu: a window is out of range, run skipped\n",
+                        static_cast<unsigned long>(info.runId));
+            continue;
+        }
+
+        mVo2History.addRunMax(mVo2Run.sustainedMaxHr());
+        mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
+        const RunVo2::Profile   profile = RunVo2::resolveProfile(mVo2Input, now);
+        const RunVo2::RunResult result  = mVo2Run.estimate(profile);
+        const RunVo2::WindowCounts& c   = mVo2Run.counts();
+        LOG_INFO("Trail run %lu: %u windows, %u kept, %u unsteady, %u grade; status %u, %u (x10)\n",
+                 static_cast<unsigned long>(info.runId), info.count, c.accepted, c.unsteady, c.grade,
+                 static_cast<unsigned>(result.status), result.vo2x10);
+        if (result.status == RunVo2::RunStatus::Ok) {
+            mVo2History.addSorted(RunVo2::RunRecord{info.runId, result.vo2x10, result.windowsUsed,
+                                                    static_cast<uint8_t>(RunVo2::RunSource::Trail)});
+        }
+    }
+    mVo2Run.reset();
+
+    if (changed) {
+        mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
+        saveVo2Files();
+    }
 }
 
 void Service::sendVo2Info()

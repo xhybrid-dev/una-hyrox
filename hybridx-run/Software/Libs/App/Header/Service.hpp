@@ -280,6 +280,8 @@ private:
 
     // HybridX Run
     void loadVo2();
+    void ingestTrailRuns();      ///< runs HybridX Trail left in the shared folder (L2)
+    void saveVo2Files();         ///< vo2.json and the public vo2max.json
     void feedVo2();
     void finishVo2(std::time_t endUtc);
     void sendVo2Info();

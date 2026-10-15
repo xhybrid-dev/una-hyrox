@@ -1,7 +1,7 @@
 # VO2max from Run and Trail: plan (L0, 15 October 2026)
 
-Status: approved by Jon on 15 October 2026 (decisions below). **L1 done**
-(15 October 2026, see NOTES.md "L1"); L2 next. Phases are L0-L5 (not the
+Status: approved by Jon on 15 October 2026 (decisions below). **L1 and L2 done**
+(15 October 2026, see NOTES.md "L1" and "L2"); L3 next. Phases are L0-L5 (not the
 R-phases in NOTES.md). Each phase stops at its gate.
 
 ## Decisions (Jon, 15 October 2026)
@@ -67,14 +67,16 @@ Run keeps the judging and estimating code. So a Run run and a Trail run take
 the same path into the same acceptance rules, which is the consistency Jon asked
 for, and Run can re-tune acceptance later without touching Trail.
 
-**2. The shared file.** `../SharedData/HybridX/trail_windows.json`, written only
+**2. The shared file.** (As built in L1/L2: three slot files,
+`trail_vo2_0.json` to `_2.json`, so a Trail run is not lost if Run is not opened
+between two; the oldest is overwritten.) Written only
 by Trail (one writer, so no races), crash-safe (`SafeFile`), integers only,
 `"v":1`. It holds the last few runs (proposed 3), each with its start UTC
 (the run ID) and its post-warm-up windows with 40+ good seconds, capped per run
 (proposed 150 windows, about 7 KB per run). One fixed filename, so no folder
 listing is needed.
 
-**3. Run's ingest.** When Run opens (and after each of its own runs), it reads
+**3. Run's ingest.** When Run opens (once: the two apps never run together), it reads
 the file with the SDK JSON reader, bounds-checks every value (int64, then range:
 the SDK reader does no range check), skips any run ID already in `vo2.json`,
 applies its own profile and acceptance rules, and adds the run to the history
@@ -112,7 +114,7 @@ grade is noisy.
 |---|---|---|
 | **L0** | This plan, Jon's decisions below | Jon approves |
 | **L1** Run core, host only. **Done** | Grade judged per window; `WindowBuilder`, the window record and the file codec; Jon's 14 October log as a host-test fixture. No GAP variants (ACSM kept) | Jon reviews the result (NOTES.md "L1") |
-| **L2** Run ingest | Reads `trail_windows.json`, dedupes, tags sources; a synthetic Trail file in the simulator | Simulator shows a Trail run counted once |
+| **L2** Run ingest. **Done** | Reads Trail's three slot files at start-up, counts each new run once (a mark, not the ring), tags sources, inserts in time order; synthetic Trail files in the simulator | Simulator shows a Trail run counted once |
 | **L3** Run GAP | Average grade-adjusted pace (ACSM-based, above) on the summary; the max-HR wording; GAP columns in the tuning log | Screens captured |
 | **L4** Trail | Copy of `WindowBuilder` and the CI identity check; feed it each second; write the file on save; GAP summary; memory and size checked | Simulator run writes a file that Run's L2 reads |
 | **L5** On the watch | Both apps from CI; a flat run and a hilly run in each app, with the Garmin on the other wrist; tune acceptance and the cost variant | Jon's field test |

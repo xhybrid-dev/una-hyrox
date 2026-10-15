@@ -534,3 +534,52 @@ same day). Pure core only: no service, GUI or Trail change.
 - Simulator builds; a 120 s run (`SEED=1 sim_run.sh 120`) saves the FIT,
   `vo2.json`, the shared copy and the tuning log as before.
 - Not done, by design: nothing reads or writes the window file yet (L2, L4).
+
+## L2: Run counts the runs Trail left behind (15 October 2026)
+
+Second build phase of the link (`VO2_LINK_PLAN.md`). Run now reads Trail's
+window files; nothing writes them yet (Trail is L4), so on a real watch this
+does nothing until then. Tested with synthetic files.
+
+- **Where and when.** At start-up (`loadVo2`, once: the apps never run
+  together), `Service::ingestTrailRuns()` reads the three slot files
+  `../SharedData/HybridX/trail_vo2_0.json` to `_2.json` (`kWindowFilePaths`), by
+  name, never by listing the folder. Each is read from its primary, else its
+  `.bak`, as Run's own files are. An 8 KB buffer is allocated for the
+  duration (the service stack is 10 KB) and freed.
+- **What is counted.** Runs newer than the history's **Trail mark** (the newest
+  Trail run ID already handled), oldest first; the mark moves as each is
+  handled. So a run is never counted twice even if it has rolled out of the
+  ten-run ring, and a copy in two slots counts once. The mark also moves past a
+  **corrupt** file (a good header but a window out of range), so it is not
+  retried for ever, and past a run with too few steady minutes (counted as
+  nothing).
+- **Judged by Run.** Each window goes through `Vo2Run::addWindow()`: the same
+  rules and the same profile as a run recorded here. Its sustained max HR joins
+  the run maxima (so Trail runs help the auto max HR, which needs two runs). The
+  run joins the history **in time order** (`addSorted`), tagged as from Trail.
+- **No profile, no counting.** If the profile is not complete (no birth year, no
+  resting HR), the files are left for another day and the mark does not move.
+- **`vo2.json` is version 3**: each run's source (0 Run, 1 Trail) and the
+  Trail mark. Version 1 and 2 files still read (sources all Run, mark 0).
+  `vo2max.json` (the public copy) is rewritten after an ingest too.
+- Core: `Vo2TrailIngest.*` (judge one file, pick the next slot), `Vo2History`
+  (source, mark, `addSorted`). Host tests: **90** (13 new).
+- **Not shown yet:** the screens do not say how many runs came from Trail
+  (L3), and the log line (`Trail run <id>: ...`) is the only trace.
+
+### L2 verified
+- Host tests: 90, also under ASan + UBSan.
+- Simulator (`docs/experiments/sim_trail_ingest.sh`, three starts):
+  1. two new Trail runs (12 and 8 windows) and a junk file: both counted, in
+     time order between Run's own, history 5 runs, auto max HR 176 from two
+     runs, `vo2.json` v3 with sources and mark. The figures match the arithmetic
+     by hand (200 m/min, HR 160, rest 50, Tanaka 180: 50.8; 190 m/min, HR 158:
+     49.2);
+  2. the same files: nothing counted again, files unchanged;
+  3. a newer run with 3 windows: the mark moves, no estimate, history unchanged.
+- Watch target compile check (not for a watch): 490,260 B, no warnings
+  outside SDK files. Simulator builds.
+- Not yet verified: a real Trail file from a watch (L4), and the time Run takes
+  to read three files on the watch (the SDK reader searches from the start for
+  each value: about 120 windows x 9 values per run).

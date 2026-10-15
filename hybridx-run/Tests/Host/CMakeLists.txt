@@ -39,9 +39,11 @@ add_executable(hybridx-run-host-tests
     Vo2LogTest.cpp
     Vo2SettingsTest.cpp
     Vo2LinkTest.cpp
+    Vo2TrailIngestTest.cpp
     "${CORE_LIBS}/Sources/Vo2Profile.cpp"
     "${CORE_LIBS}/Sources/Vo2Window.cpp"
     "${CORE_LIBS}/Sources/Vo2WindowFile.cpp"
+    "${CORE_LIBS}/Sources/Vo2TrailIngest.cpp"
     "${CORE_LIBS}/Sources/Vo2Run.cpp"
     "${CORE_LIBS}/Sources/Vo2History.cpp"
     "${CORE_LIBS}/Sources/Vo2Text.cpp"
@@ -55,6 +57,19 @@ target_include_directories(hybridx-run-host-tests PRIVATE
     "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
 )
 target_link_libraries(hybridx-run-host-tests PRIVATE GTest::gtest_main)
+
+# A by-hand tool: makes a Trail window file for the simulator.
+add_executable(make_trail_run
+    make_trail_run.cpp
+    "${CORE_LIBS}/Sources/Vo2WindowFile.cpp"
+    "${CORE_LIBS}/Sources/Vo2Window.cpp"
+    ${SDK_JSON_SOURCES}
+)
+target_include_directories(make_trail_run PRIVATE
+    "${CORE_LIBS}/Header"
+    "${UNA_SDK_ROOT}/Libs/Header"
+    "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
+)
 
 enable_testing()
 add_test(NAME hybridx-run-host-tests COMMAND hybridx-run-host-tests)

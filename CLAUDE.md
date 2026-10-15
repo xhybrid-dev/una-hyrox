@@ -147,6 +147,8 @@ against a Garmin. It is independent of the other apps.
   - a run in the simulator: `docs/experiments/sim_run.sh [seconds] [shots]
     [app_config.json]` (`SEED=1` for a history); the VO2max screens:
     `docs/experiments/capture_vo2.sh [out-dir]` (into `docs/screens/`);
+  - Trail's runs counted by Run (synthetic files): `docs/experiments/sim_trail_ingest.sh`
+    (needs the simulator and `build-tests/make_trail_run`);
   - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
     log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>` (also shows
     what the raw GPS speed would have given, from the `scale` column).

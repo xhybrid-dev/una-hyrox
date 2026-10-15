@@ -79,12 +79,13 @@ TEST(Vo2History, JsonRoundTrip)
     h.addRunMax(186);
     h.addRunMax(184);
     h.add(RunRecord{1791000000u, 523, 24});
-    h.add(RunRecord{1791100000u, 531, 18});
+    h.add(RunRecord{1791100000u, 531, 18, static_cast<uint8_t>(RunSource::Trail)});
+    h.setTrailMarkUtc(1791100000u);
     char buf[Vo2History::kMaxJsonBytes];
     const size_t n = h.toJson(buf, sizeof(buf));
     ASSERT_GT(n, 0u);
-    EXPECT_STREQ(buf, "{\"v\":2,\"restHr\":52,\"maxes\":[186,184],"
-                      "\"runs\":[[1791000000,523,24],[1791100000,531,18]]}");
+    EXPECT_STREQ(buf, "{\"v\":3,\"restHr\":52,\"trail\":1791100000,\"maxes\":[186,184],"
+                      "\"runs\":[[1791000000,523,24,0],[1791100000,531,18,1]]}");
 
     Vo2History back;
     ASSERT_TRUE(back.fromJson(buf, n));
@@ -93,6 +94,83 @@ TEST(Vo2History, JsonRoundTrip)
     EXPECT_EQ(back.autoMaxHr(), 184);
     EXPECT_EQ(back.at(1).vo2x10, 531);
     EXPECT_EQ(back.rollingX10(), h.rollingX10());
+    EXPECT_EQ(back.at(0).source, static_cast<uint8_t>(RunSource::Run));
+    EXPECT_EQ(back.at(1).source, static_cast<uint8_t>(RunSource::Trail));
+    EXPECT_EQ(back.trailMarkUtc(), 1791100000u);
+    EXPECT_EQ(back.countFrom(RunSource::Trail), 1);
+    EXPECT_EQ(back.countFrom(RunSource::Run), 1);
+}
+
+TEST(Vo2History, ReadsVersionTwoAsRunsFromRun)
+{
+    const char* t = "{\"v\":2,\"restHr\":50,\"maxes\":[180,181],\"runs\":[[1790500000,512,22],[1790900000,524,30]]}";
+    Vo2History h;
+    ASSERT_TRUE(h.fromJson(t, std::strlen(t)));
+    EXPECT_EQ(h.size(), 2);
+    EXPECT_EQ(h.countFrom(RunSource::Run), 2);
+    EXPECT_EQ(h.trailMarkUtc(), 0u);
+}
+
+TEST(Vo2History, VersionThreeNeedsItsNewFields)
+{
+    const char* bad[] = {
+        "{\"v\":3,\"restHr\":0,\"maxes\":[],\"runs\":[]}",                              // no trail mark
+        "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,6]]}",        // no source
+        "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,6,2]]}",      // source 2
+        "{\"v\":3,\"restHr\":0,\"trail\":99999999999,\"maxes\":[],\"runs\":[]}",      // mark overflow
+    };
+    for (const char* t : bad) {
+        Vo2History h;
+        EXPECT_FALSE(h.fromJson(t, std::strlen(t))) << t;
+        EXPECT_EQ(h.size(), 0) << t;
+    }
+}
+
+TEST(Vo2History, AddSortedKeepsTimeOrder)
+{
+    Vo2History h;
+    h.add(RunRecord{100, 500, 10});
+    h.add(RunRecord{300, 520, 10});
+    h.addSorted(RunRecord{200, 510, 10, static_cast<uint8_t>(RunSource::Trail)});
+    ASSERT_EQ(h.size(), 3);
+    EXPECT_EQ(h.at(0).utc, 100u);
+    EXPECT_EQ(h.at(1).utc, 200u);
+    EXPECT_EQ(h.at(1).source, static_cast<uint8_t>(RunSource::Trail));
+    EXPECT_EQ(h.at(2).utc, 300u);
+    h.addSorted(RunRecord{400, 530, 10});   // newest goes last
+    EXPECT_EQ(h.at(3).utc, 400u);
+    h.addSorted(RunRecord{50, 480, 10});    // oldest goes first
+    EXPECT_EQ(h.at(0).utc, 50u);
+}
+
+TEST(Vo2History, AddSortedOnAFullRingDropsTheOldest)
+{
+    Vo2History h;
+    for (uint32_t i = 1; i <= Config::kHistoryRuns; ++i) {
+        h.add(RunRecord{i * 100, 500, 10});
+    }
+    // Newer than the oldest: the oldest goes.
+    h.addSorted(RunRecord{550, 510, 10});
+    ASSERT_EQ(h.size(), Config::kHistoryRuns);
+    EXPECT_EQ(h.at(0).utc, 200u);
+    EXPECT_EQ(h.at(4).utc, 550u);
+    // Older than every run kept: it would roll out anyway, so it is not added.
+    h.addSorted(RunRecord{50, 400, 10});
+    ASSERT_EQ(h.size(), Config::kHistoryRuns);
+    EXPECT_EQ(h.at(0).utc, 200u);
+}
+
+TEST(Vo2History, ALateTrailRunCountsAtItsPlaceInTime)
+{
+    // Run's own latest five weigh in; a Trail run from before them does not
+    // replace the newest.
+    Vo2History h;
+    for (uint32_t i = 1; i <= 5; ++i) {
+        h.add(RunRecord{i * 100, 500, 10});
+    }
+    h.addSorted(RunRecord{250, 600, 10, static_cast<uint8_t>(RunSource::Trail)});
+    // Latest five are now 250..500: (600 + 4 x 500) / 5 weights equal.
+    EXPECT_EQ(h.rollingX10(), 520);
 }
 
 TEST(Vo2History, ReadsVersionOne)

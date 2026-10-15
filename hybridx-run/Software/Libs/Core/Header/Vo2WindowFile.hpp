@@ -3,8 +3,8 @@
  * @file    Vo2WindowFile.hpp
  * @brief   One run's window records as a JSON file, for the shared folder.
  *
- * HybridX Trail writes one of these per saved run (trail_vo2_<slot>.json in
- * ../SharedData/HybridX/); HybridX Run reads them, judges each window with its
+ * HybridX Trail writes one of these per saved run (kWindowFilePaths: three
+ * slots in ../SharedData/HybridX/, the oldest overwritten); HybridX Run reads them, judges each window with its
  * own profile and rules, and adds the run to its history.
  *
  *   {"v":1,"id":1791980037,"max":179,
@@ -42,6 +42,15 @@ inline constexpr int16_t kGradeOffsetX10 = 3000;
 /// Windows written per run (two hours of steady minutes). Longer runs: the
 /// writer keeps the first ones.
 inline constexpr uint16_t kWindowFileMaxWindows = 120;
+
+/// Trail keeps its last few runs in this many files; Run reads them all. Fixed
+/// names: nothing depends on listing the shared folder (not shown to work).
+inline constexpr uint8_t kWindowFileSlots = 3;
+inline constexpr const char* kWindowFilePaths[kWindowFileSlots] = {
+    "../SharedData/HybridX/trail_vo2_0.json",
+    "../SharedData/HybridX/trail_vo2_1.json",
+    "../SharedData/HybridX/trail_vo2_2.json",
+};
 
 /// A buffer big enough for any file the writer makes.
 inline constexpr size_t kWindowFileBytes = 8192;
