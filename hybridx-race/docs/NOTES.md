@@ -2160,3 +2160,13 @@ Sizes against run 138 (the Run merge): `watch-apps` 1,812,300 bytes against 1,81
 of all the `.uapp` files, so a total; Race is the only app whose code changed, so that is Race's
 cost for the cues and the pace plan, about 0.1%); `race-store-zip` 246,063 against 243,774 (+2,289).
 Per-app `.uapp` sizes were not compared. Still nothing run on a watch.
+
+### 5.32 Icon recoloured to black (15 October 2026)
+
+The store listing shows the icon on a light grey disc, where the white glyph from
+5.19 is barely visible. `Resources/icon_60x60.png` and `icon_30x30.png` are now
+black (RGB 0,0,0), with the alpha (shape) unchanged; `icon.png` in the store zip
+is the 60x60 copy. This reverses the 5.19 colour choice, at Jon's request.
+**Open question:** 5.19 chose white because the watch UI is black; if the watch's
+own app list is dark, the black glyph may be faint there. Check on the watch; if so,
+the fix is a light tile behind the black X. Icon-only change: no code touched.
