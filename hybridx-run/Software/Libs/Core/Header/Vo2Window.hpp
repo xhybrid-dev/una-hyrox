@@ -73,6 +73,13 @@ public:
 
     uint32_t activeSec() const { return mActiveSec; }
 
+    /// The run's average speed as if level (ACSM's uphill gain removed), m/s,
+    /// over the seconds spent moving; 0 when there were none. Pace is 1 / this.
+    float avgGradeAdjustedSpeedMs() const;
+
+    /// Seconds behind it.
+    uint32_t movingSec() const { return mGapSec; }
+
 private:
     void closeWindow();
     void clearWindow();
@@ -95,6 +102,12 @@ private:
 
     uint32_t mActiveSec   = 0;
     uint16_t mWindowIndex = 0;
+
+    // Average grade-adjusted speed: the sum of each moving second's level-
+    // equivalent speed. A float sum of well under 10^5 terms of under 10 m/s
+    // keeps full precision for the average.
+    double   mGapSum = 0.0;
+    uint32_t mGapSec = 0;
 
     WindowRecord mClosed;
     bool         mClosedReady = false;

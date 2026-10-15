@@ -32,6 +32,20 @@ bool readInt(const SDK::JsonStreamReader& r, const char* query, int64_t min, int
 
 }  // namespace
 
+uint8_t windowFileSlotToWrite(const uint32_t* ids)
+{
+    uint8_t best = 0;
+    for (uint8_t i = 0; i < kWindowFileSlots; ++i) {
+        if (ids[i] == 0) {
+            return i;
+        }
+        if (ids[i] < ids[best]) {
+            best = i;
+        }
+    }
+    return best;
+}
+
 size_t writeWindowFile(char* buf, size_t cap, uint32_t runId, uint8_t maxHr,
                        const WindowRecord* windows, uint16_t count)
 {

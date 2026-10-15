@@ -37,6 +37,8 @@ void WindowBuilder::reset()
     clearWindow();
     mActiveSec    = 0;
     mWindowIndex  = 0;
+    mGapSum       = 0.0;
+    mGapSec       = 0;
     mClosedReady  = false;
     mHoldCount    = 0;
     mHoldNext     = 0;
@@ -68,6 +70,17 @@ void WindowBuilder::addSecond(const Sample& s)
     }
 
     ++mActiveSec;
+
+    // Average grade-adjusted speed: every moving second, whatever its heart
+    // rate, so it is the run's, not the steady windows'.
+    if (s.speedValid && !s.deadReckoning && s.speedMs >= Config::kMinMovingMs) {
+        float grade = 0.0f;
+        if (s.gradeValid) {
+            grade = std::max(0.0f, std::min(s.gradePct, Config::kGapMaxGradePct)) / 100.0f;
+        }
+        mGapSum += static_cast<double>(s.speedMs) * (1.0 + static_cast<double>(Config::kAcsmGradeFactor * grade));
+        ++mGapSec;
+    }
 
     // Auto max: the lowest of the last few good readings is a level held for
     // that long; keep the highest such level. Not in the warm-up.
@@ -113,6 +126,11 @@ void WindowBuilder::addSecond(const Sample& s)
         closeWindow();
         clearWindow();
     }
+}
+
+float WindowBuilder::avgGradeAdjustedSpeedMs() const
+{
+    return mGapSec == 0 ? 0.0f : static_cast<float>(mGapSum / static_cast<double>(mGapSec));
 }
 
 bool WindowBuilder::popWindow(WindowRecord& out)

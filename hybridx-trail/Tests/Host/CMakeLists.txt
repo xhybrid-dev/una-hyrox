@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(hybridx-trail-host-tests CXX)
+project(hybridx-trail-host-tests C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,6 +25,12 @@ include("${UNA_SDK_ROOT}/Tests/Host/cmake/FetchGoogleTest.cmake")
 
 set(CORE_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Core")
 set(PROBE_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Tools/Probe/Software/Libs")
+set(VO2LINK_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Vo2Link")
+set(SDK_JSON_SOURCES
+    "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamReader.cpp"
+    "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamWriter.cpp"
+    "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/core_json.c"
+)
 
 add_executable(hybridx-trail-host-tests
     GeoPointTest.cpp
@@ -42,6 +48,7 @@ add_executable(hybridx-trail-host-tests
     TextFoldTest.cpp
     MapZoomTest.cpp
     FaceCycleTest.cpp
+    Vo2LinkTest.cpp
     support/FlatFileSystem.cpp
     "${CORE_LIBS}/Sources/GeoPoint.cpp"
     "${CORE_LIBS}/Sources/GpxReader.cpp"
@@ -56,12 +63,17 @@ add_executable(hybridx-trail-host-tests
     "${CORE_LIBS}/Sources/TurnFinder.cpp"
     "${CORE_LIBS}/Sources/ElevationProfile.cpp"
     "${PROBE_LIBS}/Sources/ProbeRunner.cpp"
+    "${VO2LINK_LIBS}/Sources/Vo2Window.cpp"
+    "${VO2LINK_LIBS}/Sources/Vo2WindowFile.cpp"
+    ${SDK_JSON_SOURCES}
 )
 target_include_directories(hybridx-trail-host-tests PRIVATE
     "${CORE_LIBS}/Header"
     "${PROBE_LIBS}/Header"
+    "${VO2LINK_LIBS}/Header"
     "${CMAKE_CURRENT_LIST_DIR}"
     "${UNA_SDK_ROOT}/Libs/Header"
+    "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
 )
 target_compile_definitions(hybridx-trail-host-tests PRIVATE
     TRAIL_FIXTURES="${CMAKE_CURRENT_LIST_DIR}/fixtures"

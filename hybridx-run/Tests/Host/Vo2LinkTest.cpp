@@ -125,6 +125,80 @@ TEST(Vo2Window, APauseBreaksTheWindowAndSustainedMaxNeedsAHold)
     EXPECT_EQ(m.sustainedMaxHr(), 150);
 }
 
+// ---- average grade-adjusted speed -------------------------------------------
+
+TEST(Vo2Window, LevelRunningHasNoAdjustment)
+{
+    WindowBuilder b;
+    for (int i = 0; i < 100; ++i) {
+        b.addSecond(steady(3.0f));
+    }
+    EXPECT_NEAR(b.avgGradeAdjustedSpeedMs(), 3.0f, 1e-4f);
+    EXPECT_EQ(b.movingSec(), 100u);
+}
+
+TEST(Vo2Window, UphillIsAdjustedByACSMsOwnGain)
+{
+    // 4% grade: VO2 = 3.5 + 0.2 v (1 + 4.5 x 0.04) = 3.5 + 0.2 v x 1.18.
+    WindowBuilder b;
+    for (int i = 0; i < 100; ++i) {
+        b.addSecond(steady(3.0f, 160, 4.0f));
+    }
+    EXPECT_NEAR(b.avgGradeAdjustedSpeedMs(), 3.0f * 1.18f, 1e-3f);
+}
+
+TEST(Vo2Window, DownhillIsNotAdjustedAndASpikeIsClamped)
+{
+    WindowBuilder down;
+    for (int i = 0; i < 50; ++i) {
+        down.addSecond(steady(3.0f, 160, -6.0f));
+    }
+    EXPECT_NEAR(down.avgGradeAdjustedSpeedMs(), 3.0f, 1e-4f);
+
+    WindowBuilder spike;
+    spike.addSecond(steady(3.0f, 160, 80.0f));   // a sensor spike: counted as 20%
+    EXPECT_NEAR(spike.avgGradeAdjustedSpeedMs(), 3.0f * (1.0f + 4.5f * 0.20f), 1e-3f);
+}
+
+TEST(Vo2Window, TheAverageIsOverMovingSecondsWithAValidSpeedOnly)
+{
+    WindowBuilder b;
+    for (int i = 0; i < 10; ++i) {
+        b.addSecond(steady(3.0f));
+    }
+    Sample standing = steady(0.2f);              // below the moving threshold
+    Sample noSpeed  = steady(5.0f);
+    noSpeed.speedValid = false;
+    Sample dr = steady(5.0f);
+    dr.deadReckoning = true;
+    Sample paused = steady(5.0f);
+    paused.active = false;
+    for (const Sample& s : {standing, noSpeed, dr, paused}) {
+        b.addSecond(s);
+    }
+    EXPECT_NEAR(b.avgGradeAdjustedSpeedMs(), 3.0f, 1e-4f);
+    EXPECT_EQ(b.movingSec(), 10u);
+
+    WindowBuilder none;
+    EXPECT_EQ(none.avgGradeAdjustedSpeedMs(), 0.0f);
+    b.reset();
+    EXPECT_EQ(b.avgGradeAdjustedSpeedMs(), 0.0f);
+    EXPECT_EQ(b.movingSec(), 0u);
+}
+
+TEST(Vo2Window, NoHeartRateIsNeededForTheAverage)
+{
+    Vo2Run run;
+    Sample s = steady(3.0f);
+    s.hrBpm   = 0;
+    s.hrTrust = 0;
+    for (int i = 0; i < 70; ++i) {
+        run.addSecond(s);
+    }
+    EXPECT_NEAR(run.avgGradeAdjustedSpeedMs(), 3.0f, 1e-4f);
+    EXPECT_EQ(run.movingSec(), 70u);
+}
+
 // ---- Run's judge on records ----------------------------------------------
 
 TEST(Vo2Link, AWindowFromElsewhereIsJudgedLikeOneOfOurOwn)
@@ -411,6 +485,22 @@ TEST(Vo2WindowFile, OutOfRangeWindowsAreRefused)
         WindowRecord w;
         EXPECT_FALSE(rd.window(0, w)) << t;
     }
+}
+
+TEST(Vo2WindowFile, TrailOverwritesAnEmptySlotThenTheOldestRun)
+{
+    const uint32_t empty[3]   = {0, 0, 0};
+    EXPECT_EQ(windowFileSlotToWrite(empty), 0);
+    const uint32_t one[3]     = {500, 0, 0};
+    EXPECT_EQ(windowFileSlotToWrite(one), 1);
+    const uint32_t gap[3]     = {500, 600, 0};
+    EXPECT_EQ(windowFileSlotToWrite(gap), 2);
+    const uint32_t full[3]    = {500, 300, 400};
+    EXPECT_EQ(windowFileSlotToWrite(full), 1);
+    const uint32_t full2[3]   = {200, 300, 100};
+    EXPECT_EQ(windowFileSlotToWrite(full2), 2);
+    const uint32_t middle[3]  = {900, 0, 100};   // an unreadable slot is reused first
+    EXPECT_EQ(windowFileSlotToWrite(middle), 1);
 }
 
 TEST(Vo2WindowFile, AFileFlowsThroughTheJudgeToTheSameFigure)

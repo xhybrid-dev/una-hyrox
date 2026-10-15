@@ -583,3 +583,21 @@ does nothing until then. Tested with synthetic files.
 - Not yet verified: a real Trail file from a watch (L4), and the time Run takes
   to read three files on the watch (the SDK reader searches from the start for
   each value: about 120 windows x 9 values per run).
+
+## L4 (Run's part): the average grade-adjusted pace, and the slot rule (15 October 2026)
+
+L4 is mostly Trail's (`hybridx-trail/docs/NOTES.md`, "Run link"); two things
+changed here, both in the files Trail copies, so Trail's copies were refreshed
+(`hybridx-trail/Utilities/check-vo2-link-copies.sh --sync`).
+
+- **Average grade-adjusted speed** (`WindowBuilder::avgGradeAdjustedSpeedMs()`,
+  `Vo2Run` passes it through). Over every second moving at 0.5 m/s or more with
+  a valid speed (heart rate not needed), the speed as if level, using ACSM's own
+  uphill gain: `v x (1 + 4.5 x grade)`, grade clamped to 0..20%, downhill
+  counted as level. Uphill only, until a downhill model exists (Minetti was
+  deferred). Pace is `1 / speed`. The service logs it at save
+  (`Average grade-adjusted pace: N s/km over S s moving`); no screen yet.
+- **`windowFileSlotToWrite()`**: Trail's three slot files; an empty one first,
+  else the oldest run's.
+- Host tests: **96** (6 new), also under ASan + UBSan. Watch target compile
+  check 490,732 B (not for a watch), simulator builds.

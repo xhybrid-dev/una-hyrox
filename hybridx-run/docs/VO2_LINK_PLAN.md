@@ -1,7 +1,10 @@
 # VO2max from Run and Trail: plan (L0, 15 October 2026)
 
-Status: approved by Jon on 15 October 2026 (decisions below). **L1 and L2 done**
-(15 October 2026, see NOTES.md "L1" and "L2"); L3 next. Phases are L0-L5 (not the
+Status: approved by Jon on 15 October 2026 (decisions below). **L1, L2 and L4 done**
+(15 October 2026: Run's NOTES.md "L1", "L2", "L4"; Trail's NOTES.md "Run link").
+Functionality is complete end to end; **L3 (the screens) is deferred** until we
+have decided what earns space on them ("Screen content", below). L5 is Jon's
+on-watch test. Phases are L0-L5 (not the
 R-phases in NOTES.md). Each phase stops at its gate.
 
 ## Decisions (Jon, 15 October 2026)
@@ -115,8 +118,8 @@ grade is noisy.
 | **L0** | This plan, Jon's decisions below | Jon approves |
 | **L1** Run core, host only. **Done** | Grade judged per window; `WindowBuilder`, the window record and the file codec; Jon's 14 October log as a host-test fixture. No GAP variants (ACSM kept) | Jon reviews the result (NOTES.md "L1") |
 | **L2** Run ingest. **Done** | Reads Trail's three slot files at start-up, counts each new run once (a mark, not the ring), tags sources, inserts in time order; synthetic Trail files in the simulator | Simulator shows a Trail run counted once |
-| **L3** Run GAP | Average grade-adjusted pace (ACSM-based, above) on the summary; the max-HR wording; GAP columns in the tuning log | Screens captured |
-| **L4** Trail | Copy of `WindowBuilder` and the CI identity check; feed it each second; write the file on save; GAP summary; memory and size checked | Simulator run writes a file that Run's L2 reads |
+| **L3** Screens (deferred) | Decide what to show (below); then the grade-adjusted pace, the max-HR wording and the Trail count | Jon agrees the content, then screens captured |
+| **L4** Trail. **Done** | Copies of the builder, file codec and `SafeFile` (`Software/Libs/Vo2Link`, CI identity check); fed each second with Run's corrected speed; one of three slot files written on save; average grade-adjusted speed computed (no screen) | Simulator run writes a file that Run's L2 reads: **yes, with the real file** |
 | **L5** On the watch | Both apps from CI; a flat run and a hilly run in each app, with the Garmin on the other wrist; tune acceptance and the cost variant | Jon's field test |
 
 Releases: `run-vX.Y.Z` and `trail-vX.Y.Z`. L2 and L4 ship together, or Run first
@@ -148,3 +151,24 @@ Releases: `run-vX.Y.Z` and `trail-vX.Y.Z`. L2 and L4 ship together, or Run first
   screens, except one summary face each. Each phase re-measures the pool.
 - Concurrency: only Trail writes the file and only Run reads it, so no locking.
   This assumes two activities are not recorded at once, which I have not checked in the SDK; L2 reads the file only at start-up and after a save, so it holds either way.
+
+## Screen content: what could earn space (for Jon, before L3)
+
+The watch face is small (the summary faces are one idea each), so the rule is:
+**show a figure only when it changes what the athlete does or believes**. What
+exists today: the start screen's "VO2max 52.2", and the summary's VO2MAX face
+("THIS RUN" figure or the reason there is none, then "Recent 52.2 (3 runs)").
+The data now exists for more. Candidates, with a view on each:
+
+| Candidate | Where | View |
+|---|---|---|
+| Average grade-adjusted pace | Run's summary, beside average pace; Trail's summary | **Only when it differs** from the plain average pace by 5 s/km or more (a hilly run). On a flat run it is the same number and takes a line for nothing. |
+| How many of the recent runs came from Trail | Run's VO2 face, on the "Recent" line: "(5 runs, 2 Trail)" | Cheap (the line exists) but is it useful, or only while we test? Candidate for the tuning log instead. |
+| Max HR is the age estimate | Run's VO2 face | Matters: max HR moves the figure more than anything (45.2 to 47.6 for 182 to 190). Show a short flag only when it is the estimate, e.g. "max HR est." |
+| This run's figure, per source | Run's VO2 face | No: the figure that matters is the recent average. |
+| VO2max on Trail | Trail's start or summary screen | Probably not: Trail is about the route. Reading Run's shared figure is possible later if wanted. |
+| Windows used / reasons | Run's VO2 face | Only the one-line reason when there is no figure (exists). The counts stay in the tuning log. |
+| Time since the last run counted | nowhere | No. |
+
+Questions for Jon: which of the first three do you want; and does Trail's summary
+need anything beyond the grade-adjusted pace?

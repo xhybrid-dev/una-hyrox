@@ -221,6 +221,11 @@ jobs:
           cmake --build ci-build/intervals-core-tests -j"$(nproc)"
           ctest --test-dir ci-build/intervals-core-tests --output-on-failure
 
+      - name: HybridX Trail's copies of Run's window code
+        # Trail turns its runs into the same VO2 window records as Run, from
+        # copies of Run's builder and file codec; they must not drift.
+        run: hybridx-trail/Utilities/check-vo2-link-copies.sh
+
       - name: HybridX Trail host tests
         # The route core (GPX reader, thinning, off-route distance) and the
         # T0 probe's route check.

@@ -2190,6 +2190,14 @@ void Service::finishVo2(std::time_t endUtc)
              profile.maxHr, static_cast<unsigned>(profile.maxSource), profile.restHr,
              mVo2Run.sustainedMaxHr());
 
+    {
+        // The run's average pace as if level (L3 shows it; for now the log has it).
+        const float gap = mVo2Run.avgGradeAdjustedSpeedMs();
+        LOG_INFO("Average grade-adjusted pace: %u s/km over %lu s moving\n",
+                 gap > 0.0f ? static_cast<unsigned>(1000.0f / gap + 0.5f) : 0u,
+                 static_cast<unsigned long>(mVo2Run.movingSec()));
+    }
+
     if (result.status == RunVo2::RunStatus::Ok) {
         mVo2History.add(RunVo2::RunRecord{static_cast<uint32_t>(endUtc), result.vo2x10, result.windowsUsed});
     }

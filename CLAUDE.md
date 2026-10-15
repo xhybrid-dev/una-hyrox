@@ -88,6 +88,10 @@ independent of Race and Streak.
   the phone over the watch's BLE File Transfer Service for release (NOTES,
   "Phone delivery over BLE"). The Android sender is `Tools/RouteSender`
   (plain Java, no Gradle; its README has the test plan).
+- **Run link:** Trail leaves its runs' steady minutes in the shared folder for
+  HybridX Run's VO2max (NOTES "Run link"; plan in `hybridx-run/docs/VO2_LINK_PLAN.md`).
+  `Software/Libs/Vo2Link` holds **copies of Run's window code** (edit Run's, then
+  `Utilities/check-vo2-link-copies.sh --sync`; CI checks they match).
 - **Watch builds come from CI**, as for Streak. So does the Route Sender APK
   (`.github/workflows/route-sender.yml`, artifact `route-sender-apk`).
 - **Commands:**

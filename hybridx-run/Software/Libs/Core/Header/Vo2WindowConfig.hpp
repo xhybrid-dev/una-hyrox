@@ -37,6 +37,14 @@ inline constexpr float kMaxSpeedMs = 8.33f;
 inline constexpr float kMaxGradePct = 10.0f;
 inline constexpr float kMinGradePct = -3.0f;
 
+/// Average grade-adjusted speed: seconds at or above this speed count as
+/// moving; the grade used is clamped to 0..kGapMaxGradePct (ACSM covers uphill
+/// only, and a barometric spike must not run away); the uphill gain is ACSM's
+/// own, VO2 = 3.5 + 0.2 v (1 + 4.5 grade), so the speed is as if level.
+inline constexpr float kMinMovingMs        = 0.5f;
+inline constexpr float kGapMaxGradePct     = 20.0f;
+inline constexpr float kAcsmGradeFactor    = 0.9f / 0.2f;
+
 /// HR trust levels the kernel calls good: RunLVGL's own test on the raw
 /// float, 1 to 3 inclusive (its Service.cpp, the FIT heart-rate gate).
 inline constexpr float kMinHrTrust = 1.0f;

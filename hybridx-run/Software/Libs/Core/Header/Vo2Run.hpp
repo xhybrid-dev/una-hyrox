@@ -103,6 +103,11 @@ public:
     /// warm-up; 0 if none. Includes noteSustainedMax().
     uint8_t sustainedMaxHr() const { return std::max(mBuilder.sustainedMaxHr(), mNotedMax); }
 
+    /// The run's average speed as if level, m/s (0 = none), and the seconds
+    /// behind it. See WindowBuilder.
+    float    avgGradeAdjustedSpeedMs() const { return mBuilder.avgGradeAdjustedSpeedMs(); }
+    uint32_t movingSec() const { return mBuilder.movingSec(); }
+
     /// A sustained max HR measured elsewhere, for a run whose windows came in
     /// through addWindow().
     void noteSustainedMax(uint8_t bpm) { mNotedMax = std::max(mNotedMax, bpm); }

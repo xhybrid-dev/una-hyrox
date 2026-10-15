@@ -52,6 +52,10 @@ inline constexpr const char* kWindowFilePaths[kWindowFileSlots] = {
     "../SharedData/HybridX/trail_vo2_2.json",
 };
 
+/// The slot Trail writes next: an empty one (ids[i] = 0), else the one holding
+/// the oldest run (the smallest ID). @p ids has kWindowFileSlots entries.
+uint8_t windowFileSlotToWrite(const uint32_t* ids);
+
 /// A buffer big enough for any file the writer makes.
 inline constexpr size_t kWindowFileBytes = 8192;
 
