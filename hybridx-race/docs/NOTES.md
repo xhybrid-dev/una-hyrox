@@ -2152,3 +2152,11 @@ last race. A real share table would replace one function. Nothing is invented.
 mid-effort, and how the pitches (5.29) sound. The delta under a real race with real pauses. CI's
 watch build and size. The published store listing still has the 0.1.0 manifest, so the phone shows the
 new Target finish field only after a new version is released with this manifest.
+
+**CI, run 141 on `34dcf43`: green.** Both jobs passed: the watch build (every app, ST's toolchain) and
+the host tests, including "HybridX Race settings declaration" (the manifest, with the restored
+`targetFinishMin`, against the C++ field table), Race's host tests, and the Race store package.
+Sizes against run 138 (the Run merge): `watch-apps` 1,812,300 bytes against 1,810,144 (+2,156, a zip
+of all the `.uapp` files, so a total; Race is the only app whose code changed, so that is Race's
+cost for the cues and the pace plan, about 0.1%); `race-store-zip` 246,063 against 243,774 (+2,289).
+Per-app `.uapp` sizes were not compared. Still nothing run on a watch.
