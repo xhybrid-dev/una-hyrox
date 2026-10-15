@@ -1038,6 +1038,7 @@ void Service::buildSummary()
     mSummary.format = mSettings.format;
     mSummary.roxzone = mSettings.roxzoneSplits;
     mSummary.completed = mRace.completed();
+    mSummary.runDistanceM = mSettings.runDistanceM;
     mSummary.startUtc = mRaceStartUtc;
     mSummary.totalMs = mRace.totalActiveMs(nowMs());
     mSummary.runsMs = mRace.totalActiveMsOfType(Race::SegmentType::Run);

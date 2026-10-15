@@ -2050,3 +2050,44 @@ a full scripted race through the real service sends the mock buzzer a run at 209
 beeps at 3136 Hz around a silent 0 Hz gap, and the finish at 400 ms and 1047 Hz (the Roxzone cue is
 covered by the unit test; the scripted flow has Roxzone off). Not verified: how it sounds, and the
 watch build (CI).
+
+### 5.30 The pace plan core (15 October 2026)
+
+Second of the Race changes from 5.25: a time target per segment and how the race stands against it
+(F14). **Pure C++, no SDK, host-tested; not yet wired to the service or the screens (next commit).**
+
+**No pacing data is invented.** The brief wants a share table from Jon's results data (D6); none has
+been supplied, so both modes take their numbers from the athlete's own last saved race:
+- **Last race:** each segment's target is its time in the last race.
+- **Target:** the last race's *shape* (each segment's share of its total) scaled so the race
+  finishes in the target time (the last segment takes the rounding remainder, so the targets add up
+  exactly). A real share table can replace the shape later in one place.
+
+**Matching and availability.**
+- Segments match on (type, round), so a Half can use a Full as its plan (Half B takes rounds 5-8).
+- A segment the last race lacked has no target (0). Last race needs at least one match.
+- Target needs the last race to cover every segment of this race, or the targets could not add up
+  to the target time: a Full from a Half, or Roxzone on from a race without it, is unavailable
+  (`NoMatch`). A Half from a Full, or Roxzone off from a race with it, is covered.
+- Run length: a run's time is scaled by this race's run length over the last race's, so a 500 m sim
+  measures against a 1 km race in proportion; stations and Roxzone are never scaled. The saved
+  summary now records `run_m`; a summary from before this (no key) reads as 1000 m. The serializer's
+  buffer is sized to the file, so the extra key needs no limit change.
+- Statuses: Off, Ready, NoLastRace, NoMatch, NoTarget. Anything but Ready leaves the race running
+  with no plan.
+
+**Live numbers** are recomputed from the race model's closed segments on every call, so undo, pause
+and a split the lockout ignored need no handling of their own (each has a test).
+- *Delta* (positive = behind): the sum of (actual - target) over closed segments that have a target,
+  plus the time the open segment has run past its own target. It never goes negative inside a
+  segment: ahead is credited at the split, not guessed halfway through.
+- *Projection*: the active time so far plus the open segment's remaining target plus every later
+  target, i.e. where the race ends if the plan is held from here. It is withheld (not understated)
+  when any remaining segment has no target, and after the race is over.
+
+**Verified:** host tests 128 pass (104 + 24 new `PacePlanTest`). To prove the tests can fail, four
+deliberate bugs were put into `PacePlan.cpp` one at a time (a flipped over-target test, a projection
+that dropped the time so far, a Target coverage check weakened, run-length scaling removed): each was
+caught by 2 to 6 tests, and the code was restored. Simulator builds; a scripted race through the real
+service saves `summary.json` with `"run_m":1000`. Not verified: the screens (not built yet), the watch
+build (CI).
