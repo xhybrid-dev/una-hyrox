@@ -38,7 +38,10 @@ add_executable(hybridx-run-host-tests
     Vo2TextTest.cpp
     Vo2LogTest.cpp
     Vo2SettingsTest.cpp
+    Vo2LinkTest.cpp
     "${CORE_LIBS}/Sources/Vo2Profile.cpp"
+    "${CORE_LIBS}/Sources/Vo2Window.cpp"
+    "${CORE_LIBS}/Sources/Vo2WindowFile.cpp"
     "${CORE_LIBS}/Sources/Vo2Run.cpp"
     "${CORE_LIBS}/Sources/Vo2History.cpp"
     "${CORE_LIBS}/Sources/Vo2Text.cpp"

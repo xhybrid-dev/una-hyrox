@@ -1,7 +1,23 @@
 # VO2max from Run and Trail: plan (L0, 15 October 2026)
 
-Status: a plan for Jon's approval. No code changed. Phases are L0-L5 (not the
-R-phases in NOTES.md). Nothing here is built until Jon approves a phase.
+Status: approved by Jon on 15 October 2026 (decisions below). **L1 done**
+(15 October 2026, see NOTES.md "L1"); L2 next. Phases are L0-L5 (not the
+R-phases in NOTES.md). Each phase stops at its gate.
+
+## Decisions (Jon, 15 October 2026)
+
+1. **Cost model: keep ACSM.** Whether Minetti is needed is a later question,
+   after real hilly data. Nothing from the paper is in the code.
+2. **Trail runs are treated exactly like Run's.** Many Trail runs will be flat
+   road runs (Trail's point is the map navigation), so no special hill logic:
+   get the functionality in, then build on it. A hilly test run is for later.
+3. **HR range limit 12 bpm** (was 10), and grade judged per window (L1).
+4. **A copy of the window builder in each app**, with a CI identity check.
+5. **Max HR wording on the VO2 face:** yes (L3).
+
+Average grade-adjusted pace (L3) therefore uses ACSM's own grade term: the
+equivalent flat speed `(cost - 3.5) / 0.2` from each second's speed and grade,
+so it adjusts for uphill only until a downhill model exists.
 
 ## Goal (Jon, 15 October 2026)
 
@@ -95,9 +111,9 @@ grade is noisy.
 | Phase | Work | Gate |
 |---|---|---|
 | **L0** | This plan, Jon's decisions below | Jon approves |
-| **L1** Run core, host only | Grade judged per window; `WindowBuilder` and the window record and file codec; GAP variants (after the coefficients are verified from the paper); this log as a host-test fixture (22 windows, 45.2 unchanged under the current variant) | Jon reviews the variants' outputs on the fixture |
+| **L1** Run core, host only. **Done** | Grade judged per window; `WindowBuilder`, the window record and the file codec; Jon's 14 October log as a host-test fixture. No GAP variants (ACSM kept) | Jon reviews the result (NOTES.md "L1") |
 | **L2** Run ingest | Reads `trail_windows.json`, dedupes, tags sources; a synthetic Trail file in the simulator | Simulator shows a Trail run counted once |
-| **L3** Run GAP | Average GAP on the summary; GAP columns in the tuning log | Screens captured |
+| **L3** Run GAP | Average grade-adjusted pace (ACSM-based, above) on the summary; the max-HR wording; GAP columns in the tuning log | Screens captured |
 | **L4** Trail | Copy of `WindowBuilder` and the CI identity check; feed it each second; write the file on save; GAP summary; memory and size checked | Simulator run writes a file that Run's L2 reads |
 | **L5** On the watch | Both apps from CI; a flat run and a hilly run in each app, with the Garmin on the other wrist; tune acceptance and the cost variant | Jon's field test |
 

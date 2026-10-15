@@ -16,23 +16,12 @@ namespace RunVo2
 namespace
 {
 
-bool goodHr(const Sample& s)
+/// ACSM running equation, ml/kg/min. Speed in m/min x 10, grade in percent
+/// x 10 (a window record's units); downhill counts as 0.
+float acsmRunningVo2(uint16_t speedMMinX10, int16_t gradeX10)
 {
-    return s.hrTrust >= Config::kMinHrTrust && s.hrTrust <= Config::kMaxHrTrust &&
-           s.hrBpm >= Config::kMinHrBpm && s.hrBpm <= Config::kMaxHrBpm;
-}
-
-bool goodSpeed(const Sample& s)
-{
-    return s.speedValid && !s.deadReckoning &&
-           s.speedMs >= Config::kMinSpeedMs && s.speedMs <= Config::kMaxSpeedMs;
-}
-
-/// ACSM running equation, ml/kg/min. Grade in percent; downhill counts as 0.
-float acsmRunningVo2(float speedMs, float gradePct)
-{
-    const float v     = speedMs * 60.0f;
-    const float grade = gradePct > 0.0f ? gradePct / 100.0f : 0.0f;
+    const float v     = speedMMinX10 / 10.0f;
+    const float grade = gradeX10 > 0 ? gradeX10 / 1000.0f : 0.0f;
     return 3.5f + 0.2f * v + 0.9f * v * grade;
 }
 
@@ -40,88 +29,45 @@ float acsmRunningVo2(float speedMs, float gradePct)
 
 void Vo2Run::reset()
 {
-    // Field by field: a whole-object temporary would put 1 KB on the
-    // service's 10 KB stack.
-    clearWindow();
-    mActiveSec    = 0;
-    mWindowIndex  = 0;
+    mBuilder.reset();
+    mNotedMax     = 0;
     mLog          = WindowLog{};
     mLogReady     = false;
     mWindowCount  = 0;
     mCounts       = WindowCounts{};
-    mHoldCount    = 0;
-    mHoldNext     = 0;
-    mSustainedMax = 0;
-}
-
-void Vo2Run::clearWindow()
-{
-    mSec       = 0;
-    mGood      = 0;
-    mSpeedRef  = 0.0f;
-    mSumSpeed  = 0.0f;
-    mSumSpeed2 = 0.0f;
-    mSumGrade  = 0.0f;
-    mSumScale  = 0.0f;
-    mSumHr     = 0;
-    mMinHr     = 255;
-    mMaxHr     = 0;
-    mTooSteep  = false;
 }
 
 void Vo2Run::addSecond(const Sample& s)
 {
-    if (!s.active) {
-        // A pause breaks the window: what it held was not one steady minute.
-        clearWindow();
-        mHoldCount = 0;
+    mBuilder.addSecond(s);
+
+    WindowRecord w;
+    if (!mBuilder.popWindow(w)) {
         return;
     }
+    uint16_t cost = 0;
+    const WindowOutcome outcome = judge(w, cost);
 
-    ++mActiveSec;
+    mLog                 = WindowLog{};
+    mLog.index           = w.index;
+    mLog.activeSec       = w.activeSec;
+    mLog.goodSec         = w.goodSec;
+    mLog.outcome         = outcome;
+    mLog.speedMMinX10    = w.speedMMinX10;
+    mLog.spreadX10       = w.spreadX10;
+    mLog.gradeX10        = w.gradeX10;
+    mLog.hrX10           = w.hrX10;
+    mLog.hrMin           = w.hrMin;
+    mLog.hrMax           = w.hrMax;
+    mLog.costX10         = cost;
+    mLog.speedScaleX1000 = w.speedScaleX1000;
+    mLogReady            = true;
+}
 
-    // Auto max: the lowest of the last few good readings is a level held for
-    // that long; keep the highest such level. Not in the warm-up.
-    if (goodHr(s) && mActiveSec > Config::kWarmUpSec) {
-        mHold[mHoldNext] = s.hrBpm;
-        mHoldNext = static_cast<uint8_t>((mHoldNext + 1) % Config::kAutoMaxHoldSec);
-        if (mHoldCount < Config::kAutoMaxHoldSec) {
-            ++mHoldCount;
-        }
-        if (mHoldCount == Config::kAutoMaxHoldSec) {
-            const uint8_t held = *std::min_element(mHold, mHold + Config::kAutoMaxHoldSec);
-            mSustainedMax = std::max(mSustainedMax, held);
-        }
-    } else {
-        mHoldCount = 0;
-    }
-
-    ++mSec;
-    const bool gradeOk = s.gradeValid;
-    if (gradeOk && (s.gradePct > Config::kMaxGradePct || s.gradePct < Config::kMinGradePct)) {
-        mTooSteep = true;
-    }
-    if (goodHr(s) && goodSpeed(s)) {
-        if (mGood == 0) {
-            mSpeedRef = s.speedMs;
-        }
-        ++mGood;
-        const float d = s.speedMs - mSpeedRef;
-        mSumSpeed  += d;
-        mSumSpeed2 += d * d;
-        // No valid grade: taken as level. The SDK's GRADE sensor has its own
-        // validity; a missing one should not cost the window.
-        mSumGrade  += gradeOk ? s.gradePct : 0.0f;
-        mSumScale  += s.speedScale;
-        mSumHr     += s.hrBpm;
-        mMinHr      = std::min(mMinHr, s.hrBpm);
-        mMaxHr      = std::max(mMaxHr, s.hrBpm);
-    }
-
-    if (mSec >= Config::kWindowSec) {
-        closeWindow();
-        clearWindow();
-    }
+WindowOutcome Vo2Run::addWindow(const WindowRecord& w)
+{
+    uint16_t cost = 0;
+    return judge(w, cost);
 }
 
 bool Vo2Run::popWindowLog(WindowLog& out)
@@ -134,66 +80,42 @@ bool Vo2Run::popWindowLog(WindowLog& out)
     return true;
 }
 
-void Vo2Run::closeWindow()
+WindowOutcome Vo2Run::judge(const WindowRecord& w, uint16_t& costX10)
 {
-    // The window's figures first (the tuning log wants them whatever the
-    // outcome), then the same tests in the same order as before.
-    WindowLog& log = mLog;
-    log           = WindowLog{};
-    log.index     = ++mWindowIndex;
-    log.activeSec = mActiveSec;
-    log.goodSec   = mGood;
-    mLogReady     = true;
-
-    float mean = 0.0f, spread = 0.0f, grade = 0.0f, meanHr = 0.0f, cost = 0.0f;
-    if (mGood > 0) {
-        const float n   = static_cast<float>(mGood);
-        const float dm  = mSumSpeed / n;
-        mean            = mSpeedRef + dm;
-        const float var = std::max(0.0f, mSumSpeed2 / n - dm * dm);
-        spread          = 100.0f * std::sqrt(var) / mean;
-        grade           = mSumGrade / n;
-        meanHr          = static_cast<float>(mSumHr) / n;
-        cost            = acsmRunningVo2(mean, grade);
-        log.speedMMinX10 = static_cast<uint16_t>(std::lround(mean * 600.0f));
-        log.spreadX10    = static_cast<uint16_t>(std::lround(std::min(spread, 6000.0f) * 10.0f));
-        log.gradeX10     = static_cast<int16_t>(std::lround(std::max(-3000.0f, std::min(grade, 3000.0f)) * 10.0f));
-        log.hrX10        = static_cast<uint16_t>(std::lround(meanHr * 10.0f));
-        log.hrMin        = mMinHr;
-        log.hrMax        = mMaxHr;
-        log.costX10      = static_cast<uint16_t>(std::lround(cost * 10.0f));
-        log.speedScaleX1000 = static_cast<uint16_t>(std::lround(std::max(0.0f, std::min(mSumScale / n, 65.0f)) * 1000.0f));
+    costX10 = 0;
+    if (w.goodSec > 0) {
+        costX10 = static_cast<uint16_t>(std::lround(acsmRunningVo2(w.speedMMinX10, w.gradeX10) * 10.0f));
     }
 
-    if (mActiveSec <= Config::kWarmUpSec) {
+    if (w.activeSec <= Config::kWarmUpSec) {
         ++mCounts.warmUp;
-        log.outcome = WindowOutcome::WarmUp;
-        return;
+        return WindowOutcome::WarmUp;
     }
-    if (mGood < Config::kMinGoodSecPerWindow) {
+    if (w.goodSec < Config::kMinGoodSecPerWindow) {
         ++mCounts.gaps;
-        log.outcome = WindowOutcome::Gaps;
-        return;
+        return WindowOutcome::Gaps;
     }
-    if (mTooSteep) {
+    // Steep: the window's mean is outside the limits, or too many of its
+    // seconds were. One stray second is sensor noise, not a hill.
+    const bool meanSteep = w.gradeX10 > static_cast<int16_t>(Config::kMaxGradePct * 10.0f) ||
+                           w.gradeX10 < static_cast<int16_t>(Config::kMinGradePct * 10.0f);
+    if (meanSteep || w.steepSec > Config::kMaxSteepSecPerWindow) {
         ++mCounts.grade;
-        log.outcome = WindowOutcome::Grade;
-        return;
+        return WindowOutcome::Grade;
     }
-    if (spread > Config::kMaxSpeedSpreadPct || (mMaxHr - mMinHr) > Config::kMaxHrRangeBpm) {
+    if (w.spreadX10 > static_cast<uint16_t>(Config::kMaxSpeedSpreadPct * 10.0f) ||
+        (w.hrMax - w.hrMin) > Config::kMaxHrRangeBpm) {
         ++mCounts.unsteady;
-        log.outcome = WindowOutcome::Unsteady;
-        return;
+        return WindowOutcome::Unsteady;
     }
     if (mWindowCount >= Config::kMaxWindows) {
         ++mCounts.overflow;
-        log.outcome = WindowOutcome::Overflow;
-        return;
+        return WindowOutcome::Overflow;
     }
 
-    mWindows[mWindowCount++] = Window{log.costX10, log.hrX10};
+    mWindows[mWindowCount++] = Window{costX10, w.hrX10};
     ++mCounts.accepted;
-    log.outcome = WindowOutcome::Kept;
+    return WindowOutcome::Kept;
 }
 
 RunResult Vo2Run::estimate(const Profile& profile) const

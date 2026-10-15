@@ -486,3 +486,51 @@ between the two, so that growth is Run's: the structured-workout engine, screens
 UNA added. Run's own `.uapp` size was not read separately (the log's storage host is blocked from
 the container); earlier figures were 419,996 B at R0 and 430,276 B at R2. The app linked with the
 56 KB LVGL pool, so RAM fits. Still no run on a watch.
+
+## L1: windows built once, judged per window, and a shared file format (15 October 2026)
+
+First build phase of the Run and Trail link (`VO2_LINK_PLAN.md`, approved the
+same day). Pure core only: no service, GUI or Trail change.
+
+- **`WindowBuilder`** (`Vo2Window.*`, `Vo2WindowConfig.hpp`): the per-second
+  accumulation and the auto max HR, moved out of `Vo2Run`. It makes a
+  `WindowRecord` of integers per minute and judges nothing. **These two files
+  and `Vo2WindowFile.*` are the ones Trail will copy byte for byte** (L4, with a
+  CI identity check). Config the judge alone uses stays in `Vo2Config.hpp`, so
+  Run's tuning never touches Trail.
+- **`Vo2Run`** keeps the same public API (the service is unchanged) and now
+  judges records; **`addWindow()`** judges a window built elsewhere, by the same
+  rules, and `noteSustainedMax()` takes that run's max HR.
+- **Two rule changes**, from Jon's 14 October log: the HR range limit is 12 bpm
+  (was 10: eight windows missed it by 1-3 bpm), and a window is "too steep" when
+  its **mean** grade is outside -3% to +10% or more than 10 of its seconds were
+  (was: any one second). The builder counts the steep seconds; a window
+  record carries the count.
+- **`Vo2WindowFile.*`**: one run as JSON, `{"v":1,"id":<start utc>,"max":<HR>,
+  "w":[[activeSec,goodSec,speed,spread,grade+3000,steep,hr,hrMin,hrMax],...]}`,
+  at most 120 windows (the first ones), 8 KB buffer. Every value bounded on
+  read; malformed, empty or newer files read as nothing. Windows are read by
+  index (the SDK reader searches from the start each time).
+- **Found: the SDK's JSON writer prints signed 32-bit values with `%ld`**
+  (`JsonStreamWriter.cpp:526`). That is right where `int32_t` is a `long` (the
+  watch's compiler) and wrong where it is an `int` (the host: a -27 came out as
+  4294967269). So the file holds no negative number: grade is stored offset by
+  3000. The SDK is read-only here; nothing else in Run writes a negative.
+- **A spike still moves the figure a little**: one +15% second per minute is
+  0.25% of mean grade, adding ACSM cost (55.0 not 54.4 on the test run). It is
+  no longer rejected, which is the point; whether to drop such seconds from the
+  mean is for the field data (the log has only window means).
+
+### L1 verified
+- Host tests: 77 (18 new: the builder, the judge on records, the file codec,
+  and Jon's run as a fixture), green, also under ASan + UBSan.
+- **Jon's 14 October run replayed** (47 windows, max HR 182, resting 41): old
+  rules 22 windows, 45.2; L1 rules 34 windows, 45.1 (the test also checks the
+  `vo2_log_whatif.py` numbers independently).
+- Watch target compile check (Ubuntu's arm-none-eabi-gcc 13.2 with Race's
+  syscall stubs, so **not for a watch**; the watch copy comes from CI):
+  `HybridXRun_0.0.0-dev.uapp` 487,824 B, no warnings outside SDK files. Needed
+  `pip install pyelftools` for the SDK's packer.
+- Simulator builds; a 120 s run (`SEED=1 sim_run.sh 120`) saves the FIT,
+  `vo2.json`, the shared copy and the tuning log as before.
+- Not done, by design: nothing reads or writes the window file yet (L2, L4).
