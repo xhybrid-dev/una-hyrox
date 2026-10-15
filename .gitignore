@@ -65,3 +65,8 @@ x-weighin/Output/
 x-weighin/Software/Output/
 x-weighin/Software/Apps/LVGL-GUI/simulator/build/
 x-weighin/Software/SharedData/
+x-rows/build/
+x-rows/build-tests/
+x-rows/Output/
+x-rows/Software/Output/
+x-rows/Software/Apps/LVGL-GUI/simulator/build/

@@ -1,0 +1,23 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "utility"
+  ],
+  "name": "X Rows",
+  "icon": "icon.png",
+  "binary": "XWeighIn.uapp",
+  "appVersion": "0.1.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [],
+  "description": "Count your knitting rows and sets on your wrist. Press once for every row, start a new set when you finish one, and see the rows in this set, which set you are on and your total at a glance.",
+  "supportsLaps": false,
+  "supportsDistance": false,
+  "supportsTrack": false,
+  "supportsHeartbeat": false,
+  "supportsElevation": false,
+  "supportsStep": false,
+  "supportsSpeed": "none",
+  "customMeasures": [],
+  "stravaExport": false,
+  "id": "C1A77B95F907E57D"
+}

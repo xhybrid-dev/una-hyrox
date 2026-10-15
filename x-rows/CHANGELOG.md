@@ -1,0 +1,16 @@
+# Changelog
+
+All notable changes to X Rows are recorded here.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
+the project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
+
+Releases are tagged `rows-vX.Y.Z`. `Software/cmake/rows-version.cmake` strips
+the prefix for the SDK's version script.
+
+## [Unreleased]
+
+### Added
+
+- K0: the first look. One screen counts rows (R1), starts the next set (L1)
+  and resets (L2); R2 exits. The count is kept in memory only.
