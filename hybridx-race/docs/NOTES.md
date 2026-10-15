@@ -2142,9 +2142,10 @@ last race. A real share table would replace one function. Nothing is invented.
   past its target, the status face shows the projection; `pace_mode`, the target and `run_m` are in
   the saved files, and the phone's target survives the values-file write-back.
 - No-plan screens unchanged: the existing `capture_screens.sh` flow, compared pixel by pixel with the
-  committed captures: 10 of 16 identical; the race face differs only in a 44x26 px patch (the
-  simulated heart rate); the menus differ only along the left edge (the scroll indicator, one more
-  row). That script needed one more key press for the extra row and was updated.
+  committed captures: 11 of 16 identical. Of the five that differ, the race face differs only in a
+  44x26 px patch (the simulated heart rate), the Settings and Last race menus only along the left
+  edge (the scroll indicator: one more row), and the Format menu because the new Pace plan row now
+  shows beneath it. That script needed one more key press for the extra row and was updated.
 - Screens saved in `docs/screens/` (`phase6-pace-*`, `phase4-02b-main-pace`).
 
 **Not verified.** Anything on a watch: how the colours and the crowded centre read at arm's length
