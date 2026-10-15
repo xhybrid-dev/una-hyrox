@@ -2027,3 +2027,26 @@ nothing about v1.6 behaviour on the device, or about which firmware the new feat
 - `APP_GLANCE_INTF` is withdrawn in v1.5 and no app sets it. The two glance apps are
   `APP_TYPE Glance`, so only their packed header byte changes (0x22 to 0x02, both read as a glance).
 - SDK ABI is 3 at both commits, so `minKernelVersion` stays 1.4.0 (5.21).
+
+### 5.29 Distinct cues (15 October 2026)
+
+First of the two Race changes decided in 5.25: the buzzer pitch SDK v1.6 added
+(`RequestBuzzerPlay::Note::frequency`, 500-20000 Hz, 0 = default, `reserved` 0).
+
+- **`Cues.hpp`** (pure): a `Cue{beepMs, count, silenceMs, pitchHz}` per event. Beep counts and
+  lengths are exactly the old ones (run 1 x 150 ms, station 2 x 150 ms, Roxzone 1 x 80 ms, finish
+  1 x 400 ms), so on firmware that predates pitch, which plays every note at its default (SDK
+  header), the cues still differ by rhythm. The vibration is untouched.
+- **Pitches** are notes of the C scale inside the 1047-8372 Hz range UNA chose for its own zone
+  alerts (SDK `490da762`): run C7 2093, station G7 3136, Roxzone C8 4186, finish C6 1047. Roxzone in
+  and out sound the same. These are a starting point: **nothing has been heard on a watch**, so
+  they may need tuning by ear (one place: `Cues.hpp`).
+- `Service::playBuzzerPattern` gained a `pitchHz` argument (silent gap notes stay at 0) and a
+  `playCue()` helper; `notifySegment()` and the finish cue use the table.
+
+**Verified:** host tests 104 pass (100 + 4 new `CuesTest`: shapes as the brief's 8.3, Roxzone in/out
+alike, four distinct pitches all in range, a corrupt segment type makes no sound). Simulator builds;
+a full scripted race through the real service sends the mock buzzer a run at 2093 Hz, a station as two
+beeps at 3136 Hz around a silent 0 Hz gap, and the finish at 400 ms and 1047 Hz (the Roxzone cue is
+covered by the unit test; the scripted flow has Roxzone off). Not verified: how it sounds, and the
+watch build (CI).

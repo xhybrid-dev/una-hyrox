@@ -40,6 +40,7 @@
 #include "ActivitySummarySerializer.hpp"
 #include "ActivityWriter.hpp"
 #include "Commands.hpp"
+#include "Cues.hpp"
 #include "RaceModel.hpp"
 #include "RecordSpool.hpp"
 #include "Settings.hpp"
@@ -223,7 +224,9 @@ private:
     void notifySegment(Race::SegmentType type);
     void notifyNewActivity();
     void backlightOn(uint32_t timeoutMs = skBacklightTimeout);
-    void playBuzzerPattern(uint16_t beepMs, uint8_t count = 1u, uint16_t silenceMs = 100u);
+    void playBuzzerPattern(uint16_t beepMs, uint8_t count = 1u, uint16_t silenceMs = 100u,
+                           uint16_t pitchHz = 0u);
+    void playCue(const Race::Cues::Cue &cue);
     void playVibroPattern(SDK::Message::RequestVibroPlay::Effect effect, uint8_t count = 1u,
                           uint16_t silenceMs = 100u);
 

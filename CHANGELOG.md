@@ -11,6 +11,12 @@ when it stamps `BUILD_VERSION` into the `.uapp`.
 
 ## [Unreleased]
 
+### Added
+
+- **Distinct cue pitch.** Each race event now has its own pitch as well as its own beep
+  shape: run C7, station G7, Roxzone C8, finish C6. The beep counts and lengths are unchanged,
+  so on firmware that predates the SDK's buzzer pitch the cues still differ by rhythm.
+
 ## [0.1.0] - 2026-10-10
 
 The first release, for the UNA app store (App ID `5C4D6F49335E5E17`). Run on a

@@ -648,8 +648,8 @@ void Service::finishRace(bool completed)
     SDK::send_msg<CustomMessage::RaceFinished>(mKernel, mRace.completed() && completed);
 
     backlightOn();
-    // One long pulse for the finish (brief 8.3).
-    playBuzzerPattern(400, 1);
+    // One long pulse for the finish (brief 8.3), at its own pitch.
+    playCue(Race::Cues::kFinish);
     if (mSettings.vibrateOnSplit) {
         playVibroPattern(SDK::Message::RequestVibroPlay::Effect::ALERT_1000MS_100);
     }
@@ -853,14 +853,14 @@ void Service::notifySegment(Race::SegmentType type)
 
     switch (type) {
     case Race::SegmentType::Run:
-        playBuzzerPattern(150, 1);
+        playCue(Race::Cues::forSegment(type));
         if (mSettings.vibrateOnSplit) {
             playVibroPattern(Effect::STRONG_CLICK_100, 1);
         }
         break;
 
     case Race::SegmentType::Station:
-        playBuzzerPattern(150, 2);
+        playCue(Race::Cues::forSegment(type));
         if (mSettings.vibrateOnSplit) {
             playVibroPattern(Effect::STRONG_CLICK_100, 2);
         }
@@ -868,7 +868,7 @@ void Service::notifySegment(Race::SegmentType type)
 
     case Race::SegmentType::RoxIn:
     case Race::SegmentType::RoxOut:
-        playBuzzerPattern(80, 1);
+        playCue(Race::Cues::forSegment(type));
         if (mSettings.vibrateOnSplit) {
             playVibroPattern(Effect::SHARP_TICK_1_100, 1);
         }
@@ -1244,7 +1244,13 @@ void Service::backlightOn(uint32_t timeoutMs)
     }
 }
 
-void Service::playBuzzerPattern(uint16_t beepMs, uint8_t count, uint16_t silenceMs)
+void Service::playCue(const Race::Cues::Cue &cue)
+{
+    playBuzzerPattern(cue.beepMs, cue.count, cue.silenceMs, cue.pitchHz);
+}
+
+void Service::playBuzzerPattern(uint16_t beepMs, uint8_t count, uint16_t silenceMs,
+                                uint16_t pitchHz)
 {
     if (count == 0u) {
         return;
@@ -1262,6 +1268,10 @@ void Service::playBuzzerPattern(uint16_t beepMs, uint8_t count, uint16_t silence
         for (uint8_t i = 0u; i < count; ++i) {
             msg->notes[n].volume = 100;
             msg->notes[n].time = beepMs;
+            // 0 or a value outside 500-20000 Hz plays the kernel's default, and a kernel
+            // that predates SDK v1.6 ignores the field: the beep counts still tell the
+            // cues apart there.
+            msg->notes[n].frequency = pitchHz;
             ++n;
             if (i < count - 1u) {
                 msg->notes[n].volume = 0;
