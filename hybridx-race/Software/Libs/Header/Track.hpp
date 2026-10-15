@@ -69,6 +69,15 @@ struct Data
     uint8_t hrAvg = 0u;      ///< Mean over the race so far
     uint8_t hrMax = 0u;      ///< Peak over the race so far
 
+    // -- Pace plan -----------------------------------------------------------
+    // Fixed-size, so the message stays fixed-size. All zero and false with no plan.
+    bool     planActive = false;        ///< A pace plan is in force for this race
+    bool     hasDelta = false;          ///< False until a segment with a target has run
+    bool     hasProjection = false;     ///< False when a remaining segment has no target
+    int32_t  deltaMs = 0;               ///< Positive is behind plan
+    uint32_t projectedMs = 0;           ///< Finish time if the rest of the plan is held
+    uint32_t segmentTargetMs = 0;       ///< The open segment's target, 0 = none
+
     // -- Flags ---------------------------------------------------------------
     bool completed = false;  ///< True once the final split has landed
 };

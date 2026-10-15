@@ -377,10 +377,15 @@ void Service::loadConfiguration()
     if (mConfig->has(RaceConfig::kVibrateOnSplit)) {
         mSettings.vibrateOnSplit = mConfig->getBool(RaceConfig::kVibrateOnSplit);
     }
+    if (mConfig->has(RaceConfig::kTargetFinishMin)) {
+        const int32_t min = mConfig->getInt(RaceConfig::kTargetFinishMin);
+        mSettings.targetFinishMin = static_cast<uint16_t>(
+                min < 0 ? 0 : (min > Settings::kTargetFinishMaxMin ? Settings::kTargetFinishMaxMin : min));
+    }
 
-    LOG_INFO("Config: roxzone %u, run %u m, lockout %u s, vibrate %u\n",
+    LOG_INFO("Config: roxzone %u, run %u m, lockout %u s, vibrate %u, target %u min\n",
              mSettings.roxzoneSplits, mSettings.runDistanceM, mSettings.splitLockoutSec,
-             mSettings.vibrateOnSplit);
+             mSettings.vibrateOnSplit, mSettings.targetFinishMin);
 }
 
 void Service::handleEvent(const CustomMessage::SettingsSave &event)
@@ -398,6 +403,7 @@ void Service::handleEvent(const CustomMessage::SettingsSave &event)
         mConfig->setInt(RaceConfig::kRunDistanceM, mSettings.runDistanceM);
         mConfig->setInt(RaceConfig::kSplitLockoutSec, mSettings.splitLockoutSec);
         mConfig->setBool(RaceConfig::kVibrateOnSplit, mSettings.vibrateOnSplit);
+        mConfig->setInt(RaceConfig::kTargetFinishMin, mSettings.targetFinishMin);
         if (!mConfig->save()) {
             LOG_WARNING("Failed to write app config\n");
         }
@@ -405,6 +411,25 @@ void Service::handleEvent(const CustomMessage::SettingsSave &event)
 
     setCapabilities();
     sendSettings();
+}
+
+void Service::fillPaceStatus(uint8_t (&out)[Race::kFormatCount][Race::kPaceModeCount]) const
+{
+    // For every format, because the athlete cycles the format on the main menu without telling the
+    // service, and the pace row has to say what that format can use. A scratch plan per pairing:
+    // about 130 bytes each, on the stack, and only when settings change.
+    for (uint8_t f = 0u; f < Race::kFormatCount; ++f) {
+        Race::SegmentDesc tmpl[Race::kMaxSegments];
+        const uint8_t n = Race::RaceModel::buildTemplate(static_cast<Race::Format>(f),
+                                                         mSettings.roxzoneSplits, tmpl,
+                                                         Race::kMaxSegments);
+        for (uint8_t m = 0u; m < Race::kPaceModeCount; ++m) {
+            Race::PacePlan scratch;
+            out[f][m] = static_cast<uint8_t>(
+                    scratch.build(static_cast<Race::PaceMode>(m), tmpl, n, mSummary,
+                                  mSettings.targetFinishMs(), mSettings.runDistanceM));
+        }
+    }
 }
 
 void Service::sendSettings()
@@ -415,6 +440,7 @@ void Service::sendSettings()
         msg->is12HourFormat = mTimeFormat12h;
         std::memcpy(msg->hrThresholds, mHrThresholds.data(), mHrThresholds.size());
         msg->hrThresholdsCount = mHrThresholdCount;
+        fillPaceStatus(msg->paceStatus);
         msg.send();
     }
 }
@@ -493,6 +519,20 @@ void Service::startRace(Race::Format format)
     mSettings.format = format;
     if (!mSettingsSerializer.save(mSettings)) {
         LOG_WARNING("Failed to remember the race format\n");
+    }
+
+    // The pace plan, from the last saved race: mSummary is replaced only when a race is saved, so
+    // it is still that race here. A plan that cannot be built (no saved race, a format the last
+    // race does not cover) leaves the race running with no plan, never refusing to start.
+    {
+        Race::SegmentDesc tmpl[Race::kMaxSegments];
+        const uint8_t n = Race::RaceModel::buildTemplate(format, mSettings.roxzoneSplits, tmpl,
+                                                         Race::kMaxSegments);
+        const Race::PacePlan::Status st = mPlan.build(mSettings.paceMode, tmpl, n, mSummary,
+                                                      mSettings.targetFinishMs(),
+                                                      mSettings.runDistanceM);
+        LOG_INFO("Pace plan: mode %u, status %u\n", static_cast<unsigned>(mSettings.paceMode),
+                 static_cast<unsigned>(st));
     }
 
     mRaceStartUtc = mTimeTracker.getExpectedUTC();
@@ -826,6 +866,7 @@ void Service::saveRace(bool discard)
         LOG_WARNING("Failed to save the race summary\n");
     }
     sendSummary();
+    sendSettings();   // the last race changed, so what the pace plan can use may have
 
     mRace.save();
     // Back to Idle, or the next START is refused and the race screen freezes.
@@ -992,6 +1033,16 @@ void Service::publishRaceData()
     mRaceData.hrAvg = static_cast<uint8_t>(mHrCounter.getAverage());
     mRaceData.hrMax = static_cast<uint8_t>(mHrCounter.getMaximum());
     mRaceData.completed = mRace.completed();
+
+    if (mPlan.active()) {
+        const Race::PacePlan::Live live = mPlan.live(mRace, now);
+        mRaceData.planActive = true;
+        mRaceData.hasDelta = live.hasDelta;
+        mRaceData.deltaMs = live.deltaMs;
+        mRaceData.hasProjection = live.hasProjection;
+        mRaceData.projectedMs = live.projectedMs;
+        mRaceData.segmentTargetMs = live.segmentTargetMs;
+    }
 
     if (mGuiStarted) {
         SDK::send_msg<CustomMessage::RaceDataUpd>(mKernel, mRaceData);

@@ -44,12 +44,24 @@ enum class SegmentType : uint8_t
  * The values are written into the FIT session's @c race_format developer field
  * (brief 10.1) and must not be renumbered.
  */
+/// How a race's per-segment targets are chosen (PacePlan.hpp). Stored as a byte.
+enum class PaceMode : uint8_t
+{
+    Off = 0,       ///< No targets
+    LastRace = 1,  ///< The time each segment took in the last saved race
+    Target = 2,    ///< The last race's shape, scaled to a target finish time
+};
+
+constexpr uint8_t kPaceModeCount = 3u;
+
 enum class Format : uint8_t
 {
     Full = 0,   ///< All eight rounds
     HalfA = 1,  ///< Rounds 1 to 4
     HalfB = 2,  ///< Rounds 5 to 8
 };
+
+constexpr uint8_t kFormatCount = 3u;
 
 /**
  * @brief One station of the race.

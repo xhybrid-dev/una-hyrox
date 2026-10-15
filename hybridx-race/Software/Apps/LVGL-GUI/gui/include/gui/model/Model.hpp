@@ -105,6 +105,15 @@ public:
     Race::Format getFormat() const { return mSettings.format; }
     void setFormat(Race::Format format);
 
+    /// How the next race's targets are chosen. Unlike the format, this goes to the service at
+    /// once: the service builds the plan from its own copy of the settings when the race starts.
+    Race::PaceMode getPaceMode() const { return mSettings.paceMode; }
+    void setPaceMode(Race::PaceMode mode);
+
+    /// PacePlan::Status as a byte for @p mode in @p format, from the service. A mode never heard
+    /// about reads as 0, which PaceMenu::usable() treats as unusable.
+    uint8_t getPaceStatus(Race::Format format, Race::PaceMode mode) const;
+
     // -- Race control ----------------------------------------------------------
     void raceStart();
     void raceSplit();
@@ -165,6 +174,7 @@ private:
     uint8_t  mHrThresholds[App::Config::kHrThresholdsCount] = {};
     uint8_t  mHrThresholdsCount = App::Config::kHrThresholdsCount;
     Settings mSettings {};
+    uint8_t  mPaceStatus[Race::kFormatCount][Race::kPaceModeCount] {};
 
     uint8_t mBatteryLevel = 0;
     uint8_t mAccessoryState = 0;  // SDK::Accessory::State (0 = UNAVAILABLE)

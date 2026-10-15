@@ -58,6 +58,12 @@ void TrackScreen::build()
     mTotalTime = Theme::label(mMainRoot, F::Medium18, "0:00:00", 0, 124, 240,
                               LV_TEXT_ALIGN_CENTER, Color::WHITE);
 
+    // The pace plan's delta shares the total's row: with a plan the total moves left and the delta
+    // sits to its right (redraw()); with none the total stays centred and this is hidden.
+    mDelta = Theme::label(mMainRoot, F::Medium18, "", 124, 124, 102, LV_TEXT_ALIGN_CENTER,
+                          Color::WHITE);
+    lv_obj_add_flag(mDelta, LV_OBJ_FLAG_HIDDEN);
+
     // Brief 8.2 calls this the "small" line, and small is what buys the heart
     // rate the clearance it needs above the arc.
     mNextUp = Theme::label(mMainRoot, F::Regular14, "", 0, 148, 240,
@@ -71,6 +77,9 @@ void TrackScreen::build()
     mHrZone = std::make_unique<Widgets::HeartRateZone>(mMainRoot, 15, 186);
 
     mStatusRoot = Theme::container(mRoot, 0, 0, 240, 240);
+    mProjected  = Theme::label(mStatusRoot, F::Regular14, "", 0, 204, 240, LV_TEXT_ALIGN_CENTER,
+                               Color::GRAY);
+    lv_obj_add_flag(mProjected, LV_OBJ_FLAG_HIDDEN);
     mClock      = Theme::label(mStatusRoot, F::SemiBold40, "--:--", 0, 84, 240);
     mBatteryPct = Theme::label(mStatusRoot, F::Medium18, "--%", 0, 136, 240,
                                LV_TEXT_ALIGN_CENTER, Color::GRAY);
@@ -152,10 +161,16 @@ void TrackScreen::redraw()
     lv_obj_set_style_text_color(mSegment, accentFor(d.current.type), LV_PART_MAIN);
 
     // A paused clock must never be mistaken for a slow one.
-    lv_obj_set_style_text_color(mSegmentTime,
-                                mModel.isRacePaused() ? Theme::rgb(Color::GRAY)
-                                                      : Theme::rgb(Color::WHITE),
-                                LV_PART_MAIN);
+    // The segment time also turns amber once it passes the pace plan's target for the segment: a
+    // glance that says "you are now losing time here", with no sound (the plan only shows).
+    const bool overTarget = d.planActive && d.segmentTargetMs != 0u && d.segmentMs > d.segmentTargetMs;
+    lv_color_t segmentColour = Theme::rgb(Color::WHITE);
+    if (mModel.isRacePaused()) {
+        segmentColour = Theme::rgb(Color::GRAY);
+    } else if (overTarget) {
+        segmentColour = Theme::rgb(Color::YELLOW_DARK);
+    }
+    lv_obj_set_style_text_color(mSegmentTime, segmentColour, LV_PART_MAIN);
 
     const char *work = Race::RaceModel::work(d.current, mModel.getSettings().runDistanceM);
     if (work[0] != '\0') {
@@ -174,6 +189,38 @@ void TrackScreen::redraw()
 
     Fmt::hms(buf, sizeof(buf), Fmt::msToSec(d.totalMs));
     lv_label_set_text(mTotalTime, buf);
+
+    // Pace plan: total left, delta right (amber behind, green ahead, white on plan); without one
+    // the total is centred as before and the delta is hidden.
+    if (d.planActive && d.hasDelta) {
+        lv_obj_set_x(mTotalTime, 14);
+        lv_obj_set_width(mTotalTime, 108);
+        char delta[12];
+        Race::deltaText(delta, sizeof(delta), d.deltaMs);
+        lv_label_set_text(mDelta, delta);
+        lv_obj_set_style_text_color(mDelta,
+                                    d.deltaMs > 500 ? Theme::rgb(Color::YELLOW_DARK)
+                                    : d.deltaMs < -500 ? Theme::rgb(Color::GREEN)
+                                                       : Theme::rgb(Color::WHITE),
+                                    LV_PART_MAIN);
+        lv_obj_remove_flag(mDelta, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_set_x(mTotalTime, 0);
+        lv_obj_set_width(mTotalTime, 240);
+        lv_obj_add_flag(mDelta, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    // On the status face: where the race ends if the plan is held from here.
+    if (d.planActive && d.hasProjection) {
+        char fin[Race::kMaxLabelLen];
+        char hms[12];
+        Fmt::hms(hms, sizeof(hms), Fmt::msToSec(d.projectedMs));
+        snprintf(fin, sizeof(fin), "Finish %s", hms);
+        lv_label_set_text(mProjected, fin);
+        lv_obj_remove_flag(mProjected, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(mProjected, LV_OBJ_FLAG_HIDDEN);
+    }
 
     if (d.hasNext) {
         // Name only: brief 8.2 writes this as "Next: Sled Pull", and the work as

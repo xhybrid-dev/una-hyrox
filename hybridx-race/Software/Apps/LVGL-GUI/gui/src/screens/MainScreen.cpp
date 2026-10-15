@@ -10,6 +10,7 @@
 #include "gui/Assets.hpp"
 #include "gui/Strings.hpp"
 #include "gui/screens/ScreenManager.hpp"
+#include "PaceMenu.hpp"
 #include "gui/theme/Theme.hpp"
 
 #define LOG_MODULE_PRX   "MainScreen"
@@ -28,9 +29,12 @@ using Style = WheelMenu::Item::Style;
 WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
     { Style::Simple, "Start race", nullptr, &poppins_semibold_30 },
     { Style::Tip,    "Format" },
+    { Style::Tip,    "Pace plan" },
     { Style::Simple, "Last race" },
     { Style::Simple, "Settings" },
 };
+
+char kPaceTip[16] = "Off";
 
 const char* formatName(Race::Format f)
 {
@@ -100,6 +104,10 @@ void MainScreen::confirm()
         cycleFormat();
         break;
 
+    case Menu::ID_PACE:
+        cyclePace();
+        break;
+
     case Menu::ID_LAST_RACE:
         if (mModel.isSummaryAvailable()) {
             ScreenManager::instance().goTo(ScreenId::RaceSummary);
@@ -113,6 +121,18 @@ void MainScreen::confirm()
     default:
         break;
     }
+}
+
+void MainScreen::cyclePace()
+{
+    // Off, Last race, Target, Off ..., skipping what this format cannot use. The service says what
+    // that is, per format, because the format is cycled here without telling it.
+    uint8_t status[Race::kPaceModeCount];
+    for (uint8_t m = 0u; m < Race::kPaceModeCount; ++m) {
+        status[m] = mModel.getPaceStatus(mModel.getFormat(), static_cast<Race::PaceMode>(m));
+    }
+    mModel.setPaceMode(Race::PaceMenu::nextMode(mModel.getPaceMode(), status));
+    updateBackground();
 }
 
 void MainScreen::cycleFormat()
@@ -141,6 +161,15 @@ void MainScreen::updateBackground()
     // The Format row carries the current format, so the athlete can see what
     // they are about to start without opening anything.
     kItems[Menu::ID_FORMAT].tip = formatName(mModel.getFormat());
+
+    // The Pace plan row says which plan the next race follows, or why the one chosen cannot be
+    // used for this format (no saved race yet, a last race that does not cover this format, no
+    // target time set).
+    const Race::PaceMode pace = mModel.getPaceMode();
+    Race::PaceMenu::tip(kPaceTip, sizeof(kPaceTip), pace,
+                        mModel.getPaceStatus(mModel.getFormat(), pace),
+                        mModel.getSettings().targetFinishMin);
+    kItems[Menu::ID_PACE].tip = kPaceTip;
     mMenu->refresh();
 }
 

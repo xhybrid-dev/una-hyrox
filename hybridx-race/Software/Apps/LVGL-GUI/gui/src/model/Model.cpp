@@ -80,6 +80,22 @@ void Model::saveSettings(const Settings &settings)
     SDK::send_msg<CustomMessage::SettingsSave>(mKernel, mSettings);
 }
 
+void Model::setPaceMode(Race::PaceMode mode)
+{
+    mSettings.paceMode = mode;
+    SDK::send_msg<CustomMessage::SettingsSave>(mKernel, mSettings);
+}
+
+uint8_t Model::getPaceStatus(Race::Format format, Race::PaceMode mode) const
+{
+    const uint8_t f = static_cast<uint8_t>(format);
+    const uint8_t m = static_cast<uint8_t>(mode);
+    if (f >= Race::kFormatCount || m >= Race::kPaceModeCount) {
+        return 0u;   // out of range reads as unusable, never past the array
+    }
+    return mPaceStatus[f][m];
+}
+
 void Model::setFormat(Race::Format format)
 {
     mSettings.format = format;
@@ -211,6 +227,7 @@ bool Model::customMessageHandler(SDK::MessageBase *message)
     case CustomMessage::SETTINGS_UPDATE: {
         const auto *msg = static_cast<CustomMessage::SettingsUpd *>(message);
         mSettings = msg->settings;
+        std::memcpy(mPaceStatus, msg->paceStatus, sizeof(mPaceStatus));
         mTimeFormat12h = msg->is12HourFormat;
         if (msg->hrThresholdsCount > 0u) {
             std::memcpy(mHrThresholds, msg->hrThresholds, sizeof(mHrThresholds));

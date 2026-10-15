@@ -2091,3 +2091,63 @@ that dropped the time so far, a Target coverage check weakened, run-length scali
 caught by 2 to 6 tests, and the code was restored. Simulator builds; a scripted race through the real
 service saves `summary.json` with `"run_m":1000`. Not verified: the screens (not built yet), the watch
 build (CI).
+
+### 5.31 The pace plan on the watch (15 October 2026)
+
+Third commit of the Race work from 5.25: the plan (5.30) is wired to settings, the service, and the
+screens.
+
+**What it does.**
+- **Main menu: a Pace plan row** between Format and Last race. Pressing select cycles Off, Last race,
+  Target, Off, skipping any mode the last race cannot support for the chosen format. The hint says
+  the mode ("Last race", "Target 1:45") or why it cannot be used ("No saved race", "Doesn't match",
+  "No target set"). With nothing saved, Off is the only mode and a press does nothing.
+- **Race screen.** With a plan, the total time moves left and the delta sits to its right: amber
+  behind (`+0:05`), green ahead (`-0:04`), white within half a second of plan. The segment time turns
+  amber once it passes the segment's own target. **No sound**: Jon chose delta on screen only.
+  Without a plan the screen is unchanged (checked below).
+- **Status face:** "Finish h:mm:ss", the projection, below the battery (it first went where the
+  battery icon covers it, found by looking at the screenshot, and moved).
+- **Settings:** a Target time row, Off then 1:00 to 4:00 in steps of five minutes (a phone value
+  between steps moves up to the next step). The phone sets any minute, as the field `targetFinishMin`
+  (0-240), which is back in the manifest and the field table (it was withdrawn in 5.23).
+- The plan is chosen on the watch, so `paceMode` lives in the settings file, not AppConfig.
+
+**How it fits together.**
+- The service builds the plan at race start from the last *saved* race: `mSummary` is replaced only
+  when a race is saved (a discarded race never replaces it). A plan that cannot be built leaves the
+  race running with none; a race is never refused.
+- The GUI never sees the segments, and it cycles the format without telling the service, so the
+  service tells it, in the settings message, whether each mode is usable for **each** format
+  (`paceStatus[format][mode]`), refreshed whenever settings change and after a race is saved. The
+  row's rules (next mode, wording, target steps) are in a pure header, `PaceMenu.hpp`, so they are
+  host-tested.
+- `RaceDataUpd` carries the plan's live numbers in fixed fields. **Message sizes**: `SettingsUpd`
+  and `RaceDataUpd` grew; the largest is 88 bytes in the simulator build (64-bit header) and 80 on
+  the watch (32-bit header) against the 256-byte pool, measured with a probe built for both. Every
+  struct is already `static_assert`ed against 256.
+
+**Deviation from the brief, for Jon.** The brief's F14 takes segment shares from a table in the
+HybridX results data (D6); none has been supplied, so *Target* uses the shape of the athlete's own
+last race. A real share table would replace one function. Nothing is invented.
+
+**Verified.**
+- Host tests: 145 pass (100 originally; +4 cues, +24 plan, +5 delta text, +12 menu rules).
+- SDK validator on the manifest and field table: 5 fields, schema OK, table matches.
+- Simulator, scripted (`docs/experiments/pace_plan_capture.sh [out-dir] [last|target]`: a saved Half
+  A of 6 s segments, then a second race against it): the row offers only Off with nothing saved;
+  after a save it cycles Off, Last race, Target and shows "Target 0:01" for a 1-minute phone target;
+  Target is skipped when no time is set; race 2 starts with "mode 1, status 1" (and "mode 2, status
+  1" for Target); the delta is green ahead (-0:04), amber behind (+0:05), the segment time goes amber
+  past its target, the status face shows the projection; `pace_mode`, the target and `run_m` are in
+  the saved files, and the phone's target survives the values-file write-back.
+- No-plan screens unchanged: the existing `capture_screens.sh` flow, compared pixel by pixel with the
+  committed captures: 10 of 16 identical; the race face differs only in a 44x26 px patch (the
+  simulated heart rate); the menus differ only along the left edge (the scroll indicator, one more
+  row). That script needed one more key press for the extra row and was updated.
+- Screens saved in `docs/screens/` (`phase6-pace-*`, `phase4-02b-main-pace`).
+
+**Not verified.** Anything on a watch: how the colours and the crowded centre read at arm's length
+mid-effort, and how the pitches (5.29) sound. The delta under a real race with real pauses. CI's
+watch build and size. The published store listing still has the 0.1.0 manifest, so the phone shows the
+new Target finish field only after a new version is released with this manifest.

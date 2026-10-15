@@ -55,7 +55,7 @@ struct Position {
 // -----------------------------------------------------------------------------
 
 struct Root {
-    enum Id { ID_START = 0, ID_FORMAT, ID_LAST_RACE, ID_SETTINGS,
+    enum Id { ID_START = 0, ID_FORMAT, ID_PACE, ID_LAST_RACE, ID_SETTINGS,
               ID_COUNT, ID_DEFAULT = ID_START };
 
     /// Race format picker (brief 8.2 item 1).
@@ -67,7 +67,7 @@ struct Root {
     /// Settings wheel (brief 8.2 item 2). Target finish is read-only and
     /// hidden until F14 ships, so it is not an item here.
     struct Settings {
-        enum Id { ID_ROXZONE = 0, ID_RUN_DISTANCE, ID_LOCKOUT, ID_VIBRATE,
+        enum Id { ID_ROXZONE = 0, ID_RUN_DISTANCE, ID_LOCKOUT, ID_VIBRATE, ID_TARGET,
                   ID_COUNT, ID_DEFAULT = ID_ROXZONE };
     };
 };

@@ -55,12 +55,14 @@ private:
     lv_obj_t* mSegmentTime = nullptr;
     lv_obj_t* mTotalTime   = nullptr;
     lv_obj_t* mNextUp      = nullptr;
+    lv_obj_t* mDelta       = nullptr;   ///< Against the pace plan; hidden with none
     lv_obj_t* mHr          = nullptr;
 
     // Status face
     lv_obj_t* mStatusRoot = nullptr;
     lv_obj_t* mClock      = nullptr;
     lv_obj_t* mBatteryPct = nullptr;
+    lv_obj_t* mProjected  = nullptr;   ///< Projected finish under a pace plan
 
     std::unique_ptr<Widgets::Title>          mTitle;
     std::unique_ptr<Widgets::Buttons>        mButtons;

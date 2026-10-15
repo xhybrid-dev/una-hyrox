@@ -13,6 +13,14 @@ when it stamps `BUILD_VERSION` into the `.uapp`.
 
 ### Added
 
+- **Pace plan.** A new *Pace plan* row on the main menu: Off, Last race, or Target. *Last race*
+  measures the race against your last saved race, segment by segment. *Target* spreads a target
+  finish time over the segments in the proportions of your last race (set the time on the phone to
+  the minute, or in Settings in steps of five). The race screen shows how far ahead or behind you are
+  (green or amber), the segment time turns amber once it passes its target, and the status face shows
+  the projected finish. Nothing sounds for it. A mode the last race cannot support for the chosen
+  format says why instead of offering it. Needs a saved race.
+- **Target finish** is back as a phone setting (`targetFinishMin`, 0 to 240 minutes).
 - **Distinct cue pitch.** Each race event now has its own pitch as well as its own beep
   shape: run C7, station G7, Roxzone C8, finish C6. The beep counts and lengths are unchanged,
   so on firmware that predates the SDK's buzzer pitch the cues still differ by rhythm.

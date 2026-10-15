@@ -37,16 +37,6 @@
 namespace Race
 {
 
-/// How the targets are chosen. Stored as a byte in the settings file.
-enum class PaceMode : uint8_t
-{
-    Off = 0,
-    LastRace = 1,
-    Target = 2,
-};
-
-constexpr uint8_t kPaceModeCount = 3u;
-
 class PacePlan
 {
 public:
