@@ -98,3 +98,12 @@ TEST(RowCounter, AStateFromAFileIsClamped)
     EXPECT_EQ(c.state().set, 1u);
     EXPECT_EQ(c.state().total, Knitting::kMaxTotal);
 }
+
+TEST(RowCounter, ResetSaysWhetherAnythingChanged)
+{
+    RowCounter c;
+    EXPECT_FALSE(c.reset());        // already at the start: nothing to save
+    c.countRow();
+    EXPECT_TRUE(c.reset());
+    EXPECT_FALSE(c.reset());
+}
