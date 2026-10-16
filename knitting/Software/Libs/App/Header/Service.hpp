@@ -29,6 +29,9 @@ private:
     /// so a slow write never delays the number on screen.
     void saveState();
 
+    /// A short buzz, so a reset or an undo can be felt without looking.
+    void buzz(uint8_t effect);
+
     SDK::Kernel          &mKernel;
     Knitting::RowCounter  mCounter;
 };

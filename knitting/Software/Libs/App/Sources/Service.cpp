@@ -9,6 +9,7 @@
 
 #include "StateStore.hpp"
 
+#include "SDK/Messages/CommandMessages.hpp"
 #include "SDK/Messages/MessageGuard.hpp"
 
 #define LOG_MODULE_PRX      "Service"
@@ -83,10 +84,20 @@ void Service::run()
                 }
                 break;
 
+            case CustomMessage::UNDO_ROW:
+                if (mCounter.undoRow()) {
+                    sendUpdate();
+                    saveState();
+                    buzz(SDK::Message::RequestVibroPlay::STRONG_CLICK_100);
+                }
+                break;
+
             case CustomMessage::RESET_ALL:
+                // Sent only when the hold on L2 completes (the screen's work).
                 if (mCounter.reset()) {
                     sendUpdate();
                     saveState();
+                    buzz(SDK::Message::RequestVibroPlay::SHORT_DOUBLE_CLICK_STRONG_1_100);
                 }
                 break;
 
@@ -106,6 +117,17 @@ void Service::saveState()
         // The screen still shows the live count; the next change tries again.
         LOG_WARNING("could not save the count\n");
     }
+}
+
+void Service::buzz(uint8_t effect)
+{
+    auto vibro = SDK::make_msg<SDK::Message::RequestVibroPlay>(mKernel);
+    if (!vibro) {
+        return;
+    }
+    vibro->notes[0].effect = effect;
+    vibro->notesCount = 1;
+    vibro.send();
 }
 
 void Service::sendUpdate()

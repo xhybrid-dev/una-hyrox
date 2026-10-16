@@ -35,6 +35,7 @@ public:
 
     void countRow();
     void nextSet();
+    void undoRow();
     void resetAll();
 
     /// The last counter from the service, so a screen can draw on first show.

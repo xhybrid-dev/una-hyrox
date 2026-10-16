@@ -107,3 +107,44 @@ TEST(RowCounter, ResetSaysWhetherAnythingChanged)
     EXPECT_TRUE(c.reset());
     EXPECT_FALSE(c.reset());
 }
+
+TEST(RowCounter, UndoTakesBackOneRowAndTheTotal)
+{
+    RowCounter c;
+    for (int i = 0; i < 5; ++i) {
+        c.countRow();
+    }
+    EXPECT_TRUE(c.undoRow());
+    EXPECT_EQ(c.state().rows, 4u);
+    EXPECT_EQ(c.state().total, 4u);
+    EXPECT_EQ(c.state().set, 1u);
+}
+
+TEST(RowCounter, UndoAtZeroRowsDoesNothingAndNeverLeavesTheSet)
+{
+    RowCounter c;
+    EXPECT_FALSE(c.undoRow());
+    for (int i = 0; i < 8; ++i) {
+        c.countRow();
+    }
+    c.nextSet();                        // set 2, 0 rows, total 8
+    EXPECT_FALSE(c.undoRow());
+    EXPECT_EQ(c.state().set, 2u);
+    EXPECT_EQ(c.state().total, 8u);
+    c.countRow();
+    EXPECT_TRUE(c.undoRow());
+    EXPECT_FALSE(c.undoRow());
+    EXPECT_EQ(c.state().total, 8u);
+}
+
+TEST(RowCounter, UndoDoesNotUnderflowOnAnInconsistentState)
+{
+    CounterState s;
+    s.rows = 3;
+    s.set = 1;
+    s.total = 0;                        // a hand-edited file: total below rows
+    RowCounter c(s);
+    EXPECT_FALSE(c.undoRow());
+    EXPECT_EQ(c.state().rows, 3u);
+    EXPECT_EQ(c.state().total, 0u);
+}

@@ -211,8 +211,8 @@ its rep counter is meant to be reused by Race for wall balls and burpees later.
 ## Knitting (`knitting/`)
 An eighth app: a knitting counter. Press a button for every row, group rows into
 sets (rows and sets, like reps and sets), and see the rows in this set (big), the
-set number and the total rows (small). Buttons: R1 counts a row, L1 starts the next
-set, L2 resets, R2 exits. It is an activity-free utility: no GPS, no FIT files,
+set number and the total rows (small). Buttons: R1 counts a row (hold: undo a row),
+L1 starts the next set, L2 resets (hold 1.5 s), R2 exits. It is an activity-free utility: no GPS, no FIT files,
 nothing syncs. It is independent of the other apps.
 - **Docs:** findings, decisions and phases (K0-K5): `knitting/docs/NOTES.md`.
   Read it at the start of each Knitting phase, and work only on that phase.
@@ -225,6 +225,8 @@ nothing syncs. It is independent of the other apps.
   - host tests: `cmake -S knitting/Tests/Host -B knitting/build-tests && cmake --build knitting/build-tests && knitting/build-tests/knitting-host-tests`;
   - simulator: `knitting/Software/Apps/LVGL-GUI/simulator` (keys 1-4 are L1, L2, R1, R2);
   - a run in the simulator, with screenshots: `docs/experiments/capture_screens.sh [out-dir]`
-    (into `docs/screens/`). It needs Xvfb, xdotool and ImageMagick.
+    (into `docs/screens/`). It needs Xvfb, xdotool and ImageMagick. Also
+    `resume_check.sh` (the saved count) and `hold_check.sh` (the holds; key
+    down, wait, key up, as on the watch).
   - a local watch compile check needs Race's `syscall_stubs.c` built with
     `-mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb`, and `pyelftools`.

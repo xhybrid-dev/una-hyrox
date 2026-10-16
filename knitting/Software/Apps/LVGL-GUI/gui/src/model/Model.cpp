@@ -48,6 +48,11 @@ void Model::nextSet()
     SDK::send_msg<CustomMessage::NextSet>(mKernel);
 }
 
+void Model::undoRow()
+{
+    SDK::send_msg<CustomMessage::UndoRow>(mKernel);
+}
+
 void Model::resetAll()
 {
     SDK::send_msg<CustomMessage::ResetAll>(mKernel);
@@ -66,6 +71,11 @@ void Model::onResume()
 void Model::onSuspend()
 {
     LOG_INFO("called\n");
+    // A hold cannot complete while the GUI is away: the release would never
+    // reach the screen.
+    if (modelListener) {
+        modelListener->onSuspend();
+    }
 }
 
 void Model::onStop()
