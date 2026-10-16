@@ -61,12 +61,12 @@ was put in the plan and is still open for him to change):
 | K2 | The real screen: **hold to reset and hold to undo** (below), buzz; still to come: next-set feedback | A real knitting session |
 | K3 | Phone settings | Settings reach the watch over USB |
 | K4 | A glance, a second `.uapp` | Glance on the watch |
-| K5 | First store release, 1.0.0 | Installed from the store |
+| K5 | First store release, 1.0.0: the package, the previews, the store text (`SUBMISSION.md`) | K5: installed from the store; counts and keeps its count |
 
 ## K0: identity, layout and the first look (15 October 2026)
 
 - **Identity:** `Knitting`, type `Utility`, "Knitting" on the watch. Development
-  APP_ID `E7D056DCC90561F1`, the first 16 hex of md5("Knitting") (as Streak, Run
+  APP_ID `E7D056DCC90561F1`, the first 16 hex of md5("Knitting"), replaced at K5 by the portal's (as Streak, Run
   and Weigh-in started). The portal issues the store ID at K5.
   Version from `knitting-v*` tags (`Software/cmake/knitting-version.cmake`).
   Icon: `Resources/make_icons.py`, lime needles over a white ball of yarn.
@@ -296,3 +296,64 @@ What the answers decide:
 - **If a hold adds a row when you let go:** the real kernel sends a click after a long
   press; the guard against that has a 400 ms window to tune.
 - **Hold lengths** (0.8 s, 1.5 s) are constants (`kUndoHoldMs`, `kResetHoldMs`).
+
+## K5: the first store package (16 October 2026)
+
+Jon had the portal's App ID, `CDA5282FFDCE502F`, and asked for the first
+submission to be finalised and packaged. It follows X Weigh-in's route
+(`x-weighin/docs/SUBMISSION.md`), which taught the portal's rules.
+
+- **The App ID** is in the three places that name it: the watch build's
+  `CMakeLists.txt`, `Resources/app-manifest.json` and the simulator's
+  `CMakeLists.txt`. The packager refuses a release where they disagree, and
+  refuses the development ID `E7D056DCC90561F1`.
+- **The manifest** had a stale `"binary": "XWeighIn.uapp"`, left from the copy
+  of Weigh-in's (the packager overwrites it from the real file; the source is
+  fixed). It carries the nine activity keys the portal requires and no
+  `previews` key, and no phone settings.
+- **The package:** `Utilities/pack-store-zip.sh` (Weigh-in's, app only) gives
+  `Output/Knitting-<version>.zip`: the `.uapp`, `app-manifest.json`, `icon.png`
+  and `previews/`. The version comes from the binary's file name, which comes
+  from the tag `knitting-vX.Y.Z`. CI builds it on every push (a dry run) and on
+  a tag passes `--expect-version`; the artifact is `knitting-store-zip`.
+- **Previews:** four 480×480 simulator screens (`docs/experiments/store_previews.sh`):
+  counting, hold to undo, hold to reset, the next set. A made-up project (6
+  rows, Set 3, 22 in all). In the second and third the button was let go part-way, so
+  the row count in the next shot differs by one: a slow press counts a row, as it
+  should.
+- **Store text** is a draft in `SUBMISSION.md`, with the claims checked against the
+  code and a list of what it does not claim (survival of an uninstall, a target, a
+  glance, several projects).
+- **The tag is Jon's** (outward-facing; the session cannot push tags).
+
+### K5 verified (16 October 2026)
+
+- **Host tests:** 44 pass. **Simulator:** `hold_check.sh` and `resume_check.sh`
+  unchanged.
+- **Watch target, local compile check:** `Knitting_0.0.0-dev.uapp`, 184,792 bytes
+  with the portal's ID, no warnings from our code. Not installable.
+- **The packager, run for real:**
+  - a dry run on the normal build (0.0.0-dev) writes `Knitting-0.0.0-dev.zip`;
+  - a release-mode build (`-DBUILD_VERSION=1.0.0`) with `--expect-version 1.0.0`
+    writes `Knitting-1.0.0.zip` with the manifest's `binary` and `appVersion` taken
+    from the binary, and passes `min_kernel_version.py` (1.4.0, ABI 3) and
+    `validate_app_config.py` ("no configuration fields declared");
+  - it refuses a wrong expected version, an ID that differs between the files, and
+    the development ID on a release.
+- **Not verified:** the portal's own acceptance (only Weigh-in's lessons applied);
+  anything on the watch.
+
+## Gate K5: what Jon does
+
+1. **Check the holds on the watch first** (Gate K2 above), if not done.
+2. **Check the launcher icon**: earlier photos left it unclear whether Knitting's
+   icon shows or only a dot. If it is a dot, say so and it is redrawn as one bold
+   shape before release.
+3. Follow the release day in `docs/SUBMISSION.md`: merge, tag `knitting-v1.0.0`
+   on GitHub, install the CI's `.uapp` by USB and check it, upload the zip,
+   install from the store, remove the USB copy.
+4. **After the store install:** the app opens, counts, saves, resumes after a
+   close and after a power cycle, and the holds work.
+
+If the portal refuses the zip, send Claude its message: it is fixed, tagged
+`knitting-v1.0.1`, and uploaded again.

@@ -220,13 +220,16 @@ nothing syncs. It is independent of the other apps.
 - **Layout:** as X Weigh-in: the pure core `Software/Libs/Core` (header-only where
   the GUI uses it), the service and messages `Software/Libs/App`, the GUI
   `Software/Apps/LVGL-GUI`, the watch build `Software/Apps/Knitting-CMake`.
-- **Watch builds come from CI**, as for the others. Tags `knitting-vX.Y.Z`.
+- **Watch builds come from CI**, as for the others. Tags `knitting-vX.Y.Z`. App ID
+  `CDA5282FFDCE502F` (portal-issued). The store package (`Utilities/pack-store-zip.sh`,
+  CI artifact `knitting-store-zip`) and the release steps: `docs/SUBMISSION.md`.
 - **Commands:**
   - host tests: `cmake -S knitting/Tests/Host -B knitting/build-tests && cmake --build knitting/build-tests && knitting/build-tests/knitting-host-tests`;
   - simulator: `knitting/Software/Apps/LVGL-GUI/simulator` (keys 1-4 are L1, L2, R1, R2);
   - a run in the simulator, with screenshots: `docs/experiments/capture_screens.sh [out-dir]`
     (into `docs/screens/`). It needs Xvfb, xdotool and ImageMagick. Also
     `resume_check.sh` (the saved count) and `hold_check.sh` (the holds; key
-    down, wait, key up, as on the watch).
+    down, wait, key up, as on the watch); `store_previews.sh` (the four store
+    previews, into `Resources/previews/`).
   - a local watch compile check needs Race's `syscall_stubs.c` built with
     `-mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb`, and `pyelftools`.
