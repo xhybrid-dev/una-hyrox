@@ -2170,3 +2170,16 @@ is the 60x60 copy. This reverses the 5.19 colour choice, at Jon's request.
 **Open question:** 5.19 chose white because the watch UI is black; if the watch's
 own app list is dark, the black glyph may be faint there. Check on the watch; if so,
 the fix is a light tile behind the black X. Icon-only change: no code touched.
+
+### 5.33 Release 1.0.0 (16 October 2026)
+
+Jon asked for v1.0 of Race. `CHANGELOG.md`: "Unreleased" becomes 1.0.0 (the pace plan,
+the distinct cue pitches, the black icon, the SDK v1.6.0 build, the manifest fix); the release
+commit is tagged `v1.0.0` and `apps-v1.0.0`, as 0.1.0 was (5.30). CI builds the tag with
+`--expect-version 1.0.0`, so `race-store-zip` is `HybridXRace-1.0.0.zip` or there is none.
+Same App ID (`5C4D6F49335E5E17`), so on the portal this is the app's **Version** tab, **Upload
+New**, not a new app (SUBMISSION.md).
+
+**Not run on a watch:** the pace plan, the cue pitches and the new icon (5.21-5.32 say so). The
+changelog says so too. The 1.0 number is Jon's call; the first real race with the pace plan is
+the test, and a 1.0.1 follows if it finds anything.
