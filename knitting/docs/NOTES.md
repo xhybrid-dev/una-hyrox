@@ -321,6 +321,12 @@ submission to be finalised and packaged. It follows X Weigh-in's route
   rows, Set 3, 22 in all). In the second and third the button was let go part-way, so
   the row count in the next shot differs by one: a slow press counts a row, as it
   should.
+- **Store images** (16 October 2026, Jon's request): `docs/store/` holds each of the four
+  screens on UNA's own teal and white watch render (8 mock-ups, 1080×1080), five
+  feature cards with the headline above the watch, and a 1920×1080 banner with
+  a teal and a white watch. `docs/experiments/store_images.py`, as X Weigh-in's, reads
+  the renders from the SDK's Figma pack at run time. The cards say only what the
+  checked store text says.
 - **Store text** is a draft in `SUBMISSION.md`, with the claims checked against the
   code and a list of what it does not claim (survival of an uninstall, a target, a
   glance, several projects).
