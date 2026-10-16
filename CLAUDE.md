@@ -230,6 +230,7 @@ nothing syncs. It is independent of the other apps.
     (into `docs/screens/`). It needs Xvfb, xdotool and ImageMagick. Also
     `resume_check.sh` (the saved count) and `hold_check.sh` (the holds; key
     down, wait, key up, as on the watch); `store_previews.sh` (the four store
-    previews, into `Resources/previews/`).
+    previews, into `Resources/previews/`); store images (watch mock-ups in teal
+    and white, cards, banner): `UNA_SDK=... python3 docs/experiments/store_images.py docs/store`.
   - a local watch compile check needs Race's `syscall_stubs.c` built with
     `-mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb`, and `pyelftools`.

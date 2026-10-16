@@ -19,6 +19,7 @@ Everything that can be done without Jon is done. What is left:
 | Manifest | Checked by the packager: the activity keys the portal requires, no `previews` key (the lessons of X Weigh-in 1.0.0), no phone settings, `minKernelVersion` stamped from the SDK's ABI |
 | Icon | `Resources/icon_60x60.png` (shipped as `icon.png`), lime needles over a ball of yarn |
 | Previews | Four 480×480 simulator screens in `Resources/previews/`, from `docs/experiments/store_previews.sh` (a made-up project: 6 rows, Set 3, 22 in all) |
+| Store images | In `docs/store/`: the four previews, each screen on a teal and a white UNA watch (8 mock-ups), five feature cards and a banner. Made by `docs/experiments/store_images.py`; see `docs/store/README.md`. Only the previews go in the zip |
 | Version | 1.0.0, from the one tag `knitting-v1.0.0` |
 
 ## The release day (about half an hour of Jon's time)
