@@ -23,6 +23,9 @@ public:
     /// The counter changed in the service.
     virtual void onCounterUpdate(const Knitting::CounterState& state) { (void)state; }
 
+    /// The GUI is being suspended: drop anything half done, such as a hold.
+    virtual void onSuspend() {}
+
 protected:
     Model* model;
 };

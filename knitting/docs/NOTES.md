@@ -25,9 +25,9 @@ was put in the plan and is still open for him to change):
 
   | Button | Action |
   |---|---|
-  | R1 (select) | Count a row |
+  | R1 (select) | Tap: count a row. Hold 0.8 s: undo a row (K2) |
   | L1 | Start the next set |
-  | L2 | Reset (K0: immediate; K2: hold to confirm) |
+  | L2 | Hold 1.5 s: reset. A tap shows "Hold to reset" (K2; it was an immediate reset in K0) |
   | R2 | Back / exit |
 
 - **Planned for K2:** the count saved on every press, hold-R1 to undo a
@@ -58,15 +58,15 @@ was put in the plan and is still open for him to change):
 |---|---|---|
 | **K0** | Identity, scaffold, CI build; one screen that counts rows, sets and a reset, in memory | K0: do the four buttons feel right, is the screen readable while knitting? |
 | K1 | The core, pure and host-tested: counter, store, text. **Done so far: the saved count** (below). Still to come here: undo, targets | Host tests pass; the count survives a close and a power cycle |
-| K2 | The real screen: next-set feedback, reset with confirm, hold-to-undo, resume from file, buzz | A real knitting session |
+| K2 | The real screen: **hold to reset and hold to undo** (below), buzz; still to come: next-set feedback | A real knitting session |
 | K3 | Phone settings | Settings reach the watch over USB |
 | K4 | A glance, a second `.uapp` | Glance on the watch |
-| K5 | First store release, 1.0.0 | Installed from the store |
+| K5 | First store release, 1.0.0: the package, the previews, the store text (`SUBMISSION.md`) | K5: installed from the store; counts and keeps its count |
 
 ## K0: identity, layout and the first look (15 October 2026)
 
 - **Identity:** `Knitting`, type `Utility`, "Knitting" on the watch. Development
-  APP_ID `E7D056DCC90561F1`, the first 16 hex of md5("Knitting") (as Streak, Run
+  APP_ID `E7D056DCC90561F1`, the first 16 hex of md5("Knitting"), replaced at K5 by the portal's (as Streak, Run
   and Weigh-in started). The portal issues the store ID at K5.
   Version from `knitting-v*` tags (`Software/cmake/knitting-version.cmake`).
   Icon: `Resources/make_icons.py`, lime needles over a white ball of yarn.
@@ -217,3 +217,143 @@ What the answers decide:
   quieter moment.
 - **Reset is easy to hit by accident**, and now costs the saved count: the
   hold-to-confirm in the plan (K2) comes next.
+
+## K2 (part): hold to reset, hold to undo (16 October 2026)
+
+Jon: the count is now saved, so a stray L2 tap must not wipe it. Hold-to-reset
+"will be really valuable". He chose to add undo for a mis-tap at the same time.
+
+- **L2:** a tap does nothing but say "Hold to reset" (amber, 1.5 s). Holding it for
+  **1.5 s** resets to 0 rows, set 1. While held, the bottom line reads "Hold to
+  reset" and a bar fills under it; letting go early cancels.
+- **R1:** a tap counts a row, as before. Holding it for **0.8 s** takes one row
+  back ("Hold to undo", the same bar, then "Row undone").
+- **Undo stays inside the set:** it takes a row off this set and the total. At 0 rows
+  it does nothing; it never steps back into the previous set, because the previous
+  set's rows are not kept. (A way back across a set boundary would need the sets
+  kept as a list: not planned.)
+- **A buzz when it happens:** a short click for an undo, a double click for a
+  reset (`RequestVibroPlay`, from the service, as Waypoint does), so you can feel
+  it without looking. The kernel's own vibration setting may silence it.
+- **How it is timed:** the kernel sends no long-press code, so the screen times the
+  hold from the press and release codes, as Race's hold-to-finish does.
+  `HoldTimer` (Core, header-only, host-tested, clock passed in) holds the logic;
+  the screen runs one 40 ms LVGL timer only while a hold or a notice is on screen.
+- **What the simulator showed about the codes** (`LvglHost.cpp`, which follows the
+  kernel): a press sends the press code; letting go sends a click **only if the
+  button was down for under 500 ms**, then the release code. So a press of 500 ms or
+  more sends no click. That would have been a hole in K0's counting (counted on the
+  click only): a slow, firm press of 0.5-0.8 s would count nothing. Now **a tap is
+  whichever of the click or the release comes first, counted once**, and never after a
+  hold that fired. The real watch's order is not documented, so `HoldTimer` also
+  handles press, release, click, and a click with no press codes at all.
+- A hold is **dropped on suspend** (the release could not reach the screen, and the
+  hold would finish by itself on resume).
+- **New files:** `Core/Header/HoldTimer.hpp`; `UNDO_ROW` in `Commands.hpp`;
+  `RowCounter::undoRow()`. `ModelListener::onSuspend()` is new.
+
+### K2 (part) verified (16 October 2026)
+
+- **Host tests:** 44 pass (was 24). New: the hold fires once at its length and not
+  before; early release; a repeated press code; progress 0-1000; the wrap of the
+  millisecond clock; a quick tap, a slow tap with no click, and release-then-click each
+  count once; a fired hold never counts; a click that never comes cannot eat the next
+  tap; cancel; undo at 0 rows, never leaving the set, no underflow on an odd file.
+- **Simulator** (`docs/experiments/hold_check.sh`, with real key-down and key-up
+  timing): a tap on L2 changes nothing; five taps give 5; a 0.6 s L2 hold is
+  cancelled; a 1.1 s R1 hold undoes one row and adds none on release (4); a tap
+  gives 5; a 0.65 s press gives 6 (counted on the release, once); a 1.9 s L2 hold
+  resets (0, set 1) and `state.txt` and a reopen agree. The earlier scripts
+  (`capture_screens.sh`, `resume_check.sh`) now reset with a hold and still pass.
+- **Watch target, local compile check:** `Knitting_0.0.0-dev.uapp`, 184,792 bytes
+  (183,040 before), no warnings from our code. Not installable; the watch copy comes
+  from CI.
+- **Not verified:** nothing has run on the watch.
+
+![Tap hint](screens/k2-2-tap-hint.png)
+![Reset hold](screens/k2-3-reset-hold-bar.png)
+![Undo hold](screens/k2-4-undo-hold-bar.png)
+![Row undone](screens/k2-5-undone.png)
+![Reset](screens/k2-7-reset-done.png)
+
+### Gate K2 (holds): what Jon tests on the watch
+
+1. **Install** the new CI build over the old one (replace the `.uapp` in `Apps/Knitting/`,
+   eject safely, power-cycle).
+2. **Tap R1** a few times: rows count as before. Try a **slow, firm press**: it should
+   count too, once.
+3. **Hold R1** until "Row undone" and let go: one row off, and no row added when you
+   let go. Does 0.8 s feel right?
+4. **Tap L2**: only "Hold to reset" shows. **Hold L2** until "Reset": everything goes to
+   0, set 1. Let go **before** it finishes: nothing happens. Does 1.5 s feel right?
+5. **Close and reopen** after a reset: still 0.
+6. **Did you feel the buzz** on undo and on reset?
+
+What the answers decide:
+- **If a hold does nothing on the watch** (the bar never shows): the press and release
+  codes are not reaching the app as the simulator sends them, and reset needs another
+  way (the planned fallback: tap L2, then tap R1 within 3 seconds to confirm).
+- **If a hold adds a row when you let go:** the real kernel sends a click after a long
+  press; the guard against that has a 400 ms window to tune.
+- **Hold lengths** (0.8 s, 1.5 s) are constants (`kUndoHoldMs`, `kResetHoldMs`).
+
+## K5: the first store package (16 October 2026)
+
+Jon had the portal's App ID, `CDA5282FFDCE502F`, and asked for the first
+submission to be finalised and packaged. It follows X Weigh-in's route
+(`x-weighin/docs/SUBMISSION.md`), which taught the portal's rules.
+
+- **The App ID** is in the three places that name it: the watch build's
+  `CMakeLists.txt`, `Resources/app-manifest.json` and the simulator's
+  `CMakeLists.txt`. The packager refuses a release where they disagree, and
+  refuses the development ID `E7D056DCC90561F1`.
+- **The manifest** had a stale `"binary": "XWeighIn.uapp"`, left from the copy
+  of Weigh-in's (the packager overwrites it from the real file; the source is
+  fixed). It carries the nine activity keys the portal requires and no
+  `previews` key, and no phone settings.
+- **The package:** `Utilities/pack-store-zip.sh` (Weigh-in's, app only) gives
+  `Output/Knitting-<version>.zip`: the `.uapp`, `app-manifest.json`, `icon.png`
+  and `previews/`. The version comes from the binary's file name, which comes
+  from the tag `knitting-vX.Y.Z`. CI builds it on every push (a dry run) and on
+  a tag passes `--expect-version`; the artifact is `knitting-store-zip`.
+- **Previews:** four 480×480 simulator screens (`docs/experiments/store_previews.sh`):
+  counting, hold to undo, hold to reset, the next set. A made-up project (6
+  rows, Set 3, 22 in all). In the second and third the button was let go part-way, so
+  the row count in the next shot differs by one: a slow press counts a row, as it
+  should.
+- **Store text** is a draft in `SUBMISSION.md`, with the claims checked against the
+  code and a list of what it does not claim (survival of an uninstall, a target, a
+  glance, several projects).
+- **The tag is Jon's** (outward-facing; the session cannot push tags).
+
+### K5 verified (16 October 2026)
+
+- **Host tests:** 44 pass. **Simulator:** `hold_check.sh` and `resume_check.sh`
+  unchanged.
+- **Watch target, local compile check:** `Knitting_0.0.0-dev.uapp`, 184,792 bytes
+  with the portal's ID, no warnings from our code. Not installable.
+- **The packager, run for real:**
+  - a dry run on the normal build (0.0.0-dev) writes `Knitting-0.0.0-dev.zip`;
+  - a release-mode build (`-DBUILD_VERSION=1.0.0`) with `--expect-version 1.0.0`
+    writes `Knitting-1.0.0.zip` with the manifest's `binary` and `appVersion` taken
+    from the binary, and passes `min_kernel_version.py` (1.4.0, ABI 3) and
+    `validate_app_config.py` ("no configuration fields declared");
+  - it refuses a wrong expected version, an ID that differs between the files, and
+    the development ID on a release.
+- **Not verified:** the portal's own acceptance (only Weigh-in's lessons applied);
+  anything on the watch.
+
+## Gate K5: what Jon does
+
+1. **Check the holds on the watch first** (Gate K2 above), if not done.
+2. **Check the launcher icon**: earlier photos left it unclear whether Knitting's
+   icon shows or only a dot. If it is a dot, say so and it is redrawn as one bold
+   shape before release.
+3. Follow the release day in `docs/SUBMISSION.md`: merge, tag `knitting-v1.0.0`
+   on GitHub, install the CI's `.uapp` by USB and check it, upload the zip,
+   install from the store, remove the USB copy.
+4. **After the store install:** the app opens, counts, saves, resumes after a
+   close and after a power cycle, and the holds work.
+
+If the portal refuses the zip, send Claude its message: it is fixed, tagged
+`knitting-v1.0.1`, and uploaded again.

@@ -58,7 +58,7 @@ target_include_directories(KnittingSimulator PRIVATE
 target_compile_definitions(KnittingSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
-    APP_ID="E7D056DCC90561F1"
+    APP_ID="CDA5282FFDCE502F"
     APP_NAME="Knitting"
     DEV_ID="HybridX Simulator"
     BUILD_VERSION="0.1.0-sim"

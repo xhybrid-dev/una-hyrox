@@ -50,6 +50,21 @@ public:
     }
 
     /**
+     * @brief   Take back the last row, for a mis-tap. It stays inside the
+     *          current set: at 0 rows it does nothing, because the previous
+     *          set's rows are not kept. False when it did nothing.
+     */
+    bool undoRow()
+    {
+        if (mState.rows == 0 || mState.total == 0) {
+            return false;
+        }
+        --mState.rows;
+        --mState.total;
+        return true;
+    }
+
+    /**
      * @brief   Start the next set. False when the current set is empty (a
      *          double press must not leave a run of empty sets) or at the
      *          last set.

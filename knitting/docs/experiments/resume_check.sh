@@ -4,7 +4,7 @@
 #
 # Run 1: 8 rows, next set, 3 rows, then R2 closes the app.
 # Run 2: start again; the screen must show 3 rows, Set 2, Total 11.
-#        Reset (L2), close again.
+#        Reset (hold L2), close again.
 # Run 3: start again; the screen must show 0 rows, Set 1, Total 0.
 # The state file's text is printed after each close. A damaged file is then
 # put in place, with the backup beside it, to check the fallback.
@@ -50,6 +50,8 @@ close_sim() {
     done
 }
 key()  { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-0.4}"; }
+# Reset needs a hold on L2 (1.5 s); a tap only shows a hint.
+hold_reset() { DISPLAY=$DISP xdotool keydown 2; sleep 1.9; DISPLAY=$DISP xdotool keyup 2; sleep 0.5; }
 snap() { DISPLAY=$DISP timeout 10 import -window "$WID" "$OUT/$1.png" 2>/dev/null; echo "  $1"; }
 show() { echo "  state.txt:"; sed 's/^/    /' "$APPDIR/state.txt" 2>/dev/null || echo "    (absent)"; }
 
@@ -65,7 +67,7 @@ close_sim; show
 echo "Run 2: reopen (expect 3 rows, Set 2, Total 11)"
 start_sim
 snap k1-3-reopened
-key 2; snap k1-4-reset
+hold_reset; snap k1-4-reset
 close_sim; show
 
 echo "Run 3: reopen after a reset (expect 0, Set 1, Total 0)"

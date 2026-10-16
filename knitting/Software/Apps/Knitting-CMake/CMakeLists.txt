@@ -15,7 +15,7 @@ set(APP_USER_NAME "Knitting")             # 7 bytes; app_merging.py truncates at
 set(APP_FILE_NAME "Knitting")
 set(APP_TYPE "Utility")
 set(DEV_ID "HybridX")
-set(APP_ID "E7D056DCC90561F1")          # development ID: first 16 hex of md5("Knitting"); the UNA portal issues the store ID at K5
+set(APP_ID "CDA5282FFDCE502F")          # issued by the UNA portal (16 Oct 2026); the development ID was E7D056DCC90561F1
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")

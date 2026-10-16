@@ -27,6 +27,7 @@ constexpr SDK::MessageType::Type COUNTER_UPDATE = 0x00000001;
 constexpr SDK::MessageType::Type COUNT_ROW = 0x00000010;
 constexpr SDK::MessageType::Type NEXT_SET  = 0x00000011;
 constexpr SDK::MessageType::Type RESET_ALL = 0x00000012;
+constexpr SDK::MessageType::Type UNDO_ROW  = 0x00000013;
 
 /**
  * @brief   Service --> GUI: the counter as it now stands.
@@ -57,7 +58,12 @@ struct NextSet : public SDK::MessageBase {
     NextSet() : SDK::MessageBase(NEXT_SET) {}
 };
 
-/// GUI --> Service: back to set 1 with no rows.
+/// GUI --> Service: take back the last row (a hold on R1).
+struct UndoRow : public SDK::MessageBase {
+    UndoRow() : SDK::MessageBase(UNDO_ROW) {}
+};
+
+/// GUI --> Service: back to set 1 with no rows (a hold on L2).
 struct ResetAll : public SDK::MessageBase {
     ResetAll() : SDK::MessageBase(RESET_ALL) {}
 };

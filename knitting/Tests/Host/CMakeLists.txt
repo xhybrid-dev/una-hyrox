@@ -33,6 +33,7 @@ set(CORE_SOURCES
 # against an in-memory tree (support/TreeFileSystem, copied from X Weigh-in).
 add_executable(knitting-host-tests
     RowCounterTest.cpp
+    HoldTimerTest.cpp
     StateCodecTest.cpp
     StateStoreTest.cpp
     support/TreeFileSystem.cpp

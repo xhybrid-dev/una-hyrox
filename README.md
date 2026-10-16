@@ -153,7 +153,7 @@ builds its apps, with ST's toolchain. To download the result:
    estimates VO2max (see `hybridx-run/docs/NOTES.md`), and X Weigh-in, an
    on-watch weight tracker, and its glance (in development; see
    `x-weighin/docs/NOTES.md`), and Knitting, a knitting row and set counter
-   (in development; see `knitting/docs/NOTES.md`). A glance goes in a folder of its own, named
+   (first store release 1.0.0; see `knitting/docs/NOTES.md` and `knitting/docs/SUBMISSION.md`). A glance goes in a folder of its own, named
    like its file: `Apps/HXStreakGlance/`, `Apps/XWeighInGlance/`.
 
 Until the app is on the store, installing is a file copy:
