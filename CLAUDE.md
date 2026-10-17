@@ -181,3 +181,39 @@ its rep counter is meant to be reused by Race for wall balls and burpees later.
   - the glance (the simulator cannot run glances): a mock-up from the real
     layout code, `docs/experiments/glance_preview.py build-tests/glance_preview
     <out.png>`.
+
+## X Trail Quest (`x-trailquest/`)
+An eighth app, and a game: a Game Boy-style, turn-based trail-running adventure.
+You run "The Ridge" (5 stages), choose routes at forks, meet original creatures
+("Trail Spirits") that become running partners, and win short duels with pace and
+grit; each stage ends with a boss. Planned extra: Daily Trail (a run seeded from
+the date). It is independent of the other apps. Original only: no Pokémon names,
+creatures, moves, art or type chart (brief section 9).
+- **Docs:** brief, plan and phases (Q0-Q6): `x-trailquest/docs/X_TRAILQUEST_BRIEF.md`;
+  findings, decisions and the gate records: `NOTES.md`; look and voice:
+  `DESIGN.md`. Read the brief and `NOTES.md` at the start of each phase, and work
+  only on that phase. Where the brief and `NOTES.md` disagree, `NOTES.md` is right.
+- **Rules:** the same standing rules as Race apply. Also:
+  - the GUI runs at **10 frames a second** and gets one button code per frame, so
+    the game is turn-based and any timing input needs zones of at least two frames;
+  - the buzzer has **no pitch**; sound is rhythm and the vibro does the rest;
+  - the display is round: keep text inside the circle;
+  - colours are on the display's grid (each channel 0x00, 0x40, 0x80 or 0xC0);
+  - the GUI process links none of the library sources, so **anything the GUI uses
+    from `Libs/Core` must be header-only**; the simulator hides this, the watch
+    build catches it.
+- **Layout:** the pure core `Software/Libs/Core` (the timing beat and the
+  feedback table so far; duel, world and save to come); the service
+  `Software/Libs/App` (from X Weigh-in); the GUI `Software/Apps/LVGL-GUI`
+  (screens, the sprite expander). No glance. Art is drawn by
+  `Tools/Art/gen_art.py` into `assets/sprites/sprites.c`; never edit that file.
+- **Watch builds come from CI**, as for the others. Tags `trailquest-vX.Y.Z`.
+  Local watch builds are compile checks only (the stub recipe is in `NOTES.md`).
+- **Commands:**
+  - host tests: `cmake -S x-trailquest/Tests/Host -B x-trailquest/build-tests && cmake --build x-trailquest/build-tests && x-trailquest/build-tests/x-trailquest-host-tests`;
+  - simulator: `x-trailquest/Software/Apps/LVGL-GUI/simulator` (a Ninja build in
+    its `build/`; run `build/bin/XTrailQuestSimulator`; keys 1-4 are L1-R2);
+  - screens, cut to the round face: `docs/experiments/capture_screens.sh [out-dir]`
+    (into `docs/screens/`);
+  - art: `python3 x-trailquest/Tools/Art/gen_art.py` (writes the sprites and a
+    preview sheet); icons: `python3 x-trailquest/Resources/make_icons.py`.

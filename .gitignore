@@ -64,3 +64,8 @@ x-weighin/Output/
 x-weighin/Software/Output/
 x-weighin/Software/Apps/LVGL-GUI/simulator/build/
 x-weighin/Software/SharedData/
+x-trailquest/build/
+x-trailquest/build-tests/
+x-trailquest/Output/
+x-trailquest/Software/Output/
+x-trailquest/Software/Apps/LVGL-GUI/simulator/build/

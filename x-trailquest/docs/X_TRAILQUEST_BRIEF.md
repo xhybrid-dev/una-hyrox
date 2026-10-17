@@ -1,10 +1,28 @@
 # X Trail Quest for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** Brief only (17 October 2026). Nothing is built yet. Next: Jon's
-decisions (section 10), then Q0: a feasibility prototype.
-**Read with:** the SDK docs for the platform facts in section 6 (still to be
-confirmed in Q0).
+**Status:** Q0 (feasibility) built in the simulator and as a watch compile
+check, 17 October 2026; waiting on Jon's test on a real watch (Gate Q0).
+Decisions taken: tone "funny start, serious summit"; full 5 stages; Daily Trail
+as the planned extra; generated pixel art.
+**Read with:** `NOTES.md` (findings, decisions and the Q0 gate). Where this
+brief and `NOTES.md` disagree, `NOTES.md` is right: it was written after the
+SDK check, and the sections below were not all rewritten. The corrections are
+listed next.
+
+> **Corrections after the SDK check (17 October 2026).**
+> 1. The watch GUI runs at **10 frames a second**, not 30, and delivers one
+>    button code per frame. Turn-based is right; the timing beat needs wide
+>    zones (never under 200 ms) and is optional.
+> 2. The buzzer has **no pitch** (a duration and one of four volumes), so there is
+>    no chiptune. Sound is rhythm; the vibro does most of the work.
+> 3. The display is round, so the game's art is not edge to edge: headings and
+>    text sit inside the circle.
+> 4. Colours are on a grid of **0x00, 0x40, 0x80, 0xC0** a channel, and indexed
+>    LVGL images are not a saving here (the SDK decodes them to 32-bit in its
+>    pool). Sprites are our own 4-bit format, expanded into RAM buffers.
+> 5. Everything the GUI process uses from the core must be **header-only**: the
+>    GUI links none of the library sources.
 
 ---
 
@@ -125,9 +143,11 @@ choice, with a result and a small cost.
 
 From the SDK docs checked on 17 October 2026 (to be re-verified in Q0):
 
-- 240×240 display, 64 colours (ABGR2222), software rendered.
+- 240×240 display (round, see NOTES), 64 colours (ABGR2222), software rendered
+  at 10 frames a second.
 - Four buttons (L1, L2, R1, R2), no touchscreen.
-- Vibration and a buzzer, usable for hits, crits and the timing beat.
+- Vibration (8-note melodies of 21 named effects) and a buzzer (10 notes, each
+  a duration and a volume of 0, 33, 66 or 100; no pitch).
 - No MMU, no heap churn in the loop, fixed-size messages (the standing rules).
 
 Design consequences:
@@ -136,12 +156,12 @@ Design consequences:
   kind to the battery; only the timing beat and a few animations need a
   frame loop.
 - **Four moves on four buttons**, so no menus to navigate in a duel.
-- **A Game Boy look**: small tile-based art on a limited palette, 160×144
-  logical resolution scaled up and centred, which keeps sprites tiny and
-  memory low. Stage palettes give each terrain its own mood.
-- **Art budget**: tiles in flash, with no per-frame allocation. Sprites and
-  tiles are generated from PNG files by a build script, with the 2-bit
-  conversion the SDK already uses for icons.
+- **A Game Boy look**: chunky pixel art on a 120×120 logical grid drawn at an
+  exact 2×, in palettes of 16 colours taken from the display's 64, with a pixel
+  font (Press Start 2P). Stage palettes give each terrain its own mood.
+- **Art budget**: sprites are 24×24 logical at 4 bits a pixel (288 bytes), drawn
+  from code by `Tools/Art/gen_art.py`. The few on screen are expanded into
+  static RGB565A8 buffers (about 7 KB each), outside LVGL's 40 KB pool.
 
 ## 7. Architecture
 
@@ -171,7 +191,7 @@ or decide. Build the watch target and the simulator after every change.
 
 | Phase | Work | Gate: what must be true to go on |
 |---|---|---|
-| **Q0: feasibility** | A throwaway prototype: one scaled 160×144 screen, a tile map, two sprites, a timing bar. Measure frame rate and battery on a real watch | **Gate Q0:** the art looks right and the timing beat is smooth on the watch, or Jon accepts a menu-only duel |
+| **Q0: feasibility** | A probe screen: a scene, three animated sprites, the button bezel, a timing beat, the feedback patterns, and live frame/memory numbers. Measure on a real watch | **Gate Q0:** the art looks right and the timing beat is playable at 10 frames a second on the watch, or Jon accepts a menu-only duel |
 | **Q1: core** | World graph, duel engine, stats, items, save; host tests and the balance simulator | **Gate Q1:** duels are deterministic and balanced on paper (win-rate targets agreed with Jon) |
 | **Q2: one stage** | Stage 1 playable end to end in the simulator: map, route choice, 4 creatures, one boss, huts, save | **Gate Q2:** Jon plays stage 1 in the simulator and it is fun for 10 minutes |
 | **Q3: service and watch** | Service from RunLVGL, haptics and sound, real-watch build from CI | **Gate Q3:** stage 1 plays on a real watch; battery over a 30-minute session recorded |
@@ -189,7 +209,8 @@ worth finishing. Q4 is mostly content and balance, not new engineering.
   not shaped after existing monsters.
 - "Spirit", "partner", "duel" and "stage" are generic words and fine. We avoid
   words that are marks of another game ("Poké-", "-mon", "trainer badge").
-- Music and sound are our own chiptune, not anything lifted from a game.
+- Sound is our own (rhythms on the buzzer, patterns on the vibro), not anything
+  lifted from a game.
 - This is a design guideline, not legal advice. If it becomes a paid product,
   have someone check the names and art.
 
@@ -210,20 +231,17 @@ worth finishing. Q4 is mostly content and balance, not new engineering.
    About 16 creatures at 2 frames each, plus 5 tile sets and a runner sprite.
 7. **Tone.** Light and funny (Stitch, Bonk, Doubt) or more serious and
    atmospheric? The names above lean light.
-8. **Sound.** Haptics only, or also short chiptune buzzer jingles (if the
-   buzzer allows pitch control; to be checked in Q0)?
+8. **Sound.** Closed: the buzzer has no pitch, so haptics plus rhythmic beeps
+   (NOTES, finding 3).
 
 ## 11. Questions for UNA / SDK checks (do not guess; answer in Q0)
 
-- What frame rate can LVGL sustain on the real watch for a scaled 160×144
-  tile screen? Can a full-screen redraw at 30 fps run without draining the
-  battery?
-- Can the buzzer play pitched tones, or only fixed buzzes? How long can a
-  vibration pattern be?
-- How much flash and RAM can the app use for assets? What is the app package
-  size limit?
-- Is there a supported way to persist a small save file between runs?
-- Are button hold and release events available (for charge-and-release moves)?
+Answered from the SDK (details and citations in `NOTES.md`): the frame rate is
+10 a second; the buzzer has no pitch; press, click and release codes exist;
+saving is through `IFileSystem` in the app's folder. Still open for the watch
+itself (the Q0 gate): real render time per frame, whether the backlight hold
+works, the order button codes arrive in, which button the system keeps for itself,
+and the app package size limit.
 
 ## 12. Risks
 

@@ -149,7 +149,8 @@ builds its apps, with ST's toolchain. To download the result:
    (see `hybridx-trail/docs/PROBE.md`), HybridX Run, a test app that
    estimates VO2max (see `hybridx-run/docs/NOTES.md`), and X Weigh-in, an
    on-watch weight tracker, and its glance (in development; see
-   `x-weighin/docs/NOTES.md`). A glance goes in a folder of its own, named
+   `x-weighin/docs/NOTES.md`), and X Trail Quest, a turn-based trail-running
+   adventure (Q0 feasibility probe; see `x-trailquest/docs/NOTES.md`). A glance goes in a folder of its own, named
    like its file: `Apps/HXStreakGlance/`, `Apps/XWeighInGlance/`.
 
 Until the app is on the store, installing is a file copy:
