@@ -52,7 +52,7 @@ struct Spec {
 };
 
 struct Layout {
-    static constexpr uint8_t kMax = 20;   ///< the full layout uses at most 17
+    static constexpr uint8_t kMax = 20;   ///< the full layout uses at most 16
     Spec    items[kMax] {};
     uint8_t count = 0;
     enum class Kind : uint8_t { Full, Compact, Tiny } kind = Kind::Full;

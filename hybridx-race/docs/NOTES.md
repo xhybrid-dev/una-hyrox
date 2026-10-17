@@ -1803,3 +1803,33 @@ gains a 0.1.0 section, and the release commit is tagged `v0.1.0` and
 `apps-v0.1.0`. CI builds the tag with `--expect-version 0.1.0`, so its
 `race-store-zip` artifact is `HybridXRace-0.1.0.zip` with the portal's App ID,
 or there is no zip at all. That zip is the upload.
+
+### 5.31 The portal rejects the manifest the SDK documents (11 October 2026)
+
+Uploading `HybridXRace-0.1.0.zip` (CI, tag `apps-v0.1.0`) to apps.unawatch.com
+failed at "Valid app-manifest.json": *JSON validation error in file
+app-manifest.json: (root) must NOT have additional properties*. The `.uapp`
+itself passed. The manifest follows `Docs/app-config-json.md` as pinned
+(rev 1.05), whose newer keys are `manifest_version` (1.05), `configFile` and
+`configFields` (1.04) and `minKernelVersion` (1.02, was `minSdkVersion`). The
+SDK's own schema (`app-config.schema.json`) only constrains the config keys,
+so nothing local could catch it. The portal appears to validate against an
+older key set, like the example in `Docs/assets/config-json.png`
+(`minSdkVersion`, no `manifest_version`, no config fields).
+
+**SDK and portal disagree: report to UNA.** Three test zips, same CI `.uapp`,
+manifest only changed (made from the CI zip, not rebuilt): A drops
+`manifest_version`; B also drops `configFile`/`configFields`; C keeps only the
+example's keys, with `minSdkVersion`. Whichever the portal accepts decides
+the packager change. If B or C is needed, the phone settings (T23) are lost
+until the portal catches up with the SDK.
+
+**Resolved the same day.** A to C failed (C also showed the portal *requires*
+`manifest_version`, `description` and `minKernelVersion`, so it is not an old
+schema). UNA's own example manifests (`Docs/Tutorials/Files` and `Waypoint`)
+carry every key ours did except `previews`. Test D, the original manifest
+without the `"previews"` key, previews folder kept, **was accepted and is
+uploaded**. So the one key the portal rejects is `previews`, which
+`Docs/app-config-json.md` documents. `Resources/app-manifest.json` drops it, and
+`pack-store-zip.sh` strips it from any staged manifest. Worth telling UNA: their
+docs and portal disagree on it.
