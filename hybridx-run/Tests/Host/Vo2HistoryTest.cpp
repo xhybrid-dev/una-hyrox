@@ -84,7 +84,7 @@ TEST(Vo2History, JsonRoundTrip)
     const size_t n = h.toJson(buf, sizeof(buf));
     ASSERT_GT(n, 0u);
     EXPECT_STREQ(buf, "{\"v\":2,\"restHr\":52,\"maxes\":[186,184],"
-                      "\"runs\":[[1791000000,523,24],[1791100000,531,18]]}");
+                      "\"runs\":[[1791000000,523,24,523],[1791100000,531,18,526]]}");
 
     Vo2History back;
     ASSERT_TRUE(back.fromJson(buf, n));
@@ -92,6 +92,7 @@ TEST(Vo2History, JsonRoundTrip)
     EXPECT_EQ(back.watchRestHr(), 52);
     EXPECT_EQ(back.autoMaxHr(), 184);
     EXPECT_EQ(back.at(1).vo2x10, 531);
+    EXPECT_EQ(back.at(1).shownX10, 526);
     EXPECT_EQ(back.rollingX10(), h.rollingX10());
 }
 
@@ -200,6 +201,46 @@ TEST(Vo2History, SharedJson)
     EXPECT_EQ(h.toSharedJson(buf, 8), 0u);
 }
 
+TEST(Vo2History, RunsWithoutTheShownValueStillRead)
+{
+    // Before R6 each run had three fields: the shown value is worked out from
+    // the runs read so far.
+    const std::string t = "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10],[2,520,10,505]]}";
+    Vo2History h;
+    ASSERT_TRUE(h.fromJson(t.c_str(), t.size()));
+    EXPECT_EQ(h.at(0).shownX10, 500);
+    EXPECT_EQ(h.at(1).shownX10, 505);   // as written, not recomputed (510)
+}
+
+TEST(Vo2History, ABadShownValueFailsTheFile)
+{
+    const char* bad[] = {
+        "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10,0]]}",
+        "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10,9999]]}",
+        "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10,500,1]]}",
+        "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500]]}",
+    };
+    for (const char* s : bad) {
+        Vo2History h;
+        EXPECT_FALSE(h.fromJson(s, std::strlen(s))) << s;
+        EXPECT_EQ(h.size(), 0) << s;
+    }
+}
+
+TEST(Vo2History, JsonFitsWhenFull)
+{
+    Vo2History h;
+    for (uint8_t i = 0; i < Config::kHistoryRuns; ++i) {
+        h.addRunMax(220);
+    }
+    h.setWatchRestHr(100);
+    for (uint32_t i = 0; i < Config::kHistoryRuns; ++i) {
+        h.add(RunRecord{4000000000u + i, 950, Config::kMaxWindows});
+    }
+    char buf[Vo2History::kMaxJsonBytes];
+    EXPECT_GT(h.toJson(buf, sizeof(buf)), 0u);
+}
+
 TEST(Vo2History, SharedJsonFitsWhenFull)
 {
     Vo2History h;
@@ -223,9 +264,10 @@ TEST(Vo2History, TrendIsTheShownFigureAfterEachRun)
     // The last entry is today's figure, the one before it the figure before.
     EXPECT_EQ(t[Config::kHistoryRuns - 1], h.rollingX10());
     EXPECT_EQ(t[Config::kHistoryRuns - 2], h.rollingX10Before());
-    // Kept runs 2..11 (vo2 520..610); after the 1st kept run (index 0) only
-    // that run counts: 520. After the 5th: the mean of 520..560 = 540.
-    EXPECT_EQ(t[0], 520);
+    // Kept runs 2..11 (vo2 520..610), each with the value shown when it was
+    // added, so dropped runs still count: after run 2, runs 0..2 = 510; after
+    // run 6, runs 2..6 = 540.
+    EXPECT_EQ(t[0], 510);
     EXPECT_EQ(t[4], 540);
     // Fewer asked for: the newest ones.
     uint16_t two[2] = {};

@@ -15,8 +15,9 @@
  * Written and read with the SDK's JSON writer and reader (coreJSON), as HybridX
  * Streak's state file is, so the host tests cover it; the service does the file
  * I/O. Integers only:
- *   {"v":2,"restHr":52,"maxes":[186,184],"runs":[[1791000000,523,24],...]}
- * oldest first. Version 1 files (R1-R3: "autoMaxHr" instead of "maxes" and
+ *   {"v":2,"restHr":52,"maxes":[186,184],"runs":[[1791000000,523,24,519],...]}
+ * oldest first; each run is [end, estimate, windows, value shown after it]
+ * (the fourth since R6; older files have three and still read). Version 1 files (R1-R3: "autoMaxHr" instead of "maxes" and
  * "restHr") are read. Unknown keys are ignored, so a newer file still reads;
  * a known key with a bad value fails the whole file (the service then tries
  * the backup), never a crash.
@@ -35,9 +36,14 @@ namespace RunVo2
 {
 
 struct RunRecord {
-    uint32_t utc     = 0;   ///< run end
-    uint16_t vo2x10  = 0;
-    uint16_t windows = 0;
+    uint32_t utc      = 0;   ///< run end
+    uint16_t vo2x10   = 0;
+    uint16_t windows  = 0;
+    /// The value shown (rollingX10) once this run was added, for the glance's
+    /// trend (R6). 0 on add(): worked out there. Files from before R6 lack it,
+    /// and it is worked out on reading from the runs kept, so for the oldest
+    /// few of a full history it is over fewer runs than were really shown.
+    uint16_t shownX10 = 0;
 };
 
 class Vo2History
@@ -45,7 +51,8 @@ class Vo2History
 public:
     void clear() { *this = Vo2History{}; }
 
-    /// Add a run's estimate, dropping the oldest when full.
+    /// Add a run's estimate, dropping the oldest when full. A shownX10 of 0
+    /// is set to the value shown with this run added.
     void add(const RunRecord& r);
 
     uint8_t size() const { return mCount; }
@@ -81,9 +88,8 @@ public:
     /// empty and false returned.
     bool fromJson(const char* text, size_t len);
 
-    /// The shown figure as it stood after each kept run, oldest first, x 10
-    /// (the same weighting as rollingX10()). Writes at most max values;
-    /// returns how many.
+    /// The shown figure as it stood after each kept run (its shownX10),
+    /// oldest first, x 10. Writes the newest max at most; returns how many.
     uint8_t trendX10(uint16_t* out, uint8_t max) const;
 
     /// The shared file other HybridX apps (and the VO2max glance) read
@@ -97,7 +103,7 @@ public:
     static constexpr size_t kMaxSharedJsonBytes = 96 + Config::kHistoryRuns * 6;
 
     /// Largest toJson() output, for sizing buffers.
-    static constexpr size_t kMaxJsonBytes = 64 + Config::kHistoryRuns * (32 + 4);
+    static constexpr size_t kMaxJsonBytes = 64 + Config::kHistoryRuns * (32 + 10);
 
 private:
     /// The weighted mean of the latest kRollingRuns of the first n runs kept.

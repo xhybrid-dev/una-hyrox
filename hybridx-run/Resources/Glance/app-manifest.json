@@ -1,0 +1,23 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "glance"
+  ],
+  "name": "VO2max Glance",
+  "icon": "icon.png",
+  "binary": "HybridXRunGlance.uapp",
+  "appVersion": "0.1.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [],
+  "description": "Your HybridX Run VO2max on the glances screen: the figure the app shows, the change at your latest run, and how it has moved over your last 10 runs as bars. Needs the HybridX Run app, which works the figure out; the glance only shows what the app has saved.",
+  "supportsLaps": false,
+  "supportsDistance": false,
+  "supportsTrack": false,
+  "supportsHeartbeat": false,
+  "supportsElevation": false,
+  "supportsStep": false,
+  "supportsSpeed": "none",
+  "customMeasures": [],
+  "stravaExport": false,
+  "id": "1EC7F5A0424304CD"
+}

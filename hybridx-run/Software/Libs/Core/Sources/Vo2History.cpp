@@ -44,6 +44,10 @@ void Vo2History::add(const RunRecord& r)
         mRuns[mFirst] = r;
         mFirst = static_cast<uint8_t>((mFirst + 1) % Config::kHistoryRuns);
     }
+    RunRecord& added = mRuns[(mFirst + mCount - 1) % Config::kHistoryRuns];
+    if (added.shownX10 == 0) {
+        added.shownX10 = rollingOver(mCount);
+    }
 }
 
 const RunRecord& Vo2History::at(uint8_t i) const
@@ -148,6 +152,7 @@ size_t Vo2History::toJson(char* buf, size_t cap) const
         w.add(r.utc);
         w.add(r.vo2x10);
         w.add(r.windows);
+        w.add(r.shownX10);
         w.endArray();
     }
     w.endArray();
@@ -210,7 +215,7 @@ bool Vo2History::fromJson(const char* text, size_t len)
     }
     for (size_t i = 0; i < runs; ++i) {
         char q[24];
-        int64_t utc = 0, vo2 = 0, win = 0;
+        int64_t utc = 0, vo2 = 0, win = 0, shown = 0;
         std::snprintf(q, sizeof(q), "runs[%u][0]", static_cast<unsigned>(i));
         bool ok = readInt(r, q, 1, 0xFFFFFFFFll, utc);
         std::snprintf(q, sizeof(q), "runs[%u][1]", static_cast<unsigned>(i));
@@ -218,10 +223,20 @@ bool Vo2History::fromJson(const char* text, size_t len)
                            static_cast<int64_t>(Config::kMaxPlausibleVo2 * 10.0f), vo2);
         std::snprintf(q, sizeof(q), "runs[%u][2]", static_cast<unsigned>(i));
         ok = ok && readInt(r, q, Config::kMinWindows, Config::kMaxWindows, win);
+        // The value shown after it (R6); absent before, and then worked out.
+        size_t fields = 0;
+        std::snprintf(q, sizeof(q), "runs[%u]", static_cast<unsigned>(i));
+        ok = ok && r.getArrayLength(q, fields) && (fields == 3 || fields == 4);
+        if (ok && fields == 4) {
+            std::snprintf(q, sizeof(q), "runs[%u][3]", static_cast<unsigned>(i));
+            ok = readInt(r, q, static_cast<int64_t>(Config::kMinPlausibleVo2 * 10.0f),
+                         static_cast<int64_t>(Config::kMaxPlausibleVo2 * 10.0f), shown);
+        }
         if (!ok) {
             return false;
         }
-        h.add(RunRecord{static_cast<uint32_t>(utc), static_cast<uint16_t>(vo2), static_cast<uint16_t>(win)});
+        h.add(RunRecord{static_cast<uint32_t>(utc), static_cast<uint16_t>(vo2), static_cast<uint16_t>(win),
+                        static_cast<uint16_t>(shown)});
     }
 
     *this = h;
@@ -236,7 +251,7 @@ uint8_t Vo2History::trendX10(uint16_t* out, uint8_t max) const
     const uint8_t n = mCount < max ? mCount : max;
     const uint8_t from = static_cast<uint8_t>(mCount - n);
     for (uint8_t i = 0; i < n; ++i) {
-        out[i] = rollingOver(static_cast<uint8_t>(from + i + 1));
+        out[i] = at(static_cast<uint8_t>(from + i)).shownX10;
     }
     return n;
 }

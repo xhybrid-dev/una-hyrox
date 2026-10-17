@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Draw HybridX Run's VO2max glance as the layout code specifies it.
+
+The PC simulator cannot run glances, so this draws the controls that
+Tests/Host/tools/glance_preview prints -- the real GlanceView and GlanceLayout
+code's output, on made-up run histories -- at 2x, in the glance's colours
+(GlanceControl.h). With $UNA_SDK set it draws
+in the SDK's own Poppins (its TouchGFX tutorial assets), and draws the 10
+point face as the watch does: digits only, anything else as '?'. Without the
+SDK, DejaVu Sans stands in. A mock-up until the watch shows the real thing.
+Copied from X Weigh-in's (itself HybridX Streak's) docs/experiments.
+
+On the watch the glances list draws a separator line above and below each
+glance across the middle 172 px only, and a scroll arc over both edges (X
+Weigh-in NOTES, Gate W3). Each panel shows those separators, and darkens the edges, so the
+layout can be checked against them.
+
+    glance_preview.py <glance_preview binary> <out.png> [w h controls]
+    glance_preview.py <glance_preview binary> <out.png> --store <dir>
+
+--store also writes the store listing's previews into <dir>: 480x480 (the
+watch's 240 at 2x, as the app's previews), the glance at the middle of a round
+screen between the list's separators, for the panels named in STORE below.
+"""
+import os
+import subprocess
+import sys
+
+from PIL import Image, ImageDraw, ImageFont
+
+# GlanceControl.h colour codes -> RGB (the display's 2-bit levels, x85).
+COLOURS = {0x3F: (255, 255, 255), 0x2A: (170, 170, 170), 0x15: (85, 85, 85), 0x00: (0, 0, 0),
+           0x38: (255, 170, 0), 0x0A: (0, 170, 170), 0x05: (0, 85, 85), 0x0C: (0, 255, 0),
+           0x04: (0, 85, 0), 0x39: (255, 170, 85), 0x30: (255, 0, 0), 0x10: (85, 0, 0),
+           0x03: (0, 0, 255), 0x01: (0, 0, 85), 0x1F: (85, 255, 255), 0x2F: (170, 255, 255)}
+# GlanceFont_t order: REGULAR_18, MEDIUM_10, MEDIUM_18, MEDIUM_25, SEMIBOLD_18, SEMIBOLD_20, ...
+SIZES = {0: (18, "Regular"), 1: (10, "Medium"), 2: (18, "Medium"), 3: (25, "Medium"), 4: (18, "SemiBold"),
+         5: (20, "SemiBold"), 6: (25, "SemiBold"), 7: (30, "SemiBold"), 8: (35, "SemiBold")}
+DIGITS_ONLY = {1}  # POPPINS_MEDIUM_10 holds '0'..'9' and '?' (HybridX Streak NOTES, S4.2)
+S = 2  # scale
+BAND = 172  # the list's separators span the middle of a 240 px glance
+LIST_BLUE = (70, 90, 255)
+POPPINS = os.path.join(os.environ.get("UNA_SDK", ""), "Docs/Tutorials/Buttons/Software/Apps/TouchGFX-GUI/assets/fonts")
+REAL = os.path.isfile(os.path.join(POPPINS, "Poppins-Regular.ttf"))
+
+
+def face(f):
+    size, weight = SIZES.get(f, (18, "Regular"))
+    if REAL:
+        return ImageFont.truetype(os.path.join(POPPINS, "Poppins-%s.ttf" % weight), size * S)
+    bold = "-Bold" if weight == "SemiBold" else ""
+    return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf" % bold, int(size * S * 0.82))
+
+argv = sys.argv[1:]
+store_dir = None
+if "--store" in argv:
+    i = argv.index("--store")
+    store_dir = argv[i + 1]
+    del argv[i:i + 2]
+binary, out = argv[0], argv[1]
+args = argv[2:5] if len(argv) > 4 else ["240", "60", "32"]
+# Store previews: (file name, panel name from tools/glance_preview.cpp).
+STORE = [("1-getting-fitter.png", "Ten runs, getting fitter"),
+         ("2-steady.png", "Ten runs, steady"),
+         ("3-first-runs.png", "The first three runs")]
+lines = subprocess.run([binary] + args, capture_output=True, text=True, check=True).stdout.splitlines()
+
+panels = []
+for line in lines:
+    parts = line.split(" ")
+    if parts[0] == "state":
+        name = " ".join(parts[1:-2])
+        w, h = int(parts[-2]), int(parts[-1])
+        img = Image.new("RGB", (w * S, h * S), (0, 0, 0))
+        panels.append((name, img, ImageDraw.Draw(img)))
+        continue
+    _, img, d = panels[-1]
+    if parts[0] == "line":
+        x1, y1, x2, y2, c = map(int, parts[1:6])
+        d.line([(x1 * S, y1 * S), (x2 * S, y2 * S)], fill=COLOURS.get(c, (255, 0, 255)), width=S)
+    elif parts[0] == "rect":
+        x, y, w, h, c = map(int, parts[1:6])
+        d.rectangle([x * S, y * S, (x + w) * S - 1, (y + h) * S - 1], fill=COLOURS.get(c, (255, 0, 255)))
+    elif parts[0] == "text":
+        x, y, w, h, f, c, a = map(int, parts[1:8])
+        text = " ".join(parts[8:])
+        if f in DIGITS_ONLY:
+            text = "".join(ch if ch.isdigit() else "?" for ch in text)
+        font = face(f)
+        tw = d.textlength(text, font=font)
+        tx = x * S if a == 0 else (x * S + (w * S - tw) / 2 if a == 1 else x * S + w * S - tw)
+        d.text((tx, y * S), text, font=font, fill=COLOURS.get(c, (255, 0, 255)))
+
+label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22)
+pad, gap = 24, 56
+W = max(max(p[1].width for p in panels) + 2 * pad, 720)
+H = sum(p[1].height + gap + 12 for p in panels) + pad + 40
+sheet = Image.new("RGB", (W, H), (27, 31, 34))
+sd = ImageDraw.Draw(sheet)
+title = "VO2max glance - mock-up (layout exact, %s)" % ("Poppins" if REAL else "font stand-in")
+sd.text((pad, 14), title, font=label_font,
+        fill=(170, 255, 0))
+y = 40 + pad
+for name, img, _ in panels:
+    sd.text((pad, y), name, font=label_font, fill=(180, 186, 190))
+    w = img.width // S
+    if w > BAND:
+        # Darken the edges the list's scroll arc covers.
+        edge = (w - BAND) // 2 * S
+        dark = Image.new("RGB", img.size, (0, 0, 0))
+        mask = Image.new("L", img.size, 0)
+        ImageDraw.Draw(mask).rectangle([0, 0, edge - 1, img.height], fill=150)
+        ImageDraw.Draw(mask).rectangle([img.width - edge, 0, img.width, img.height], fill=150)
+        img = Image.composite(dark, img, mask)
+    top = y + 40
+    sheet.paste(img, (pad, top))
+    sd.rectangle([pad - 1, top - 1, pad + img.width, top + img.height], outline=(58, 64, 68))
+    if w > BAND:
+        x0 = pad + (w - BAND) // 2 * S
+        for ly in (top - 9, top + img.height + 6):
+            sd.rectangle([x0, ly, x0 + BAND * S - 1, ly + 2], fill=LIST_BLUE)
+    y += img.height + gap + 12
+sheet.save(out)
+print("wrote", out)
+
+if store_dir:
+    os.makedirs(store_dir, exist_ok=True)
+    byname = {name: img for name, img, _ in panels}
+    for fname, pname in STORE:
+        img = byname[pname]
+        size = 240 * S
+        canvas = Image.new("RGB", (size, size), (0, 0, 0))
+        top = (size - img.height) // 2
+        canvas.paste(img, ((size - img.width) // 2, top))
+        cd = ImageDraw.Draw(canvas)
+        x0 = (size - BAND * S) // 2
+        for ly in (top - 10, top + img.height + 8):
+            cd.rectangle([x0, ly, x0 + BAND * S - 1, ly + 2], fill=LIST_BLUE)
+        # The round display: everything outside the circle is bezel.
+        mask = Image.new("L", (size, size), 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, size - 1, size - 1], fill=255)
+        Image.composite(canvas, Image.new("RGB", (size, size), (0, 0, 0)), mask).save(
+            os.path.join(store_dir, fname))
+        print("wrote", os.path.join(store_dir, fname))

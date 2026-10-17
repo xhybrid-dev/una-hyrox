@@ -31,6 +31,14 @@ set(SDK_JSON_SOURCES
     "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/core_json.c"
 )
 
+# The glance's pure parts (its service needs the kernel and is not here).
+# GlanceLayout uses the SDK's GlanceControl.h constants, a plain C header.
+set(GLANCE_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Glance")
+set(GLANCE_SOURCES
+    "${GLANCE_LIBS}/Sources/GlanceView.cpp"
+    "${GLANCE_LIBS}/Sources/GlanceLayout.cpp"
+)
+
 add_executable(hybridx-run-host-tests
     Vo2ProfileTest.cpp
     Vo2RunTest.cpp
@@ -38,16 +46,21 @@ add_executable(hybridx-run-host-tests
     Vo2TextTest.cpp
     Vo2LogTest.cpp
     Vo2SettingsTest.cpp
+    GlanceViewTest.cpp
+    GlanceLayoutTest.cpp
     "${CORE_LIBS}/Sources/Vo2Profile.cpp"
     "${CORE_LIBS}/Sources/Vo2Run.cpp"
     "${CORE_LIBS}/Sources/Vo2History.cpp"
     "${CORE_LIBS}/Sources/Vo2Text.cpp"
     "${CORE_LIBS}/Sources/Vo2Log.cpp"
     "${CORE_LIBS}/Sources/Vo2Settings.cpp"
+    ${GLANCE_SOURCES}
     ${SDK_JSON_SOURCES}
 )
 target_include_directories(hybridx-run-host-tests PRIVATE
     "${CORE_LIBS}/Header"
+    "${GLANCE_LIBS}/Header"
+    "${CMAKE_CURRENT_LIST_DIR}"
     "${UNA_SDK_ROOT}/Libs/Header"
     "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
 )
@@ -55,3 +68,20 @@ target_link_libraries(hybridx-run-host-tests PRIVATE GTest::gtest_main)
 
 enable_testing()
 add_test(NAME hybridx-run-host-tests COMMAND hybridx-run-host-tests)
+
+# The glance's controls for a few sample histories, for
+# docs/experiments/glance_preview.py to draw (the simulator cannot run glances).
+add_executable(glance_preview
+    tools/glance_preview.cpp
+    "${CORE_LIBS}/Sources/Vo2Profile.cpp"
+    "${CORE_LIBS}/Sources/Vo2History.cpp"
+    "${CORE_LIBS}/Sources/Vo2Text.cpp"
+    ${GLANCE_SOURCES}
+    ${SDK_JSON_SOURCES}
+)
+target_include_directories(glance_preview PRIVATE
+    "${CORE_LIBS}/Header"
+    "${GLANCE_LIBS}/Header"
+    "${UNA_SDK_ROOT}/Libs/Header"
+    "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
+)
