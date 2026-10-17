@@ -86,9 +86,9 @@ jobs:
           # x-weighin/docs/NOTES.md.
           build x-weighin/Software/Apps/XWeighIn-CMake weighin
           build x-weighin/Software/Apps/XWeighInGlance-CMake weighin-glance
-          # X Trail Quest: a turn-based trail-running adventure -- see
-          # x-trailquest/docs/NOTES.md.
-          build x-trailquest/Software/Apps/XTrailQuest-CMake trailquest
+          # Trail Quest: a turn-based trail-running adventure -- see
+          # trailquest/docs/NOTES.md.
+          build trailquest/Software/Apps/TrailQuest-CMake trailquest
 
       - name: Collect
         run: |
@@ -104,7 +104,7 @@ jobs:
           cp hybridx-run/Output/*.uapp watch-apps/
           cp x-weighin/Output/*.uapp watch-apps/
           cp x-weighin/Output/Glance/*.uapp watch-apps/
-          cp x-trailquest/Output/*.uapp watch-apps/
+          cp trailquest/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -239,10 +239,10 @@ jobs:
           cmake --build ci-build/weighin-tests -j"$(nproc)"
           ctest --test-dir ci-build/weighin-tests --output-on-failure
 
-      - name: X Trail Quest host tests
+      - name: Trail Quest host tests
         # The pure core (the timing beat so far; the duel and the world later).
         run: |
           export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
-          cmake -S x-trailquest/Tests/Host -B ci-build/trailquest-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake -S trailquest/Tests/Host -B ci-build/trailquest-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/trailquest-tests -j"$(nproc)"
           ctest --test-dir ci-build/trailquest-tests --output-on-failure

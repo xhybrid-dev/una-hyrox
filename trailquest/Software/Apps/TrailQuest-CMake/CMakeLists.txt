@@ -1,4 +1,4 @@
-# X Trail Quest -- a turn-based trail-running adventure, with its GUI process
+# Trail Quest -- a turn-based trail-running adventure, with its GUI process
 # built on LVGL. See ../../../docs/NOTES.md.
 #
 # Started from X Weigh-in's CMakeLists (itself from the SDK's Waypoint
@@ -9,12 +9,12 @@ cmake_minimum_required(VERSION 3.21)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
 
 # App configuration
-set(APP_NAME "XTrailQuest")
-set(APP_USER_NAME "X Trail Quest")      # 13 bytes; app_merging.py truncates at 15
-set(APP_FILE_NAME "XTrailQuest")
+set(APP_NAME "TrailQuest")
+set(APP_USER_NAME "Trail Quest")      # 11 bytes; app_merging.py truncates at 15
+set(APP_FILE_NAME "TrailQuest")
 set(APP_TYPE "Utility")
 set(DEV_ID "HybridX")
-set(APP_ID "79F41CBDB256899A")          # first 16 hex of md5("XTrailQuest"); development ID
+set(APP_ID "B5FA567FFD85BA6D")          # first 16 hex of md5("TrailQuest"); development ID
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")

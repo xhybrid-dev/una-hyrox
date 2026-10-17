@@ -5,7 +5,7 @@
 
 #include "Beat.hpp"
 
-using namespace XTrailQuest;
+using namespace TrailQuest;
 
 namespace
 {

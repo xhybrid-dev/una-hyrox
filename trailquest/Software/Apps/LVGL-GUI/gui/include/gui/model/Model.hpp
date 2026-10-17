@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    Model.hpp
- * @brief   GUI-side link of X Trail Quest to its service.
+ * @brief   GUI-side link of Trail Quest to its service.
  *
  * Q0: sends beat presses and feedback requests, and forwards the service's
  * judgement of a press to the screen on display.
@@ -35,7 +35,7 @@ public:
     void sendBeatPress(uint32_t seq, uint32_t startMs, uint32_t pressMs);
 
     /// Ask the service to play a feedback pattern.
-    void playFx(XTrailQuest::FxId id);
+    void playFx(TrailQuest::FxId id);
 
 protected:
     ModelListener*     modelListener;   ///< The screen on display

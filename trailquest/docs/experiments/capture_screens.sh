@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Capture X Trail Quest's screens in the PC simulator, cut to the watch's round
+# Capture Trail Quest's screens in the PC simulator, cut to the watch's round
 # face, and print what the service and the GUI logged (beat judgements, the
 # frame-time line, the LVGL pool).
 #
@@ -17,9 +17,9 @@ REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${1:-$REPO/docs/screens}
 BIN="$REPO/Software/Apps/LVGL-GUI/simulator/build/bin"
 DISP=:97
-LOG=${SIM_LOG:-/tmp/x-trailquest-capture.log}
+LOG=${SIM_LOG:-/tmp/trailquest-capture.log}
 
-[ -x "$BIN/XTrailQuestSimulator" ] || { echo "Build the simulator first ($BIN)" >&2; exit 1; }
+[ -x "$BIN/TrailQuestSimulator" ] || { echo "Build the simulator first ($BIN)" >&2; exit 1; }
 mkdir -p "$OUT"
 WORK=$(mktemp -d)
 
@@ -30,9 +30,9 @@ trap cleanup EXIT
 sleep 2
 
 : > "$LOG"
-( cd "$BIN" && exec env DISPLAY=$DISP stdbuf -oL -eL ./XTrailQuestSimulator >> "$LOG" 2>&1 ) & SIMPID=$!
+( cd "$BIN" && exec env DISPLAY=$DISP stdbuf -oL -eL ./TrailQuestSimulator >> "$LOG" 2>&1 ) & SIMPID=$!
 sleep 3
-WID=$(DISPLAY=$DISP xdotool search --name 'X Trail Quest' | tail -1)
+WID=$(DISPLAY=$DISP xdotool search --name 'Trail Quest' | tail -1)
 [ -n "$WID" ] || { echo "FATAL: no simulator window" >&2; exit 1; }
 
 key()  { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-0.6}"; }

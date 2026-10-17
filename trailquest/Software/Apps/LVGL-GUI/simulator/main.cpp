@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    main.cpp
- * @brief   X Trail Quest PC simulator (started from the SDK's Waypoint LVGL one, via X Weigh-in).
+ * @brief   Trail Quest PC simulator (started from the SDK's Waypoint LVGL one, via X Weigh-in).
  *
  * Runs the app's real service and LVGL GUI processes against the SDK's mock
  * kernel (SDK/Libs/Source/Simulator): simulated sensors, a directory as the
@@ -73,7 +73,7 @@ int main(int, char**)
 
     // The display, ticks and buttons the kernel would supply to the GUI.
     SDK::Simulator::LvglHost::Options options;
-    options.title = "X Trail Quest";
+    options.title = "Trail Quest";
     options.scale = 2;
     SDK::Simulator::LvglHost host(appComm, serviceKernel.getKernel(), options);
     if (!host.init()) {

@@ -1,4 +1,4 @@
-# X Trail Quest for UNA Watch: Brief and Plan
+# Trail Quest for UNA Watch: Brief and Plan
 
 **Owner:** Jon
 **Status:** Q0 (feasibility) built in the simulator and as a watch compile
@@ -216,7 +216,7 @@ worth finishing. Q4 is mostly content and balance, not new engineering.
 
 ## 10. Decisions for Jon
 
-1. **Name.** "X Trail Quest" is a placeholder (it follows Weigh-in and Velocity).
+1. **Name.** "Trail Quest" is a placeholder (it follows Weigh-in and Velocity).
    Other options: "Ridge Runner", "X Ridge", "Summit Spirits".
 2. **The pack.** Up to three partners that lend moves (as proposed), or a single
    partner to keep it simple?

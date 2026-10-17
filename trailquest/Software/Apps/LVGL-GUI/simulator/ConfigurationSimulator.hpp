@@ -1,10 +1,10 @@
 /**
  ******************************************************************************
  * @file    ConfigurationSimulator.hpp
- * @brief   Simulated sensor settings for the X Trail Quest PC simulator.
+ * @brief   Simulated sensor settings for the Trail Quest PC simulator.
  *
  * Read by the SDK's simulated sensor layer (SDK/Libs/Source/Simulator).
- * X Trail Quest uses no sensors yet, so all but the battery level are off.
+ * Trail Quest uses no sensors yet, so all but the battery level are off.
  ******************************************************************************
  */
 

@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    GuiApp.cpp
- * @brief   X Trail Quest GUI entry: builds the model and shows the Q0 probe.
+ * @brief   Trail Quest GUI entry: builds the model and shows the Q0 probe.
  *
  * una_lvgl_app_init() is the hook the SDK's LVGL entry point calls once LVGL
  * and the display are up. It owns the model and the screen for the life of

@@ -182,14 +182,14 @@ its rep counter is meant to be reused by Race for wall balls and burpees later.
     layout code, `docs/experiments/glance_preview.py build-tests/glance_preview
     <out.png>`.
 
-## X Trail Quest (`x-trailquest/`)
+## Trail Quest (`trailquest/`)
 An eighth app, and a game: a Game Boy-style, turn-based trail-running adventure.
 You run "The Ridge" (5 stages), choose routes at forks, meet original creatures
 ("Trail Spirits") that become running partners, and win short duels with pace and
 grit; each stage ends with a boss. Planned extra: Daily Trail (a run seeded from
 the date). It is independent of the other apps. Original only: no Pokémon names,
 creatures, moves, art or type chart (brief section 9).
-- **Docs:** brief, plan and phases (Q0-Q6): `x-trailquest/docs/X_TRAILQUEST_BRIEF.md`;
+- **Docs:** brief, plan and phases (Q0-Q6): `trailquest/docs/TRAILQUEST_BRIEF.md`;
   findings, decisions and the gate records: `NOTES.md`; look and voice:
   `DESIGN.md`. Read the brief and `NOTES.md` at the start of each phase, and work
   only on that phase. Where the brief and `NOTES.md` disagree, `NOTES.md` is right.
@@ -210,10 +210,10 @@ creatures, moves, art or type chart (brief section 9).
 - **Watch builds come from CI**, as for the others. Tags `trailquest-vX.Y.Z`.
   Local watch builds are compile checks only (the stub recipe is in `NOTES.md`).
 - **Commands:**
-  - host tests: `cmake -S x-trailquest/Tests/Host -B x-trailquest/build-tests && cmake --build x-trailquest/build-tests && x-trailquest/build-tests/x-trailquest-host-tests`;
-  - simulator: `x-trailquest/Software/Apps/LVGL-GUI/simulator` (a Ninja build in
-    its `build/`; run `build/bin/XTrailQuestSimulator`; keys 1-4 are L1-R2);
+  - host tests: `cmake -S trailquest/Tests/Host -B trailquest/build-tests && cmake --build trailquest/build-tests && trailquest/build-tests/trailquest-host-tests`;
+  - simulator: `trailquest/Software/Apps/LVGL-GUI/simulator` (a Ninja build in
+    its `build/`; run `build/bin/TrailQuestSimulator`; keys 1-4 are L1-R2);
   - screens, cut to the round face: `docs/experiments/capture_screens.sh [out-dir]`
     (into `docs/screens/`);
-  - art: `python3 x-trailquest/Tools/Art/gen_art.py` (writes the sprites and a
-    preview sheet); icons: `python3 x-trailquest/Resources/make_icons.py`.
+  - art: `python3 trailquest/Tools/Art/gen_art.py` (writes the sprites and a
+    preview sheet); icons: `python3 trailquest/Resources/make_icons.py`.

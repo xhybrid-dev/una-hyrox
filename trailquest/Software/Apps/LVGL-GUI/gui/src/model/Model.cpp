@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    Model.cpp
- * @brief   GUI-side link of X Trail Quest to its service.
+ * @brief   GUI-side link of Trail Quest to its service.
  ******************************************************************************
  */
 
@@ -43,7 +43,7 @@ void Model::sendBeatPress(uint32_t seq, uint32_t startMs, uint32_t pressMs)
     SDK::send_msg<CustomMessage::BeatPress>(mKernel, seq, startMs, pressMs);
 }
 
-void Model::playFx(XTrailQuest::FxId id)
+void Model::playFx(TrailQuest::FxId id)
 {
     SDK::send_msg<CustomMessage::FxPlay>(mKernel, id);
 }

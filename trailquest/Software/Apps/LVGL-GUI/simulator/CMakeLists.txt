@@ -1,4 +1,4 @@
-# X Trail Quest PC simulator: the app's service and LVGL GUI processes running
+# Trail Quest PC simulator: the app's service and LVGL GUI processes running
 # against the SDK's mock kernel, with the display in an SDL2 window. Started
 # from the SDK's Waypoint LVGL simulator.
 #
@@ -9,14 +9,14 @@
 #   cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 #   cmake --build build --config Debug
 # Run from build/bin so the mock file system lands in ../../../../../Output,
-# i.e. x-trailquest/Software/Output (git-ignored). 
+# i.e. trailquest/Software/Output (git-ignored). 
 cmake_minimum_required(VERSION 3.21)
 
 if("$ENV{UNA_SDK}" STREQUAL "")
     message(FATAL_ERROR "UNA_SDK environment variable is not set. Point it at the SDK root.")
 endif()
 
-project(XTrailQuestSimulator C CXX)
+project(TrailQuestSimulator C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,7 +36,7 @@ foreach(cfg Debug Release RelWithDebInfo MinSizeRel)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CFG} "${SIM_BIN_DIR}")
 endforeach()
 
-add_executable(XTrailQuestSimulator
+add_executable(TrailQuestSimulator
     main.cpp
     ${GUI_APP_SOURCES}
     ${LIBS_SOURCES}
@@ -45,7 +45,7 @@ add_executable(XTrailQuestSimulator
     ${UNA_SDK_SOURCES_SIMULATOR_LVGL}
 )
 
-target_include_directories(XTrailQuestSimulator PRIVATE
+target_include_directories(TrailQuestSimulator PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}          # ConfigurationSimulator.hpp
     ${GUI_APP_INCLUDE_DIRS}
     ${LIBS_INCLUDE_DIRS}
@@ -54,21 +54,21 @@ target_include_directories(XTrailQuestSimulator PRIVATE
 )
 
 # The identity the .uapp build derives from CMakeLists.txt and git.
-target_compile_definitions(XTrailQuestSimulator PRIVATE
+target_compile_definitions(TrailQuestSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
-    APP_ID="79F41CBDB256899A"
-    APP_NAME="XTrailQuest"
+    APP_ID="B5FA567FFD85BA6D"
+    APP_NAME="TrailQuest"
     DEV_ID="HybridX Simulator"
     BUILD_VERSION="0.1.0-sim"
 )
 
 find_package(Threads REQUIRED)
-target_link_libraries(XTrailQuestSimulator PRIVATE Threads::Threads)
-una_simulator_link_sdl2(XTrailQuestSimulator)
+target_link_libraries(TrailQuestSimulator PRIVATE Threads::Threads)
+una_simulator_link_sdl2(TrailQuestSimulator)
 
 if(MSVC)
-    target_compile_options(XTrailQuestSimulator PRIVATE /W3 /MP)
+    target_compile_options(TrailQuestSimulator PRIVATE /W3 /MP)
 else()
-    target_compile_options(XTrailQuestSimulator PRIVATE -Wall -Wextra -Wno-unused-parameter)
+    target_compile_options(TrailQuestSimulator PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()

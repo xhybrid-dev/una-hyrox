@@ -22,12 +22,12 @@
  ******************************************************************************
  */
 
-#ifndef XTRAILQUEST_BEAT_HPP
-#define XTRAILQUEST_BEAT_HPP
+#ifndef TRAILQUEST_BEAT_HPP
+#define TRAILQUEST_BEAT_HPP
 
 #include <cstdint>
 
-namespace XTrailQuest
+namespace TrailQuest
 {
 
 /// One GUI frame, ms (SDK::GUI::Config::kFrameRate = 10).
@@ -133,6 +133,6 @@ inline BeatJudgement judgeBeat(const BeatConfig& c, uint32_t startMs, uint32_t p
     return j;
 }
 
-} // namespace XTrailQuest
+} // namespace TrailQuest
 
-#endif // XTRAILQUEST_BEAT_HPP
+#endif // TRAILQUEST_BEAT_HPP

@@ -1,6 +1,6 @@
-# X Trail Quest: notes
+# Trail Quest: notes
 
-Findings, decisions and phase records. The brief (`X_TRAILQUEST_BRIEF.md`) says
+Findings, decisions and phase records. The brief (`TRAILQUEST_BRIEF.md`) says
 what the game is; this says what we found out and decided while building it.
 Newest at the bottom of each section. Where this and the brief disagree, this
 is right. British English.
@@ -13,7 +13,7 @@ is right. British English.
 | 17 Oct 2026 | Scope: the full 5 stages, gated, so we can stop early | Jon |
 | 17 Oct 2026 | Planned extra: Daily Trail (seed from the date), phase Q5 | Jon |
 | 17 Oct 2026 | Art: generated pixel art in the repo (`Tools/Art/gen_art.py`), PNG override per asset if something needs hand-finishing | Jon |
-| 17 Oct 2026 | Name stays "X Trail Quest" for now | open |
+| 17 Oct 2026 | Name stays "Trail Quest" for now | open |
 | 17 Oct 2026 | Core lives in the service, the GUI is a thin renderer; fallback is the core in the GUI if the message round trip shows as lag | Claude |
 | 17 Oct 2026 | Font: Press Start 2P (SIL OFL 1.1), 16 px, 1 bit a pixel | Claude |
 
@@ -68,7 +68,7 @@ SDK commit `a7a995a` (the one CI pins). Paths are in `una-sdk/`.
 8. **The GUI process links none of the library sources.** Anything the GUI uses
    from `Libs/Core` must be header-only (hybridx-race NOTES 3.4). The simulator
    links everything, so it hid this; the watch build caught it
-   (`undefined reference to XTrailQuest::clampBeat`). `Beat.hpp` and
+   (`undefined reference to TrailQuest::clampBeat`). `Beat.hpp` and
    `Feedback.hpp` are therefore header-only, and `Libs/Core/Sources/` is empty
    for now. Remember this for every core module the GUI touches.
 9. **The service and the GUI need not share a clock.** A beat press carries
@@ -106,12 +106,12 @@ SDK commit `a7a995a` (the one CI pins). Paths are in `una-sdk/`.
   ```
   arm-none-eabi-gcc -c hybridx-race/docs/experiments/syscall_stubs.c -o stubs.o \
       -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb
-  cmake -G "Unix Makefiles" -S x-trailquest/Software/Apps/XTrailQuest-CMake \
+  cmake -G "Unix Makefiles" -S trailquest/Software/Apps/TrailQuest-CMake \
       -B build-arm -DCMAKE_EXE_LINKER_FLAGS=$PWD/stubs.o
   make -C build-arm
   ```
-- Simulator: `cmake -S x-trailquest/Software/Apps/LVGL-GUI/simulator -B
-  x-trailquest/Software/Apps/LVGL-GUI/simulator/build -G Ninja` (needs
+- Simulator: `cmake -S trailquest/Software/Apps/LVGL-GUI/simulator -B
+  trailquest/Software/Apps/LVGL-GUI/simulator/build -G Ninja` (needs
   `libsdl2-dev`); screens with `docs/experiments/capture_screens.sh` (needs
   `xvfb xdotool imagemagick`).
 
@@ -141,7 +141,7 @@ and the probe screen:
   press reaching the service ("beat 1: perfect, 15 ms") and the answer one frame
   (100 ms) later. Screens in `docs/screens/q0-*.png` (cut to the round face).
 - Watch target: builds and links (compile check with stubs, not installable);
-  `XTrailQuest_0.0.0-dev.uapp`, 185,228 bytes. CI builds the real one.
+  `TrailQuest_0.0.0-dev.uapp`, 185,228 bytes. CI builds the real one.
 - Art: `gen_art.py` passes its palette check; sheet in
   `docs/screens/q0-art-sheet.png`.
 
@@ -151,7 +151,7 @@ order. The simulator's render times (1-3 ms on a PC) say nothing about the
 watch's roughly 40 ms.
 
 **Gate Q0: what Jon must test.** Install the `.uapp` from the CI run's
-`watch-apps` artifact on branch `claude/x-trailquest-q0`, the way the other
+`watch-apps` artifact on branch `claude/trailquest-q0`, the way the other
 apps go on. Then:
 
 1. Does it look right? The runner, the fox and the bear should read at a glance;

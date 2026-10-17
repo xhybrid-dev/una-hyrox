@@ -1,4 +1,4 @@
-# X Trail Quest: look and voice
+# Trail Quest: look and voice
 
 How the game looks, sounds and talks. The numbers live in the brief and the
 code; this is the feel. Started at Q0 (17 October 2026) and grown as stages are

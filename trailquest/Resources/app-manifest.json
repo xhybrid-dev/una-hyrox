@@ -3,13 +3,13 @@
   "type": [
     "utility"
   ],
-  "name": "X Trail Quest",
+  "name": "Trail Quest",
   "icon": "icon.png",
-  "binary": "XTrailQuest.uapp",
+  "binary": "TrailQuest.uapp",
   "previews": "previews/",
   "appVersion": "0.1.0",
   "minKernelVersion": "1.4.0",
   "requiredHardware": [],
   "description": "A tiny trail-running adventure. Choose your route, meet the Trail Spirits, and win each duel with pace and grit. Your game stays on the watch.",
-  "id": "79F41CBDB256899A"
+  "id": "B5FA567FFD85BA6D"
 }

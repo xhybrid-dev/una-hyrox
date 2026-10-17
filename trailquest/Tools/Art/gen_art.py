@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draw X Trail Quest's pixel art from code, and write it where the GUI builds it.
+"""Draw Trail Quest's pixel art from code, and write it where the GUI builds it.
 
 Everything is drawn on a 24x24 logical grid (the game's pixel grid is 120x120
 logical pixels, each shown as 2x2 panel pixels). Colours are indices into a

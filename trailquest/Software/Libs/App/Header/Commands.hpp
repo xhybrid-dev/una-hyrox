@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    Commands.hpp
- * @brief   Messages between the X Trail Quest service and its GUI.
+ * @brief   Messages between the Trail Quest service and its GUI.
  *
  * Fixed-size structs of plain integers. Every message fits the kernel's
  * 256-byte pool block (una-sdk Docs/writing-a-clockface.md), checked at
@@ -67,7 +67,7 @@ struct BeatPress : public SDK::MessageBase {
 struct BeatResult : public SDK::MessageBase {
     uint32_t seq;
     int32_t  offsetMs;   ///< Press minus target: negative early, positive late.
-    uint8_t  result;     ///< XTrailQuest::BeatResult.
+    uint8_t  result;     ///< TrailQuest::BeatResult.
 
     BeatResult()
         : SDK::MessageBase(BEAT_RESULT)
@@ -76,7 +76,7 @@ struct BeatResult : public SDK::MessageBase {
         , result(0)
     {}
 
-    BeatResult(uint32_t s, int32_t off, XTrailQuest::BeatResult r)
+    BeatResult(uint32_t s, int32_t off, TrailQuest::BeatResult r)
         : BeatResult()
     {
         seq      = s;
@@ -87,14 +87,14 @@ struct BeatResult : public SDK::MessageBase {
 
 /// GUI --> Service: play this feedback pattern now.
 struct FxPlay : public SDK::MessageBase {
-    uint8_t fx;   ///< XTrailQuest::FxId.
+    uint8_t fx;   ///< TrailQuest::FxId.
 
     FxPlay()
         : SDK::MessageBase(FX_PLAY)
         , fx(0)
     {}
 
-    explicit FxPlay(XTrailQuest::FxId id)
+    explicit FxPlay(TrailQuest::FxId id)
         : FxPlay()
     {
         fx = static_cast<uint8_t>(id);

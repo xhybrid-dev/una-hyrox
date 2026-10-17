@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    Service.hpp
- * @brief   X Trail Quest background logic. In Q0: judges timing-beat presses
+ * @brief   Trail Quest background logic. In Q0: judges timing-beat presses
  *          and plays feedback patterns; later it holds the game core and the
  *          save file.
  ******************************************************************************
@@ -30,13 +30,13 @@ private:
     /// at between button presses, so the default timeout would turn it off.
     void holdBacklight(uint32_t timeoutMs);
 
-    /// Vibro and buzzer for one XTrailQuest::FxId.
-    void playFx(XTrailQuest::FxId id);
+    /// Vibro and buzzer for one TrailQuest::FxId.
+    void playFx(TrailQuest::FxId id);
 
     void onBeatPress(const CustomMessage::BeatPress &press);
 
     SDK::Kernel &mKernel;
-    XTrailQuest::BeatConfig mBeat;
+    TrailQuest::BeatConfig mBeat;
 };
 
 #endif // SERVICE_HPP

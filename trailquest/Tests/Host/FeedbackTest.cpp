@@ -5,7 +5,7 @@
 
 #include "Feedback.hpp"
 
-using namespace XTrailQuest;
+using namespace TrailQuest;
 
 TEST(Feedback, EveryPatternFitsTheKernelsLimits)
 {

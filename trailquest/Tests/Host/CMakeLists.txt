@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(x-trailquest-host-tests CXX)
+project(trailquest-host-tests CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -32,15 +32,15 @@ set(CORE_INCLUDES
 
 file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/*Test.cpp")
 
-add_executable(x-trailquest-host-tests
+add_executable(trailquest-host-tests
     ${TEST_SOURCES}
     ${CORE_SOURCES}
 )
-target_include_directories(x-trailquest-host-tests PRIVATE
+target_include_directories(trailquest-host-tests PRIVATE
     ${CORE_INCLUDES}
     "${CMAKE_CURRENT_LIST_DIR}"
 )
-target_link_libraries(x-trailquest-host-tests PRIVATE GTest::gtest_main)
+target_link_libraries(trailquest-host-tests PRIVATE GTest::gtest_main)
 
 enable_testing()
-add_test(NAME x-trailquest-host-tests COMMAND x-trailquest-host-tests)
+add_test(NAME trailquest-host-tests COMMAND trailquest-host-tests)

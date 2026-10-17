@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draw X Trail Quest's launcher icons: a mountain with a snow cap and a sun.
+"""Draw Trail Quest's launcher icons: a mountain with a snow cap and a sun.
 
 A green mountain with a white snow cap on a dark grey disc, a yellow sun at
 the top right. Writes icon_60x60.png and icon_30x30.png next to this script.

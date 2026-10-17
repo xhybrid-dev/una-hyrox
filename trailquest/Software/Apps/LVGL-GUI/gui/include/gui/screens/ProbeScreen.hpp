@@ -59,7 +59,7 @@ private:
     Model&    mModel;
     lv_obj_t* mRoot = nullptr;
 
-    XTrailQuest::BeatConfig mBeat;
+    TrailQuest::BeatConfig mBeat;
     uint32_t mBeatStart = 0;
     uint32_t mSeq       = 0;
     uint32_t mPressTick = 0;     ///< When the last press was sent.

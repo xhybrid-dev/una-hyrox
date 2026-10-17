@@ -1,4 +1,4 @@
-# Sources and include directories of X Trail Quest's two libraries:
+# Sources and include directories of Trail Quest's two libraries:
 #   Core/ -- pure C++, no kernel, host-tested in ../../Tests/Host. Anything the
 #            GUI uses is header-only, because the GUI ELF links no Libs
 #            sources (hybridx-race NOTES 3.4);

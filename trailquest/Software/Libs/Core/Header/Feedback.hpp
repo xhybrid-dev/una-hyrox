@@ -16,12 +16,12 @@
  ******************************************************************************
  */
 
-#ifndef XTRAILQUEST_FEEDBACK_HPP
-#define XTRAILQUEST_FEEDBACK_HPP
+#ifndef TRAILQUEST_FEEDBACK_HPP
+#define TRAILQUEST_FEEDBACK_HPP
 
 #include <cstdint>
 
-namespace XTrailQuest
+namespace TrailQuest
 {
 
 constexpr uint8_t kMaxVibroNotes  = 8;
@@ -122,6 +122,6 @@ inline bool isBuzzerVolume(uint8_t volume)
     return volume == 0 || volume == 33 || volume == 66 || volume == 100;
 }
 
-} // namespace XTrailQuest
+} // namespace TrailQuest
 
-#endif // XTRAILQUEST_FEEDBACK_HPP
+#endif // TRAILQUEST_FEEDBACK_HPP

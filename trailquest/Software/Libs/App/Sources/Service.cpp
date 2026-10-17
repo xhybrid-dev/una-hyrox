@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    Service.cpp
- * @brief   X Trail Quest background logic (see Service.hpp).
+ * @brief   Trail Quest background logic (see Service.hpp).
  *
  * The lifecycle is X Weigh-in's, from the SDK's Waypoint tutorial: run until
  * the app is stopped or its GUI closes. A service the GUI no longer needs
@@ -26,7 +26,7 @@ constexpr uint32_t kBacklightHoldMs = 30000;
 
 Service::Service(SDK::Kernel &kernel)
     : mKernel(SDK::KernelProviderService::GetInstance().getKernel())
-    , mBeat(XTrailQuest::clampBeat(XTrailQuest::BeatConfig{}))
+    , mBeat(TrailQuest::clampBeat(TrailQuest::BeatConfig{}))
 {
     (void)kernel;
 }
@@ -64,8 +64,8 @@ void Service::run()
 
             case CustomMessage::FX_PLAY: {
                 const uint8_t fx = static_cast<CustomMessage::FxPlay *>(msg)->fx;
-                if (fx < static_cast<uint8_t>(XTrailQuest::FxId::Count)) {
-                    playFx(static_cast<XTrailQuest::FxId>(fx));
+                if (fx < static_cast<uint8_t>(TrailQuest::FxId::Count)) {
+                    playFx(static_cast<TrailQuest::FxId>(fx));
                 }
             } break;
 
@@ -91,9 +91,9 @@ void Service::holdBacklight(uint32_t timeoutMs)
     }
 }
 
-void Service::playFx(XTrailQuest::FxId id)
+void Service::playFx(TrailQuest::FxId id)
 {
-    const XTrailQuest::FxPattern &p = XTrailQuest::fxPattern(id);
+    const TrailQuest::FxPattern &p = TrailQuest::fxPattern(id);
 
     auto vibro = SDK::make_msg<SDK::Message::RequestVibroPlay>(mKernel);
     if (vibro) {
@@ -120,18 +120,18 @@ void Service::playFx(XTrailQuest::FxId id)
 
 void Service::onBeatPress(const CustomMessage::BeatPress &press)
 {
-    const XTrailQuest::BeatJudgement j = XTrailQuest::judgeBeat(mBeat, press.startMs, press.pressMs);
+    const TrailQuest::BeatJudgement j = TrailQuest::judgeBeat(mBeat, press.startMs, press.pressMs);
 
     LOG_INFO("beat %lu: %s, %ld ms\n", static_cast<unsigned long>(press.seq),
-             j.result == XTrailQuest::BeatResult::Perfect ? "perfect"
-             : j.result == XTrailQuest::BeatResult::Good  ? "good"
+             j.result == TrailQuest::BeatResult::Perfect ? "perfect"
+             : j.result == TrailQuest::BeatResult::Good  ? "good"
                                                           : "miss",
              static_cast<long>(j.offsetMs));
 
     SDK::send_msg<CustomMessage::BeatResult>(mKernel, press.seq, j.offsetMs, j.result);
 
-    playFx(j.result == XTrailQuest::BeatResult::Perfect ? XTrailQuest::FxId::Perfect
-           : j.result == XTrailQuest::BeatResult::Good  ? XTrailQuest::FxId::Hit
-                                                        : XTrailQuest::FxId::Miss);
+    playFx(j.result == TrailQuest::BeatResult::Perfect ? TrailQuest::FxId::Perfect
+           : j.result == TrailQuest::BeatResult::Good  ? TrailQuest::FxId::Hit
+                                                        : TrailQuest::FxId::Miss);
     holdBacklight(kBacklightHoldMs);
 }

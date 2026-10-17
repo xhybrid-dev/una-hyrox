@@ -1,4 +1,4 @@
-# Sources and include directories of X Trail Quest's LVGL GUI process (from
+# Sources and include directories of Trail Quest's LVGL GUI process (from
 # X Weigh-in's, itself from the SDK's Waypoint tutorial). The generated font
 # and image C files under assets/ are committed, so no converter is needed to
 # build.

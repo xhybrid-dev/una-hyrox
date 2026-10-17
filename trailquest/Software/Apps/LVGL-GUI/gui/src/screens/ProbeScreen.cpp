@@ -24,7 +24,7 @@
 
 namespace Draw  = SDK::LVGL::Draw;
 namespace Color = SDK::GUI::Color;
-using namespace XTrailQuest;
+using namespace TrailQuest;
 
 namespace
 {
