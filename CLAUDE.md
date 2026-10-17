@@ -215,7 +215,8 @@ creatures, moves, art or type chart (brief section 9).
 - **Rules:** the same standing rules as Race apply. Also:
   - the GUI runs at **10 frames a second** and gets one button code per frame, so
     the game is turn-based and any timing input needs zones of at least two frames;
-  - the buzzer has **no pitch**; sound is rhythm and the vibro does the rest;
+  - the buzzer's **pitch** (SDK v1.6.0) plays only on new enough firmware, so every
+    sound must work as rhythm alone; the vibro carries the meaning;
   - the display is round: keep text inside the circle;
   - colours are on the display's grid (each channel 0x00, 0x40, 0x80 or 0xC0);
   - the GUI process links none of the library sources, so **anything the GUI uses

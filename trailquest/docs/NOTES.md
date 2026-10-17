@@ -19,7 +19,9 @@ is right. British English.
 
 ## Findings from the SDK (17 October 2026)
 
-SDK commit `a7a995a` (the one CI pins). Paths are in `una-sdk/`.
+Checked at SDK commit `a7a995a`, and re-checked at `bd04a5b` (sdk-v1.6.0),
+which CI pins since the merge of 17 October: only finding 3 changed (and
+LVGL's pool can now be enlarged per app, see finding 10). Paths are in `una-sdk/`.
 
 1. **10 frames a second.** `SDK::GUI::Config::kFrameRate = 10`
    (`Libs/Header/SDK/GUI/Config.hpp:26`). The kernel sends one `EVENT_GUI_TICK`
@@ -34,11 +36,19 @@ SDK commit `a7a995a` (the one CI pins). Paths are in `una-sdk/`.
    a code: a screen derives it from press and release. *Measured in the
    simulator:* press, click and release arrive on three consecutive frames
    (`e`, `3`, `d`). The watch's order is not yet measured (Gate Q0).
-3. **The buzzer has no pitch.** `RequestBuzzerPlay::Note` is `{time ms, volume}`,
+3. **The buzzer had no pitch; since SDK v1.6.0 it may.** `RequestBuzzerPlay::Note` is `{time ms, volume}`,
    10 notes at most, volumes 0, 33, 66, 100 only
    (`Libs/Header/SDK/Messages/CommandMessages.hpp:378`). The vibro takes up to 8
    notes of 21 named effects or pauses (`:403`). So no chiptune; the sound is
    rhythm, and the vibro carries the meaning.
+   **Changed by SDK v1.6.0** (`bd04a5b`): `RequestBuzzerPlay::Note` gains
+   `frequency`, in Hz, 500-20000; 0 or anything outside that range plays the
+   kernel's default. It fills what was padding, so the note's size is unchanged,
+   and "a kernel that predates this field plays every note at its default"
+   (`CommandMessages.hpp`, `RequestBuzzerPlay`). So pitched notes, and short
+   tunes of up to 10 notes, may be possible, **if the watch's firmware is new
+   enough**. Not yet tried on a watch. Until it is, the game must still work as
+   rhythm alone (a watch on older firmware hears every note at one pitch).
 4. **A game can hold the backlight.** `RequestBacklightSet` has a brightness and
    an `autoOffTimeoutMs` (`CommandMessages.hpp:359`), which RunLVGL uses. The
    SDK says there is no screen-off signal to an app and the backlight is a timed
@@ -81,7 +91,8 @@ SDK commit `a7a995a` (the one CI pins). Paths are in `una-sdk/`.
     copy those. Measured for the Q0 build (watch target, compile check): GUI ELF
     173,956 B text + 1,484 B data + 159,820 B bss = **335,260 B** (RunLVGL is
     about 450-490 KB), of which the sprite buffers are 20,736 B and the LVGL
-    pool 40 KB; service ELF 16,220 B. The `.uapp` is 185,864 B. In the
+    pool 40 KB (since SDK v1.6.0 an app may enlarge it by defining
+    `LV_MEM_SIZE` in its GUI compile definitions); service ELF 16,220 B. The `.uapp` is 185,864 B. In the
     simulator the probe screen uses 9 KB of the pool, peak 33 %.
 11. **A press is judged at the frame on screen.** Each frame the port delivers
     service messages, then one button code, then runs LVGL's timers and renders
@@ -198,8 +209,9 @@ apps go on. Then:
 
 ## Gate Q0: result (17 October 2026)
 
-Jon installed the CI build of `5b215fb` (run 168) and ran the probe on his
-watch. His verdict: "that probe looks amazing and the battle probe works really
+Jon installed a CI build of the probe and ran it on his watch: run 168
+(`5b215fb`), or run 169 (the merge of 17 October, same Trail Quest code, SDK
+v1.6.0); which one is not recorded. His verdict: "that probe looks amazing and the battle probe works really
 well". **Gate Q0 is passed** on the two questions it existed for: the look, and
 whether the timing beat is playable at 10 frames a second.
 

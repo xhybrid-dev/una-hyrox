@@ -11,8 +11,10 @@
  * Header-only: the GUI process links none of the Libs sources
  * (hybridx-race NOTES 3.4), and it needs the pattern names.
  *
- * The buzzer has no pitch: a note is a duration and a volume. The sounds are
- * therefore rhythms; the vibro carries most of the meaning.
+ * A buzzer note here is a duration and a volume. SDK v1.6.0 adds a pitch
+ * (RequestBuzzerPlay::Note::frequency), played only on new enough firmware, so
+ * these patterns are rhythms that work everywhere, at the kernel's default
+ * pitch; the vibro carries most of the meaning.
  ******************************************************************************
  */
 

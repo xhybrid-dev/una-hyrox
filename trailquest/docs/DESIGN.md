@@ -28,8 +28,10 @@ written.
 - **The vibro does the talking.** Six patterns so far: Hit, Miss, Perfect, Level
   up, Win, Lose. Each must feel different with eyes closed (a host test checks
   they are not identical; the wrist decides the rest).
-- **The buzzer is rhythm only** (no pitch): short and loud for good things, long
-  and quiet for bad ones. Never more than a few notes.
+- **The buzzer is rhythm first**: short and loud for good things, long and quiet
+  for bad ones. Never more than a few notes. SDK v1.6.0 adds pitch, which a watch
+  on new enough firmware plays (NOTES, finding 3): short tunes become possible,
+  but every sound must still read as rhythm alone on older firmware.
 
 ## Voice
 

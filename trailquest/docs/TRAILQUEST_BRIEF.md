@@ -14,8 +14,10 @@ listed next.
 > 1. The watch GUI runs at **10 frames a second**, not 30, and delivers one
 >    button code per frame. Turn-based is right; the timing beat needs wide
 >    zones (never under 200 ms) and is optional.
-> 2. The buzzer has **no pitch** (a duration and one of four volumes), so there is
->    no chiptune. Sound is rhythm; the vibro does most of the work.
+> 2. The buzzer had **no pitch** (a duration and one of four volumes), so no
+>    chiptune. *Since SDK v1.6.0 it may have:* each note can carry a frequency,
+>    played if the watch's firmware is new enough (NOTES, finding 3). Not yet
+>    tried on a watch.
 > 3. The display is round, so the game's art is not edge to edge: headings and
 >    text sit inside the circle.
 > 4. Colours are on a grid of **0x00, 0x40, 0x80, 0xC0** a channel, and indexed
@@ -147,7 +149,8 @@ From the SDK docs checked on 17 October 2026 (to be re-verified in Q0):
   at 10 frames a second.
 - Four buttons (L1, L2, R1, R2), no touchscreen.
 - Vibration (8-note melodies of 21 named effects) and a buzzer (10 notes, each
-  a duration and a volume of 0, 33, 66 or 100; no pitch).
+  a duration and a volume of 0, 33, 66 or 100; a pitch since SDK v1.6.0, if the
+  firmware supports it).
 - No MMU, no heap churn in the loop, fixed-size messages (the standing rules).
 
 Design consequences:
@@ -231,13 +234,15 @@ worth finishing. Q4 is mostly content and balance, not new engineering.
    About 16 creatures at 2 frames each, plus 5 tile sets and a runner sprite.
 7. **Tone.** Light and funny (Stitch, Bonk, Doubt) or more serious and
    atmospheric? The names above lean light.
-8. **Sound.** Closed: the buzzer has no pitch, so haptics plus rhythmic beeps
-   (NOTES, finding 3).
+8. **Sound.** Reopened by SDK v1.6.0: notes can carry a pitch. Short pitched
+   jingles (a win, a level-up, a boss) are worth a test on the watch; the
+   game must still work as rhythm on older firmware (NOTES, finding 3).
 
 ## 11. Questions for UNA / SDK checks (do not guess; answer in Q0)
 
 Answered from the SDK (details and citations in `NOTES.md`): the frame rate is
-10 a second; the buzzer has no pitch; press, click and release codes exist;
+10 a second; the buzzer has pitch only since SDK v1.6.0 and only on new enough
+firmware; press, click and release codes exist;
 saving is through `IFileSystem` in the app's folder. Still open for the watch
 itself (the Q0 gate): real render time per frame, whether the backlight hold
 works, the order button codes arrive in, which button the system keeps for itself,
