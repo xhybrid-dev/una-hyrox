@@ -1,0 +1,477 @@
+// The game's flow: a new game, travel, huts, caches, obstacles, duels won and
+// lost, join offers and a full pack, bosses, stages and the next lap.
+
+#include <gtest/gtest.h>
+
+#include "Encounter.hpp"
+#include "Run.hpp"
+
+using namespace TrailQuest;
+
+namespace
+{
+
+/// Play the current duel to its end with one action.
+void fight(TrailQuest::Run& run, Action a = Action::Surge, BeatResult beat = BeatResult::Good)
+{
+    for (int i = 0; i < 40 && run.phase() == RunPhase::InDuel; ++i) {
+        PlayerTurn t;
+        t.action = a;
+        t.beat   = beat;
+        run.duelTurn(t);
+    }
+}
+
+/// A state standing at @p node of @p stage, at @p level, with nothing beaten.
+RunState standingAt(uint8_t stage, uint8_t node, uint8_t level, uint32_t rng = 99)
+{
+    RunState s;
+    s.rng     = rng;
+    s.level   = level;
+    s.stamina = runnerStats(level).stamina;
+    s.stage   = stage;
+    s.node    = node;
+    s.minutes = 10 * 60;
+    s.weather = static_cast<uint8_t>(kStages[stage].weather[0]);
+    s.bag[Item::Gel] = 2;
+    s.bag[Item::Water] = 1;
+    return s;
+}
+
+} // namespace
+
+TEST(Run, ANewGameStartsAtTheTrailhead)
+{
+    TrailQuest::Run run;
+    run.newGame(42);
+    const RunState& s = run.state();
+    EXPECT_EQ(run.phase(), RunPhase::AtNode);
+    EXPECT_EQ(s.stage, 0u);
+    EXPECT_EQ(s.node, 0u);
+    EXPECT_EQ(s.level, 1u);
+    EXPECT_EQ(s.stamina, 40u);
+    EXPECT_EQ(s.bag[Item::Gel], kStartGels);
+    EXPECT_EQ(s.bag[Item::Water], kStartWater);
+    EXPECT_EQ(s.minutes, kRunStartMinutes);
+    EXPECT_TRUE(s.weather == static_cast<uint8_t>(kStages[0].weather[0])
+             || s.weather == static_cast<uint8_t>(kStages[0].weather[1]));
+    EXPECT_TRUE(run.wantsSave());
+    run.saved();
+    EXPECT_FALSE(run.wantsSave());
+}
+
+TEST(Run, TheSameSeedAndChoicesReplayTheSameGame)
+{
+    auto play = [](uint32_t seed) {
+        TrailQuest::Run run;
+        run.newGame(seed);
+        for (int step = 0; step < 200 && run.phase() != RunPhase::Finished; ++step) {
+            switch (run.phase()) {
+                case RunPhase::AtNode:     run.travel(static_cast<uint8_t>(step % 2 < run.node().exitCount ? step % 2 : 0)); break;
+                case RunPhase::Obstacle:   run.attemptObstacle(BeatResult::Good); break;
+                case RunPhase::InDuel:     fight(run); break;
+                case RunPhase::JoinOffer:  run.acceptJoin(0); break;
+                case RunPhase::StageClear: run.nextStage(); break;
+                default: break;
+            }
+        }
+        return run.state();
+    };
+    for (uint32_t seed : {1u, 7u, 2026u}) {
+        const RunState a = play(seed);
+        const RunState b = play(seed);
+        EXPECT_EQ(a.rng, b.rng);
+        EXPECT_EQ(a.level, b.level);
+        EXPECT_EQ(a.stage, b.stage);
+        EXPECT_EQ(a.minutes, b.minutes);
+        EXPECT_EQ(a.duelsWon, b.duelsWon);
+        EXPECT_EQ(a.spiritsMet, b.spiritsMet);
+    }
+}
+
+TEST(Run, TravelRefusesABadExitOrTheWrongPhase)
+{
+    TrailQuest::Run run;
+    run.newGame(1);
+    EXPECT_EQ(run.travel(5).what, Arrival::Refused);
+    EXPECT_EQ(run.state().node, 0u);
+    run.resume(standingAt(0, 0, 1));
+    ASSERT_EQ(run.travel(0).what, Arrival::Duel);   // to the birch wood
+    EXPECT_EQ(run.travel(0).what, Arrival::Refused);   // mid-duel
+}
+
+TEST(Run, TravellingTakesTrailTime)
+{
+    TrailQuest::Run run;
+    run.resume(standingAt(0, 0, 1));
+    const uint16_t before = run.state().minutes;
+    run.travel(1);   // the stream path: 15 minutes, to the stepping stones
+    EXPECT_EQ(run.state().minutes, before + 15u);
+    EXPECT_EQ(run.phase(), RunPhase::Obstacle);
+}
+
+TEST(Run, AnEncounterStartsADuelAndRecordsTheSpirit)
+{
+    TrailQuest::Run run;
+    run.resume(standingAt(0, 0, 1));
+    const ArriveResult r = run.travel(0);
+    ASSERT_EQ(r.what, Arrival::Duel);
+    EXPECT_EQ(run.phase(), RunPhase::InDuel);
+    const SpeciesId sp = run.duel().setup().species;
+    EXPECT_EQ(kSpecies[sp].stage, 1u);
+    EXPECT_NE(run.state().spiritsMet & (1u << sp), 0u);
+    EXPECT_GE(run.duel().spirit().level, kStages[0].levelMin);
+    EXPECT_LE(run.duel().spirit().level, kStages[0].levelMax);
+}
+
+TEST(Run, AnObstacleIsClearedOrCostsStaminaAndTime)
+{
+    int cleared = 0, failed = 0;
+    for (uint32_t seed = 1; seed <= 200; ++seed) {
+        TrailQuest::Run run;
+        RunState s = standingAt(0, 0, 1, seed);
+        run.resume(s);
+        ASSERT_EQ(run.travel(1).what, Arrival::Obstacle);
+        const uint8_t odds = run.obstacleOdds(BeatResult::Good);
+        EXPECT_EQ(odds, 55u);   // form 10 against 11, a good beat: 50 - 5 + 10
+        const uint16_t minutes = run.state().minutes;
+        const ObstacleResult r = run.attemptObstacle(BeatResult::Good);
+        ASSERT_TRUE(r.valid);
+        EXPECT_EQ(run.phase(), RunPhase::AtNode);
+        if (r.cleared) {
+            ++cleared;
+            EXPECT_EQ(run.state().minutes, minutes);
+        } else {
+            ++failed;
+            EXPECT_EQ(r.staminaLost, kObstacles[Obstacle::SteppingStones].failStamina);
+            EXPECT_EQ(run.state().minutes, minutes + kObstacles[Obstacle::SteppingStones].failMinutes);
+        }
+    }
+    EXPECT_GT(cleared, 70);
+    EXPECT_GT(failed, 70);
+    TrailQuest::Run idle;
+    idle.newGame(1);
+    EXPECT_FALSE(idle.attemptObstacle(BeatResult::Good).valid);
+}
+
+TEST(Run, AnObstacleNeverSpendsTheRunner)
+{
+    for (uint32_t seed = 1; seed <= 100; ++seed) {
+        TrailQuest::Run run;
+        RunState s = standingAt(0, 0, 1, seed);
+        s.stamina = 2;
+        run.resume(s);
+        run.travel(1);
+        run.attemptObstacle(BeatResult::Miss);
+        EXPECT_GE(run.state().stamina, 1u);
+    }
+}
+
+TEST(Run, AHutRestoresAndIsTheSavePoint)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 1, 2);   // birch wood: its exit goes to the hut
+    s.stamina = 5;
+    run.resume(s);
+    const ArriveResult r = run.travel(0);
+    EXPECT_EQ(r.what, Arrival::Hut);
+    EXPECT_EQ(run.state().stamina, runnerStats(2).stamina);
+    EXPECT_EQ(run.state().hutNode, 3u);
+    EXPECT_TRUE(run.wantsSave());
+}
+
+TEST(Run, ACacheGivesItsItemOnce)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 3, 2);   // the hut: its first exit is the old gate
+    run.resume(s);
+    const ArriveResult r = run.travel(0);
+    ASSERT_EQ(r.what, Arrival::Found);
+    EXPECT_EQ(r.item, Item::Gel);
+    EXPECT_EQ(run.state().bag[Item::Gel], 3u);
+    // Back at the hut (as after a loss), the gate is empty this lap.
+    RunState again = run.state();
+    again.node = 3;
+    run.resume(again);
+    EXPECT_EQ(run.travel(0).what, Arrival::Nothing);
+}
+
+TEST(Run, ACacheWaitsIfTheBagIsFull)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 3, 2);
+    s.bag[Item::Gel]   = 4;
+    s.bag[Item::Water] = 2;   // six: full
+    run.resume(s);
+    const ArriveResult r = run.travel(0);
+    EXPECT_TRUE(r.bagFull);
+    EXPECT_EQ(run.state().cachesTaken, 0u);
+}
+
+TEST(Run, TheHeadtorchIsAKeyItemOutsideTheBag)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(3, 3, 12);   // the ridge refuge: first exit, the rescue box
+    s.bag[Item::Gel]   = 4;
+    s.bag[Item::Water] = 2;   // the bag is full of consumables
+    run.resume(s);
+    const ArriveResult r = run.travel(0);
+    EXPECT_EQ(r.item, Item::Headtorch);
+    EXPECT_FALSE(r.bagFull);
+    EXPECT_EQ(run.state().bag[Item::Headtorch], 1u);
+}
+
+TEST(Run, NightWithoutAHeadtorchIsDark)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 0, 1);
+    s.minutes = 21 * 60;
+    run.resume(s);
+    EXPECT_TRUE(run.dark());
+    s.bag[Item::Headtorch] = 1;
+    run.resume(s);
+    EXPECT_FALSE(run.dark());
+    s.minutes = 12 * 60;
+    s.bag[Item::Headtorch] = 0;
+    run.resume(s);
+    EXPECT_FALSE(run.dark());
+}
+
+TEST(Run, ALostDuelSendsYouBackToTheHut)
+{
+    // A level 1 runner against the Summit Wolf: certain to lose.
+    TrailQuest::Run run;
+    RunState s = standingAt(4, 6, 1);
+    s.hutNode = 3;
+    s.bag[Item::Gel]   = 3;
+    s.bag[Item::Water] = 1;
+    run.resume(s);
+    ASSERT_EQ(run.travel(0).what, Arrival::Boss);
+    const uint16_t minutes = run.state().minutes;
+    fight(run, Action::Settle);
+    ASSERT_EQ(run.lastDuel().outcome, DuelOutcome::Lost);
+    EXPECT_EQ(run.phase(), RunPhase::AtNode);
+    EXPECT_EQ(run.state().node, 3u);
+    EXPECT_EQ(run.state().minutes, minutes + kLossMinutes);
+    EXPECT_EQ(run.state().stamina, runnerStats(1).stamina);
+    EXPECT_EQ(run.lastDuel().lostItem, Item::Gel);   // the most plentiful
+    EXPECT_EQ(run.state().bag[Item::Gel], 2u);
+    EXPECT_EQ(run.state().duelsLost, 1u);
+    EXPECT_TRUE(run.wantsSave());
+}
+
+TEST(Run, ALossBeforeAnyHutReturnsToTheStageStart)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(4, 0, 1);
+    run.resume(s);
+    ASSERT_EQ(run.travel(0).what, Arrival::Duel);
+    fight(run, Action::Settle);
+    ASSERT_EQ(run.lastDuel().outcome, DuelOutcome::Lost);
+    EXPECT_EQ(run.state().node, 0u);
+}
+
+TEST(Run, AWonDuelGivesXpAndAnOfferToJoin)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 0, 20);   // far too strong for the valley
+    run.resume(s);
+    ASSERT_EQ(run.travel(0).what, Arrival::Duel);
+    const SpeciesId sp = run.duel().setup().species;
+    fight(run);
+    ASSERT_EQ(run.lastDuel().outcome, DuelOutcome::Won);
+    EXPECT_EQ(run.lastDuel().xp, 0u + xpForWin(kSpecies[sp], run.duel().spirit().level));
+    EXPECT_TRUE(run.lastDuel().joinOffered);
+    EXPECT_EQ(run.phase(), RunPhase::JoinOffer);
+    EXPECT_EQ(run.offered(), sp);
+    EXPECT_NE(run.state().spiritsBeaten & (1u << sp), 0u);
+    EXPECT_TRUE(run.acceptJoin());
+    EXPECT_EQ(run.state().partnerCount, 1u);
+    EXPECT_EQ(run.state().partners[0], sp);
+    EXPECT_EQ(run.phase(), RunPhase::AtNode);
+}
+
+TEST(Run, AFullPackMustNameWhoLeaves)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 0, 20);
+    s.partners[0] = Spirit::Gale;
+    s.partners[1] = Spirit::Vertigo;
+    s.partners[2] = Spirit::Hypo;
+    s.partnerCount = 3;
+    run.resume(s);
+    ASSERT_EQ(run.travel(0).what, Arrival::Duel);
+    const SpeciesId sp = run.duel().setup().species;
+    fight(run);
+    ASSERT_EQ(run.phase(), RunPhase::JoinOffer);
+    EXPECT_FALSE(run.acceptJoin());       // no name given
+    EXPECT_FALSE(run.acceptJoin(7));      // no such slot
+    EXPECT_EQ(run.phase(), RunPhase::JoinOffer);
+    EXPECT_TRUE(run.acceptJoin(1));
+    EXPECT_EQ(run.state().partners[1], sp);
+    EXPECT_EQ(run.state().partnerCount, 3u);
+}
+
+TEST(Run, DecliningKeepsThePackAsItWas)
+{
+    TrailQuest::Run run;
+    run.resume(standingAt(0, 0, 20));
+    run.travel(0);
+    fight(run);
+    ASSERT_EQ(run.phase(), RunPhase::JoinOffer);
+    run.declineJoin();
+    EXPECT_EQ(run.phase(), RunPhase::AtNode);
+    EXPECT_EQ(run.state().partnerCount, 0u);
+}
+
+namespace
+{
+/// The Technique damage a duel set up like @p d would do with @p move.
+uint16_t techniqueDamage(DuelSetup d, MoveId move)
+{
+    d.technique = move;
+    Duel probe;
+    probe.start(d);
+    return probe.estimate(Action::Technique);
+}
+} // namespace
+
+TEST(Run, APartnerLendsItsStat)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 0, 5);
+    s.partners[0]  = Spirit::Bonk;   // Grit
+    s.partnerCount = 1;
+    run.resume(s);
+    EXPECT_EQ(runnerMaxWithPartners(run.state()).grit, runnerStats(5).grit + kPartnerBonus);
+}
+
+TEST(Run, ThePartnerBestPlacedForThisSpiritStepsUp)
+{
+    // R1 plays whichever partner does most against this spirit, or Trail
+    // craft if none beats it: no lead to choose.
+    for (uint32_t seed = 1; seed <= 40; ++seed) {
+        TrailQuest::Run run;
+        RunState s = standingAt(0, 0, 5, seed);
+        s.partners[0]  = Spirit::Bonk;      // a Grit move
+        s.partners[1]  = Spirit::Stitch;    // a Pace move
+        s.partners[2]  = Spirit::Blister;   // a Form move
+        s.partnerCount = 3;
+        run.resume(s);
+        ASSERT_EQ(run.travel(0).what, Arrival::Duel);
+        const DuelSetup& d = run.duel().setup();
+        const uint16_t chosen = techniqueDamage(d, d.technique);
+        EXPECT_GE(chosen, techniqueDamage(d, Move::TrailCraft)) << "seed " << seed;
+        for (uint8_t i = 0; i < 3; ++i) {
+            EXPECT_GE(chosen, techniqueDamage(d, signatureMove(s.partners[i]))) << "seed " << seed;
+        }
+    }
+}
+
+TEST(Run, WithNoPartnersTheTechniqueIsTrailCraft)
+{
+    TrailQuest::Run run;
+    run.resume(standingAt(0, 0, 5));
+    run.travel(0);
+    EXPECT_EQ(run.duel().setup().technique, Move::TrailCraft);
+}
+
+TEST(Run, APartnerLendsAMoveOfItsOwnKind)
+{
+    // Hypo is a Form spirit with a Form move and a stronger Pace one: it
+    // lends the Form one. Bonk lends the stronger of its two Grit moves.
+    EXPECT_EQ(signatureMove(Spirit::Hypo), Move::Chill);
+    EXPECT_EQ(signatureMove(Spirit::Bonk), Move::HitTheWall);
+    for (SpeciesId sp = 0; sp < Spirit::Count; ++sp) {
+        const SpeciesDef& d = kSpecies[sp];
+        const bool hasOwn = moveDef(d.moves[0]).affinity == d.affinity || moveDef(d.moves[1]).affinity == d.affinity;
+        if (hasOwn) {
+            EXPECT_EQ(moveDef(signatureMove(sp)).affinity, d.affinity) << d.name;
+        }
+    }
+}
+
+TEST(Run, LevelsComeWithXpAndBringStamina)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 0, 1);
+    s.level = 19;
+    s.xp    = static_cast<uint16_t>(xpToNext(19) - 1);
+    s.stamina = runnerStats(19).stamina - 10;
+    run.resume(s);
+    run.travel(0);
+    fight(run);
+    ASSERT_EQ(run.lastDuel().outcome, DuelOutcome::Won);
+    EXPECT_EQ(run.state().level, 20u);
+    EXPECT_EQ(run.lastDuel().levelsGained, 1u);
+    EXPECT_EQ(run.state().xp, 0u);   // the top: no more to gain
+}
+
+TEST(Run, BeatingABossClearsTheStageAndTheNextBegins)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 6, 20);
+    run.resume(s);
+    ASSERT_EQ(run.travel(0).what, Arrival::Boss);
+    EXPECT_EQ(run.duel().setup().species, Spirit::OldMossback);
+    fight(run);
+    ASSERT_EQ(run.lastDuel().outcome, DuelOutcome::Won);
+    EXPECT_TRUE(run.lastDuel().boss);
+    EXPECT_FALSE(run.lastDuel().joinOffered);
+    EXPECT_EQ(run.phase(), RunPhase::StageClear);
+    EXPECT_TRUE(run.wantsSave());
+    run.nextStage();
+    EXPECT_EQ(run.state().stage, 1u);
+    EXPECT_EQ(run.state().node, 0u);
+    EXPECT_EQ(run.state().stamina, runnerStats(20).stamina);
+    EXPECT_EQ(run.phase(), RunPhase::AtNode);
+}
+
+TEST(Run, TheSummitFinishesTheLapAndTheNextIsHarder)
+{
+    // From the summit with every boss beaten (the flow, not the balance: the
+    // fight itself is the balance simulator's business).
+    TrailQuest::Run run;
+    RunState s = standingAt(4, 8, 20);
+    s.minutes      = 17 * 60;
+    s.bossesBeaten = 0x0F;
+    run.resume(s);
+    ASSERT_EQ(run.phase(), RunPhase::AtNode);
+    s.bossesBeaten = 0x1F;
+    run.resume(s);
+    ASSERT_EQ(run.phase(), RunPhase::Finished);
+    run.nextStage();                          // not valid when finished: no change
+    EXPECT_EQ(run.phase(), RunPhase::Finished);
+    run.startNextLap();
+    EXPECT_EQ(run.state().lap, 1u);
+    EXPECT_EQ(run.state().stage, 0u);
+    EXPECT_EQ(run.state().bossesBeaten, 0u);
+    EXPECT_EQ(run.state().minutes % (24 * 60), kRunStartMinutes);   // next morning
+    EXPECT_GT(run.state().minutes, 24u * 60u);
+    run.travel(0);
+    EXPECT_GE(run.duel().spirit().level, kStages[0].levelMin + kLapLevelStep);
+}
+
+TEST(Run, ResumingAtABeatenBossPicksUpTheStageClear)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(1, 8, 10);
+    s.bossesBeaten = 0x03;
+    run.resume(s);
+    EXPECT_EQ(run.phase(), RunPhase::StageClear);
+    RunState top = standingAt(4, 8, 20);
+    top.bossesBeaten = 0x1F;
+    run.resume(top);
+    EXPECT_EQ(run.phase(), RunPhase::Finished);
+}
+
+TEST(Run, PerfectBeatsAreCounted)
+{
+    TrailQuest::Run run;
+    run.resume(standingAt(0, 0, 20));
+    run.travel(0);
+    PlayerTurn t;
+    t.beat = BeatResult::Perfect;
+    run.duelTurn(t);
+    EXPECT_EQ(run.state().perfects, 1u);
+}

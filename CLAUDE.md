@@ -177,7 +177,22 @@ Strava. It is independent of the other apps.
   - host tests: `cmake -S x-weighin/Tests/Host -B x-weighin/build-tests && cmake --build x-weighin/build-tests && x-weighin/build-tests/x-weighin-host-tests`;
   - simulator: `x-weighin/Software/Apps/LVGL-GUI/simulator` (settings in
     `Software/Output/app_config.json`);
-  - a run in the simulator, with screenshots: `docs/experiments/sim_run.sh [shots-dir] [app_config.json]`.
+  - a run in the simulator, with screenshots: `docs/experiments/sim_run.sh [shots-dir] [app_config.json]`;
+  - every screen in the simulator, and a weigh-in round trip:
+    `docs/experiments/capture_screens.sh [out-dir]` (into `docs/screens/`);
+  - a sample log: `build-tests/make_log <out.csv> [days] [seed]`; a log's trend
+    day by day: `build-tests/trend_csv <weighins.csv>`; its chart:
+    `docs/experiments/trend_chart.py <trend.csv> <out.png>`;
+  - the glance (the simulator cannot run glances): a mock-up from the real
+    layout code, `docs/experiments/glance_preview.py build-tests/glance_preview
+    <out.png>`;
+  - the store packages (two listings: the app, and the glance, which needs
+    it): `Utilities/pack-store-zip.sh` and `--glance` (CI artifact
+    `weighin-store-zip`); the glance's previews: `glance_preview.py
+    build-tests/glance_preview <out.png> --store Resources/Glance/previews`;
+    the steps: `docs/SUBMISSION.md`;
+  - store images (previews, mock-ups, marketing, one set per listing):
+    `docs/experiments/store_images.py build-tests/glance_preview docs/store`.
 
 ## X Velocity (`x-velocity/`)
 A seventh app, at the brief stage: a gym tool. It counts reps, measures bar speed
@@ -192,17 +207,9 @@ its rep counter is meant to be reused by Race for wall balls and burpees later.
   host-test data: never tune the counter on a set without adding it as a test.
 - **Watch builds come from CI**, as for the others. Tags `velocity-vX.Y.Z`
   (the name is still Jon's decision, brief §11).
-  - every screen in the simulator, and a weigh-in round trip:
-    `docs/experiments/capture_screens.sh [out-dir]` (into `docs/screens/`);
-  - a sample log: `build-tests/make_log <out.csv> [days] [seed]`; a log's trend
-    day by day: `build-tests/trend_csv <weighins.csv>`; its chart:
-    `docs/experiments/trend_chart.py <trend.csv> <out.png>`;
-  - the glance (the simulator cannot run glances): a mock-up from the real
-    layout code, `docs/experiments/glance_preview.py build-tests/glance_preview
-    <out.png>`.
 
 ## Trail Quest (`trailquest/`)
-An eighth app, and a game: a Game Boy-style, turn-based trail-running adventure.
+A ninth app, and a game: a Game Boy-style, turn-based trail-running adventure.
 You run "The Ridge" (5 stages), choose routes at forks, meet original creatures
 ("Trail Spirits") that become running partners, and win short duels with pace and
 grit; each stage ends with a boss. Planned extra: Daily Trail (a run seeded from
@@ -222,8 +229,11 @@ creatures, moves, art or type chart (brief section 9).
   - the GUI process links none of the library sources, so **anything the GUI uses
     from `Libs/Core` must be header-only**; the simulator hides this, the watch
     build catches it.
-- **Layout:** the pure core `Software/Libs/Core` (the timing beat and the
-  feedback table so far; duel, world and save to come); the service
+- **Layout:** the pure core `Software/Libs/Core`: the timing beat, the feedback
+  table, and (Q1) the game itself: data tables in `Header/data/` (moves,
+  spirits, items, stages; header-only), the duel, encounters, the run flow
+  (`Run`), the save, and the Daily Trail seed. Every chance comes from one
+  seeded `Rng`, so a seed and the inputs replay a game exactly. The service
   `Software/Libs/App` (from X Weigh-in); the GUI `Software/Apps/LVGL-GUI`
   (screens, the sprite expander). No glance. Art is drawn by
   `Tools/Art/gen_art.py` into `assets/sprites/sprites.c`; never edit that file.
@@ -231,20 +241,16 @@ creatures, moves, art or type chart (brief section 9).
   Local watch builds are compile checks only (the stub recipe is in `NOTES.md`).
 - **Commands:**
   - host tests: `cmake -S trailquest/Tests/Host -B trailquest/build-tests && cmake --build trailquest/build-tests && trailquest/build-tests/trailquest-host-tests`;
+  - balance (built with the tests; `docs/BALANCE.md` has the targets and how to
+    read them): every spirit, many duels, `build-tests/balance_sim [n] [--md out]
+    [--csv out]`; whole games, `build-tests/run_sim [runs] [casual|good|menu]
+    [--md out]`. Re-run both after changing any number in `Libs/Core`;
   - simulator: `trailquest/Software/Apps/LVGL-GUI/simulator` (a Ninja build in
     its `build/`; run `build/bin/TrailQuestSimulator`; keys 1-4 are L1-R2);
   - screens, cut to the round face: `docs/experiments/capture_screens.sh [out-dir]`
     (into `docs/screens/`);
   - art: `python3 trailquest/Tools/Art/gen_art.py` (writes the sprites and a
     preview sheet); icons: `python3 trailquest/Resources/make_icons.py`.
-    <out.png>`;
-  - the store packages (two listings: the app, and the glance, which needs
-    it): `Utilities/pack-store-zip.sh` and `--glance` (CI artifact
-    `weighin-store-zip`); the glance's previews: `glance_preview.py
-    build-tests/glance_preview <out.png> --store Resources/Glance/previews`;
-    the steps: `docs/SUBMISSION.md`;
-  - store images (previews, mock-ups, marketing, one set per listing):
-    `docs/experiments/store_images.py build-tests/glance_preview docs/store`.
 
 ## Knitting (`knitting/`)
 An eighth app: a knitting counter. Press a button for every row, group rows into

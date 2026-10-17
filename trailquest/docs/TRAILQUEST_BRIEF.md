@@ -1,11 +1,14 @@
 # Trail Quest for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** Gate Q0 passed on a real watch, 17 October 2026 (NOTES, "Gate Q0:
-result"). Next: Q1, the core and balance.
+**Status:** Q1 (the game core and balance) built, 17 October 2026, and waiting
+at Gate Q1 for Jon (NOTES, "Phase Q1"; `BALANCE.md`). Gate Q0 passed on a real
+watch the same day.
 Decisions taken: tone "funny start, serious summit"; full 5 stages; Daily Trail
-as the planned extra; generated pixel art.
-**Read with:** `NOTES.md` (findings, decisions and the Q0 gate). Where this
+as the planned extra; generated pixel art; a loss sends you back to the last
+hut; bosses are big Trail Spirits; a beaten spirit offers to join.
+**Read with:** `NOTES.md` (findings, decisions and the gates), `BALANCE.md`
+(the numbers) and `DESIGN.md` (the look, the voice and the roster). Where this
 brief and `NOTES.md` disagree, `NOTES.md` is right: it was written after the
 SDK check, and the sections below were not all rewritten. The corrections are
 listed next.
@@ -25,6 +28,15 @@ listed next.
 >    pool). Sprites are our own 4-bit format, expanded into RAM buffers.
 > 5. Everything the GUI process uses from the core must be **header-only**: the
 >    GUI links none of the library sources.
+>
+> **Changes in Q1 (17 October 2026)**, which supersede sections 3-5 below (NOTES,
+> "Phase Q1", lists them all): there is no lead partner (R1 plays the partner
+> best placed against the spirit met); Settle is a Grit move; damage uses the
+> stat the move's affinity names; stamina comes back on the trail and before a
+> boss; partners do not level on their own; five kinds of item for now; the
+> roster is 17 regular spirits and 5 bosses (`DESIGN.md`), and Camber is not in
+> it (no river stage). A first crossing of the Ridge is far shorter than the
+> "2 to 3 hours" of section 1: a decision at Gate Q1.
 
 ---
 

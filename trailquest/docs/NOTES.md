@@ -16,6 +16,11 @@ is right. British English.
 | 17 Oct 2026 | Name stays "Trail Quest" for now | open |
 | 17 Oct 2026 | Core lives in the service, the GUI is a thin renderer; fallback is the core in the GUI if the message round trip shows as lag | Claude |
 | 17 Oct 2026 | Font: Press Start 2P (SIL OFL 1.1), 16 px, 1 bit a pixel | Claude |
+| 17 Oct 2026 | Losing a duel sends you back to the last hut (with a small cost), not to the stage start | Jon |
+| 17 Oct 2026 | Each stage's boss is a big Trail Spirit; the summit's is the Summit Wolf | Jon |
+| 17 Oct 2026 | A beaten spirit offers to join; accept or decline; with a full pack, name who leaves | Jon |
+| 17 Oct 2026 | No lead partner: R1 plays the partner best placed against the spirit met (Q1 balance) | Claude, for Gate Q1 |
+| 17 Oct 2026 | Balance targets as in `BALANCE.md` | proposed, Gate Q1 |
 
 ## Findings from the SDK (17 October 2026)
 
@@ -245,15 +250,153 @@ cleanly, and the battery over 10 minutes. Ask Jon when convenient; record here.
 
 **Next:** Q1, the core and balance (no GUI), starting with plan mode.
 
+## Phase Q1: the game core and balance (17 October 2026)
+
+The whole game engine, pure C++ with no screens, so that Q2 is mostly screens.
+
+**Built.** All in `Software/Libs/Core`, namespace `TrailQuest`: integer maths,
+fixed-size structs, no heap, every table index checked (an id out of range reads
+the first row, never past the end).
+
+| Module | What | Header-only (the GUI can use it) |
+|---|---|---|
+| `Rng.hpp` | xorshift32; `below(n)` by rejection (no modulo bias); `chance(pct)`; the state is one `uint32_t`, saved with the game | yes |
+| `Types.hpp` | the three affinities and the wheel; stats; effects (Drain, Slow, Rattle); terrain; weather; time of day from the trail clock | yes |
+| `data/Moves.hpp` | 47 moves: the runner's three, and two for every spirit | yes |
+| `data/Species.hpp` | 22 Trail Spirits: 17 regular (Doubt lives in two stages) and 5 bosses; numbers relative to the runner at the same level | yes |
+| `data/Items.hpp` | Gel, Water, Salt tab, Poles, Headtorch (a key item); a bag of 6 | yes |
+| `data/Stages.hpp` | the five stages: 9 places each, four forks, a hut, a cache or a find, two obstacles, the boss; 10 obstacles | yes |
+| `Progress.hpp` | levels 1-20, stats by level, the XP curve, the partner bonus | yes |
+| `Duel.hpp/.cpp` | the duel: a turn in, a log of events out (for the GUI to play back); deterministic from the setup, the turns and the Rng | no (service) |
+| `Encounter.hpp/.cpp` | which spirit and level a place gives (night spirits only outside full daylight); obstacle odds; finds | no |
+| `RunState.hpp` | the whole saved game in 48 bytes | yes |
+| `Run.hpp/.cpp` | the game flow: travel, obstacles, duels, huts, caches, offers to join, losses, stage clears, laps; says when to save | no |
+| `SafeFile`, `SaveCodec`, `SaveStore` | the save: "key=value" text (`tq=1`, under 384 bytes), strictly checked on load; written via `.tmp` with a `.bak` (SafeFile is Knitting's); load tries the file, then the `.bak`, then a new game | no |
+| `DailyTrail.hpp` | the Daily Trail seed from the date (the stage generator is Q5) | yes |
+
+Tools, built with the host tests (`Tests/Host/tools/`): `balance_sim` (every
+spirit, 10,000 duels a row per skill profile), `run_sim` (whole games through
+`Run`), and the simulated player they share (`Policy.hpp`). Their results, the
+targets and the tuning history are in **`BALANCE.md`**.
+
+**Design changes from the brief and the plan** (these supersede both):
+
+1. **No lead partner.** R1 (Technique) plays the move of the partner best
+   placed against the spirit met, or Trail craft with no partners. A lead chosen
+   before the duel was often the wrong one for the spirit met, and changing it
+   would be one more menu on a watch.
+2. **Settle is a Grit move** (the plan had Form), so the runner has an answer
+   to every affinity: Surge (Pace), Settle (Grit), Trail craft (the terrain's).
+3. **Damage uses the stat the move's affinity names**, so pace, form and grit
+   all count in a duel, and scales with level, so duels stay 3-6 turns all the
+   way up. The beat matters more: Miss x1/2, Perfect x3/2.
+4. **Stamina comes back on the trail**: a quarter for each stretch walked, and
+   all of it on arriving at a boss (a breather before the big one).
+5. **A loss costs 30 trail minutes** (the plan said 60), one item and the walk
+   back from the hut; partners and XP are kept.
+6. **Spirits are relative to the runner** at the same level (stamina a per cent,
+   stats offsets), and the stages' level bands were lowered to what a runner
+   actually reaches: Valley 1-2, Climb 4-5, Scree 7-9, Ridge 10-12, Summit 13-15.
+7. **Wind is symmetric**: Pace moves are 1 weaker for both sides (it was -2
+   pace for the runner only, which made the Ridge a wall).
+8. **Five kinds of item**, not about ten (brief section 5); Q4 can add more. The
+   plan's "Recover" effect was dropped: Settle and items do that.
+9. **Partners do not level on their own.** A partner lends +1 to its affinity's
+   stat and its move, which grows with the runner's level, so it "levels up with
+   you" without a second XP track.
+10. **The trail clock runs on from stage to stage**, so slow runs reach the
+    Ridge and the Summit at dusk or after dark; the Headtorch (in the Ridge's
+    rescue box) takes away the dark's -10 % to hit.
+
+**Findings** (details in `BALANCE.md`):
+
+- Every regular spirit is won 81-94 % of the time by a casual player at par, in
+  3.0-5.4 turns; every boss 76-81 % fresh. In a real run (part recovered, a pack
+  picked by chance, sometimes in the dark), 74-89 % and 44-84 % at the first try.
+- The menu-only mode plays like a casual player who uses the beat (x1.00 against
+  x0.98 on average), so leaving the beat off is never a handicap for most people;
+  a good beat player does clearly better.
+- Partners matter most for bosses: without a pack The Steep is 25 % and the
+  Summit Wolf 13 %.
+- The summit is the hardest place: snow, the dark in a quarter of runs, and the
+  longest fight. A casual player takes 1.8 tries at the Summit Wolf.
+- A whole crossing of the Ridge is about 15 minutes of screens (12 for a good
+  player), against the brief's "2 to 3 hours". A decision for the gate.
+- The first balance table ran every duel in clear weather, which hid how much
+  rain (the valley) and snow (the summit) cost. It now uses the stages' own
+  weather, and four spirits were retuned for it (`BALANCE.md`, step 9).
+
+**Verified.**
+
+- Host tests: **119 pass**, 97 of them new in Q1: Rng 8 (sequence, range,
+  evenness, zero seed, save round trip); Data 10 (every move, spirit and item
+  complete and named once, stats by level, the XP curve); World 9 (every stage:
+  Start first and Boss last, exits only forward so no loops or dead ends, every
+  place reachable and able to reach the boss, real choices, parameters in range,
+  lookups bounds-checked, time of day); Duel 24 (damage worked by hand for each
+  rule: the wheel, terrain, rain, wind, the beat, the finishing push; hit chance;
+  turn order; fuel; poles; effects; the boss's rest; the turn cap; replay from a
+  seed); Encounter 5 (night spirits, level bands, obstacle odds by hand, finds);
+  Run 26 (the whole flow: travel, obstacles, huts, caches, the headtorch, the
+  dark, losses back to the hut, XP and levels, offers and a full pack, the best
+  partner, stage clears, laps, resuming, replay from a seed); Save 12 (round
+  trips, a resumed game carries on exactly as the original, missing, doubled,
+  out-of-range and inconsistent values refused, a torn file falls back to the
+  `.bak`, nonsense in both gives a new game, an invalid state is never written);
+  DailyTrail 3.
+- `balance_sim`: all 23 rows inside the targets. `run_sim`: 4,000 games for each
+  of casual, good and menu-only, and every one reached the summit.
+- Watch target: builds and links (compile check with stubs, not installable). All
+  six core sources compile for the Cortex-M33 with the SDK's flags and no
+  warnings: 17.6 KB of code and 6.6 KB of tables as compiled (each file carries
+  its own copy of the tables it uses, which the linker merges). The `.uapp` is
+  185,752 bytes, the same as Q0's, because nothing calls the core yet: Q2 wires
+  it into the service.
+- Simulator: builds with the core; the probe is unchanged.
+- CI: see the run on the pushed commit.
+
+**Not verified (cannot be yet).** Anything on screen (Q2). Real beat rates: the
+skill profiles are guesses until Q3 logs presses on the watch. The save on the
+watch's own file system (the host tests use a stand-in, as Knitting's do).
+Balance on the second lap (`run_sim` stops at the summit; Q4).
+
+**Gate Q1: what Jon must decide.** Read `BALANCE.md` ("For Gate Q1") and the
+roster in `DESIGN.md`, then:
+
+1. Agree or change **the targets**: a regular spirit at par 80-95 % won in 3-6
+   turns; a boss 65-85 % fresh; each boss reached within a level of par; every
+   run finishes.
+2. **The roster**: the 22 names, and each spirit's line (`DESIGN.md`). Change
+   any you like; the numbers do not depend on the names.
+3. **The summit**: keep the Summit Wolf at about 1.8 tries for a casual player,
+   or soften it.
+4. **The length of a run**: about 15 minutes of screens (perhaps 30-45 in play)
+   against the brief's 2-3 hours. Accept a short first run (the second lap and
+   the Daily Trail add more), make the stages bigger in Q4 (up to 12 places, more
+   forks), or both.
+5. **The rule changes** above, chiefly: no lead partner, stamina back on the
+   trail and before a boss, a loss costing 30 minutes.
+
+Still open from Gate Q0, whenever convenient: can the six feedback patterns be
+told apart blind; does the 30 s backlight hold; does R2 leave cleanly; the
+battery over 10 minutes.
+
 ## Open items
 
-- `Libs/Core/Sources/` is empty until a module needs more than a header.
 - The scene is a few flat shapes. A tile map (the route screens) is not tested
   yet: the LVGL pool is small, so it should be one custom draw callback with
   runs of rectangles, not a widget per tile. Q2 decides this with a measurement.
 - The app has no configuration fields, so CI's manifest check is not wired for it.
 - Gate Q0's unreported items (feedback patterns blind, backlight hold, R2 exit,
   battery): see the gate record above.
+- The service does not run the core yet: Q2 wires `Run` into it, with the
+  messages the screens need (a duel's `TurnLog` is the playback for one turn).
+- The save is written only where `Run::wantsSave()` says (a stage's start, a
+  hut, a boss beaten, a loss, the summit); Q2 decides whether leaving mid-stage
+  saves too.
+- The second lap's balance is untested (`run_sim` stops at the summit): Q4.
+- Dialogue (what each spirit says) is not written; the roster's one-line pains
+  in `DESIGN.md` are the start of it.
 
 ## Review before Gate Q0 (17 October 2026)
 
