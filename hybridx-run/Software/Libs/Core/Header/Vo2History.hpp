@@ -81,10 +81,20 @@ public:
     /// empty and false returned.
     bool fromJson(const char* text, size_t len);
 
-    /// The shared file other HybridX apps may read
-    /// (../SharedData/HybridX/vo2max.json):
-    ///   {"v":1,"vo2maxX10":523,"runs":5,"utc":1791000000}
+    /// The shown figure as it stood after each kept run, oldest first, x 10
+    /// (the same weighting as rollingX10()). Writes at most max values;
+    /// returns how many.
+    uint8_t trendX10(uint16_t* out, uint8_t max) const;
+
+    /// The shared file other HybridX apps (and the VO2max glance) read
+    /// (../SharedData/HybridX/vo2max.json), version 2: version 1's keys plus
+    /// the figure before the latest run and the trend, oldest first:
+    ///   {"v":2,"vo2maxX10":523,"runs":5,"utc":1791000000,"beforeX10":519,
+    ///    "trend":[505,512,519,523]}
     size_t toSharedJson(char* buf, size_t cap) const;
+
+    /// Largest toSharedJson() output, for sizing buffers.
+    static constexpr size_t kMaxSharedJsonBytes = 96 + Config::kHistoryRuns * 6;
 
     /// Largest toJson() output, for sizing buffers.
     static constexpr size_t kMaxJsonBytes = 64 + Config::kHistoryRuns * (32 + 4);

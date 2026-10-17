@@ -1715,6 +1715,9 @@ void Service::loadVo2()
     }
     mVo2Input.autoMaxHr   = mVo2History.autoMaxHr();
     mVo2Input.watchRestHr = mVo2History.watchRestHr();   // until the sensor reports
+    // Also at start (R6), so the glance gets the version 2 file (with the
+    // trend) after an update, before the next run is saved.
+    writeSharedVo2();
 
     mVo2Info            = CustomMessage::Vo2Info{};
     mVo2Info.rollingX10 = mVo2History.rollingX10();
@@ -1788,11 +1791,7 @@ void Service::finishVo2(std::time_t endUtc)
     if (len == 0 || !RunVo2::SafeFile::write(mKernel.fs, kVo2File, buf, len)) {
         LOG_ERROR("Could not save vo2.json\n");
     }
-    const size_t sharedLen = mVo2History.toSharedJson(buf, sizeof(buf));
-    if (sharedLen == 0 || !mKernel.fs.mkdir(kSharedDir)
-        || !RunVo2::SafeFile::write(mKernel.fs, kSharedFile, buf, sharedLen)) {
-        LOG_WARNING("Could not save the public vo2max.json\n");
-    }
+    writeSharedVo2();
 
     mVo2Info.rollingX10    = mVo2History.rollingX10();
     mVo2Info.runs          = mVo2History.size();
@@ -1805,6 +1804,16 @@ void Service::finishVo2(std::time_t endUtc)
     mVo2Info.maxSource     = static_cast<uint8_t>(profile.maxSource);
     mVo2Info.restHr        = profile.restHr;
     sendVo2Info();
+}
+
+void Service::writeSharedVo2()
+{
+    char buf[RunVo2::Vo2History::kMaxSharedJsonBytes];
+    const size_t len = mVo2History.toSharedJson(buf, sizeof(buf));
+    if (len == 0 || !mKernel.fs.mkdir(kSharedDir)
+        || !RunVo2::SafeFile::write(mKernel.fs, kSharedFile, buf, len)) {
+        LOG_WARNING("Could not save the public vo2max.json\n");
+    }
 }
 
 void Service::sendVo2Info()

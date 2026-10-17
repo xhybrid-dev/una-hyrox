@@ -228,6 +228,19 @@ bool Vo2History::fromJson(const char* text, size_t len)
     return true;
 }
 
+uint8_t Vo2History::trendX10(uint16_t* out, uint8_t max) const
+{
+    if (out == nullptr) {
+        return 0;
+    }
+    const uint8_t n = mCount < max ? mCount : max;
+    const uint8_t from = static_cast<uint8_t>(mCount - n);
+    for (uint8_t i = 0; i < n; ++i) {
+        out[i] = rollingOver(static_cast<uint8_t>(from + i + 1));
+    }
+    return n;
+}
+
 size_t Vo2History::toSharedJson(char* buf, size_t cap) const
 {
     if (buf == nullptr || cap == 0) {
@@ -237,10 +250,18 @@ size_t Vo2History::toSharedJson(char* buf, size_t cap) const
     const uint32_t last = mCount ? at(static_cast<uint8_t>(mCount - 1)).utc : 0;
     SDK::JsonStreamWriter w(buf, cap);
     w.startMap();
-    w.add("v", static_cast<uint8_t>(1));
+    w.add("v", static_cast<uint8_t>(2));
     w.add("vo2maxX10", rollingX10());
     w.add("runs", mCount);
     w.add("utc", last);
+    w.add("beforeX10", rollingX10Before());
+    uint16_t trend[Config::kHistoryRuns];
+    const uint8_t n = trendX10(trend, Config::kHistoryRuns);
+    w.startArray("trend");
+    for (uint8_t i = 0; i < n; ++i) {
+        w.add(trend[i]);
+    }
+    w.endArray();
     w.endMap();
     if (w.isError()) {
         buf[0] = '\0';

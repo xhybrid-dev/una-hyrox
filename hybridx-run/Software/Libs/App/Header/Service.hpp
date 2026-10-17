@@ -222,6 +222,7 @@ private:
     void loadVo2();
     void feedVo2();
     void finishVo2(std::time_t endUtc);
+    void writeSharedVo2();
     void sendVo2Info();
     void fillVo2Page();
     void handleEvent(const CustomMessage::Vo2ProfileSave& event);

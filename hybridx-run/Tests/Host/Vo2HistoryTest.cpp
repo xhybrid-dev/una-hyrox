@@ -186,13 +186,52 @@ TEST(Vo2History, ReadStopsAtTheGivenLength)
 TEST(Vo2History, SharedJson)
 {
     Vo2History h;
-    char buf[96];
+    char buf[Vo2History::kMaxSharedJsonBytes];
     ASSERT_GT(h.toSharedJson(buf, sizeof(buf)), 0u);
-    EXPECT_STREQ(buf, "{\"v\":1,\"vo2maxX10\":0,\"runs\":0,\"utc\":0}");
+    EXPECT_STREQ(buf, "{\"v\":2,\"vo2maxX10\":0,\"runs\":0,\"utc\":0,\"beforeX10\":0,\"trend\":[]}");
     h.add(RunRecord{1791000000u, 523, 24});
     ASSERT_GT(h.toSharedJson(buf, sizeof(buf)), 0u);
-    EXPECT_STREQ(buf, "{\"v\":1,\"vo2maxX10\":523,\"runs\":1,\"utc\":1791000000}");
+    EXPECT_STREQ(buf, "{\"v\":2,\"vo2maxX10\":523,\"runs\":1,\"utc\":1791000000,"
+                      "\"beforeX10\":0,\"trend\":[523]}");
+    h.add(RunRecord{1791100000u, 533, 24});
+    ASSERT_GT(h.toSharedJson(buf, sizeof(buf)), 0u);
+    EXPECT_STREQ(buf, "{\"v\":2,\"vo2maxX10\":528,\"runs\":2,\"utc\":1791100000,"
+                      "\"beforeX10\":523,\"trend\":[523,528]}");
     EXPECT_EQ(h.toSharedJson(buf, 8), 0u);
+}
+
+TEST(Vo2History, SharedJsonFitsWhenFull)
+{
+    Vo2History h;
+    for (uint32_t i = 0; i < Config::kHistoryRuns + 3; ++i) {
+        h.add(RunRecord{4000000000u + i, 899, 65535});
+    }
+    char buf[Vo2History::kMaxSharedJsonBytes];
+    EXPECT_GT(h.toSharedJson(buf, sizeof(buf)), 0u);
+}
+
+TEST(Vo2History, TrendIsTheShownFigureAfterEachRun)
+{
+    Vo2History h;
+    uint16_t t[Config::kHistoryRuns] = {};
+    EXPECT_EQ(h.trendX10(t, Config::kHistoryRuns), 0u);
+    EXPECT_EQ(h.trendX10(nullptr, Config::kHistoryRuns), 0u);
+    for (uint16_t i = 0; i < 12; ++i) {
+        h.add(RunRecord{1000u + i, static_cast<uint16_t>(500 + 10 * i), 10});
+    }
+    ASSERT_EQ(h.trendX10(t, Config::kHistoryRuns), Config::kHistoryRuns);
+    // The last entry is today's figure, the one before it the figure before.
+    EXPECT_EQ(t[Config::kHistoryRuns - 1], h.rollingX10());
+    EXPECT_EQ(t[Config::kHistoryRuns - 2], h.rollingX10Before());
+    // Kept runs 2..11 (vo2 520..610); after the 1st kept run (index 0) only
+    // that run counts: 520. After the 5th: the mean of 520..560 = 540.
+    EXPECT_EQ(t[0], 520);
+    EXPECT_EQ(t[4], 540);
+    // Fewer asked for: the newest ones.
+    uint16_t two[2] = {};
+    ASSERT_EQ(h.trendX10(two, 2), 2u);
+    EXPECT_EQ(two[1], h.rollingX10());
+    EXPECT_EQ(two[0], h.rollingX10Before());
 }
 
 TEST(Vo2History, RollingBeforeTheLatestRun)
