@@ -22,11 +22,26 @@ namespace {
 /// How long the screen is asked to stay on after the last sign of life, ms.
 constexpr uint32_t kBacklightHoldMs = 30000;
 
+// Feedback.hpp is pure, so it copies the kernel's limits and effect numbers.
+// Tie the copies to the SDK here, where both are visible: if the SDK changes,
+// the build fails instead of a pattern being cut short on the watch.
+using SDK::Message::RequestBuzzerPlay;
+using SDK::Message::RequestVibroPlay;
+namespace FxDetail = TrailQuest::detail;
+static_assert(TrailQuest::kMaxVibroNotes == RequestVibroPlay::skMaxNotes, "vibro note limit changed");
+static_assert(TrailQuest::kMaxBuzzerNotes == RequestBuzzerPlay::skMaxNotes, "buzzer note limit changed");
+static_assert(FxDetail::kStrongClick == RequestVibroPlay::STRONG_CLICK_100, "effect renumbered");
+static_assert(FxDetail::kSharpClick == RequestVibroPlay::SHARP_CLICK_100, "effect renumbered");
+static_assert(FxDetail::kSoftBump == RequestVibroPlay::SOFT_BUMP_100, "effect renumbered");
+static_assert(FxDetail::kDoubleClick == RequestVibroPlay::DOUBLE_CLICK_100, "effect renumbered");
+static_assert(FxDetail::kAlert750 == RequestVibroPlay::ALERT_750MS_100, "effect renumbered");
+static_assert(FxDetail::kShortDoubleStrong == RequestVibroPlay::SHORT_DOUBLE_CLICK_STRONG_1_100, "effect renumbered");
+static_assert(FxDetail::kLongDoubleSharpStrong == RequestVibroPlay::LONG_DOUBLE_SHARP_CLICK_STRONG_1_100, "effect renumbered");
+
 } // namespace
 
 Service::Service(SDK::Kernel &kernel)
     : mKernel(SDK::KernelProviderService::GetInstance().getKernel())
-    , mBeat(TrailQuest::clampBeat(TrailQuest::BeatConfig{}))
 {
     (void)kernel;
 }
@@ -67,6 +82,7 @@ void Service::run()
                 if (fx < static_cast<uint8_t>(TrailQuest::FxId::Count)) {
                     playFx(static_cast<TrailQuest::FxId>(fx));
                 }
+                holdBacklight(kBacklightHoldMs);
             } break;
 
             default:
@@ -120,7 +136,10 @@ void Service::playFx(TrailQuest::FxId id)
 
 void Service::onBeatPress(const CustomMessage::BeatPress &press)
 {
-    const TrailQuest::BeatJudgement j = TrailQuest::judgeBeat(mBeat, press.startMs, press.pressMs);
+    // Judge with the zones the GUI drew, brought into range first: a message
+    // is not trusted to hold a valid configuration.
+    const TrailQuest::BeatConfig beat = TrailQuest::clampBeat(press.beat);
+    const TrailQuest::BeatJudgement j = TrailQuest::judgeBeat(beat, press.startMs, press.pressMs);
 
     LOG_INFO("beat %lu: %s, %ld ms\n", static_cast<unsigned long>(press.seq),
              j.result == TrailQuest::BeatResult::Perfect ? "perfect"

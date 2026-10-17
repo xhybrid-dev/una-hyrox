@@ -132,7 +132,7 @@ static const uint8_t sprite_bonk_1[288] = {
     0xAA, 0xAA, 0x10, 0x00, 0x00, 0x00, 0x1A, 0xAA, 0xA9, 0x99, 0x99, 0x99, 0xAA, 0xAA, 0x10, 0x00,
 };
 
-const TrailQuestSprite trailquest_sprites[3] = {
+const TrailQuestSprite trailquest_sprites[TRAILQUEST_SPRITE_COUNT] = {
     { "runner", { sprite_runner_0, sprite_runner_1 } },
     { "stitch", { sprite_stitch_0, sprite_stitch_1 } },
     { "bonk", { sprite_bonk_0, sprite_bonk_1 } },

@@ -50,7 +50,7 @@ SDK commit `a7a995a` (the one CI pins). Paths are in `una-sdk/`.
    of a bezel. I did not find a statement in the SDK docs, so this is *to
    confirm on the watch*. Consequence: the 240×240 frame has dead corners, and
    text must fit the chord at its height. At y = 205 the visible width is about
-   170 px; at y = 225 about 130 px.
+   170 px; at y = 225 about 116 px (2 * sqrt(120^2 - 105^2)).
 6. **The palette grid is 0x00, 0x40, 0x80, 0xC0 a channel**
    (`Libs/Header/SDK/GUI/Color.hpp`). The port keeps the top two bits of each
    RGB565 channel (`Libs/Source/Port/LVGL/LvglPort.cpp:90-98`). *This corrects
@@ -72,15 +72,25 @@ SDK commit `a7a995a` (the one CI pins). Paths are in `una-sdk/`.
    `Feedback.hpp` are therefore header-only, and `Libs/Core/Sources/` is empty
    for now. Remember this for every core module the GUI touches.
 9. **The service and the GUI need not share a clock.** A beat press carries
-   both timestamps from the GUI's clock (`lv_tick_get()`), and the core takes
-   them as inputs. Both are the wrapping millisecond count, so every difference
-   is an unsigned delta (tested across the wrap).
+   both timestamps from the GUI's clock, and the core takes them as inputs.
+   That clock is LVGL's tick, `lv_tick_get()`, which the SDK's port makes wrap
+   at 2^32 (`LvglPort.cpp`, `Port::tickCb`), so every difference is an unsigned
+   delta (tested across the wrap). The kernel's own `sys.getTimeMs()` returns
+   to 0 short of 2^32: never mix the two.
 10. **Memory.** `GUI_RAM_LENGTH` is 900K and the stack 24 KB in Weigh-in; we
     copy those. Measured for the Q0 build (watch target, compile check): GUI ELF
-    173,344 B text + 1,484 B data + 159,724 B bss = **334,552 B** (RunLVGL is
+    173,956 B text + 1,484 B data + 159,820 B bss = **335,260 B** (RunLVGL is
     about 450-490 KB), of which the sprite buffers are 20,736 B and the LVGL
-    pool 40 KB; service ELF 16,212 B. The `.uapp` is 185,228 B. In the
+    pool 40 KB; service ELF 16,220 B. The `.uapp` is 185,864 B. In the
     simulator the probe screen uses 9 KB of the pool, peak 33 %.
+11. **A press is judged at the frame on screen.** Each frame the port delivers
+    service messages, then one button code, then runs LVGL's timers and renders
+    (`LvglPort.cpp`, `Port::run`). So when the R1 code arrives, the screen still
+    shows the needle drawn on the previous tick. The GUI therefore sends the
+    time that needle was drawn for, not "now", which would judge every press a
+    frame (100 ms) late. Measured in the simulator: the judged time is 100 ms
+    before the code's arrival. The press also carries the zones as drawn, and
+    the service judges with those, so what is on screen is what is judged.
 
 ## Platform answers still to get (they need the watch)
 
@@ -104,12 +114,17 @@ SDK commit `a7a995a` (the one CI pins). Paths are in `una-sdk/`.
 - Build recipe used:
 
   ```
-  arm-none-eabi-gcc -c hybridx-race/docs/experiments/syscall_stubs.c -o stubs.o \
+  mkdir -p trailquest/build     # git-ignored, so nothing here can be committed
+  arm-none-eabi-gcc -c hybridx-race/docs/experiments/syscall_stubs.c \
+      -o trailquest/build/stubs.o \
       -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb
   cmake -G "Unix Makefiles" -S trailquest/Software/Apps/TrailQuest-CMake \
-      -B build-arm -DCMAKE_EXE_LINKER_FLAGS=$PWD/stubs.o
-  make -C build-arm
+      -B trailquest/build/arm -DCMAKE_EXE_LINKER_FLAGS=$PWD/trailquest/build/stubs.o
+  make -C trailquest/build/arm
   ```
+- The SDK can also log its own frame numbers: configure with
+  `-DUNA_LVGL_FRAME_STATS=ON` (as RunLVGL's `-DRUNLVGL_FRAME_STATS=ON`) for one
+  line per 100 ticks with render and hand-off times.
 - Simulator: `cmake -S trailquest/Software/Apps/LVGL-GUI/simulator -B
   trailquest/Software/Apps/LVGL-GUI/simulator/build -G Ninja` (needs
   `libsdl2-dev`); screens with `docs/experiments/capture_screens.sh` (needs
@@ -133,15 +148,18 @@ and the probe screen:
 
 **Verified.**
 
-- Host tests: 18 pass (12 for the beat: zone edges, the sweep's wrap, the
-  kernel clock's wrap, the two-frame floor; 6 for the feedback table: kernel
-  limits, known effect numbers, supported volumes, patterns distinct from each
-  other).
+- Host tests: 22 pass after the review below (16 for the beat: zone edges,
+  the fold round the loop for odd and even sweeps, zones that always fit the
+  track, the track mapping, the wrap of LVGL's tick, the two-frame floor; 6
+  for the feedback table: kernel limits, known effect numbers, supported
+  volumes, patterns distinct from each other). The watch and simulator builds
+  also check the feedback table's limits and effect numbers against the SDK
+  at compile time.
 - Simulator: builds with no warnings from our code; a captured run shows the
   press reaching the service ("beat 1: perfect, 15 ms") and the answer one frame
   (100 ms) later. Screens in `docs/screens/q0-*.png` (cut to the round face).
 - Watch target: builds and links (compile check with stubs, not installable);
-  `TrailQuest_0.0.0-dev.uapp`, 185,228 bytes. CI builds the real one.
+  `TrailQuest_0.0.0-dev.uapp`, 185,864 bytes. CI builds the real one.
 - Art: `gen_art.py` passes its palette check; sheet in
   `docs/screens/q0-art-sheet.png`.
 
@@ -151,7 +169,7 @@ order. The simulator's render times (1-3 ms on a PC) say nothing about the
 watch's roughly 40 ms.
 
 **Gate Q0: what Jon must test.** Install the `.uapp` from the CI run's
-`watch-apps` artifact on branch `claude/trailquest-q0`, the way the other
+`watch-apps` artifact on branch `claude/x-trailquest-q0`, the way the other
 apps go on. Then:
 
 1. Does it look right? The runner, the fox and the bear should read at a glance;
@@ -166,7 +184,8 @@ apps go on. Then:
    watch, and what is `rt`?
 5. Feedback: L2 picks a pattern, L1 plays it. Could you tell the six apart with
    your eyes closed?
-6. Does the screen stay on for about 30 s after the last press?
+6. Does the screen stay on for about 30 s after the last R1 or L1 press?
+   (L2 does not tell the service anything, so it does not renew the hold.)
 7. Does R2 leave the app cleanly?
 8. Optional: leave it running 10 minutes and note the battery drop.
 
@@ -184,3 +203,40 @@ apps go on. Then:
   yet: the LVGL pool is small, so it should be one custom draw callback with
   runs of rectangles, not a widget per tile. Q2 decides this with a measurement.
 - The app has no configuration fields, so CI's manifest check is not wired for it.
+
+## Review before Gate Q0 (17 October 2026)
+
+A full code review of the branch (high effort) raised 15 findings and one
+low item. All were checked against the code and the SDK and all held; all are
+fixed:
+
+1. Presses were judged a frame late (finding 11 above). Fixed: judged at the
+   needle on screen.
+2. The gate steps named the branch `claude/trailquest-q0` (the rename's search
+   and replace); it is `claude/x-trailquest-q0`.
+3. A zone near either end of the sweep would have been drawn off screen (an
+   unsigned underflow) while still being judged. Fixed at the root:
+   `clampBeat()` now keeps the good zone inside the track, and the GUI draws
+   the needle and the zones with the core's tested `beatToTrack()`.
+4. The fold round the loop was one off for an odd sweep. Fixed (`2d` against
+   the sweep) and tested.
+5. The round trip was timed against the latest press, not its own. Fixed: by
+   sequence number.
+6. L1 (play a pattern) did not renew the backlight hold. Fixed.
+7. The chord width at y = 225 was wrong (130 px; it is 116 px). Fixed here and
+   in `DESIGN.md`.
+8. The sprite index was not bounds-checked. Fixed, and the sprite header is now
+   generated with the table, so the index constants and the count cannot drift.
+9. The GUI and the service each made their own beat configuration. Fixed: the
+   press carries the zones as drawn.
+10. The feedback table's copies of the kernel's limits were not tied to the
+    SDK. Fixed: `static_assert`s in `Service.cpp`.
+11. The core's doc named the kernel clock; the clock is LVGL's tick. Fixed
+    (finding 9), and the test renamed.
+12. The GUI re-implemented the core's track mapping. Fixed (item 3).
+13. The labels were set with `lv_label_set_text` every second, which allocates
+    in LVGL's pool. Fixed: fixed buffers and `lv_label_set_text_static`.
+14. An unused font (`poppins_semibold_20.c`) was compiled. Removed.
+15. `ModelListener::bind()` and its `model` were dead. Removed.
+16. (Low) The build recipe wrote `stubs.o` and `build-arm/` at the repository
+    root, outside `.gitignore`. Fixed: they now go in `trailquest/build/`.

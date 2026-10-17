@@ -36,7 +36,6 @@ private:
     void onBeatPress(const CustomMessage::BeatPress &press);
 
     SDK::Kernel &mKernel;
-    TrailQuest::BeatConfig mBeat;
 };
 
 #endif // SERVICE_HPP

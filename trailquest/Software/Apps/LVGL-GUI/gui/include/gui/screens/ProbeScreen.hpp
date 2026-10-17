@@ -56,13 +56,17 @@ private:
     void updateStats();
     void updateKeys();
 
+    /// Beat presses kept for the round trip, by sequence number.
+    static constexpr uint32_t kPressSlots = 4;
+
     Model&    mModel;
     lv_obj_t* mRoot = nullptr;
 
     TrailQuest::BeatConfig mBeat;
     uint32_t mBeatStart = 0;
+    uint32_t mNeedleMs  = 0;     ///< The time the needle on screen was drawn for.
     uint32_t mSeq       = 0;
-    uint32_t mPressTick = 0;     ///< When the last press was sent.
+    uint32_t mPressTick[kPressSlots] = {};   ///< When each press was sent, by seq.
 
     Sprite mRunner;
     Sprite mStitch;
@@ -76,8 +80,8 @@ private:
     lv_timer_t* mTimer  = nullptr;
     std::unique_ptr<SDK::LVGL::Buttons> mButtons;
 
-    uint8_t mFx = 0;
-    uint8_t mFrame = 0;
+    uint8_t  mFx       = 0;
+    uint8_t  mFrame    = 0;
     uint32_t mLastFlip = 0;
 
     // Render timing, measured between LVGL's render start and ready events.
@@ -88,7 +92,15 @@ private:
     uint32_t mStatsAt     = 0;
     uint32_t mRoundTrip   = 0;
 
-    char mKeyText[16] = {0};
+    // The last three button codes, oldest first.
+    char    mCodes[3] = {};
+    uint8_t mCodeCount = 0;
+
+    // Label text lives here and is shown with lv_label_set_text_static, so
+    // updating a label never allocates in LVGL's pool.
+    char mResultText[24] = {};
+    char mStatsText[48]  = {};
+    char mKeysText[24]   = {};
 };
 
 #endif // TRAILQUEST_PROBE_SCREEN_HPP

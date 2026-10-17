@@ -18,7 +18,7 @@ written.
 - **Type.** Press Start 2P at 16 px (twice its 8 px grid) for everything the
   player reads. Developer numbers use Poppins 14 and are not for release.
 - **Round face.** Nothing important in the corners. Text is centred and sized to
-  the chord at its height: about 170 px wide at y = 205, 130 px at y = 225, 144
+  the chord at its height: about 170 px wide at y = 205, 116 px at y = 225, 144
   px at y = 24.
 - **The bezel.** The SDK's four arcs mark what each button does: amber to
   choose, white to go back, red to discard or leave, green to confirm.

@@ -12,7 +12,8 @@
 void Sprite::create(lv_obj_t* parent, int32_t x, int32_t y, uint8_t spriteIndex, uint8_t* buffer)
 {
     mBuffer = buffer;
-    mSprite = spriteIndex;
+    // No MMU: an index past the table would read whatever lies beyond it.
+    mSprite = spriteIndex < TRAILQUEST_SPRITE_COUNT ? spriteIndex : 0;
 
     mDsc.header.magic  = LV_IMAGE_HEADER_MAGIC;
     mDsc.header.cf     = LV_COLOR_FORMAT_RGB565A8;

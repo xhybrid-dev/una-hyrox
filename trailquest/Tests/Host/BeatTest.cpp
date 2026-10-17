@@ -1,5 +1,5 @@
-// The timing beat: the needle, the zones, wrap-around of the sweep and of the
-// kernel's millisecond clock, and the two-frame floor.
+// The timing beat: the needle, the zones, the fold round the loop, the wrap of
+// LVGL's tick, and the two-frame floor.
 
 #include <gtest/gtest.h>
 
@@ -32,38 +32,75 @@ TEST(Beat, ClampKeepsTheZonesAtLeastTwoFramesWide)
     EXPECT_GE(k.goodMs, k.perfectMs);
 }
 
-TEST(Beat, ClampBoundsTheSweepAndTarget)
+TEST(Beat, ClampBoundsTheSweep)
 {
     BeatConfig c;
-    c.sweepMs  = 10;
-    c.targetMs = 5000;
-    BeatConfig k = clampBeat(c);
-    EXPECT_EQ(k.sweepMs, kMinSweepMs);
-    EXPECT_LT(k.targetMs, k.sweepMs);
-
+    c.sweepMs = 10;
+    EXPECT_EQ(clampBeat(c).sweepMs, kMinSweepMs);
     c.sweepMs = 100000;
-    k = clampBeat(c);
-    EXPECT_EQ(k.sweepMs, kMaxSweepMs);
+    EXPECT_EQ(clampBeat(c).sweepMs, kMaxSweepMs);
 }
 
-TEST(Beat, GoodNeverWiderThanTheSweep)
+TEST(Beat, GoodIsAtMostHalfTheSweepAndPerfectAtMostGood)
 {
     BeatConfig c;
-    c.sweepMs = 800;
-    c.goodMs  = 5000;
+    c.sweepMs   = 800;
+    c.goodMs    = 5000;
+    c.perfectMs = 5000;
     const BeatConfig k = clampBeat(c);
-    EXPECT_LE(k.goodMs, k.sweepMs);
-    EXPECT_LE(k.perfectMs, k.goodMs);
+    EXPECT_EQ(k.goodMs, 400u);
+    EXPECT_EQ(k.perfectMs, 400u);
+    EXPECT_GE(k.perfectMs, kMinPerfectMs);
+}
+
+TEST(Beat, ClampMovesTheTargetSoTheGoodZoneFitsOnTheTrack)
+{
+    BeatConfig c;   // good 400: the zone needs 200 ms either side
+    c.targetMs = 50;
+    EXPECT_EQ(clampBeat(c).targetMs, 200u);
+    c.targetMs = 1590;
+    EXPECT_EQ(clampBeat(c).targetMs, 1400u);
+    c.targetMs = 100000;
+    EXPECT_EQ(clampBeat(c).targetMs, 1400u);
+}
+
+TEST(Beat, EveryClampedConfigDrawsItsZonesInsideTheTrack)
+{
+    // A sweep of odd and even lengths, odd zone widths, targets everywhere.
+    for (uint32_t sweep : {800u, 801u, 1600u, 1601u, 3999u, 4000u}) {
+        for (uint32_t good : {0u, 201u, 400u, 999u, 5000u}) {
+            for (uint32_t target : {0u, 1u, 199u, 400u, 1200u, 3999u, 0xFFFFFFFFu}) {
+                BeatConfig c;
+                c.sweepMs  = sweep;
+                c.goodMs   = good;
+                c.targetMs = target;
+                const BeatConfig k = clampBeat(c);
+                ASSERT_GE(k.targetMs, (k.goodMs + 1) / 2) << sweep << " " << good << " " << target;
+                ASSERT_LE(k.targetMs + (k.goodMs + 1) / 2, k.sweepMs) << sweep << " " << good << " " << target;
+                ASSERT_GE(k.targetMs, (k.perfectMs + 1) / 2);
+            }
+        }
+    }
+}
+
+TEST(Beat, TrackPositionRunsFromStartToEnd)
+{
+    const BeatConfig c = defaults();   // 1600 ms
+    EXPECT_EQ(beatToTrack(c, 0, 150), 0u);
+    EXPECT_EQ(beatToTrack(c, 800, 150), 75u);
+    EXPECT_EQ(beatToTrack(c, 1600, 150), 150u);
+    EXPECT_EQ(beatToTrack(c, 9999, 150), 150u);     // held at the end
+    EXPECT_EQ(beatToTrack(c, 1200, 1000), 750u);    // per mille
 }
 
 TEST(Beat, NeedleRunsAlongTheTrackAndStartsAgain)
 {
     const BeatConfig c = defaults();   // 1600 ms
-    EXPECT_EQ(beatPermille(c, 5000, 5000), 0u);
-    EXPECT_EQ(beatPermille(c, 5000, 5800), 500u);
-    EXPECT_EQ(beatPermille(c, 5000, 6599), 999u);
-    EXPECT_EQ(beatPermille(c, 5000, 6600), 0u);       // the next pass
-    EXPECT_EQ(beatPermille(c, 5000, 6600 + 800), 500u);
+    EXPECT_EQ(beatPhaseMs(c, 5000, 5000), 0u);
+    EXPECT_EQ(beatPhaseMs(c, 5000, 5800), 800u);
+    EXPECT_EQ(beatPhaseMs(c, 5000, 6599), 1599u);
+    EXPECT_EQ(beatPhaseMs(c, 5000, 6600), 0u);       // the next pass
+    EXPECT_EQ(beatPhaseMs(c, 5000, 6600 + 800), 800u);
 }
 
 TEST(Beat, PressOnTheTargetIsPerfect)
@@ -93,18 +130,36 @@ TEST(Beat, OffsetIsSignedEarlyNegativeLatePositive)
     EXPECT_EQ(judgeBeat(c, 0, c.targetMs + 150).offsetMs, 150);
 }
 
-TEST(Beat, ATargetNearTheStartCanBeHitJustBeforeTheWrap)
+TEST(Beat, ThePressIsMeasuredTheNearWayRoundTheLoop)
 {
     BeatConfig c;
-    c.targetMs = 50;
+    c.targetMs = 200;
     c = clampBeat(c);
-    // 1550 ms into a 1600 ms sweep is 100 ms before the needle reaches 0 + 50.
-    const BeatJudgement j = judgeBeat(c, 0, 1550);
-    EXPECT_EQ(j.offsetMs, -100);
-    EXPECT_EQ(j.result, BeatResult::Perfect);
-    // And just after the wrap.
-    EXPECT_EQ(judgeBeat(c, 0, 1600 + 140).result, BeatResult::Perfect);
-    EXPECT_EQ(judgeBeat(c, 0, 1600 + 140).offsetMs, 90);
+    ASSERT_EQ(c.targetMs, 200u);
+    // 1590 ms into a 1600 ms sweep is 210 ms before the next pass reaches 200.
+    EXPECT_EQ(judgeBeat(c, 0, 1590).offsetMs, -210);
+    EXPECT_EQ(judgeBeat(c, 0, 1590).result, BeatResult::Miss);
+    // And 10 ms after the restart is 190 ms early: inside the good zone.
+    EXPECT_EQ(judgeBeat(c, 0, 1610).offsetMs, -190);
+    EXPECT_EQ(judgeBeat(c, 0, 1610).result, BeatResult::Good);
+}
+
+TEST(Beat, TheFoldIsExactForAnOddSweep)
+{
+    // The case the review found: a press exactly opposite the target. With a
+    // 1601 ms sweep the near way is 800 ms early, not 801 ms late.
+    BeatConfig c;
+    c.sweepMs  = 1601;
+    c.targetMs = 800;
+    c.goodMs   = 800;
+    c = clampBeat(c);
+    ASSERT_EQ(c.sweepMs, 1601u);
+    ASSERT_EQ(c.targetMs, 800u);
+    EXPECT_EQ(judgeBeat(c, 0, 0).offsetMs, -800);
+    EXPECT_EQ(judgeBeat(c, 0, 1600).offsetMs, 800);
+    // Even sweep: exactly opposite folds to +sweep/2, as documented.
+    const BeatConfig e = defaults();   // target 1200 of 1600
+    EXPECT_EQ(judgeBeat(e, 0, 400).offsetMs, 800);
 }
 
 TEST(Beat, AnyPassOfTheNeedleCounts)
@@ -117,10 +172,11 @@ TEST(Beat, AnyPassOfTheNeedleCounts)
     }
 }
 
-TEST(Beat, WorksAcrossTheWrapOfTheKernelClock)
+TEST(Beat, WorksAcrossTheWrapOfLvglsTick)
 {
+    // lv_tick_get() wraps at 2^32 (the SDK port's Port::tickCb).
     const BeatConfig c = defaults();
-    const uint32_t start = 0xFFFFFF00u;   // 256 ms before the clock wraps
+    const uint32_t start = 0xFFFFFF00u;   // 256 ms before the tick wraps
     const uint32_t press = start + c.targetMs;   // wraps past zero
     EXPECT_LT(press, start);
     const BeatJudgement j = judgeBeat(c, start, press);

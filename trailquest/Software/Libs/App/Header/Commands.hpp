@@ -9,9 +9,14 @@
  *
  * Q0 (the feasibility probe) uses three: the GUI reports a button press on
  * the timing beat and the service judges it (the real design: the core lives
- * in the service); the GUI asks for a feedback pattern to be played. The
- * timestamps in a beat press are both the GUI's own clock, so the service
- * never has to share a clock with the GUI.
+ * in the service); the GUI asks for a feedback pattern to be played.
+ *
+ * A beat press carries everything the judgement needs, as the player saw it:
+ * the zones the GUI drew, the start of the pass, and the needle's time in the
+ * frame on screen. Both times are the GUI's lv_tick_get(), so the service
+ * never shares a clock with the GUI, and the zones on screen can never differ
+ * from the zones judged. (From Q1 the core picks the zones and sends them in
+ * the view; the press still echoes what was drawn.)
  ******************************************************************************
  */
 
@@ -41,25 +46,28 @@ constexpr SDK::MessageType::Type BEAT_PRESS = 0x00000010;
 constexpr SDK::MessageType::Type FX_PLAY    = 0x00000011;
 
 /// GUI --> Service: the button was pressed on the beat. Both times are the
-/// GUI's millisecond clock.
+/// GUI's lv_tick_get().
 struct BeatPress : public SDK::MessageBase {
     uint32_t seq;        ///< Echoed in the result, to measure the round trip.
-    uint32_t startMs;    ///< When this pass of the sweep began.
-    uint32_t pressMs;    ///< When the button code reached the screen.
+    uint32_t startMs;    ///< When the sweep began.
+    uint32_t pressMs;    ///< The needle's time in the frame on screen at the press.
+    TrailQuest::BeatConfig beat;   ///< The zones as drawn.
 
     BeatPress()
         : SDK::MessageBase(BEAT_PRESS)
         , seq(0)
         , startMs(0)
         , pressMs(0)
+        , beat {}
     {}
 
-    BeatPress(uint32_t s, uint32_t start, uint32_t press)
+    BeatPress(uint32_t s, uint32_t start, uint32_t press, const TrailQuest::BeatConfig& b)
         : BeatPress()
     {
         seq     = s;
         startMs = start;
         pressMs = press;
+        beat    = b;
     }
 };
 

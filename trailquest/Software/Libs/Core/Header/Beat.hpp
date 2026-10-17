@@ -5,14 +5,18 @@
  *          judged by how close it lands to the target.
  *
  * Header-only: the GUI process links none of the Libs sources
- * (hybridx-race NOTES 3.4), and it draws the needle with the same functions
- * the service judges with.
+ * (hybridx-race NOTES 3.4), and it draws the needle and the zones with the
+ * same functions the service judges with.
  *
  * Pure and integer-only. The needle's position is a function of time alone:
  * the GUI draws it from its own clock, and the same GUI timestamps (the start
  * of the sweep and the press) come to the judge, so the two never need to
- * agree on a clock. Both timestamps are the kernel's wrapping millisecond
- * count, so every difference is an unsigned delta.
+ * agree on a clock.
+ *
+ * Which clock: LVGL's tick, lv_tick_get(). The SDK's port accumulates the
+ * kernel clock into a tick that wraps at 2^32 (LvglPort.cpp, Port::tickCb), so
+ * an unsigned difference is right across the wrap. The kernel's own
+ * sys.getTimeMs() returns to 0 short of 2^32 and must not be mixed in.
  *
  * The GUI runs at 10 frames a second and delivers one button code per frame
  * (una-sdk Docs/Tutorials/RunLVGL/ARCHITECTURE.md), so a press is only known
@@ -60,9 +64,13 @@ struct BeatJudgement {
 };
 
 /**
- * @brief   Bring a configuration into range: the sweep in [kMinSweepMs,
- *          kMaxSweepMs], the target inside the sweep, perfect at least
- *          kMinPerfectMs, good at least perfect and at most the sweep.
+ * @brief   Bring a configuration into range:
+ *          - the sweep in [kMinSweepMs, kMaxSweepMs];
+ *          - perfect at least kMinPerfectMs;
+ *          - good at least perfect and at most half the sweep;
+ *          - the target where the whole good zone fits on the track, so the
+ *            zones are drawn as one piece and never straddle the needle's
+ *            restart.
  */
 inline BeatConfig clampBeat(BeatConfig c)
 {
@@ -71,20 +79,23 @@ inline BeatConfig clampBeat(BeatConfig c)
     } else if (c.sweepMs > kMaxSweepMs) {
         c.sweepMs = kMaxSweepMs;
     }
-    if (c.targetMs >= c.sweepMs) {
-        c.targetMs = c.sweepMs - 1;
-    }
     if (c.perfectMs < kMinPerfectMs) {
         c.perfectMs = kMinPerfectMs;
     }
     if (c.goodMs < c.perfectMs) {
         c.goodMs = c.perfectMs;
     }
-    if (c.goodMs > c.sweepMs) {
-        c.goodMs = c.sweepMs;
+    if (c.goodMs > c.sweepMs / 2) {
+        c.goodMs = c.sweepMs / 2;   // kMinSweepMs / 2 >= kMinPerfectMs, so still >= perfect's floor
     }
     if (c.perfectMs > c.goodMs) {
         c.perfectMs = c.goodMs;
+    }
+    const uint32_t half = (c.goodMs + 1u) / 2u;   // round up: the zone's whole width fits
+    if (c.targetMs < half) {
+        c.targetMs = half;
+    } else if (c.targetMs > c.sweepMs - half) {
+        c.targetMs = c.sweepMs - half;
     }
     return c;
 }
@@ -92,21 +103,32 @@ inline BeatConfig clampBeat(BeatConfig c)
 /// Where the needle is, in ms into the sweep: (now - start) mod sweepMs.
 inline uint32_t beatPhaseMs(const BeatConfig& c, uint32_t startMs, uint32_t nowMs)
 {
-    // Unsigned subtraction is correct across the clock's wrap.
+    // Unsigned subtraction is correct across the tick's wrap.
     const uint32_t elapsed = nowMs - startMs;
     return c.sweepMs == 0 ? 0 : elapsed % c.sweepMs;
 }
 
-/// The needle's position along the track, 0..1000.
-inline uint32_t beatPermille(const BeatConfig& c, uint32_t startMs, uint32_t nowMs)
+/**
+ * @brief   A time in the sweep as a distance along a track @p width long:
+ *          0 at the start, @p width at the end. Used for the needle and for
+ *          both edges of each zone, so what is drawn is what is judged.
+ *          @p ms beyond the sweep is held at the end.
+ */
+inline uint32_t beatToTrack(const BeatConfig& c, uint32_t ms, uint32_t width)
 {
-    return c.sweepMs == 0 ? 0 : beatPhaseMs(c, startMs, nowMs) * 1000u / c.sweepMs;
+    if (c.sweepMs == 0) {
+        return 0;
+    }
+    if (ms > c.sweepMs) {
+        ms = c.sweepMs;
+    }
+    return static_cast<uint32_t>(static_cast<uint64_t>(ms) * width / c.sweepMs);
 }
 
 /**
- * @brief   Judge a press. The distance to the target is taken round the loop,
- *          so a target near the start of the sweep can be hit just before the
- *          needle wraps. @p c must be in range (see clampBeat()).
+ * @brief   Judge a press. The distance to the target is taken the near way
+ *          round the loop, folded into (-sweep/2, sweep/2]. @p c must be in
+ *          range (see clampBeat()).
  */
 inline BeatJudgement judgeBeat(const BeatConfig& c, uint32_t startMs, uint32_t pressMs)
 {
@@ -114,10 +136,10 @@ inline BeatJudgement judgeBeat(const BeatConfig& c, uint32_t startMs, uint32_t p
     const int32_t sweep = static_cast<int32_t>(c.sweepMs);
     int32_t d = static_cast<int32_t>(beatPhaseMs(c, startMs, pressMs))
               - static_cast<int32_t>(c.targetMs);
-    // Fold into (-sweep/2, sweep/2]: the nearest way round the loop.
-    if (d > sweep / 2) {
+    // Doubled, so an odd sweep folds exactly: 2d in (-sweep, sweep].
+    if (2 * d > sweep) {
         d -= sweep;
-    } else if (d <= -(sweep / 2)) {
+    } else if (2 * d <= -sweep) {
         d += sweep;
     }
     j.offsetMs = d;

@@ -38,9 +38,10 @@ void Model::exitApp()
     mKernel.sys.exit();
 }
 
-void Model::sendBeatPress(uint32_t seq, uint32_t startMs, uint32_t pressMs)
+void Model::sendBeatPress(uint32_t seq, uint32_t startMs, uint32_t pressMs,
+                          const TrailQuest::BeatConfig& beat)
 {
-    SDK::send_msg<CustomMessage::BeatPress>(mKernel, seq, startMs, pressMs);
+    SDK::send_msg<CustomMessage::BeatPress>(mKernel, seq, startMs, pressMs, beat);
 }
 
 void Model::playFx(TrailQuest::FxId id)

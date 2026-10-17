@@ -31,8 +31,10 @@ public:
     /// Exit the application: the kernel stops both processes.
     void exitApp();
 
-    /// Report a press on the timing beat; BEAT_RESULT answers.
-    void sendBeatPress(uint32_t seq, uint32_t startMs, uint32_t pressMs);
+    /// Report a press on the timing beat, with the zones as drawn;
+    /// BEAT_RESULT answers.
+    void sendBeatPress(uint32_t seq, uint32_t startMs, uint32_t pressMs,
+                       const TrailQuest::BeatConfig& beat);
 
     /// Ask the service to play a feedback pattern.
     void playFx(TrailQuest::FxId id);
