@@ -196,6 +196,43 @@ apps go on. Then:
   more art is made?
 - The name.
 
+## Gate Q0: result (17 October 2026)
+
+Jon installed the CI build of `5b215fb` (run 168) and ran the probe on his
+watch. His verdict: "that probe looks amazing and the battle probe works really
+well". **Gate Q0 is passed** on the two questions it existed for: the look, and
+whether the timing beat is playable at 10 frames a second.
+
+Read from his photo of the probe on the watch:
+
+| What | On the watch | Notes |
+|---|---|---|
+| Display | Round, as assumed (finding 5) | Nothing clipped; the scene's square corners fall outside the face as planned |
+| Render time | 4 ms last, 16 ms worst in a second | Far under the 100 ms frame and the ~40 ms full-screen figure: LVGL redraws only what changed (the needle, the sprites, a label) |
+| Frames | "f11" | The counting window closes on the first tick at or after 1000 ms, so it can catch an eleventh frame; the rate is the kernel's 10 a second |
+| LVGL pool | 14 % | Lower than the simulator's 23 % |
+| Beat | PERFECT, -61 ms | A press landed on purpose in the 200 ms zone |
+| Round trip | 97 ms | One frame: the service's answer arrives on the next tick, so the core can stay in the service (no lag to justify moving it) |
+| Button codes | `q 1 a` for L1 | Press, click, release, as in the simulator (finding 2) |
+| Bezel | UP, DOWN, SELECT, BACK printed by L1, L2, R1, R2 | Matches the arcs: R1 (SELECT) is the action, R2 (BACK) leaves |
+
+Seen in the photo, for the screens to come: the 16 px result line ("PERFECT
+-61") reaches the L2 and R2 bezel arcs at its ends. Lines at that height should
+stay inside about 150 px, not the full chord, so they clear the arcs.
+
+**Decisions at the gate.**
+
+- Keep the timing beat, with the zones as built (perfect 200 ms, good 400 ms,
+  a 1.6 s sweep), until the balance work in Q1 says otherwise.
+- The look stands: the palette, Press Start 2P and the sprite style.
+- The name is Trail Quest (decided before the gate).
+
+**Not reported yet** (none blocks Q1): whether the six feedback patterns can be
+told apart blind, whether the 30 s backlight hold holds, whether R2 leaves
+cleanly, and the battery over 10 minutes. Ask Jon when convenient; record here.
+
+**Next:** Q1, the core and balance (no GUI), starting with plan mode.
+
 ## Open items
 
 - `Libs/Core/Sources/` is empty until a module needs more than a header.
@@ -203,6 +240,8 @@ apps go on. Then:
   yet: the LVGL pool is small, so it should be one custom draw callback with
   runs of rectangles, not a widget per tile. Q2 decides this with a measurement.
 - The app has no configuration fields, so CI's manifest check is not wired for it.
+- Gate Q0's unreported items (feedback patterns blind, backlight hold, R2 exit,
+  battery): see the gate record above.
 
 ## Review before Gate Q0 (17 October 2026)
 

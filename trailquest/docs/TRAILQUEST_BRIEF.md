@@ -1,8 +1,8 @@
 # Trail Quest for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** Q0 (feasibility) built in the simulator and as a watch compile
-check, 17 October 2026; waiting on Jon's test on a real watch (Gate Q0).
+**Status:** Gate Q0 passed on a real watch, 17 October 2026 (NOTES, "Gate Q0:
+result"). Next: Q1, the core and balance.
 Decisions taken: tone "funny start, serious summit"; full 5 stages; Daily Trail
 as the planned extra; generated pixel art.
 **Read with:** `NOTES.md` (findings, decisions and the Q0 gate). Where this
