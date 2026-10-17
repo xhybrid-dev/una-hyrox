@@ -86,6 +86,9 @@ jobs:
           # x-weighin/docs/NOTES.md.
           build x-weighin/Software/Apps/XWeighIn-CMake weighin
           build x-weighin/Software/Apps/XWeighInGlance-CMake weighin-glance
+          # Trail Quest: a turn-based trail-running adventure -- see
+          # trailquest/docs/NOTES.md.
+          build trailquest/Software/Apps/TrailQuest-CMake trailquest
           # Knitting: a knitting row and set counter -- see knitting/docs/NOTES.md.
           build knitting/Software/Apps/Knitting-CMake knitting
 
@@ -103,6 +106,7 @@ jobs:
           cp hybridx-run/Output/*.uapp watch-apps/
           cp x-weighin/Output/*.uapp watch-apps/
           cp x-weighin/Output/Glance/*.uapp watch-apps/
+          cp trailquest/Output/*.uapp watch-apps/
           cp knitting/Output/*.uapp watch-apps/
           ls -l watch-apps
 
@@ -292,6 +296,13 @@ jobs:
           cmake --build ci-build/weighin-tests -j"$(nproc)"
           ctest --test-dir ci-build/weighin-tests --output-on-failure
 
+      - name: Trail Quest host tests
+        # The pure core (the timing beat so far; the duel and the world later).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S trailquest/Tests/Host -B ci-build/trailquest-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/trailquest-tests -j"$(nproc)"
+          ctest --test-dir ci-build/trailquest-tests --output-on-failure
       - name: Knitting host tests
         # The pure counter (rows, sets, total, limits).
         run: |

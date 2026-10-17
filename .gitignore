@@ -65,6 +65,11 @@ x-weighin/Output/
 x-weighin/Software/Output/
 x-weighin/Software/Apps/LVGL-GUI/simulator/build/
 x-weighin/Software/SharedData/
+trailquest/build/
+trailquest/build-tests/
+trailquest/Output/
+trailquest/Software/Output/
+trailquest/Software/Apps/LVGL-GUI/simulator/build/
 knitting/build/
 knitting/build-tests/
 knitting/Output/
