@@ -52,6 +52,7 @@ hybridx-run/Output/
 hybridx-run/Software/Output/
 hybridx-run/Software/Apps/LVGL-GUI/simulator/build/
 hybridx-run/Software/SharedData/
+hybridx-trail/Software/SharedData/
 
 # CI's own build folders (.github/workflows/watch-builds.yml). Untracked and
 # not ignored, they made every untagged CI build version itself "-dirty".
@@ -69,3 +70,8 @@ trailquest/build-tests/
 trailquest/Output/
 trailquest/Software/Output/
 trailquest/Software/Apps/LVGL-GUI/simulator/build/
+knitting/build/
+knitting/build-tests/
+knitting/Output/
+knitting/Software/Output/
+knitting/Software/Apps/LVGL-GUI/simulator/build/

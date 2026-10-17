@@ -574,3 +574,15 @@ Not built: the design is Jon's call. A suggestion to react to:
 - Open questions: how a pace band is entered with four buttons (a centre pace
   and a fixed width, say ±5 s/km, is quickest); whether quick builder covers
   enough, or free-form step editing is wanted.
+
+---
+
+## SDK v1.6.0 (14 October 2026)
+
+The SDK released v1.6.0 (structured workouts, GPS speed filter, buzzer pitch, shared `:/Workouts`). Our pin is unchanged (`a7a995a1`); ABI 3 / kernel 1.4.0 at both. What it means for this app, and the plan to move the pin, are in `hybridx-race/docs/NOTES.md`, "Amendment — UNA SDK v1.6.0 reviewed" (5.21-5.24).
+
+---
+
+## Retired (14 October 2026)
+
+Jon retired this app: UNA is developing structured workouts in Running (SDK v1.6.0), so ours would duplicate it. Nothing further is built. See `hybridx-race/docs/NOTES.md` 5.25. A workout-building platform is a possible later idea, not started.

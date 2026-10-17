@@ -112,6 +112,7 @@ UNA profile. Jon was told and agreed (12 October 2026).
 | W2 | The screens: Home (the trend), Graph (30 days), Recent, Body; weigh-in entry (starts at the last weight, 0.1 kg steps, hold to repeat); Saved | A week of weigh-ins on the watch |
 | W3 | The glance, a second `.uapp`: weight, weekly change, 14 days as bars | The glance on the watch |
 | W4 | The sweat-rate test: weigh before and after a session, enter what you drank; L/h and % of body mass lost | A training session |
+| W5 | The first store release, 1.0.0: two store listings, the app and its glance, their packages, the CI artifact, the store text (`SUBMISSION.md`). Before W4, by Jon's choice | W5: both installed from the store; the phone settings work |
 
 **Sync is deferred.** The data stays on the watch.
 
@@ -627,7 +628,7 @@ is. Streak's has drawn on Jon's watch since its S4.
     a tracker.
   - Days after the last weigh-in are empty, so a week off shows. With the clock
     not set, the bars end at the log's last day.
-- **No log yet:** "X Weigh-in" / "Open it to weigh in".
+- **No log yet:** "X Weigh-in" / "No weigh-ins yet" (it was "Open it to weigh in" until W5).
 - **Fallbacks,** for an area or budget no watch has reported yet:
   - Compact (fewer than 17 controls, or a smaller area): the two lines
     centred;
@@ -772,7 +773,293 @@ are approximate, and nothing in the SDK documents them.
   - the mock-up was checked by eye against the separators.
 - **Jon to check:** the glance on the watch again, from the next CI build.
 
+### Gate W3, second look (12 October 2026): the layout is right
+
+Jon installed CI run 111 and sent a photo of the glances list. He says it looks
+good.
+- `82.2 kg` and `-- kg/wk` start at the left separator, clear of the scroll arc.
+- The baseline and the day's white bar end at the right separator.
+- Every character draws.
+
+**Still to see over the coming days:**
+- the bars filling in, one a day;
+- the weekly change replacing `--` once the log spans a week.
+
+The glance needs no change for that, so W3 is done unless those show a fault.
+
+### Jon's decisions after Gate W3 (12 October 2026)
+
+- **The time is fine.** The 15:30 entry against the 14:30 file stamp is BST
+  against UTC, as expected.
+- **W4, the sweat-rate test, waits** until after the first release of this
+  package.
+
+## W5: the first store release (12 October 2026)
+
+Jon wants this package on the store before the sweat-rate test. W5 gets
+everything ready, so that the release itself needs only:
+- the App ID from the portal;
+- Gate W2's week passing;
+- the tag `weighin-v1.0.0`.
+
+`SUBMISSION.md` holds the steps for the day and the store text.
+
+### What the package holds
+
+`Utilities/pack-store-zip.sh`, a copy of HybridX Race's script, builds
+`Output/XWeighIn-<version>.zip`:
+- `XWeighIn_<version>.uapp`;
+- `app-manifest.json`, with `binary` and `appVersion` taken from the `.uapp`;
+- `icon.png` (the 60×60 icon);
+- `previews/`: five 480×480 simulator screens (Home, Graph, Recent, Weigh in,
+  Saved), from `capture_screens.sh`. Body is left out because the simulator
+  has no profile height.
+
+The script refuses:
+- more than one `.uapp` in `Output/`;
+- a version that is not the tag's (`--expect-version`);
+- App IDs that differ between the app's CMakeLists, the manifest and the
+  simulator;
+- on a release, the development ID `6E1B68E38137C089`.
+
+Before it zips, it runs both SDK checks:
+- `min_kernel_version.py --stamp/--check`;
+- `validate_app_config.py`, against `AppConfigFields`.
+
+CI runs it on every push, after the watch builds, as **weighin-store-zip**.
+- On a `weighin-v*` tag it passes `--expect-version` itself.
+- Otherwise it is a dry run with the dev build.
+
+**The glance was first left out of the package**, because one listing installs
+one `.uapp` (HybridX Streak NOTES S5.1). Jon looked into it on 13 October, and
+it needs its own listing. See "The glance's own listing" below.
+
+### Manifest changes
+
+- **`requiredHardware` is now `[]`.** HR was there for W0's resting-HR first
+  look, and W2 removed the sensor. Streak's is `[]` too, as in the SDK example
+  (`Docs/app-config-json.md` L73). Leaving HR there could hide the app from a
+  watch for a sensor it never opens.
+- **The description** now says what the app does: kg, the trend, the week's
+  change, the graph, BMI and resting kcal, and that weigh-ins stay on the
+  watch.
+- **The birth year's help text** no longer says "later": resting kcal is on the
+  Body page since W2. Only the text changed, so the user's value is kept
+  (`Docs/app-config-fields.md` §7.3).
+
+### W5 verified (12 October 2026)
+
+- **`pack-store-zip.sh` on the local dev build** (stubs, so a dry run):
+  - it stages, stamps, validates and zips 9 entries: the `.uapp`, the manifest,
+    `icon.png`, `previews/` and its five PNGs;
+  - `--expect-version 1.0.0` against the 0.0.0-dev binary is refused;
+  - a different App ID in the simulator's CMakeLists is refused;
+  - a `XWeighIn_1.0.0.uapp` with the development ID and `--expect-version 1.0.0`
+    is refused.
+- **`validate_app_config.py`:** passes (3 fields).
+- **Not rebuilt:** the source is unchanged, so the host tests (113) and both
+  builds still stand from W3.
+
+### The glance's own listing (13 October 2026)
+
+**Jon's decision:** the glance goes on the store as a second listing, **X
+Weigh-in Glance**, dependent on the app. Expecting users to install over USB is
+not realistic.
+
+**What was added:**
+- **`Resources/Glance/app-manifest.json`:**
+  - `type ["glance"]`, `name "X Weigh-in Glance"`, `requiredHardware []`;
+  - no phone settings;
+  - its development ID `5543E86906F4A1B3`;
+  - a description saying it needs the app.
+  None of the SDK's glance examples ships a manifest, so this follows
+  `Docs/app-config-json.md`: the type list allows `glance`.
+  `validate_app_config.py` passes it.
+- **Previews:** three 480×480 PNGs in `Resources/Glance/previews/`.
+  - They are made by `glance_preview.py --store` from the real layout code.
+  - Each shows the glance at the middle of a round screen, between the
+    list's separators, as on the watch (Gate W3).
+  - The simulator cannot run glances, so these are drawn, not captured.
+- **The icon:** the app's scale icon, `Resources/icon_60x60.png`.
+- **`pack-store-zip.sh --glance`:**
+  - packages `Output/Glance/XWeighInGlance_<ver>.uapp` into
+    `Output/Glance/XWeighInGlance-<ver>.zip`;
+  - makes the same version and App ID checks: the glance's CMakeLists against
+    its manifest, and its own development ID refused on a release;
+  - checks with the SDK's validator that it has no settings.
+- **CI** runs both. `weighin-store-zip` holds `XWeighIn-<ver>.zip` and
+  `Glance/XWeighInGlance-<ver>.zip`. The one tag `weighin-v1.0.0` versions both.
+- **The glance's empty state** was "X Weigh-in" / "Open it to weigh in". It is
+  now "X Weigh-in" / "No weigh-ins yet", which is also true for someone who
+  installed the glance without the app.
+
+**Verified** (13 October 2026):
+- 113 host tests pass, and the glance compiles for the watch.
+- `pack-store-zip.sh --glance` dry run: 7 entries (the `.uapp`, the manifest,
+  `icon.png`, `previews/` and its three PNGs).
+- The glance package refuses:
+  - `--expect-version 1.0.0` against the dev binary;
+  - its development ID on a `1.0.0` binary;
+  - an ID in the manifest that differs from its CMakeLists.
+- The app package is unchanged and still passes.
+
+**Still unknown, until the release:**
+- whether the portal accepts a glance-only listing;
+- how the phone app shows it.
+
+Jon found that a separate listing is the route; the first upload will show it.
+
+### The portal's App IDs (13 October 2026)
+
+Jon created both listings on apps.unawatch.com:
+
+| Listing | App ID | Development ID it replaces |
+|---|---|---|
+| X Weigh-in | `E60C06AC406AE6B1` | `6E1B68E38137C089` |
+| X Weigh-in Glance | `63F628D5251835AD` | `5543E86906F4A1B3` |
+
+- **Where the IDs now are:**
+  - the app's ID: `XWeighIn-CMake/CMakeLists.txt`, `Resources/app-manifest.json`
+    and the simulator's `CMakeLists.txt`;
+  - the glance's ID: `XWeighInGlance-CMake/CMakeLists.txt` and
+    `Resources/Glance/app-manifest.json`.
+- **Verified:**
+  - both rebuilt `.uapp`s carry their new ID;
+  - both dry-run packages report "App ID … matches";
+  - the simulator rebuilds.
+- `pack-store-zip.sh` still names the development IDs, so it refuses them if
+  they ever come back.
+
+**What is left for 1.0.0:**
+- Gate W2's week passing;
+- the merge (PR #27);
+- the tag `weighin-v1.0.0`;
+- Jon's uploads (`SUBMISSION.md`, from step 3).
+
+### Tagged 1.0.0 (13 October 2026)
+
+- **At Jon's request,** the release commit (c2e21ba, "X Weigh-in 1.0.0") is
+  to be tagged `weighin-v1.0.0`.
+  - **This session cannot push tags.** The git proxy drops the push ("unexpected
+    disconnect"), while branch pushes work. The GitHub tools here cannot make a
+    tag either.
+  - So Jon creates it on GitHub as a release, which pushes the tag and starts
+    *Watch builds* (SUBMISSION.md, "Making the tag on GitHub").
+  - That is before Gate W2's week has finished; Jon had two days of weigh-ins
+    on the watch.
+  - PR #27 merged the branch only up to the glance fix (026be31). The W5
+    commits, the packages and the App IDs, are on `claude/x-weighin`, so the
+    tag goes there.
+- **CHANGELOG:** "Unreleased" became 1.0.0.
+- **CI on the tag** builds `XWeighIn_1.0.0.uapp` and
+  `XWeighInGlance_1.0.0.uapp`, and packs both with `--expect-version 1.0.0`.
+  That refuses a wrong version or a development ID.
+- **The zips** are in `weighin-store-zip`: `XWeighIn-1.0.0.zip` and
+  `Glance/XWeighInGlance-1.0.0.zip`.
+
+### Released (13 October 2026)
+
+- **The tag:** Jon made `weighin-v1.0.0` on GitHub as a release, on bcf0e12
+  (the release commit plus a docs wording fix).
+- **The build:** *Watch builds* run 122 on the tag is green. With
+  `--expect-version 1.0.0`, the packager checked both zips for the version and
+  the portal App IDs before writing them.
+- **Jon:** "All built and installed and looks good."
+- **Still open:**
+  - the rest of Gate W2's week;
+  - the Gate W5 checks below, on the store install.
+
+### Store images (13 October 2026)
+
+At Jon's request, `docs/store/` holds two sets of store images, one per
+listing. `docs/experiments/store_images.py` makes them, and
+`docs/store/README.md` lists them:
+- **previews:** the packages' 480×480 screens;
+- **mock-ups:** each screen on a drawn watch, 1080×1080;
+- **marketing cards:** 1080×1080, four for the app and three for the glance;
+- **a banner** for each, 1920×1080.
+
+**What is real:**
+- The screens are real: simulator captures for the app, and the real layout
+  code's output for the glance.
+- The watch is UNA's own render, from the SDK's Figma UI Resource Pack
+  (`Docs/Templates/Figma-UI-Kit/`, a zip of 2000×2000 renders with the screen
+  transparent). Jon pointed to it.
+  - The first version drew a generic watch.
+  - The renders are read from `$UNA_SDK`, not copied in.
+- Only the backgrounds and the headlines are drawn, and the headlines claim no
+  more than SUBMISSION.md's checked store text.
+
+The portal gives no image sizes, so these are common ones.
+
+### The portal refused 1.0.0's manifests, so 1.0.1 (13 October 2026)
+
+Jon uploaded both 1.0.0 zips. The portal reported "Valid assets", "Valid
+.uapp", "Valid app ID" and "Valid app version", but refused the manifest:
+
+> JSON validation error in file app-manifest.json: (root) must have required
+> property 'supportsLaps', … 'supportsDistance', … 'supportsTrack', …
+> 'supportsHeartbeat', … 'supportsElevation', … 'supportsStep', …
+> 'supportsSpeed', … 'customMeasures', … 'stravaExport', (root) must NOT have
+> additional properties
+
+**What it means:**
+- **The keys it requires.** The portal wants the activity keys for every app
+  type. Our manifests are a utility and a glance, so they left them out.
+  - The SDK's tools do not check for them: `app-config.schema.json` requires
+    only `manifest_version`.
+  - `Docs/app-config-json.md`'s Files example carries all nine, and so does
+    Race's manifest.
+  - Nothing in the SDK says they are required. The latest SDK (`bd04a5b`) has
+    the same docs and schema as our pin.
+- **The key it refuses.** The validator lists every error, and it gave one
+  "additional properties", so exactly one key was unexpected.
+  - Of our keys, the SDK's example manifests (Files, Waypoint) cover all but
+    `previews`.
+  - The Waypoint example has `description`, `configFile` and `configFields`.
+  - So `previews` is dropped from both manifests. This is inferred from the
+    error, not documented.
+  - The `previews/` folder stays in the zip, since the portal passed it as
+    assets.
+
+**Fix:**
+- **Both manifests:** they now carry `supportsLaps`, `supportsDistance`,
+  `supportsTrack`, `supportsHeartbeat`, `supportsElevation`, `supportsStep` and
+  `stravaExport` (all false), `supportsSpeed` "none" and `customMeasures` [],
+  as the Files example. `previews` is gone.
+- **`pack-store-zip.sh`:** it now refuses a manifest without those keys, or
+  with `previews`, so CI catches it before the portal does. A trial with
+  `previews` back and `stravaExport` removed failed as it should.
+- **Version 1.0.1.** The app and glance code are unchanged, but the zips must be
+  rebuilt by a tagged CI run, and the tag `weighin-v1.0.0` already names the
+  old manifests.
+
+**Open:**
+- If the portal still refuses, its message (and anything that names the
+  property) decides the next step.
+- Race's manifest also has `previews`, so Race's upload would have failed the
+  same way; it has not been uploaded yet (Race NOTES, the upload step).
+
+## Gate W5: what Jon tests (after the store install)
+
+1. **Both install** from the store through the UNA app: X Weigh-in opens, and
+   X Weigh-in Glance appears in the glances list with your trend.
+2. **The settings screen.** In the UNA app, X Weigh-in's settings show Birth
+   year, Birth month and Sex. Set yours there. When you next open the app,
+   the Body page shows your age and resting kcal.
+3. **The log carries on.** Home shows your trend and history as before. The
+   store install either keeps `Apps/XWeighIn/weighins.csv` or restores it from
+   the SharedData copy.
+
 ## Open, for later phases
 
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type
   later discards the user's value (`Docs/app-config-fields.md` §7.3).
+
+---
+
+## SDK v1.6.0 (14 October 2026)
+
+The SDK released v1.6.0 (structured workouts, GPS speed filter, buzzer pitch, shared `:/Workouts`). Our pin is unchanged (`a7a995a1`); ABI 3 / kernel 1.4.0 at both. What it means for this app, and the plan to move the pin, are in `hybridx-race/docs/NOTES.md`, "Amendment — UNA SDK v1.6.0 reviewed" (5.21-5.24).
+
+**Decision (14 October 2026):** small update to the entry screens (non-circular wheel, hints). See `hybridx-race/docs/NOTES.md` 5.25.

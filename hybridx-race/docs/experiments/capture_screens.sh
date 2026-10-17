@@ -51,12 +51,13 @@ snap() {
 
 snap phase4-01-main
 key 2; snap phase4-02-main-format
+key 2; snap phase4-02b-main-pace          # the Pace plan row (pace_plan_capture.sh covers its states)
 key 2; snap phase4-03-main-lastrace
 key 2; snap phase4-04-main-settings
 key 3 1; snap phase4-05-settings
 key 2; snap phase4-06-settings-lockout
 key 4 1                                 # back to main, saving settings
-key 1; key 1; key 1                     # round to "Start race"
+key 1; key 1; key 1; key 1                 # round to "Start race" (five rows)
 snap phase4-07-main-again
 key 3 1; snap phase4-08-start-confirm
 key 3 2; snap phase4-09-race-run

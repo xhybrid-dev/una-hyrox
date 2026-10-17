@@ -10,6 +10,7 @@
 #include "gui/theme/Theme.hpp"
 #include "gui/Assets.hpp"
 #include "gui/Strings.hpp"
+#include "gui/WorkoutUi.hpp"
 
 #include "Vo2Text.hpp"   // HybridX Run
 
@@ -24,12 +25,16 @@ namespace
 // Same items and geometry as MainView::setupItems() in the TouchGFX app.
 using Style = WheelMenu::Item::Style;
 const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
-    // ID_START
+    // ID_START: a Tip naming the workout when one is armed (onWorkoutList)
     { Style::Simple, "Start", nullptr, &poppins_semibold_35 },
+    // ID_WORKOUTS
+    { Style::Simple, "Workouts" },
     // ID_INTERVALS: icon beside left-aligned text, in both slots
     { Style::Icon, "Intervals", nullptr, &poppins_semibold_30, nullptr, Color::WHITE, false,
       &img_intervals_40x43, { 30, 10, 87, 140 },
       &img_intervals_24x26, { 62, 17, 97, 130 } },
+    // ID_VO2 (HybridX Run, R5)
+    { Style::Simple, "VO2max" },
     // ID_SETTINGS
     { Style::Simple, "Settings" },
 };
@@ -38,11 +43,14 @@ const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
 MainScreen::MainScreen(Model& model)
     : Screen(model)
 {
+    for (uint16_t i = 0; i < Menu::ID_COUNT; ++i) {
+        mItems[i] = kItems[i];
+    }
 }
 
 void MainScreen::build()
 {
-    mMenu      = std::make_unique<WheelMenu>(mRoot, kItems, Menu::ID_COUNT);
+    mMenu      = std::make_unique<WheelMenu>(mRoot, mItems, Menu::ID_COUNT);
     // As in MainView::onAnimationMiddle: the lens and R1 hint change half way
     // through the slide, when the incoming item is about to take the centre.
     mMenu->setSlideMidCallback(
@@ -66,6 +74,37 @@ void MainScreen::onShow()
     onGpsFix(mModel.hasGpsFix());
     onAccessoryStatus(mModel.getAccessoryState(), "");
     onVo2Info(mModel.getVo2Info());
+    onWorkoutList();
+}
+
+void MainScreen::onWorkoutList()
+{
+    // The armed workout's name under Start, shown when Start is selected.
+    const SDK::Workout::Library* lib = mModel.getWorkoutLibrary();
+    const int16_t armed = mModel.getArmedWorkout();
+    mArmed = lib != nullptr && armed >= 0 && static_cast<size_t>(armed) < lib->size();
+    WheelMenu::Item& start = mItems[Menu::ID_START];
+    if (mArmed) {
+        WorkoutUi::toText(lib->entry(static_cast<size_t>(armed)).name, mArmedName, sizeof(mArmedName));
+        WorkoutUi::fitWidth(mArmedName, sizeof(mArmedName), Theme::font(Theme::Font::Italic18), 180);
+        start.style   = Style::Tip;
+        start.tip     = mArmedName;
+        start.itemTip = "";
+    } else {
+        start.style   = Style::Simple;
+        start.tip     = nullptr;
+        start.itemTip = nullptr;
+    }
+    mMenu->refresh();
+    checkTodayPrompt();
+}
+
+void MainScreen::checkTodayPrompt()
+{
+    if (mModel.getArmedWorkout() == Model::kNoWorkout && mModel.takeTodayPrompt()) {
+        mModel.setChosenWorkout(mModel.getTodayWorkout());
+        ScreenManager::instance().goTo(ScreenId::WorkoutToday);
+    }
 }
 
 void MainScreen::onHide()
@@ -89,7 +128,11 @@ void MainScreen::confirm()
 {
     switch (mMenu->selected()) {
         case Menu::ID_START:
-            if (mGpsFix) {
+            if (mGpsFix && mArmed) {
+                // A workout starts with the countdown, as Intervals do.
+                mModel.setPendingIntervalsMode(false);
+                ScreenManager::instance().goTo(ScreenId::TrackIntervalsCountdown);
+            } else if (mGpsFix) {
                 mModel.trackStart(false);
                 ScreenManager::instance().goTo(ScreenId::Track);
             } else {
@@ -97,10 +140,16 @@ void MainScreen::confirm()
                 ScreenManager::instance().goTo(ScreenId::TrackStartConfirm);
             }
             break;
+        case Menu::ID_WORKOUTS:
+            ScreenManager::instance().goTo(ScreenId::WorkoutList);
+            break;
         case Menu::ID_INTERVALS:
             // No GPS-fix check here: the intervals menu is always reachable so
             // the workout can be configured indoors. The check happens on Start.
             ScreenManager::instance().goTo(ScreenId::MenuIntervals);
+            break;
+        case Menu::ID_VO2:
+            ScreenManager::instance().goTo(ScreenId::Vo2);
             break;
         case Menu::ID_SETTINGS:
             ScreenManager::instance().goTo(ScreenId::MenuSettings);

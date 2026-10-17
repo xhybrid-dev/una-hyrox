@@ -14,35 +14,25 @@
 
 #include <cstdint>
 
+#include "Vo2WindowConfig.hpp"   // the builder's limits (also in Trail)
+
 namespace RunVo2::Config
 {
-
-/// One window is this many seconds of running.
-inline constexpr uint16_t kWindowSec = 60;
 
 /// Seconds in a window that must be usable (good HR, speed and grade).
 inline constexpr uint16_t kMinGoodSecPerWindow = 55;
 
-/// Active seconds ignored at the start of a run, while heart rate catches up.
-inline constexpr uint32_t kWarmUpSec = 300;
-
-/// Slowest usable speed. ACSM gives its running equation for speeds above
-/// 134 m/min (about 7:28 per km); slower is the walking equation's range.
-inline constexpr float kMinSpeedMs = 134.0f / 60.0f;
-
-/// Fastest believable speed (a 2:00 per km pace).
-inline constexpr float kMaxSpeedMs = 8.33f;
-
 /// Steady speed: the window's spread (standard deviation over mean), percent.
 inline constexpr float kMaxSpeedSpreadPct = 8.0f;
 
-/// Steady heart rate: highest minus lowest in the window, bpm.
-inline constexpr uint8_t kMaxHrRangeBpm = 10;
+/// Steady heart rate: highest minus lowest in the window, bpm. 12 since L1
+/// (15 October 2026): on Jon's 14 October run eight windows missed 10 by 1-3 bpm.
+inline constexpr uint8_t kMaxHrRangeBpm = 12;
 
-/// Gradient limits, percent. ACSM's equation covers level and uphill running,
-/// so steeper downhill windows are dropped and gentle downhill counts as 0.
-inline constexpr float kMaxGradePct = 10.0f;
-inline constexpr float kMinGradePct = -3.0f;
+/// Gradient (limits in Vo2WindowConfig.hpp). A window is dropped when its mean
+/// grade is outside them, or when more than this many of its seconds were: one
+/// barometric spike no longer costs a level minute (L1, 15 October 2026).
+inline constexpr uint8_t kMaxSteepSecPerWindow = 10;
 
 /// Lowest intensity used, as percent of heart-rate reserve: the HR to oxygen
 /// link is loosest at easy effort.
@@ -57,19 +47,6 @@ inline constexpr uint16_t kMinWindows = 5;
 
 /// Accepted windows kept per run (4 hours of running).
 inline constexpr uint16_t kMaxWindows = 240;
-
-/// HR trust levels the kernel calls good: RunLVGL's own test on the raw
-/// float, 1 to 3 inclusive (its Service.cpp, the FIT heart-rate gate).
-inline constexpr float kMinHrTrust = 1.0f;
-inline constexpr float kMaxHrTrust = 3.0f;
-
-/// Believable heart-rate range, bpm.
-inline constexpr uint8_t kMinHrBpm = 30;
-inline constexpr uint8_t kMaxHrBpm = 230;
-
-/// Auto max HR: seconds a reading must be held to count. Readings in the
-/// warm-up never count (optical sensors are least reliable there).
-inline constexpr uint8_t kAutoMaxHoldSec = 5;
 
 /// Auto max HR is the second-highest of the last kHistoryRuns runs' sustained
 /// maxima: a value must be reached on two runs, so one artefact (an optical

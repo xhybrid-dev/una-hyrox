@@ -91,7 +91,7 @@ void words(const View& v, Words& w)
 {
     if (!v.hasData) {
         std::snprintf(w.head, sizeof(w.head), "X Weigh-in");
-        std::snprintf(w.line, sizeof(w.line), "Open it to weigh in");
+        std::snprintf(w.line, sizeof(w.line), "No weigh-ins yet");
         return;
     }
     char kg[16];

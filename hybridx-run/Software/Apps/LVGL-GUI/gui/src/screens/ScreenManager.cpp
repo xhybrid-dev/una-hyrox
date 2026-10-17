@@ -34,6 +34,13 @@
 #include "gui/screens/TrackLapScreen.hpp"
 #include "gui/screens/TrackResultScreen.hpp"
 #include "gui/screens/TrackSummaryScreen.hpp"
+#include "gui/screens/Vo2Screen.hpp"
+#include "gui/screens/MenuVo2ProfileScreen.hpp"
+#include "gui/screens/Vo2PickerScreen.hpp"
+#include "gui/screens/TrackWorkoutStepScreen.hpp"
+#include "gui/screens/WorkoutDetailsScreen.hpp"
+#include "gui/screens/WorkoutListScreen.hpp"
+#include "gui/screens/WorkoutMenuScreen.hpp"
 
 ScreenManager& ScreenManager::instance()
 {
@@ -49,6 +56,10 @@ void ScreenManager::start(Model& model, ScreenId first)
 
 void ScreenManager::goTo(ScreenId id)
 {
+    if (id == ScreenId::Track && mModel && mModel->hasStepCard()) {
+        // The card goes back to the Track screen when it is done.
+        id = ScreenId::TrackWorkoutStep;
+    }
     mPending = id;
     if (!mPendingSet) {
         if (lv_async_call(&ScreenManager::asyncCb, this) != LV_RESULT_OK) {
@@ -133,6 +144,11 @@ Screen* ScreenManager::create(ScreenId id)
     switch (id) {
         case ScreenId::Main:                      return new MainScreen(m);
 
+        case ScreenId::WorkoutToday:              return new WorkoutMenuScreen(m, WorkoutMenuScreen::Kind::Today);
+        case ScreenId::WorkoutList:               return new WorkoutListScreen(m);
+        case ScreenId::WorkoutMenu:               return new WorkoutMenuScreen(m, WorkoutMenuScreen::Kind::Chosen);
+        case ScreenId::WorkoutDetails:            return new WorkoutDetailsScreen(m);
+
         case ScreenId::MenuIntervals:             return new MenuIntervalsScreen(m);
         case ScreenId::MenuIntervalsRepeats:      return new MenuIntervalsRepeatsScreen(m);
         case ScreenId::MenuIntervalsRun:          return new MenuIntervalsMetricScreen(m, Phase::Run);
@@ -154,12 +170,19 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::Track:                     return new TrackScreen(m);
         case ScreenId::TrackIntervalsAlert:       return new TrackIntervalsAlertScreen(m);
         case ScreenId::TrackIntervalsCompleted:   return new TrackIntervalsCompletedScreen(m);
+        case ScreenId::TrackWorkoutStep:          return new TrackWorkoutStepScreen(m);
         case ScreenId::TrackAction:               return new TrackActionScreen(m);
         case ScreenId::TrackHoldConfirm:          return new TrackHoldConfirmScreen(m);
         case ScreenId::TrackLap:                  return new TrackLapScreen(m);
         case ScreenId::TrackSaved:                return new TrackResultScreen(m, TrackResultScreen::Result::Saved);
         case ScreenId::TrackDiscarded:            return new TrackResultScreen(m, TrackResultScreen::Result::Discarded);
         case ScreenId::TrackSummary:              return new TrackSummaryScreen(m);
+
+        case ScreenId::Vo2:                       return new Vo2Screen(m);
+        case ScreenId::MenuVo2Profile:            return new MenuVo2ProfileScreen(m);
+        case ScreenId::Vo2PickBirth:              return new Vo2PickerScreen(m, Vo2PickerScreen::Kind::Birth);
+        case ScreenId::Vo2PickMaxHr:              return new Vo2PickerScreen(m, Vo2PickerScreen::Kind::MaxHr);
+        case ScreenId::Vo2PickRestHr:             return new Vo2PickerScreen(m, Vo2PickerScreen::Kind::RestHr);
     }
     return nullptr;
 }

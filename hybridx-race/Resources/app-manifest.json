@@ -60,6 +60,17 @@
       "label": "Vibrate on split",
       "description": "Vibrate when a new segment starts.",
       "default": true
+    },
+    {
+      "id": "targetFinishMin",
+      "type": "int",
+      "label": "Target finish",
+      "description": "Target race time in minutes, for the Target pace plan. It spreads this time over the segments in the proportions of your last race. 0 means none.",
+      "default": 0,
+      "min": 0,
+      "max": 240,
+      "unit": "min",
+      "validationMessage": "Between 0 and 240 minutes."
     }
   ]
 }

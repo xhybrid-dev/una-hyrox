@@ -50,3 +50,40 @@ TEST(Vo2Text, ReasonsFitOneLine)
         EXPECT_LE(std::strlen(Text::reason(r)), 21u);
     }
 }
+
+TEST(Vo2Text, Dates)
+{
+    char buf[12];
+    EXPECT_STREQ(Text::shortDate(12, 10, buf, sizeof(buf)), "12 Oct");
+    EXPECT_STREQ(Text::shortDate(1, 1, buf, sizeof(buf)), "1 Jan");
+    EXPECT_STREQ(Text::shortDate(0, 1, buf, sizeof(buf)), "");
+    EXPECT_STREQ(Text::shortDate(5, 13, buf, sizeof(buf)), "");
+    EXPECT_STREQ(Text::monthYear(5, 1986, buf, sizeof(buf)), "May 1986");
+    EXPECT_STREQ(Text::monthYear(0, 1986, buf, sizeof(buf)), "Not set");
+    EXPECT_STREQ(Text::monthYear(5, 0, buf, sizeof(buf)), "Not set");
+}
+
+TEST(Vo2Text, Trend)
+{
+    char buf[32];
+    EXPECT_STREQ(Text::trend(531, 523, buf, sizeof(buf)), "+0.8 since last run");
+    EXPECT_STREQ(Text::trend(511, 523, buf, sizeof(buf)), "-1.2 since last run");
+    EXPECT_STREQ(Text::trend(523, 523, buf, sizeof(buf)), "Same as last run");
+    EXPECT_STREQ(Text::trend(523, 0, buf, sizeof(buf)), "");
+    EXPECT_STREQ(Text::trend(0, 523, buf, sizeof(buf)), "");
+    // Fits the overview's line (Regular 16, about 22 characters).
+    EXPECT_LE(std::strlen(Text::trend(950, 150, buf, sizeof(buf))), 22u);
+}
+
+TEST(Vo2Text, Sources)
+{
+    EXPECT_STREQ(Text::maxSourceLabel(MaxHrSource::Formula), "age");
+    EXPECT_STREQ(Text::maxSourceLabel(MaxHrSource::Observed), "runs");
+    EXPECT_STREQ(Text::maxSourceLabel(MaxHrSource::Entered), "entered");
+    EXPECT_STREQ(Text::maxSourceLabel(MaxHrSource::None), "");
+    EXPECT_STREQ(Text::restSourceLabel(RestHrSource::Watch), "watch");
+    EXPECT_STREQ(Text::restSourceLabel(RestHrSource::Entered), "entered");
+    EXPECT_STREQ(Text::restSourceLabel(RestHrSource::None), "");
+    EXPECT_STREQ(Text::profileReason(ProfileStatus::Ok), "");
+    EXPECT_STREQ(Text::profileReason(ProfileStatus::NeedsAge), "Set your birth year");
+}

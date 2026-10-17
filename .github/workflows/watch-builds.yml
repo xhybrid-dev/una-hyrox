@@ -14,7 +14,7 @@ on:
 
 env:
   # The SDK commit these apps are built and tested against (README "Getting set up").
-  UNA_SDK_REF: a7a995a17e3425629bd169a4736e255b419c71ad
+  UNA_SDK_REF: bd04a5b8ebc7cb56cdbabe7071bad0468f9f7249
 
 jobs:
   watch-apps:
@@ -89,6 +89,8 @@ jobs:
           # Trail Quest: a turn-based trail-running adventure -- see
           # trailquest/docs/NOTES.md.
           build trailquest/Software/Apps/TrailQuest-CMake trailquest
+          # Knitting: a knitting row and set counter -- see knitting/docs/NOTES.md.
+          build knitting/Software/Apps/Knitting-CMake knitting
 
       - name: Collect
         run: |
@@ -105,6 +107,7 @@ jobs:
           cp x-weighin/Output/*.uapp watch-apps/
           cp x-weighin/Output/Glance/*.uapp watch-apps/
           cp trailquest/Output/*.uapp watch-apps/
+          cp knitting/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -135,6 +138,55 @@ jobs:
         with:
           name: race-store-zip
           path: hybridx-race/Output/HybridXRace-*.zip
+          if-no-files-found: error
+
+      - name: X Weigh-in store packages
+        # The same as Race's, from x-weighin/Utilities/pack-store-zip.sh: two
+        # store listings, so two zips, the app and (--glance) its glance, each
+        # with its .uapp, manifest, icon and previews. A dry run unless the push
+        # is a weighin-v* tag, when the script also refuses a binary whose
+        # version is not the tag's and a package still carrying a development
+        # APP_ID. See x-weighin/docs/SUBMISSION.md.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            weighin-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#weighin-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash x-weighin/Utilities/pack-store-zip.sh $EXPECT
+          # shellcheck disable=SC2086
+          bash x-weighin/Utilities/pack-store-zip.sh --glance $EXPECT
+
+      - name: Upload the X Weigh-in store packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: weighin-store-zip
+          path: |
+            x-weighin/Output/XWeighIn-*.zip
+            x-weighin/Output/Glance/XWeighInGlance-*.zip
+          if-no-files-found: error
+
+      - name: Knitting store package
+        # The same as X Weigh-in's, from knitting/Utilities/pack-store-zip.sh:
+        # the app's .uapp, manifest, icon and previews in one zip. A dry run
+        # unless the push is a knitting-v* tag, when the script also refuses a
+        # binary whose version is not the tag's and a package still carrying
+        # the development APP_ID. See knitting/docs/SUBMISSION.md.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            knitting-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#knitting-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash knitting/Utilities/pack-store-zip.sh $EXPECT
+
+      - name: Upload the Knitting store package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: knitting-store-zip
+          path: knitting/Output/Knitting-*.zip
           if-no-files-found: error
 
   host-tests:
@@ -198,6 +250,11 @@ jobs:
           cmake --build ci-build/intervals-core-tests -j"$(nproc)"
           ctest --test-dir ci-build/intervals-core-tests --output-on-failure
 
+      - name: HybridX Trail's copies of Run's window code
+        # Trail turns its runs into the same VO2 window records as Run, from
+        # copies of Run's builder and file codec; they must not drift.
+        run: hybridx-trail/Utilities/check-vo2-link-copies.sh
+
       - name: HybridX Trail host tests
         # The route core (GPX reader, thinning, off-route distance) and the
         # T0 probe's route check.
@@ -246,3 +303,10 @@ jobs:
           cmake -S trailquest/Tests/Host -B ci-build/trailquest-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/trailquest-tests -j"$(nproc)"
           ctest --test-dir ci-build/trailquest-tests --output-on-failure
+      - name: Knitting host tests
+        # The pure counter (rows, sets, total, limits).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S knitting/Tests/Host -B ci-build/knitting-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/knitting-tests -j"$(nproc)"
+          ctest --test-dir ci-build/knitting-tests --output-on-failure

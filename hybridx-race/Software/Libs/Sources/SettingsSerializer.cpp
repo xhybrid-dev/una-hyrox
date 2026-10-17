@@ -68,6 +68,7 @@ bool SettingsSerializer::save(const Settings &settings)
     writer.add("split_lockout_sec", settings.splitLockoutSec);
     writer.add("vibrate_on_split", settings.vibrateOnSplit);
     writer.add("target_finish_min", settings.targetFinishMin);
+    writer.add("pace_mode", static_cast<uint8_t>(settings.paceMode));
     writer.endMap();
 
     file->flush();
@@ -130,6 +131,10 @@ bool SettingsSerializer::load(Settings &settings)
     reader.get("split_lockout_sec", settings.splitLockoutSec);
     reader.get("vibrate_on_split", settings.vibrateOnSplit);
     reader.get("target_finish_min", settings.targetFinishMin);
+    uint8_t paceMode = 0u;
+    if (reader.get("pace_mode", paceMode) && paceMode < Race::kPaceModeCount) {
+        settings.paceMode = static_cast<Race::PaceMode>(paceMode);
+    }
 
     // Clamp what the file claims: it is user-writable over USB.
     if (settings.splitLockoutSec < Settings::kLockoutMinSec ||

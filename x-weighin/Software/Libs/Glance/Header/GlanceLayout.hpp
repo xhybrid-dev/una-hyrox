@@ -14,7 +14,7 @@
  *            weigh-in, the newest in white, on a baseline (17 controls);
  *   compact  the two lines alone, centred (too few controls, or narrow);
  *   tiny     "81.9 kg" alone (a very short area).
- * With no weigh-ins yet: "X Weigh-in" and "Open it to weigh in".
+ * With no weigh-ins yet, or no app: "X Weigh-in" and "No weigh-ins yet".
  *
  * Only text and filled rectangles: line controls do not draw on the watch
  * (Streak NOTES S4.3). Words are plain ASCII in 18-25 point faces (the 10

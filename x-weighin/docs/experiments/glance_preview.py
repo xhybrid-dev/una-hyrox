@@ -16,6 +16,11 @@ Gate W3). Each panel shows those separators, and darkens the edges, so the
 layout can be checked against them.
 
     glance_preview.py <glance_preview binary> <out.png> [w h controls]
+    glance_preview.py <glance_preview binary> <out.png> --store <dir>
+
+--store also writes the store listing's previews into <dir>: 480x480 (the
+watch's 240 at 2x, as the app's previews), the glance at the middle of a round
+screen between the list's separators, for the panels named in STORE below.
 """
 import os
 import subprocess
@@ -46,8 +51,18 @@ def face(f):
     bold = "-Bold" if weight == "SemiBold" else ""
     return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf" % bold, int(size * S * 0.82))
 
-binary, out = sys.argv[1], sys.argv[2]
-args = sys.argv[3:6] if len(sys.argv) > 5 else ["240", "60", "32"]
+argv = sys.argv[1:]
+store_dir = None
+if "--store" in argv:
+    i = argv.index("--store")
+    store_dir = argv[i + 1]
+    del argv[i:i + 2]
+binary, out = argv[0], argv[1]
+args = argv[2:5] if len(argv) > 4 else ["240", "60", "32"]
+# Store previews: (file name, panel name from tools/glance_preview.cpp).
+STORE = [("1-six-weeks.png", "Six weeks, weighed in today"),
+         ("2-days-off.png", "Back after five days off"),
+         ("3-first-days.png", "The first three days")]
 lines = subprocess.run([binary] + args, capture_output=True, text=True, check=True).stdout.splitlines()
 
 panels = []
@@ -107,3 +122,23 @@ for name, img, _ in panels:
     y += img.height + gap + 12
 sheet.save(out)
 print("wrote", out)
+
+if store_dir:
+    os.makedirs(store_dir, exist_ok=True)
+    byname = {name: img for name, img, _ in panels}
+    for fname, pname in STORE:
+        img = byname[pname]
+        size = 240 * S
+        canvas = Image.new("RGB", (size, size), (0, 0, 0))
+        top = (size - img.height) // 2
+        canvas.paste(img, ((size - img.width) // 2, top))
+        cd = ImageDraw.Draw(canvas)
+        x0 = (size - BAND * S) // 2
+        for ly in (top - 10, top + img.height + 8):
+            cd.rectangle([x0, ly, x0 + BAND * S - 1, ly + 2], fill=LIST_BLUE)
+        # The round display: everything outside the circle is bezel.
+        mask = Image.new("L", (size, size), 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, size - 1, size - 1], fill=255)
+        Image.composite(canvas, Image.new("RGB", (size, size), (0, 0, 0)), mask).save(
+            os.path.join(store_dir, fname))
+        print("wrote", os.path.join(store_dir, fname))

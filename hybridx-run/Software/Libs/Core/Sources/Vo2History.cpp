@@ -46,6 +46,41 @@ void Vo2History::add(const RunRecord& r)
     }
 }
 
+void Vo2History::addSorted(const RunRecord& r)
+{
+    RunRecord tmp[Config::kHistoryRuns + 1];
+    uint8_t   n      = 0;
+    bool      placed = false;
+    for (uint8_t i = 0; i < mCount; ++i) {
+        const RunRecord& e = at(i);
+        if (!placed && r.utc < e.utc) {
+            tmp[n++] = r;
+            placed   = true;
+        }
+        tmp[n++] = e;
+    }
+    if (!placed) {
+        tmp[n++] = r;
+    }
+    const uint8_t skip = n > Config::kHistoryRuns ? static_cast<uint8_t>(n - Config::kHistoryRuns) : 0;
+    mFirst = 0;
+    mCount = static_cast<uint8_t>(n - skip);
+    for (uint8_t i = 0; i < mCount; ++i) {
+        mRuns[i] = tmp[skip + i];
+    }
+}
+
+uint8_t Vo2History::countFrom(RunSource src) const
+{
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < mCount; ++i) {
+        if (at(i).source == static_cast<uint8_t>(src)) {
+            ++n;
+        }
+    }
+    return n;
+}
+
 const RunRecord& Vo2History::at(uint8_t i) const
 {
     static const RunRecord kNone{};
@@ -55,12 +90,15 @@ const RunRecord& Vo2History::at(uint8_t i) const
     return mRuns[(mFirst + i) % Config::kHistoryRuns];
 }
 
-uint16_t Vo2History::rollingX10() const
+uint16_t Vo2History::rollingOver(uint8_t n) const
 {
     uint32_t sum = 0;
     uint32_t weight = 0;
-    const uint8_t from = mCount > Config::kRollingRuns ? mCount - Config::kRollingRuns : 0;
-    for (uint8_t i = from; i < mCount; ++i) {
+    if (n > mCount) {
+        n = mCount;
+    }
+    const uint8_t from = n > Config::kRollingRuns ? n - Config::kRollingRuns : 0;
+    for (uint8_t i = from; i < n; ++i) {
         const RunRecord& r = at(i);
         const uint32_t w = r.windows < Config::kMaxRunWeight ? r.windows : Config::kMaxRunWeight;
         sum    += static_cast<uint32_t>(r.vo2x10) * w;
@@ -131,8 +169,9 @@ size_t Vo2History::toJson(char* buf, size_t cap) const
     buf[0] = '\0';
     SDK::JsonStreamWriter w(buf, cap);
     w.startMap();
-    w.add("v", static_cast<uint8_t>(2));
+    w.add("v", static_cast<uint8_t>(3));
     w.add("restHr", mWatchRestHr);
+    w.add("trail", mTrailMark);
     w.startArray("maxes");
     for (uint8_t i = 0; i < mMaxCount; ++i) {
         w.add(mMaxes[(mMaxFirst + i) % Config::kHistoryRuns]);
@@ -145,6 +184,7 @@ size_t Vo2History::toJson(char* buf, size_t cap) const
         w.add(r.utc);
         w.add(r.vo2x10);
         w.add(r.windows);
+        w.add(r.source);
         w.endArray();
     }
     w.endArray();
@@ -169,7 +209,7 @@ bool Vo2History::fromJson(const char* text, size_t len)
 
     Vo2History h;
     int64_t v = 0;
-    if (!readInt(r, "v", 1, 2, v)) {
+    if (!readInt(r, "v", 1, 3, v)) {
         return false;
     }
     const int64_t version = v;
@@ -186,6 +226,12 @@ bool Vo2History::fromJson(const char* text, size_t len)
             return false;
         }
         h.setWatchRestHr(static_cast<uint8_t>(v));
+        if (version >= 3) {
+            if (!readInt(r, "trail", 0, 0xFFFFFFFFll, v)) {
+                return false;
+            }
+            h.setTrailMarkUtc(static_cast<uint32_t>(v));
+        }
 
         size_t n = 0;
         if (!r.getArrayLength("maxes", n)) {
@@ -207,7 +253,7 @@ bool Vo2History::fromJson(const char* text, size_t len)
     }
     for (size_t i = 0; i < runs; ++i) {
         char q[24];
-        int64_t utc = 0, vo2 = 0, win = 0;
+        int64_t utc = 0, vo2 = 0, win = 0, src = 0;
         std::snprintf(q, sizeof(q), "runs[%u][0]", static_cast<unsigned>(i));
         bool ok = readInt(r, q, 1, 0xFFFFFFFFll, utc);
         std::snprintf(q, sizeof(q), "runs[%u][1]", static_cast<unsigned>(i));
@@ -215,10 +261,15 @@ bool Vo2History::fromJson(const char* text, size_t len)
                            static_cast<int64_t>(Config::kMaxPlausibleVo2 * 10.0f), vo2);
         std::snprintf(q, sizeof(q), "runs[%u][2]", static_cast<unsigned>(i));
         ok = ok && readInt(r, q, Config::kMinWindows, Config::kMaxWindows, win);
+        if (version >= 3) {
+            std::snprintf(q, sizeof(q), "runs[%u][3]", static_cast<unsigned>(i));
+            ok = ok && readInt(r, q, 0, 1, src);
+        }
         if (!ok) {
             return false;
         }
-        h.add(RunRecord{static_cast<uint32_t>(utc), static_cast<uint16_t>(vo2), static_cast<uint16_t>(win)});
+        h.add(RunRecord{static_cast<uint32_t>(utc), static_cast<uint16_t>(vo2), static_cast<uint16_t>(win),
+                        static_cast<uint8_t>(src)});
     }
 
     *this = h;

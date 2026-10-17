@@ -7,6 +7,9 @@ This workspace holds two folders:
   and sets `UNA_SDK`; bump the SDK there and new sessions follow.
 - `hybridx-race/`: our app, a HYROX-format race timer for the UNA Watch.
 
+SDK status: pinned at `sdk-v1.6.0` (`bd04a5b8`) since 14 October 2026. See
+`hybridx-race/docs/NOTES.md` 5.21-5.28 before any SDK or firmware-compatibility work.
+
 ## Before any work
 1. Read `hybridx-race/docs/HYBRIDX_RACE_BRIEF.md` in full at the start of each phase.
 2. Read `hybridx-race/docs/NOTES.md` for decisions and findings so far (create it in Phase 0).
@@ -26,6 +29,7 @@ This workspace holds two folders:
 - Build for the watch: `cmake -G "Unix Makefiles" -S hybridx-race/Software/Apps/HybridXRace-CMake -B hybridx-race/build && cmake --build hybridx-race/build`
 - Host tests: see `Docs/unit-testing.md`
 - Simulator: see `Docs/Simulator.md` and `Docs/Tutorials/RunLVGL/ARCHITECTURE.md`
+- Race's pace plan in the simulator (two races, about 2 minutes): `hybridx-race/docs/experiments/pace_plan_capture.sh [out-dir] [last|target]`
 
 ## About Jon
 Chartered engineer, runs HybridX (Hyrox coaching platform). Comfortable with TypeScript/Next.js, new to embedded C++. Explain build or toolchain steps he must do himself clearly and one at a time.
@@ -84,6 +88,10 @@ independent of Race and Streak.
   the phone over the watch's BLE File Transfer Service for release (NOTES,
   "Phone delivery over BLE"). The Android sender is `Tools/RouteSender`
   (plain Java, no Gradle; its README has the test plan).
+- **Run link:** Trail leaves its runs' steady minutes in the shared folder for
+  HybridX Run's VO2max (NOTES "Run link"; plan in `hybridx-run/docs/VO2_LINK_PLAN.md`).
+  `Software/Libs/Vo2Link` holds **copies of Run's window code** (edit Run's, then
+  `Utilities/check-vo2-link-copies.sh --sync`; CI checks they match).
 - **Watch builds come from CI**, as for Streak. So does the Route Sender APK
   (`.github/workflows/route-sender.yml`, artifact `route-sender-apk`).
 - **Commands:**
@@ -101,7 +109,9 @@ independent of Race and Streak.
     set, else Ubuntu's `android-sdk-platform-23 aapt apksigner zipalign
     dalvik-exchange` (dl.google.com is blocked in the container).
 
-## HybridX Intervals (`hybridx-intervals/`)
+## HybridX Intervals (`hybridx-intervals/`) — RETIRED (14 October 2026)
+No further work: UNA is building structured workouts into Running (see
+`hybridx-race/docs/NOTES.md` 5.25). Code and notes stay for reference only.
 A fourth app: structured workouts (warm-up, work and rest steps with pace or
 heart-rate targets, repeats, cool-down) for running. It is independent of Race,
 Streak and Trail.
@@ -128,7 +138,7 @@ A fifth app, and a test: the SDK's RunLVGL copied, plus a VO2max estimate
 worked out live during the run (ACSM running equation, %HRR ≈ %VO2R, max HR
 entered or Tanaka from birth year and month). It exists to check the method
 against a Garmin. It is independent of the other apps.
-- **Docs:** findings, decisions, method, phases (R0-R3) and the review:
+- **Docs:** findings, decisions, method, phases (R0-R5) and the review:
   `hybridx-run/docs/NOTES.md`. Read it at the start of each Run phase.
 - **Rules:** the same standing rules as Race apply.
 - **Layout:** the pure VO2max core `Software/Libs/Core` (its only SDK use is
@@ -137,6 +147,15 @@ against a Garmin. It is independent of the other apps.
 - **Watch builds come from CI**, as for the others. Tags `run-vX.Y.Z`.
 - **Commands:**
   - host tests: `cmake -S hybridx-run/Tests/Host -B hybridx-run/build-tests && cmake --build hybridx-run/build-tests && hybridx-run/build-tests/hybridx-run-host-tests`;
+  - simulator: `hybridx-run/Software/Apps/LVGL-GUI/simulator`;
+  - a run in the simulator: `docs/experiments/sim_run.sh [seconds] [shots]
+    [app_config.json]` (`SEED=1` for a history); the VO2max screens:
+    `docs/experiments/capture_vo2.sh [out-dir]` (into `docs/screens/`);
+  - Trail's runs counted by Run (synthetic files): `docs/experiments/sim_trail_ingest.sh`
+    (needs the simulator and `build-tests/make_trail_run`);
+  - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
+    log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>` (also shows
+    what the raw GPS speed would have given, from the `scale` column).
   - simulator: `hybridx-run/Software/Apps/LVGL-GUI/simulator`.
 
 ## X Weigh-in (`x-weighin/`)
@@ -217,3 +236,38 @@ creatures, moves, art or type chart (brief section 9).
     (into `docs/screens/`);
   - art: `python3 trailquest/Tools/Art/gen_art.py` (writes the sprites and a
     preview sheet); icons: `python3 trailquest/Resources/make_icons.py`.
+    <out.png>`;
+  - the store packages (two listings: the app, and the glance, which needs
+    it): `Utilities/pack-store-zip.sh` and `--glance` (CI artifact
+    `weighin-store-zip`); the glance's previews: `glance_preview.py
+    build-tests/glance_preview <out.png> --store Resources/Glance/previews`;
+    the steps: `docs/SUBMISSION.md`;
+  - store images (previews, mock-ups, marketing, one set per listing):
+    `docs/experiments/store_images.py build-tests/glance_preview docs/store`.
+
+## Knitting (`knitting/`)
+An eighth app: a knitting counter. Press a button for every row, group rows into
+sets (rows and sets, like reps and sets), and see the rows in this set (big), the
+set number and the total rows (small). Buttons: R1 counts a row (hold: undo a row),
+L1 starts the next set, L2 resets (hold 1.5 s), R2 exits. It is an activity-free utility: no GPS, no FIT files,
+nothing syncs. It is independent of the other apps.
+- **Docs:** findings, decisions and phases (K0-K5): `knitting/docs/NOTES.md`.
+  Read it at the start of each Knitting phase, and work only on that phase.
+- **Rules:** the same standing rules as Race apply.
+- **Layout:** as X Weigh-in: the pure core `Software/Libs/Core` (header-only where
+  the GUI uses it), the service and messages `Software/Libs/App`, the GUI
+  `Software/Apps/LVGL-GUI`, the watch build `Software/Apps/Knitting-CMake`.
+- **Watch builds come from CI**, as for the others. Tags `knitting-vX.Y.Z`. App ID
+  `CDA5282FFDCE502F` (portal-issued). The store package (`Utilities/pack-store-zip.sh`,
+  CI artifact `knitting-store-zip`) and the release steps: `docs/SUBMISSION.md`.
+- **Commands:**
+  - host tests: `cmake -S knitting/Tests/Host -B knitting/build-tests && cmake --build knitting/build-tests && knitting/build-tests/knitting-host-tests`;
+  - simulator: `knitting/Software/Apps/LVGL-GUI/simulator` (keys 1-4 are L1, L2, R1, R2);
+  - a run in the simulator, with screenshots: `docs/experiments/capture_screens.sh [out-dir]`
+    (into `docs/screens/`). It needs Xvfb, xdotool and ImageMagick. Also
+    `resume_check.sh` (the saved count) and `hold_check.sh` (the holds; key
+    down, wait, key up, as on the watch); `store_previews.sh` (the four store
+    previews, into `Resources/previews/`); store images (watch mock-ups in teal
+    and white, cards, banner): `UNA_SDK=... python3 docs/experiments/store_images.py docs/store`.
+  - a local watch compile check needs Race's `syscall_stubs.c` built with
+    `-mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb`, and `pyelftools`.

@@ -59,8 +59,17 @@ struct Settings
     /// Vibrate when a new segment starts (brief 8.3).
     bool vibrateOnSplit = true;
 
-    /// Target race time in minutes; 0 = off. Hidden until F14 ships (D6).
+    /// Target race time in minutes; 0 = none. Used by the Target pace plan, which spreads it
+    /// over the segments in the proportions of the last race. Set on the phone (to the
+    /// minute) or on the watch (in steps of five).
     uint16_t targetFinishMin = 0u;
+
+    /// How per-segment targets are chosen. Own settings file, not AppConfig: it is chosen on
+    /// the watch when setting up the race.
+    Race::PaceMode paceMode = Race::PaceMode::Off;
+
+    /// @retval The target finish in milliseconds, 0 for none.
+    uint32_t targetFinishMs() const { return static_cast<uint32_t>(targetFinishMin) * 60000u; }
 
     /// @retval The split lockout in milliseconds, clamped to its declared range.
     uint32_t lockoutMs() const

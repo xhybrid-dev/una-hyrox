@@ -30,7 +30,9 @@ struct ProfileInput {
     uint8_t  autoMaxHr     = 0;   ///< Vo2History::autoMaxHr(): reached on two runs; 0 = none
 };
 
+// Values are sent to the GUI as uint8_t (CustomMessage::Vo2Info): append only.
 enum class MaxHrSource : uint8_t { None, Entered, Formula, Observed };
+enum class RestHrSource : uint8_t { None, Entered, Watch };
 
 enum class ProfileStatus : uint8_t {
     Ok,
@@ -45,7 +47,19 @@ struct Profile {
     uint8_t       maxHr     = 0;
     uint8_t       restHr    = 0;
     MaxHrSource   maxSource = MaxHrSource::None;
+    RestHrSource  restSource = RestHrSource::None;
 };
+
+/// Calendar fields of a UTC time (proleptic Gregorian).
+struct Civil {
+    int32_t year   = 1970;
+    uint8_t month  = 1;
+    uint8_t day    = 1;
+    uint8_t hour   = 0;
+    uint8_t minute = 0;
+    uint8_t second = 0;
+};
+Civil civilFromUtc(std::time_t utc);
 
 /// Whole years of age at nowUtc. 0 if the birth year is unset or in the future.
 uint8_t ageAt(uint16_t birthYear, uint8_t birthMonth, std::time_t nowUtc);

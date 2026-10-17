@@ -16,23 +16,12 @@ namespace RunVo2
 namespace
 {
 
-bool goodHr(const Sample& s)
+/// ACSM running equation, ml/kg/min. Speed in m/min x 10, grade in percent
+/// x 10 (a window record's units); downhill counts as 0.
+float acsmRunningVo2(uint16_t speedMMinX10, int16_t gradeX10)
 {
-    return s.hrTrust >= Config::kMinHrTrust && s.hrTrust <= Config::kMaxHrTrust &&
-           s.hrBpm >= Config::kMinHrBpm && s.hrBpm <= Config::kMaxHrBpm;
-}
-
-bool goodSpeed(const Sample& s)
-{
-    return s.speedValid && !s.deadReckoning &&
-           s.speedMs >= Config::kMinSpeedMs && s.speedMs <= Config::kMaxSpeedMs;
-}
-
-/// ACSM running equation, ml/kg/min. Grade in percent; downhill counts as 0.
-float acsmRunningVo2(float speedMs, float gradePct)
-{
-    const float v     = speedMs * 60.0f;
-    const float grade = gradePct > 0.0f ? gradePct / 100.0f : 0.0f;
+    const float v     = speedMMinX10 / 10.0f;
+    const float grade = gradeX10 > 0 ? gradeX10 / 1000.0f : 0.0f;
     return 3.5f + 0.2f * v + 0.9f * v * grade;
 }
 
@@ -40,116 +29,93 @@ float acsmRunningVo2(float speedMs, float gradePct)
 
 void Vo2Run::reset()
 {
-    // Field by field: a whole-object temporary would put 1 KB on the
-    // service's 10 KB stack.
-    clearWindow();
-    mActiveSec    = 0;
+    mBuilder.reset();
+    mNotedMax     = 0;
+    mLog          = WindowLog{};
+    mLogReady     = false;
     mWindowCount  = 0;
     mCounts       = WindowCounts{};
-    mHoldCount    = 0;
-    mHoldNext     = 0;
-    mSustainedMax = 0;
-}
-
-void Vo2Run::clearWindow()
-{
-    mSec       = 0;
-    mGood      = 0;
-    mSumSpeed  = 0.0f;
-    mSumSpeed2 = 0.0f;
-    mSumGrade  = 0.0f;
-    mSumHr     = 0;
-    mMinHr     = 255;
-    mMaxHr     = 0;
-    mTooSteep  = false;
 }
 
 void Vo2Run::addSecond(const Sample& s)
 {
-    if (!s.active) {
-        // A pause breaks the window: what it held was not one steady minute.
-        clearWindow();
-        mHoldCount = 0;
+    mBuilder.addSecond(s);
+
+    WindowRecord w;
+    if (!mBuilder.popWindow(w)) {
         return;
     }
+    uint16_t cost = 0;
+    const WindowOutcome outcome = judge(w, cost);
 
-    ++mActiveSec;
-
-    // Auto max: the lowest of the last few good readings is a level held for
-    // that long; keep the highest such level. Not in the warm-up.
-    if (goodHr(s) && mActiveSec > Config::kWarmUpSec) {
-        mHold[mHoldNext] = s.hrBpm;
-        mHoldNext = static_cast<uint8_t>((mHoldNext + 1) % Config::kAutoMaxHoldSec);
-        if (mHoldCount < Config::kAutoMaxHoldSec) {
-            ++mHoldCount;
-        }
-        if (mHoldCount == Config::kAutoMaxHoldSec) {
-            const uint8_t held = *std::min_element(mHold, mHold + Config::kAutoMaxHoldSec);
-            mSustainedMax = std::max(mSustainedMax, held);
-        }
-    } else {
-        mHoldCount = 0;
-    }
-
-    ++mSec;
-    const bool gradeOk = s.gradeValid;
-    if (gradeOk && (s.gradePct > Config::kMaxGradePct || s.gradePct < Config::kMinGradePct)) {
-        mTooSteep = true;
-    }
-    if (goodHr(s) && goodSpeed(s)) {
-        ++mGood;
-        mSumSpeed  += s.speedMs;
-        mSumSpeed2 += s.speedMs * s.speedMs;
-        // No valid grade: taken as level. The SDK's GRADE sensor has its own
-        // validity; a missing one should not cost the window.
-        mSumGrade  += gradeOk ? s.gradePct : 0.0f;
-        mSumHr     += s.hrBpm;
-        mMinHr      = std::min(mMinHr, s.hrBpm);
-        mMaxHr      = std::max(mMaxHr, s.hrBpm);
-    }
-
-    if (mSec >= Config::kWindowSec) {
-        closeWindow();
-        clearWindow();
-    }
+    mLog                 = WindowLog{};
+    mLog.index           = w.index;
+    mLog.activeSec       = w.activeSec;
+    mLog.goodSec         = w.goodSec;
+    mLog.outcome         = outcome;
+    mLog.speedMMinX10    = w.speedMMinX10;
+    mLog.spreadX10       = w.spreadX10;
+    mLog.gradeX10        = w.gradeX10;
+    mLog.hrX10           = w.hrX10;
+    mLog.hrMin           = w.hrMin;
+    mLog.hrMax           = w.hrMax;
+    mLog.costX10         = cost;
+    mLog.speedScaleX1000 = w.speedScaleX1000;
+    mLogReady            = true;
 }
 
-void Vo2Run::closeWindow()
+WindowOutcome Vo2Run::addWindow(const WindowRecord& w)
 {
-    if (mActiveSec <= Config::kWarmUpSec) {
+    uint16_t cost = 0;
+    return judge(w, cost);
+}
+
+bool Vo2Run::popWindowLog(WindowLog& out)
+{
+    if (!mLogReady) {
+        return false;
+    }
+    out = mLog;
+    mLogReady = false;
+    return true;
+}
+
+WindowOutcome Vo2Run::judge(const WindowRecord& w, uint16_t& costX10)
+{
+    costX10 = 0;
+    if (w.goodSec > 0) {
+        costX10 = static_cast<uint16_t>(std::lround(acsmRunningVo2(w.speedMMinX10, w.gradeX10) * 10.0f));
+    }
+
+    if (w.activeSec <= Config::kWarmUpSec) {
         ++mCounts.warmUp;
-        return;
+        return WindowOutcome::WarmUp;
     }
-    if (mGood < Config::kMinGoodSecPerWindow) {
+    if (w.goodSec < Config::kMinGoodSecPerWindow) {
         ++mCounts.gaps;
-        return;
+        return WindowOutcome::Gaps;
     }
-    if (mTooSteep) {
+    // Steep: the window's mean is outside the limits, or too many of its
+    // seconds were. One stray second is sensor noise, not a hill.
+    const bool meanSteep = w.gradeX10 > static_cast<int16_t>(Config::kMaxGradePct * 10.0f) ||
+                           w.gradeX10 < static_cast<int16_t>(Config::kMinGradePct * 10.0f);
+    if (meanSteep || w.steepSec > Config::kMaxSteepSecPerWindow) {
         ++mCounts.grade;
-        return;
+        return WindowOutcome::Grade;
     }
-
-    const float n      = static_cast<float>(mGood);
-    const float mean   = mSumSpeed / n;
-    const float var    = std::max(0.0f, mSumSpeed2 / n - mean * mean);
-    const float spread = 100.0f * std::sqrt(var) / mean;
-    if (spread > Config::kMaxSpeedSpreadPct || (mMaxHr - mMinHr) > Config::kMaxHrRangeBpm) {
+    if (w.spreadX10 > static_cast<uint16_t>(Config::kMaxSpeedSpreadPct * 10.0f) ||
+        (w.hrMax - w.hrMin) > Config::kMaxHrRangeBpm) {
         ++mCounts.unsteady;
-        return;
+        return WindowOutcome::Unsteady;
     }
-
     if (mWindowCount >= Config::kMaxWindows) {
         ++mCounts.overflow;
-        return;
+        return WindowOutcome::Overflow;
     }
 
-    const float cost   = acsmRunningVo2(mean, mSumGrade / n);
-    const float meanHr = static_cast<float>(mSumHr) / n;
-    mWindows[mWindowCount++] = Window{
-        static_cast<uint16_t>(std::lround(cost * 10.0f)),
-        static_cast<uint16_t>(std::lround(meanHr * 10.0f)),
-    };
+    mWindows[mWindowCount++] = Window{costX10, w.hrX10};
     ++mCounts.accepted;
+    return WindowOutcome::Kept;
 }
 
 RunResult Vo2Run::estimate(const Profile& profile) const

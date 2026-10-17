@@ -1,14 +1,22 @@
 # HybridX Run PC simulator (started from RunLVGL's): the app's service and LVGL GUI processes running
 # against the SDK's mock kernel, with the display in an SDL2 window.
 #
-# Windows (Visual Studio; uses the SDL2 shipped with TouchGFX, which is 32-bit):
-#   cmake -S . -B build -G "Visual Studio 18 2026" -A Win32
-#   (that generator needs CMake 4.2 or newer; with an older CMake use
-#   "Visual Studio 17 2022")
-#   cmake --build build --config Debug
-# Linux (needs libsdl2-dev):
+# Needs a host C++ compiler, CMake, Ninja (or a Visual Studio generator) and
+# SDL2; no IDE. Linux or WSL: GCC, ninja-build and libsdl2-dev. Windows: MSVC,
+# from the free Build Tools for Visual Studio or the IDE (its "C++ CMake tools"
+# component brings CMake and Ninja). The build's architecture must match the
+# SDL2 it links; with Ninja the developer command prompt picks it (x86 or x64),
+# with a Visual Studio generator -A does (Win32 or x64; Ninja takes no -A).
+# Without an installed SDL2 the build reuses the 32-bit copy TouchGFX Designer
+# ships and must then be 32-bit, as below.
+#
+# Linux, WSL, or a Windows x86 Native Tools Command Prompt:
 #   cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 #   cmake --build build
+# Windows, any shell, also writing a Visual Studio solution ("Visual Studio 18
+# 2026" needs CMake 4.2 or newer; "Visual Studio 17 2022" works with 3.21):
+#   cmake -S . -B build -G "Visual Studio 18 2026" -A Win32
+#   cmake --build build --config Debug
 # Run from build/bin so the mock file system lands in ../../../../../Output,
 # i.e. Software/Output next to the .uapp output.
 cmake_minimum_required(VERSION 3.21)
@@ -59,6 +67,7 @@ target_include_directories(HybridXRunSimulator PRIVATE
 target_compile_definitions(HybridXRunSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
+    "LV_MEM_SIZE=(56U*1024U)"  # as in HybridXRun-CMake/CMakeLists.txt
     APP_ID="74CDEFFE3DBA395D"
     APP_NAME="HybridXRun"
     DEV_ID="HybridX Simulator"

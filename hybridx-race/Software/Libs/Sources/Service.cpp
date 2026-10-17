@@ -377,10 +377,15 @@ void Service::loadConfiguration()
     if (mConfig->has(RaceConfig::kVibrateOnSplit)) {
         mSettings.vibrateOnSplit = mConfig->getBool(RaceConfig::kVibrateOnSplit);
     }
+    if (mConfig->has(RaceConfig::kTargetFinishMin)) {
+        const int32_t min = mConfig->getInt(RaceConfig::kTargetFinishMin);
+        mSettings.targetFinishMin = static_cast<uint16_t>(
+                min < 0 ? 0 : (min > Settings::kTargetFinishMaxMin ? Settings::kTargetFinishMaxMin : min));
+    }
 
-    LOG_INFO("Config: roxzone %u, run %u m, lockout %u s, vibrate %u\n",
+    LOG_INFO("Config: roxzone %u, run %u m, lockout %u s, vibrate %u, target %u min\n",
              mSettings.roxzoneSplits, mSettings.runDistanceM, mSettings.splitLockoutSec,
-             mSettings.vibrateOnSplit);
+             mSettings.vibrateOnSplit, mSettings.targetFinishMin);
 }
 
 void Service::handleEvent(const CustomMessage::SettingsSave &event)
@@ -398,6 +403,7 @@ void Service::handleEvent(const CustomMessage::SettingsSave &event)
         mConfig->setInt(RaceConfig::kRunDistanceM, mSettings.runDistanceM);
         mConfig->setInt(RaceConfig::kSplitLockoutSec, mSettings.splitLockoutSec);
         mConfig->setBool(RaceConfig::kVibrateOnSplit, mSettings.vibrateOnSplit);
+        mConfig->setInt(RaceConfig::kTargetFinishMin, mSettings.targetFinishMin);
         if (!mConfig->save()) {
             LOG_WARNING("Failed to write app config\n");
         }
@@ -405,6 +411,25 @@ void Service::handleEvent(const CustomMessage::SettingsSave &event)
 
     setCapabilities();
     sendSettings();
+}
+
+void Service::fillPaceStatus(uint8_t (&out)[Race::kFormatCount][Race::kPaceModeCount]) const
+{
+    // For every format, because the athlete cycles the format on the main menu without telling the
+    // service, and the pace row has to say what that format can use. A scratch plan per pairing:
+    // about 130 bytes each, on the stack, and only when settings change.
+    for (uint8_t f = 0u; f < Race::kFormatCount; ++f) {
+        Race::SegmentDesc tmpl[Race::kMaxSegments];
+        const uint8_t n = Race::RaceModel::buildTemplate(static_cast<Race::Format>(f),
+                                                         mSettings.roxzoneSplits, tmpl,
+                                                         Race::kMaxSegments);
+        for (uint8_t m = 0u; m < Race::kPaceModeCount; ++m) {
+            Race::PacePlan scratch;
+            out[f][m] = static_cast<uint8_t>(
+                    scratch.build(static_cast<Race::PaceMode>(m), tmpl, n, mSummary,
+                                  mSettings.targetFinishMs(), mSettings.runDistanceM));
+        }
+    }
 }
 
 void Service::sendSettings()
@@ -415,6 +440,7 @@ void Service::sendSettings()
         msg->is12HourFormat = mTimeFormat12h;
         std::memcpy(msg->hrThresholds, mHrThresholds.data(), mHrThresholds.size());
         msg->hrThresholdsCount = mHrThresholdCount;
+        fillPaceStatus(msg->paceStatus);
         msg.send();
     }
 }
@@ -493,6 +519,20 @@ void Service::startRace(Race::Format format)
     mSettings.format = format;
     if (!mSettingsSerializer.save(mSettings)) {
         LOG_WARNING("Failed to remember the race format\n");
+    }
+
+    // The pace plan, from the last saved race: mSummary is replaced only when a race is saved, so
+    // it is still that race here. A plan that cannot be built (no saved race, a format the last
+    // race does not cover) leaves the race running with no plan, never refusing to start.
+    {
+        Race::SegmentDesc tmpl[Race::kMaxSegments];
+        const uint8_t n = Race::RaceModel::buildTemplate(format, mSettings.roxzoneSplits, tmpl,
+                                                         Race::kMaxSegments);
+        const Race::PacePlan::Status st = mPlan.build(mSettings.paceMode, tmpl, n, mSummary,
+                                                      mSettings.targetFinishMs(),
+                                                      mSettings.runDistanceM);
+        LOG_INFO("Pace plan: mode %u, status %u\n", static_cast<unsigned>(mSettings.paceMode),
+                 static_cast<unsigned>(st));
     }
 
     mRaceStartUtc = mTimeTracker.getExpectedUTC();
@@ -648,8 +688,8 @@ void Service::finishRace(bool completed)
     SDK::send_msg<CustomMessage::RaceFinished>(mKernel, mRace.completed() && completed);
 
     backlightOn();
-    // One long pulse for the finish (brief 8.3).
-    playBuzzerPattern(400, 1);
+    // One long pulse for the finish (brief 8.3), at its own pitch.
+    playCue(Race::Cues::kFinish);
     if (mSettings.vibrateOnSplit) {
         playVibroPattern(SDK::Message::RequestVibroPlay::Effect::ALERT_1000MS_100);
     }
@@ -826,6 +866,7 @@ void Service::saveRace(bool discard)
         LOG_WARNING("Failed to save the race summary\n");
     }
     sendSummary();
+    sendSettings();   // the last race changed, so what the pace plan can use may have
 
     mRace.save();
     // Back to Idle, or the next START is refused and the race screen freezes.
@@ -853,14 +894,14 @@ void Service::notifySegment(Race::SegmentType type)
 
     switch (type) {
     case Race::SegmentType::Run:
-        playBuzzerPattern(150, 1);
+        playCue(Race::Cues::forSegment(type));
         if (mSettings.vibrateOnSplit) {
             playVibroPattern(Effect::STRONG_CLICK_100, 1);
         }
         break;
 
     case Race::SegmentType::Station:
-        playBuzzerPattern(150, 2);
+        playCue(Race::Cues::forSegment(type));
         if (mSettings.vibrateOnSplit) {
             playVibroPattern(Effect::STRONG_CLICK_100, 2);
         }
@@ -868,7 +909,7 @@ void Service::notifySegment(Race::SegmentType type)
 
     case Race::SegmentType::RoxIn:
     case Race::SegmentType::RoxOut:
-        playBuzzerPattern(80, 1);
+        playCue(Race::Cues::forSegment(type));
         if (mSettings.vibrateOnSplit) {
             playVibroPattern(Effect::SHARP_TICK_1_100, 1);
         }
@@ -993,6 +1034,16 @@ void Service::publishRaceData()
     mRaceData.hrMax = static_cast<uint8_t>(mHrCounter.getMaximum());
     mRaceData.completed = mRace.completed();
 
+    if (mPlan.active()) {
+        const Race::PacePlan::Live live = mPlan.live(mRace, now);
+        mRaceData.planActive = true;
+        mRaceData.hasDelta = live.hasDelta;
+        mRaceData.deltaMs = live.deltaMs;
+        mRaceData.hasProjection = live.hasProjection;
+        mRaceData.projectedMs = live.projectedMs;
+        mRaceData.segmentTargetMs = live.segmentTargetMs;
+    }
+
     if (mGuiStarted) {
         SDK::send_msg<CustomMessage::RaceDataUpd>(mKernel, mRaceData);
     }
@@ -1038,6 +1089,7 @@ void Service::buildSummary()
     mSummary.format = mSettings.format;
     mSummary.roxzone = mSettings.roxzoneSplits;
     mSummary.completed = mRace.completed();
+    mSummary.runDistanceM = mSettings.runDistanceM;
     mSummary.startUtc = mRaceStartUtc;
     mSummary.totalMs = mRace.totalActiveMs(nowMs());
     mSummary.runsMs = mRace.totalActiveMsOfType(Race::SegmentType::Run);
@@ -1244,7 +1296,13 @@ void Service::backlightOn(uint32_t timeoutMs)
     }
 }
 
-void Service::playBuzzerPattern(uint16_t beepMs, uint8_t count, uint16_t silenceMs)
+void Service::playCue(const Race::Cues::Cue &cue)
+{
+    playBuzzerPattern(cue.beepMs, cue.count, cue.silenceMs, cue.pitchHz);
+}
+
+void Service::playBuzzerPattern(uint16_t beepMs, uint8_t count, uint16_t silenceMs,
+                                uint16_t pitchHz)
 {
     if (count == 0u) {
         return;
@@ -1262,6 +1320,10 @@ void Service::playBuzzerPattern(uint16_t beepMs, uint8_t count, uint16_t silence
         for (uint8_t i = 0u; i < count; ++i) {
             msg->notes[n].volume = 100;
             msg->notes[n].time = beepMs;
+            // 0 or a value outside 500-20000 Hz plays the kernel's default, and a kernel
+            // that predates SDK v1.6 ignores the field: the beep counts still tell the
+            // cues apart there.
+            msg->notes[n].frequency = pitchHz;
             ++n;
             if (i < count - 1u) {
                 msg->notes[n].volume = 0;
