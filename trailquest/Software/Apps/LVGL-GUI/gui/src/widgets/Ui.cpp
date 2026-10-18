@@ -100,6 +100,15 @@ void Corners::setHidden(bool hidden)
     }
 }
 
+void Corners::raise()
+{
+    for (lv_obj_t* l : mLabel) {
+        if (l != nullptr) {
+            lv_obj_move_foreground(l);
+        }
+    }
+}
+
 // -- Card ------------------------------------------------------------------------
 
 void Card::create(lv_obj_t* parent, int32_t top, int32_t bottom)

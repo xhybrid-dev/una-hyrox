@@ -9,31 +9,31 @@ using namespace TrailQuest;
 
 TEST(Encounter, NightSpiritsStayHiddenInDaylight)
 {
-    const StageDef& climb = kStages[1];   // has Puff, an owl
+    const StageDef& climb = kStages[1];   // has the Barn Owl, a night spirit
     Rng r(3);
-    int puffsByDay = 0, puffsByNight = 0;
+    int owlsByDay = 0, owlsByNight = 0;
     for (int i = 0; i < 4000; ++i) {
         const SpeciesId day = pickSpecies(climb, TimeOfDay::Day, r);
         const SpeciesId night = pickSpecies(climb, TimeOfDay::Night, r);
-        puffsByDay   += day == Spirit::Puff ? 1 : 0;
-        puffsByNight += night == Spirit::Puff ? 1 : 0;
+        owlsByDay   += day == Spirit::BarnOwl ? 1 : 0;
+        owlsByNight += night == Spirit::BarnOwl ? 1 : 0;
         bool inPool = false;
         for (uint8_t p = 0; p < climb.poolCount; ++p) {
             inPool = inPool || climb.pool[p] == day;
         }
         ASSERT_TRUE(inPool);
     }
-    EXPECT_EQ(puffsByDay, 0);
-    EXPECT_GT(puffsByNight, 800);   // about a quarter of 4000
+    EXPECT_EQ(owlsByDay, 0);
+    EXPECT_GT(owlsByNight, 800);   // about a quarter of 4000
 }
 
 TEST(Encounter, APoolOfOnlyNightSpiritsStillGivesOneByDay)
 {
     StageDef s = kStages[1];
-    s.pool[0]   = Spirit::Puff;
+    s.pool[0]   = Spirit::BarnOwl;
     s.poolCount = 1;
     Rng r(1);
-    EXPECT_EQ(pickSpecies(s, TimeOfDay::Day, r), Spirit::Puff);
+    EXPECT_EQ(pickSpecies(s, TimeOfDay::Day, r), Spirit::BarnOwl);
 }
 
 TEST(Encounter, LevelsStayInTheBandAndRiseWithTheLap)

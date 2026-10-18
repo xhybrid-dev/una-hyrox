@@ -9,6 +9,9 @@
  *       press says to hold it)
  *   L2  the timing beat on or off (saved by the service)
  *   R2  held: leave
+ *
+ * A new run opens with the story (StoryScreen): the opening tale and the
+ * first stage's pages, then the map.
  ******************************************************************************
  */
 

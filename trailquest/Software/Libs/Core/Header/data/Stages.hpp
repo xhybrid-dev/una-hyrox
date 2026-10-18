@@ -112,7 +112,7 @@ constexpr uint16_t kRunStartMinutes = 6 * 60;
 
 inline constexpr StageDef kStages[kStageCount] = {
     { "Valley Path", Terrain::Path, { Weather::Clear, Weather::Rain }, 1, 2, 1,
-      { Spirit::Stitch, Spirit::Bonk, Spirit::Blister, Spirit::Chafe }, 4, Spirit::OldMossback,
+      { Spirit::RedFox, Spirit::BrownBear, Spirit::RubyBeetle, Spirit::SandCrab }, 4, Spirit::OldTortoise,
       9, {
         { "Trailhead",         NodeKind::Start,     0, 2, { { 1, 20, "Woods path" }, { 2, 15, "The stream" } } },
         { "Birch wood",        NodeKind::Encounter, 0, 1, { { 3, 25, "To the hut" } } },
@@ -122,10 +122,10 @@ inline constexpr StageDef kStages[kStageCount] = {
         { "Old gate",          NodeKind::Cache,     Item::Gel, 1, { { 6, 15, "The gate" } } },
         { "Foot of the hill",  NodeKind::Encounter, 0, 2, { { 8, 25, "Straight" }, { 7, 15, "By the bog" } } },
         { "The bog",           NodeKind::Obstacle,  Obstacle::Bog, 1, { { 8, 10, "The pool" } } },
-        { "Mossback's pool",   NodeKind::Boss,      0, 0, {} },
+        { "Tortoise pool",     NodeKind::Boss,      0, 0, {} },
       } },
     { "Switchback Climb", Terrain::Climb, { Weather::Clear, Weather::Mist }, 4, 5, 4,
-      { Spirit::Lactic, Spirit::Cramp, Spirit::Puff, Spirit::Niggle }, 4, Spirit::TheSteep,
+      { Spirit::FireNewt, Spirit::GnatSwarm, Spirit::BarnOwl, Spirit::PygmyShrew }, 4, Spirit::GreatStag,
       9, {
         { "Forest gate",       NodeKind::Start,     0, 2, { { 1, 30, "Zig-zags" }, { 2, 20, "Climb up" } } },
         { "First bend",        NodeKind::Encounter, 0, 1, { { 3, 30, "Zig-zag on" } } },
@@ -135,10 +135,10 @@ inline constexpr StageDef kStages[kStageCount] = {
         { "Woodcutter's path", NodeKind::Trail,     40, 1, { { 6, 20, "Back up" } } },
         { "Top bend",          NodeKind::Encounter, 0, 2, { { 8, 25, "The crag" }, { 7, 15, "Windfall" } } },
         { "Windfall",          NodeKind::Obstacle,  Obstacle::Windfall, 1, { { 8, 10, "The crag" } } },
-        { "The Steep's crag",  NodeKind::Boss,      0, 0, {} },
+        { "Stag's crag",       NodeKind::Boss,      0, 0, {} },
       } },
     { "Scree Fields", Terrain::Scree, { Weather::Mist, Weather::Clear }, 7, 9, 8,
-      { Spirit::ScreeHopper, Spirit::Doubt, Spirit::Slip, Spirit::AnkleBiter }, 4, Spirit::TheShaleKing,
+      { Spirit::RockGoat, Spirit::MistWisp, Spirit::WallLizard, Spirit::Marmot }, 4, Spirit::RamKing,
       9, {
         { "Scree foot",        NodeKind::Start,     0, 2, { { 1, 30, "The cairns" }, { 2, 20, "Across" } } },
         { "Cairn line",        NodeKind::Encounter, 0, 1, { { 3, 30, "The bothy" } } },
@@ -151,7 +151,7 @@ inline constexpr StageDef kStages[kStageCount] = {
         { "The ledge",   NodeKind::Boss,      0, 0, {} },
       } },
     { "Ridge Line", Terrain::Ridge, { Weather::Wind, Weather::Clear }, 10, 12, 11,
-      { Spirit::Gale, Spirit::Vertigo, Spirit::Hypo, kNone }, 3, Spirit::TheKnifeEdge,
+      { Spirit::WindSprite, Spirit::Raven, Spirit::SnowHare, kNone }, 3, Spirit::GoldenEagle,
       9, {
         { "Ridge foot",        NodeKind::Start,     0, 2, { { 1, 30, "Broad back" }, { 2, 20, "The crest" } } },
         { "Broad back",        NodeKind::Encounter, 0, 1, { { 3, 30, "The refuge" } } },
@@ -164,7 +164,7 @@ inline constexpr StageDef kStages[kStageCount] = {
         { "Knife-edge",    NodeKind::Boss,      0, 0, {} },
       } },
     { "The Summit", Terrain::Snow, { Weather::Snow, Weather::Clear }, 13, 15, 14,
-      { Spirit::ThinAir, Spirit::Frostnip, Spirit::Doubt, kNone }, 3, Spirit::SummitWolf,
+      { Spirit::GhostGoat, Spirit::SnowFox, Spirit::MistWisp, kNone }, 3, Spirit::SummitWolf,
       9, {
         { "Snow line",         NodeKind::Start,     0, 2, { { 1, 30, "Zig-zags" }, { 2, 20, "Direct" } } },
         { "Snowfield",         NodeKind::Encounter, 0, 1, { { 3, 30, "To the hut" } } },

@@ -31,7 +31,7 @@ constexpr int32_t kLineRow = 124;   // two lines, clear of the bottom words (row
 void OfferScreen::build()
 {
     Draw::box(mRoot, 0, 94, 240, 28, 0x008000);
-    mSprite.create(mRoot, 96, kSpriteY, TRAILQUEST_SPRITE_STITCH, SpriteBuffers::small(0), SpriteBuffers::kSmall);
+    mSprite.create(mRoot, 96, kSpriteY, TRAILQUEST_SPRITE_FOX, SpriteBuffers::small(0), SpriteBuffers::kSmall);
     mHead    = Ui::rowLabel(mRoot, Layout::kHeadRow, "", Ui::Ink::kGold);
     mLine[0] = Ui::rowLabel(mRoot, kLineRow, mText.text[0]);
     mLine[1] = Ui::rowLabel(mRoot, kLineRow + TextFit::kGlyph, mText.text[1]);

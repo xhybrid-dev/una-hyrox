@@ -139,5 +139,5 @@ TEST(Data, TheXpCurveRisesAndStopsAtTheTop)
         EXPECT_GE(xpToNext(l + 1u == kMaxLevel ? l : static_cast<uint8_t>(l + 1u)), xpToNext(l)) << int(l);
     }
     EXPECT_EQ(xpToNext(kMaxLevel), 0u);
-    EXPECT_GT(xpForWin(kSpecies[Spirit::OldMossback], 3), xpForWin(kSpecies[Spirit::Stitch], 3));
+    EXPECT_GT(xpForWin(kSpecies[Spirit::OldTortoise], 3), xpForWin(kSpecies[Spirit::RedFox], 3));
 }

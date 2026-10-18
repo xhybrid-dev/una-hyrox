@@ -10,7 +10,8 @@
  *
  * then the timing beat (any button strikes; if it is on), then the turn plays
  * back event by event: a line of text, the hit fighter flashes, the bars move,
- * the wrist buzzes. At the end, what was won or lost, and on.
+ * the wrist buzzes. At the end, what was won or lost, and on (a beaten boss
+ * has its story page before the stage clear).
  *
  * The duel runs in the service; this screen sends the turn and plays back the
  * events the answer carries (DuelView::log), from the numbers it showed

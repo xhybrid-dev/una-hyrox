@@ -39,13 +39,16 @@ written.
 - **Funny start, serious summit.** Stages 1-2 joke about what runners put up
   with (stitches, bonking, doubt). By stage 4 the jokes thin out; stage 5 is
   quiet, and the humour, when it comes, is gentle.
-- Creatures are named for the pain they are: Stitch, Bonk, Cramp, Doubt, Gale.
+- Creatures are named for what they look like: a colour or a word, and the
+  animal (Red Fox, Brown Bear, Old Tortoise). The pain they are is in their
+  lines and their moves: the fox gives you a stitch, the bear is the bonk at
+  mile 20 (Gate Q2: the pain names did not land).
 - Never name or echo another franchise (brief section 9).
 
-## The screens (Q2)
+## The screens (Q2, the story added in Q3)
 
-Seven screens, one plan (`Libs/Core/Header/Layout.hpp`, checked by host tests
-against the round face and the bezel arcs). Captures: `docs/screens/q2-*.png`.
+Eight screens, one plan (`Libs/Core/Header/Layout.hpp`, checked by host tests
+against the round face and the bezel arcs). Captures: `docs/screens/q3-*.png`.
 
 - **The buttons are always in the same place.** A word by each arc says what
   it does now, in the arc's colour: amber L1 (choose), white L2 (back, or the
@@ -55,14 +58,16 @@ against the round face and the bezel arcs). Captures: `docs/screens/q2-*.png`.
 - **Text**: one font (Press Start 2P, 16 px). A headline at the top (the clock,
   a page title, the spirit's stamina), a card through the middle (a title of 12
   characters, then four lines of 13), the runner's stamina at the foot.
-- **Title**: TRAIL QUEST, the runner with Stitch and Bonk; R1 plays (or starts a
+- **Title**: TRAIL QUEST, the runner with the Red Fox and the Brown Bear; R1 plays (or starts a
   run), L1 held starts again, L2 turns the beat on or off.
 - **Map**: the stage from above, left to right, on its own ground colour (night
   is navy). Paths in tan; places as icons: a flag (the start), a purple mark
   with "!" (a spirit), grey rocks (an obstacle), a red-roofed hut, a box (a
   cache, grey once taken), the boss's face (grey once beaten). The way you are
-  choosing is amber, with its name under the map; the runner is a blinking
-  ring with a red cap that walks the line.
+  choosing is amber, with its name under the map and, under that, what lies
+  that way: "A spirit", "A hazard", "A hut", "Supplies" ("Nothing" once
+  taken), "Quiet", "The boss". The runner is a blinking ring with a red cap
+  that walks the line.
 - **Duel**: the Q0 scene, its sky by the weather; the runner left, the spirit
   right (a boss bigger). The spirit's stamina at the top, the runner's at the
   foot, with a three-letter tag for an effect (DRN, SLW, RTL). Choosing: the
@@ -72,8 +77,15 @@ against the round face and the bezel arcs). Captures: `docs/screens/q2-*.png`.
   the one hit blinks.
 - **Cards** say what happened: a place reached, a find, the hut, a duel won or
   lost, an obstacle cleared or not. R1 (OK) moves on.
+- **Story** (Q3, `data/Story.hpp`): a headline in gold capitals, the words on
+  the card (five lines of 12, no title), and under it a strip of the stage's
+  sky and ground with the runner and whoever the page is about. R1 the next
+  page (OK on the last), L1 skips the rest. It plays at the key moments only:
+  a new game (the opening tale, six pages, then the stage's two), a stage
+  starting (the place, then its boss), the boss ahead (once a game, not on a
+  retry) and the boss beaten. The map then says the day's weather.
 
-## The roster (Q1, for Jon's review at Gate Q1)
+## The roster (Q1; renamed at Gate Q2)
 
 Twenty-two Trail Spirits: four or so a stage and a boss at the end of each. The
 names, looks and lines are drafts; the numbers do not depend on them, so any can
@@ -85,55 +97,55 @@ Grit beats Pace). "Night" spirits appear only at dawn, dusk or night.
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Stitch | fox | Pace | Finds the gap under your ribs and moves in. | Side stitch (drains), Pounce |
-| Bonk | bear | Grit | Sits on you at mile 20. Does not apologise. | Hit the wall (slows), Lumber |
-| Blister | beetle | Form | Small. Patient. Lives in your left sock. | Rub raw (drains), Nip |
-| Chafe | crab | Form | Walks sideways into every seam you own. | Side scuttle (slows), Pinch |
-| **Old Mossback** (boss) | giant tortoise | Grit | Guards the valley's end. Has never once hurried. | Moss slam, Shell snap |
+| Red Fox | fox | Pace | Finds the gap under your ribs and moves in. | Side stitch (drains), Pounce |
+| Brown Bear | bear | Grit | Sits on you at mile 20. Does not apologise. | Hit the wall (slows), Lumber |
+| Ruby Beetle | beetle | Form | Small. Patient. Lives in your left sock. | Rub raw (drains), Nip |
+| Sand Crab | crab | Form | Walks sideways into every seam you own. | Side scuttle (slows), Pinch |
+| **Old Tortoise** (boss) | giant tortoise | Grit | Guards the valley's end. Has never once hurried. | Moss slam, Shell snap |
 
 **Stage 2, Switchback Climb** (stamina matters)
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Lactic | red newt | Grit | Pours hot sand into your quads on every bend. | Burn (slows), Tail flick |
-| Cramp | gnat swarm | Pace | Bites the calf you were relying on. | Seize (slows), Swarm (drains) |
-| Puff (night) | owl | Grit | Asks if you are sure about this, very loudly. | Wheeze (rattles), Hoot |
-| Niggle | shrew | Form | Not an injury yet. Keeps you guessing. | Nag (rattles), Scurry |
-| **The Steep** (boss) | great stag | Pace | The hill that keeps going after it should stop. | Antler rush, Long climb (drains) |
+| Fire Newt | red newt | Grit | Pours hot sand into your quads on every bend. | Burn (slows), Tail flick |
+| Gnat Swarm | gnat swarm | Pace | Bites the calf you were relying on. | Seize (slows), Swarm (drains) |
+| Barn Owl (night) | owl | Grit | Asks if you are sure about this, very loudly. | Wheeze (rattles), Hoot |
+| Pygmy Shrew | shrew | Form | Not an injury yet. Keeps you guessing. | Nag (rattles), Scurry |
+| **The Great Stag** (boss) | great stag | Pace | Runs up the hill that never ends. | Antler rush, Long climb (drains) |
 
 **Stage 3, Scree Fields** (technical; footing matters)
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Scree-hopper | mountain goat | Pace | Makes loose rock look easy, on purpose. | Leap, Rockslide |
-| Doubt | mist | Grit | Speaks in your own voice. Knows your splits. | Second-guess (rattles), Fog (slows) |
-| Slip | lizard | Form | Waits on the wet slab for your best stride. | Skid, Trip (slows) |
-| Ankle-biter | marmot | Form | Knows exactly which stone will roll. | Ankle snap (slows), Burrow |
-| **The Shale King** (boss) | stone ram | Form | The mountain, deciding if you may pass. | Shale crash, Landslide (slows) |
+| Rock Goat | mountain goat | Pace | Makes loose rock look easy, on purpose. | Leap, Rockslide |
+| Mist Wisp | mist | Grit | Speaks in your own voice. Knows your splits. | Second-guess (rattles), Fog (slows) |
+| Wall Lizard | lizard | Form | Waits on the wet slab for your best stride. | Skid, Trip (slows) |
+| Marmot | marmot | Form | Knows exactly which stone will roll. | Ankle snap (slows), Burrow |
+| **The Ram King** (boss) | stone ram | Form | The mountain, deciding if you may pass. | Shale crash, Landslide (slows) |
 
 **Stage 4, Ridge Line** (exposed; the jokes thin out)
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Gale | wind spirit | Pace | Leans on you from the side, for hours. | Gust (slows), Headwind |
-| Vertigo | raven | Grit | Circles where the ground falls away. | Spiral (rattles), Peck |
-| Hypo (night) | snow hare | Form | The cold you stop feeling. That's the danger. | Chill (drains), Bound |
-| **The Knife-Edge** (boss) | eagle | Pace | Owns the drop on either side. | Stoop, Updraught (rattles) |
+| Wind Sprite | wind spirit | Pace | Leans on you from the side, for hours. | Gust (slows), Headwind |
+| Raven | raven | Grit | Circles where the ground falls away. | Spiral (rattles), Peck |
+| Snow Hare (night) | snow hare | Form | The cold you stop feeling. That's the danger. | Chill (drains), Bound |
+| **The Golden Eagle** (boss) | eagle | Pace | Owns the drop on either side. | Stoop, Updraught (rattles) |
 
 **Stage 5, The Summit** (quiet and serious)
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Thin Air | ghost goat | Grit | Takes a little of every breath. | Gasp (drains), Fade (slows) |
-| Frostnip | snow fox | Pace | Quick, white, and already at your fingers. | Frost bite (slows), Flurry |
-| Doubt, again | mist | Grit | The same spirit as on the scree, higher up; a second line is for the dialogue (Q4). | as on the scree |
+| Ghost Goat | ghost goat | Grit | Takes a little of every breath. | Gasp (drains), Fade (slows) |
+| Snow Fox | snow fox | Pace | Quick, white, and already at your fingers. | Frost bite (slows), Flurry |
+| Mist Wisp, again | mist | Grit | The same spirit as on the scree, higher up; a second line is for the dialogue (Q4). | as on the scree |
 | **The Summit Wolf** (boss) | wolf | Grit | Has followed you since the valley. | Howl (rattles), Long chase (drains) |
 
 A beaten regular spirit offers to join; up to three run with you. Each lends +1
 to its affinity's stat, and its own-affinity move becomes R1's Technique when it
 is the best partner for the spirit in front of you. Bosses never join.
 
-Silhouettes to keep distinct at 24×24: the two fox and two goat pairs (Stitch
-and Frostnip, Scree-hopper and Thin Air) need different poses and the stages'
-colours (green valley, grey scree, white summit), and Doubt is the one creature with no solid
+Silhouettes to keep distinct at 24×24: the two fox and two goat pairs (the Red
+Fox and the Snow Fox, the Rock Goat and the Ghost Goat) need different poses and the stages'
+colours (green valley, grey scree, white summit), and the Mist Wisp is the one creature with no solid
 outline (mist).

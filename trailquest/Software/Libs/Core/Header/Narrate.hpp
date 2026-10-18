@@ -24,6 +24,7 @@
 #include "data/Moves.hpp"
 #include "data/Species.hpp"
 #include "data/Stages.hpp"
+#include "data/Story.hpp"
 
 namespace TrailQuest::Narrate
 {
@@ -50,8 +51,9 @@ constexpr const char* kPlay   = "Play";
 constexpr const char* kNew    = "New";
 constexpr const char* kBeat   = "Beat";
 constexpr const char* kOk     = "OK";
+constexpr const char* kSkip   = "Skip";
 
-inline constexpr const char* kTopLeft[]     = { kSurge, kNext, kNew };              // L1
+inline constexpr const char* kTopLeft[]     = { kSurge, kNext, kNew, kSkip };       // L1
 inline constexpr const char* kTopRight[]    = { kSkill, kUse, kGo, kYes, kPlay, kOk };  // R1
 inline constexpr const char* kBottomLeft[]  = { kSettle, kBack, kNo, kPack, kBeat };   // L2
 inline constexpr const char* kBottomRight[] = { kFuel, kBack };                        // R2
@@ -229,8 +231,9 @@ inline void duelEnd(Lines& out, const WorldView& w)
     }
 }
 
-/// The card on the map: a new stage, a game picked up, or what a step found.
-/// Empty (count 0) when there is nothing to say.
+/// The card on the map: a new stage's conditions (its story has said where
+/// it is), a game picked up, or what a step found. Empty (count 0) when there
+/// is nothing to say.
 inline void arrival(Lines& out, const WorldView& w)
 {
     using Layout::kCardCols;
@@ -240,9 +243,8 @@ inline void arrival(Lines& out, const WorldView& w)
     switch (w.cause) {
         case ViewCause::NewGame:
         case ViewCause::StageStarted:
-            TextFit::wrap(out, stageDef(w.state.stage).name, Layout::kCardTitleCols, 2);
             std::snprintf(line, sizeof(line), "%s today", weatherName(w.state.weather));
-            TextFit::addLine(out, line, kCardCols);
+            TextFit::addLine(out, line, Layout::kCardTitleCols);
             TextFit::addLine(out, timeName(w.timeOfDay), kCardCols);
             return;
         case ViewCause::Loaded:
@@ -322,6 +324,37 @@ inline void offer(Lines& out, SpeciesId sp, bool leaving)
     out.clear();
     TextFit::addLine(out, speciesDef(sp).name, Layout::kCardCols);
     TextFit::addLine(out, leaving ? "leaves?" : "joins you?", Layout::kCardCols);
+}
+
+/// A story page's body, as the story card's lines (its headline is the
+/// page's own, shown as it is).
+inline void storyPage(Lines& out, const StoryPage& p)
+{
+    out.clear();
+    TextFit::wrap(out, p.body, Layout::kStoryCols, Layout::kStoryLines);
+}
+
+/// What lies along exit @p exit from where the runner stands, for the map's
+/// row under the way's name (Layout::kLeadsCols): every place says what it is
+/// before the runner goes there.
+inline const char* leadsTo(const WorldView& w, uint8_t exit)
+{
+    const NodeDef& here = nodeDef(w.state.stage, w.state.node);
+    if (exit >= here.exitCount || exit >= kMaxExits) {
+        return "";
+    }
+    const uint8_t  bit = static_cast<uint8_t>(1u << (w.state.stage < 8 ? w.state.stage : 7));
+    const NodeDef& to  = nodeDef(w.state.stage, here.exits[exit].to);
+    switch (to.kind) {
+        case NodeKind::Encounter: return "A spirit";
+        case NodeKind::Obstacle:  return "A hazard";
+        case NodeKind::Hut:       return "A hut";
+        case NodeKind::Cache:     return (w.state.cachesTaken & bit) != 0 ? "Nothing" : "Supplies";
+        case NodeKind::Boss:      return "The boss";
+        case NodeKind::Start:     return "The start";
+        case NodeKind::Trail:
+        default:                  return "Quiet";
+    }
 }
 
 /// The card when a stage's boss is beaten. @p last is true when this build

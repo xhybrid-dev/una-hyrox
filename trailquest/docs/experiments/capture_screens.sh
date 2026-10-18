@@ -1,8 +1,8 @@
 #!/bin/bash
 #
 # Capture Trail Quest's screens in the PC simulator, cut to the watch's round
-# face: a scripted walk through stage 1 (Q2), with a fixed seed so the same
-# spirits turn up each time.
+# face: a scripted walk through stage 1 (Q2, with Q3's story pages), with a
+# fixed seed so the same spirits turn up each time.
 #
 # Xvfb for a display, xdotool for the buttons (keys 1-4 are L1, L2, R1, R2),
 # ImageMagick for the frames and the round mask. Build the simulator first.
@@ -13,7 +13,7 @@
 # after it goes down), so the scripted runner plays well.
 #
 # Usage:  ./capture_screens.sh [out-dir]
-#   out-dir defaults to docs/screens (files q2-*.png).
+#   out-dir defaults to docs/screens (files q3-*.png).
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${1:-$REPO/docs/screens}
@@ -58,47 +58,57 @@ turn()   { local n; n=$(steps); key 3 1.3; key 3 0.2; await "$n"; sleep 5; }
 # Fight on with the skill until the duel is over (cause 6, "duel over").
 fight()  { for _ in $(seq 1 14); do last | grep -q 'cause 6 ' && return 0; turn; done; }
 
-snap q2-01-title
-key 3 1.2;          snap q2-02-stage-card
-key 3;              snap q2-03-map
-key 1;              snap q2-04-map-other-way
+snap q3-01-title
+key 3 1.2;          snap q3-02-story-ridge         # a new game: the opening tale
+key 3;              snap q3-03-story-spirits
+key 3;              snap q3-04-story-duels
+key 3;              snap q3-05-story-wheel
+key 3;              snap q3-06-story-pack
+key 3;              snap q3-07-story-map
+key 3;              snap q3-08-story-stage         # then the first stage's pages
+key 3;              snap q3-09-story-goal
+key 3 1.2;          snap q3-10-conditions          # the map: the day's weather
+key 3;              snap q3-11-map                 # where each way leads, under its name
+key 1;              snap q3-12-map-other-way
 key 1
-key 3 1.6;          snap q2-05-duel-intro          # the woods path: a spirit
-key 3;              snap q2-06-duel-choose
-key 4;              snap q2-07-duel-fuel
+key 3 1.6;          snap q3-13-duel-intro          # the woods path: a spirit
+key 3;              snap q3-14-duel-choose
+key 4;              snap q3-15-duel-fuel
 key 4
-key 3 0.5;          snap q2-08-duel-beat          # a capture takes about 0.35 s
-sleep 0.45; key 3 0.25; snap q2-09-duel-verdict
-sleep 1.4;          snap q2-10-duel-playback
+key 3 0.5;          snap q3-16-duel-beat           # a capture takes about 0.35 s
+sleep 0.45; key 3 0.25; snap q3-17-duel-verdict
+sleep 1.4;          snap q3-18-duel-playback
 sleep 4
 fight
-sleep 0.5;          snap q2-11-duel-won
-key 3;              snap q2-12-offer
+sleep 0.5;          snap q3-19-duel-won
+key 3;              snap q3-20-offer
 key 3 1.0                                           # yes: it joins
-key 2;              snap q2-13-pack-you
-key 3;              snap q2-14-pack-partners
-key 3;              snap q2-15-pack-bag
+key 2;              snap q3-21-pack-you
+key 3;              snap q3-22-pack-partners
+key 3;              snap q3-23-pack-bag
 key 2
-key 3 1.6;          snap q2-16-hut                  # on to the hut
-key 3
-key 3 1.6;          snap q2-17-cache                # the old track to the old gate
+key 3 1.6;          snap q3-24-hut                 # on to the hut
+key 3;              snap q3-25-map-to-supplies
+key 3 1.6;          snap q3-26-cache               # the old track to the old gate
 key 3
 key 3 1.6                                           # the foot of the hill: a spirit
 key 3
 fight
 key 3 1.0
 last | grep -q 'phase 3 ' && key 2 1.0              # an offer: no, thanks
-key 1;              snap q2-18-map-to-the-bog
-key 3 1.6;          snap q2-19-obstacle
-key 3 0.5;          snap q2-20-obstacle-beat
-sleep 0.45; key 3 1.0; snap q2-21-obstacle-result
-key 3
-key 3 1.6;          snap q2-22-boss-intro
-key 3;              snap q2-23-boss-choose
+key 1;              snap q3-27-map-to-the-bog
+key 3 1.6;          snap q3-28-obstacle
+key 3 0.5;          snap q3-29-obstacle-beat
+sleep 0.45; key 3 1.0; snap q3-30-obstacle-result
+key 3;              snap q3-31-map-to-the-boss
+key 3 1.6;          snap q3-32-story-boss          # the boss's page, then its duel
+key 3 1.0;          snap q3-33-boss-intro
+key 3;              snap q3-34-boss-choose
 fight
-sleep 0.5;          snap q2-24-boss-beaten
-key 3 1.2;          snap q2-25-stage-clear
-DISPLAY=$DISP xdotool keydown 4; sleep 0.9; snap q2-26-leaving; DISPLAY=$DISP xdotool keyup 4
+sleep 0.5;          snap q3-35-boss-beaten
+key 3 1.2;          snap q3-36-story-beaten        # its page, then the stage clear
+key 3 1.2;          snap q3-37-stage-clear
+DISPLAY=$DISP xdotool keydown 4; sleep 0.9; snap q3-38-leaving; DISPLAY=$DISP xdotool keyup 4
 
 echo "=== steps ==="
 grep -a 'step:' "$LOG" | sed 's/^.*step: /  /'

@@ -16,6 +16,7 @@
 #include "Narrate.hpp"
 #include "gui/Art.hpp"
 #include "gui/screens/ScreenManager.hpp"
+#include "gui/screens/StoryScreen.hpp"
 
 #define LOG_MODULE_PRX      "Duel"
 #define LOG_MODULE_LEVEL    LOG_LEVEL_INFO
@@ -288,7 +289,13 @@ void DuelScreen::onKey(uint8_t code)
             break;
         case Mode::End:
             if (code == Btn::R1) {
-                ScreenManager::instance().goTo(ScreenManager::screenFor(mModel.world()));
+                const WorldView& w    = mModel.world();
+                const ScreenId   next = ScreenManager::screenFor(w);
+                if (next == ScreenId::Clear && isBoss(mModel.duel().species)) {
+                    StoryScreen::play(StoryPlan::of(StoryId::BossBeaten, w.state.stage));
+                } else {
+                    ScreenManager::instance().goTo(next);
+                }
             }
             break;
         default:

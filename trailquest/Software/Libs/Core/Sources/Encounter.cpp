@@ -32,7 +32,7 @@ SpeciesId pickSpecies(const StageDef& stage, TimeOfDay tod, Rng& rng)
 {
     const uint8_t count = stage.poolCount <= kMaxPool ? stage.poolCount : kMaxPool;
     if (count == 0) {
-        return Spirit::Stitch;
+        return Spirit::RedFox;
     }
     SpeciesId out[kMaxPool];
     uint8_t   n = 0;
@@ -48,7 +48,7 @@ SpeciesId pickSpecies(const StageDef& stage, TimeOfDay tod, Rng& rng)
             }
         }
     }
-    return n == 0 ? static_cast<SpeciesId>(Spirit::Stitch) : out[rng.below(n)];
+    return n == 0 ? static_cast<SpeciesId>(Spirit::RedFox) : out[rng.below(n)];
 }
 
 uint8_t pickLevel(const StageDef& stage, uint8_t lap, Rng& rng)

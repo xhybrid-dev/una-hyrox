@@ -13,6 +13,7 @@
 #include "Narrate.hpp"
 #include "gui/Sprites.hpp"
 #include "gui/screens/ScreenManager.hpp"
+#include "gui/screens/StoryScreen.hpp"
 
 namespace Btn   = SDK::GUI::Button;
 namespace Label = TrailQuest::Narrate::Label;
@@ -67,7 +68,12 @@ void ClearScreen::onWorld()
     if (mModel.lost()) {
         return;   // try again with R1
     }
-    ScreenManager::instance().goTo(ScreenManager::screenFor(mModel.world()));
+    const WorldView& w = mModel.world();
+    if (w.cause == ViewCause::StageStarted) {
+        StoryScreen::play(StoryPlan::of(StoryId::StageStart, w.state.stage));
+        return;
+    }
+    ScreenManager::instance().goTo(ScreenManager::screenFor(w));
 }
 
 void ClearScreen::onFrame(uint32_t nowMs)

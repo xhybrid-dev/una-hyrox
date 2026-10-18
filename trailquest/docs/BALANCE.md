@@ -83,31 +83,30 @@ earlier stages (one of each affinity) and plays the best of them as Technique;
 
 | Spirit | Stage | Runner | Casual: won, turns | Good | Menu-only | Solo, casual | Check |
 |---|---|---|---|---|---|---|---|
-| Stitch | 1 | L1 alone | 85 %, 5.4 | 91 %, 4.6 | 84 %, 5.4 | 86 % | ok |
-| Bonk | 1 | L1 alone | 90 %, 4.3 | 94 %, 3.7 | 91 %, 4.3 | 90 % | ok |
-| Blister | 1 | L1 alone | 84 %, 3.0 | 92 %, 2.6 | 86 %, 2.8 | 84 % | ok |
-| Chafe | 1 | L1 alone | 89 %, 3.1 | 94 %, 2.7 | 91 %, 2.9 | 89 % | ok |
-| Old Mossback (boss) | 1 | L2 alone | 79 %, 6.0 | 92 %, 5.0 | 87 %, 6.5 | 79 % | ok |
-| Lactic | 2 | L4 with pack | 84 %, 5.2 | 90 %, 4.4 | 85 %, 5.3 | 79 % | ok |
-| Cramp | 2 | L4 with pack | 90 %, 4.2 | 94 %, 3.6 | 95 %, 3.7 | 76 % | ok |
-| Puff | 2 | L4 with pack | 82 %, 5.2 | 90 %, 4.5 | 89 %, 5.1 | 80 % | ok |
-| Niggle | 2 | L4 with pack | 82 %, 3.8 | 90 %, 3.3 | 90 %, 3.7 | 76 % | ok |
-| The Steep (boss) | 2 | L5 with pack | 81 %, 6.5 | 91 %, 5.4 | 81 %, 7.2 | 25 % | ok |
-| Scree-hopper | 3 | L8 with pack | 91 %, 4.1 | 95 %, 3.5 | 90 %, 4.0 | 76 % | ok |
-| Doubt | 3 | L8 with pack | 94 %, 4.2 | 97 %, 3.6 | 95 %, 4.1 | 87 % | ok |
-| Slip | 3 | L8 with pack | 81 %, 3.6 | 86 %, 3.2 | 87 %, 3.7 | 71 % | ok |
-| Ankle-biter | 3 | L8 with pack | 90 %, 3.6 | 94 %, 3.1 | 93 %, 3.7 | 77 % | ok |
-| The Shale King (boss) | 3 | L9 with pack | 78 %, 5.0 | 90 %, 4.1 | 82 %, 5.7 | 56 % | ok |
-| Gale | 4 | L11 with pack | 81 %, 3.3 | 89 %, 2.8 | 87 %, 3.2 | 70 % | ok |
-| Vertigo | 4 | L11 with pack | 84 %, 4.6 | 91 %, 4.0 | 89 %, 4.7 | 40 % | ok |
-| Hypo | 4 | L11 with pack | 87 %, 3.4 | 93 %, 2.9 | 91 %, 3.5 | 77 % | ok |
-| The Knife-Edge (boss) | 4 | L12 with pack | 80 %, 5.3 | 91 %, 4.4 | 90 %, 4.8 | 44 % | ok |
-| Thin Air | 5 | L14 with pack | 85 %, 4.7 | 92 %, 4.1 | 88 %, 5.1 | 60 % | ok |
-| Frostnip | 5 | L14 with pack | 90 %, 3.9 | 95 %, 3.3 | 96 %, 3.4 | 77 % | ok |
-| Doubt | 5 | L14 with pack | 82 %, 5.3 | 90 %, 4.8 | 89 %, 5.1 | 48 % | ok |
+| Brown Bear | 1 | L1 alone | 90 %, 4.3 | 94 %, 3.7 | 91 %, 4.3 | 90 % | ok |
+| Ruby Beetle | 1 | L1 alone | 84 %, 3.0 | 92 %, 2.6 | 86 %, 2.8 | 84 % | ok |
+| Sand Crab | 1 | L1 alone | 89 %, 3.1 | 94 %, 2.7 | 91 %, 2.9 | 89 % | ok |
+| Old Tortoise (boss) | 1 | L2 alone | 79 %, 6.0 | 92 %, 5.0 | 87 %, 6.5 | 79 % | ok |
+| Fire Newt | 2 | L4 with pack | 84 %, 5.2 | 90 %, 4.4 | 85 %, 5.3 | 79 % | ok |
+| Gnat Swarm | 2 | L4 with pack | 90 %, 4.2 | 94 %, 3.6 | 95 %, 3.7 | 76 % | ok |
+| Barn Owl | 2 | L4 with pack | 82 %, 5.2 | 90 %, 4.5 | 89 %, 5.1 | 80 % | ok |
+| Pygmy Shrew | 2 | L4 with pack | 82 %, 3.8 | 90 %, 3.3 | 90 %, 3.7 | 76 % | ok |
+| The Great Stag (boss) | 2 | L5 with pack | 81 %, 6.5 | 91 %, 5.4 | 81 %, 7.2 | 25 % | ok |
+| Rock Goat | 3 | L8 with pack | 91 %, 4.1 | 95 %, 3.5 | 90 %, 4.0 | 76 % | ok |
+| Mist Wisp | 3 | L8 with pack | 94 %, 4.2 | 97 %, 3.6 | 95 %, 4.1 | 87 % | ok |
+| Wall Lizard | 3 | L8 with pack | 81 %, 3.6 | 86 %, 3.2 | 87 %, 3.7 | 71 % | ok |
+| Marmot | 3 | L8 with pack | 90 %, 3.6 | 94 %, 3.1 | 93 %, 3.7 | 77 % | ok |
+| The Ram King (boss) | 3 | L9 with pack | 78 %, 5.0 | 90 %, 4.1 | 82 %, 5.7 | 56 % | ok |
+| Wind Sprite | 4 | L11 with pack | 81 %, 3.3 | 89 %, 2.8 | 87 %, 3.2 | 70 % | ok |
+| Raven | 4 | L11 with pack | 84 %, 4.6 | 91 %, 4.0 | 89 %, 4.7 | 40 % | ok |
+| Snow Hare | 4 | L11 with pack | 87 %, 3.4 | 93 %, 2.9 | 91 %, 3.5 | 77 % | ok |
+| The Golden Eagle (boss) | 4 | L12 with pack | 80 %, 5.3 | 91 %, 4.4 | 90 %, 4.8 | 44 % | ok |
+| Ghost Goat | 5 | L14 with pack | 85 %, 4.7 | 92 %, 4.1 | 88 %, 5.1 | 60 % | ok |
+| Snow Fox | 5 | L14 with pack | 90 %, 3.9 | 95 %, 3.3 | 96 %, 3.4 | 77 % | ok |
+| Mist Wisp | 5 | L14 with pack | 82 %, 5.3 | 90 %, 4.8 | 89 %, 5.1 | 48 % | ok |
 | The Summit Wolf (boss) | 5 | L15 with pack | 76 %, 6.6 | 87 %, 5.8 | 78 %, 6.9 | 13 % | ok |
 
-Turns are the mean over all duels, won or lost. Doubt appears twice on purpose:
+Turns are the mean over all duels, won or lost. The Mist Wisp appears twice on purpose:
 it follows you from the scree to the summit, stronger.
 
 ## Whole games (`run_sim`)
@@ -163,7 +162,7 @@ About 15 minutes of play for the Ridge.
   Wolf is the longest fight (6.6 turns). A casual player needs 1.8 tries on
   average, a good one 1.6. This is the "serious summit". If it is too much, the
   first levers are snow (not scaling it by level) and the Wolf's stamina.
-- **Partners matter most for bosses.** Without a pack, The Steep falls to 25 %
+- **Partners matter most for bosses.** Without a pack, the Great Stag falls to 25 %
   and the Summit Wolf to 13 %; regular spirits drop about 10 points. Collecting
   spirits is not optional flavour.
 - **The XP curve keeps up.** The runner reaches every boss within a level of par
@@ -184,13 +183,13 @@ The first draft (the plan's numbers) failed the targets badly. Three of its
 rules changed in Q1 beside the steps below: damage uses the stat the
 move's affinity names (the draft used Form for every move), so pace, form and
 grit all count; the beat's range is wider (Miss x1/2 and Perfect x3/2, from x3/4
-and x5/4), so practice shows; and Surge is 14 power (from 12). Then, in order:
+and x5/4), so practice shows; and Surge is 14 power (from 12). Then, in order (the spirits by their names since Q3):
 
 1. **Bosses were unwinnable and regular spirits too easy.** Spirits were re-based
    on the runner (stamina a per cent of the runner's, stats offsets from the
    runner's at the same level), so each row tunes on its own and stays the same
    fight as both level up.
-2. **Stitch was too hard alone.** The runner had no move that beats a Pace
+2. **The Red Fox was too hard alone.** The runner had no move that beats a Pace
    spirit (Grit does). Settle became a Grit move.
 3. **Duels got longer with every level**, because stamina grew faster than
    damage. Damage, recovery and drain now scale with level ((9 + L)/10), as
@@ -212,8 +211,8 @@ and x5/4), so practice shows; and Surge is 14 power (from 12). Then, in order:
 9. **The simulator ran every duel in clear weather.** Duels now use the stage's
    two weathers half and half, as the game does. That showed rain at the valley
    and snow at the summit hurt more than it looked, and mist made the climb's
-   Grit spirits drag past six turns. Old Mossback's stamina came down (135 to 120
-   %), Lactic and Puff were made shorter and sharper (less stamina, one more
+   Grit spirits drag past six turns. The Old Tortoise's stamina came down (135 to
+   120 %), the Fire Newt and the Barn Owl were made shorter and sharper (less stamina, one more
    grit), and the Summit Wolf's stamina came down (115 to 105 %).
 
 ## What the simulators do not know

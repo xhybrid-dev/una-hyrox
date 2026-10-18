@@ -181,7 +181,7 @@ TEST(Save, OutOfRangeAndInconsistentValuesAreRefused)
         { "bag", "1,1,1" },           // too few counts
         { "bag", "1,x,1,1,1" },
         { "stage", "5" },
-        { "node", "8" },              // Mossback's pool, not yet beaten: that step ends in the duel
+        { "node", "8" },              // Tortoise pool, not yet beaten: that step ends in the duel
         { "offer", "0" },             // an offer at the trailhead, from a spirit never beaten
         { "offer", "4" },             // a boss never joins
         { "offer", "22" }, { "offer", "256" },
@@ -207,9 +207,9 @@ TEST(Save, AnOfferIsKeptOnlyWhereItMakesSense)
     run.newGame(3);
     RunState s = run.state();
     s.node          = 1;   // the birch wood
-    s.spiritsMet    = 1u << Spirit::Stitch;
-    s.spiritsBeaten = 1u << Spirit::Stitch;
-    s.offer         = Spirit::Stitch;
+    s.spiritsMet    = 1u << Spirit::RedFox;
+    s.spiritsBeaten = 1u << Spirit::RedFox;
+    s.offer         = Spirit::RedFox;
     EXPECT_TRUE(SaveCodec::valid(s));
     EXPECT_TRUE(SaveCodec::decode(encoded(s).c_str(), encoded(s).size(), s));
 
@@ -222,7 +222,7 @@ TEST(Save, AnOfferIsKeptOnlyWhereItMakesSense)
     EXPECT_FALSE(SaveCodec::valid(t));
     t = s;
     t.partnerCount = 1;   // already running with you
-    t.partners[0]  = Spirit::Stitch;
+    t.partners[0]  = Spirit::RedFox;
     EXPECT_FALSE(SaveCodec::valid(t));
 }
 
@@ -279,12 +279,12 @@ TEST(Save, APartnerMustBeARegularSpiritAndAppearOnce)
     run.newGame(3);
     RunState s = run.state();
     s.partnerCount = 2;
-    s.partners[0]  = Spirit::Stitch;
-    s.partners[1]  = Spirit::Stitch;
+    s.partners[0]  = Spirit::RedFox;
+    s.partners[1]  = Spirit::RedFox;
     EXPECT_FALSE(SaveCodec::valid(s));
-    s.partners[1] = Spirit::OldMossback;
+    s.partners[1] = Spirit::OldTortoise;
     EXPECT_FALSE(SaveCodec::valid(s));
-    s.partners[1] = Spirit::Bonk;
+    s.partners[1] = Spirit::BrownBear;
     EXPECT_TRUE(SaveCodec::valid(s));
 }
 

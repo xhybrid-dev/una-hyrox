@@ -182,7 +182,7 @@ TEST(Session, StageOneCanBePlayedToTheEndByCommands)
 
 TEST(Session, ALostDuelEndsBackAtTheHutAndSays)
 {
-    // A level-1 runner with no fuel against Old Mossback, playing badly, loses.
+    // A level-1 runner with no fuel against the Old Tortoise, playing badly, loses.
     RunState st;
     st.rng     = 77;
     st.level   = 1;
@@ -221,9 +221,9 @@ TEST(Session, AnOfferIsAnsweredOnceAndAFullPackNamesWhoLeaves)
     st.level        = 20;
     st.stamina      = runnerStats(20).stamina;
     st.partnerCount = 3;
-    st.partners[0]  = Spirit::Lactic;
-    st.partners[1]  = Spirit::Cramp;
-    st.partners[2]  = Spirit::Puff;
+    st.partners[0]  = Spirit::FireNewt;
+    st.partners[1]  = Spirit::GnatSwarm;
+    st.partners[2]  = Spirit::BarnOwl;
     st.minutes      = 9 * 60;
     Session s;
     s.begin(&st, 0);

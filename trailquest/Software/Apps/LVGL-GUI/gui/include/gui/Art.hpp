@@ -4,7 +4,7 @@
  * @brief   Which sprite shows which spirit, and the scene's colours.
  *
  * Q2 draws the Valley Path's five; a spirit without its own art yet (stages
- * 2-5, Q4) shows as Stitch, which only a test build can reach.
+ * 2-5, Q4) shows as the Red Fox, which only a test build can reach.
  ******************************************************************************
  */
 
@@ -24,12 +24,12 @@ inline uint8_t spriteFor(TrailQuest::SpeciesId sp)
 {
     using namespace TrailQuest;
     switch (sp) {
-        case Spirit::Stitch:      return TRAILQUEST_SPRITE_STITCH;
-        case Spirit::Bonk:        return TRAILQUEST_SPRITE_BONK;
-        case Spirit::Blister:     return TRAILQUEST_SPRITE_BLISTER;
-        case Spirit::Chafe:       return TRAILQUEST_SPRITE_CHAFE;
-        case Spirit::OldMossback: return TRAILQUEST_SPRITE_MOSSBACK;
-        default:                  return TRAILQUEST_SPRITE_STITCH;
+        case Spirit::RedFox:      return TRAILQUEST_SPRITE_FOX;
+        case Spirit::BrownBear:   return TRAILQUEST_SPRITE_BEAR;
+        case Spirit::RubyBeetle:  return TRAILQUEST_SPRITE_BEETLE;
+        case Spirit::SandCrab:    return TRAILQUEST_SPRITE_CRAB;
+        case Spirit::OldTortoise: return TRAILQUEST_SPRITE_TORTOISE;
+        default:                  return TRAILQUEST_SPRITE_FOX;
     }
 }
 

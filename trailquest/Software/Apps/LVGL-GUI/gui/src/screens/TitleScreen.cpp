@@ -16,6 +16,7 @@
 #include "Narrate.hpp"
 #include "gui/Sprites.hpp"
 #include "gui/screens/ScreenManager.hpp"
+#include "gui/screens/StoryScreen.hpp"
 
 namespace Draw  = SDK::LVGL::Draw;
 namespace Btn   = SDK::GUI::Button;
@@ -33,8 +34,8 @@ void TitleScreen::build()
     Ui::rowLabel(mRoot, 18, "TRAIL", Ui::Ink::kGold);
     Ui::rowLabel(mRoot, 36, "QUEST", Ui::Ink::kGold);
     mRunner.create(mRoot, 46, 76, TRAILQUEST_SPRITE_RUNNER, SpriteBuffers::small(0), SpriteBuffers::kSmall);
-    mSpirit.create(mRoot, 104, 78, TRAILQUEST_SPRITE_STITCH, SpriteBuffers::small(1), SpriteBuffers::kSmall);
-    mBear.create(mRoot, 152, 78, TRAILQUEST_SPRITE_BONK, SpriteBuffers::small(2), SpriteBuffers::kSmall);
+    mSpirit.create(mRoot, 104, 78, TRAILQUEST_SPRITE_FOX, SpriteBuffers::small(1), SpriteBuffers::kSmall);
+    mBear.create(mRoot, 152, 78, TRAILQUEST_SPRITE_BEAR, SpriteBuffers::small(2), SpriteBuffers::kSmall);
 
     mStatus = Ui::rowLabel(mRoot, 136, mStatusText);
     mCorners.create(mRoot);
@@ -78,7 +79,9 @@ void TitleScreen::onWorld()
     if (mStarting && !mModel.waiting()) {
         mStarting = false;
         if (!mModel.lost()) {
-            ScreenManager::instance().goTo(ScreenManager::screenFor(mModel.world()));
+            // The opening tale and the first stage's pages, then the map.
+            StoryScreen::newGame();
+            StoryScreen::play(StoryPlan::of(StoryId::Opening, StoryId::StageStart, mModel.world().state.stage));
             return;
         }
     }

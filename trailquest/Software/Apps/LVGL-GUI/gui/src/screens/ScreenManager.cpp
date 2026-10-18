@@ -24,6 +24,7 @@
 #include "gui/screens/OfferScreen.hpp"
 #include "gui/screens/PackScreen.hpp"
 #include "gui/screens/Screen.hpp"
+#include "gui/screens/StoryScreen.hpp"
 #include "gui/screens/TitleScreen.hpp"
 
 namespace
@@ -38,7 +39,7 @@ constexpr size_t maxSize()
 }
 
 constexpr size_t kSlotBytes =
-    maxSize<TitleScreen, MapScreen, ObstacleScreen, DuelScreen, OfferScreen, PackScreen, ClearScreen>();
+    maxSize<TitleScreen, MapScreen, ObstacleScreen, DuelScreen, OfferScreen, PackScreen, ClearScreen, StoryScreen>();
 
 // Two slots: the screen on display, and the one being built to replace it.
 alignas(alignof(std::max_align_t)) uint8_t sSlots[2][kSlotBytes];
@@ -144,6 +145,7 @@ Screen* ScreenManager::create(ScreenId id, void* slot)
         case ScreenId::Offer:    return new (slot) OfferScreen(m);
         case ScreenId::Pack:     return new (slot) PackScreen(m);
         case ScreenId::Clear:    return new (slot) ClearScreen(m);
+        case ScreenId::Story:    return new (slot) StoryScreen(m);
     }
     return nullptr;
 }
