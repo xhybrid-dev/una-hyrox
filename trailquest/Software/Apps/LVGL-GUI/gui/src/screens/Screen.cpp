@@ -56,7 +56,10 @@ void Screen::create()
 {
     createRoot();
     build();
+    // After build(), so the arcs lie over the screen's own shapes; build()
+    // may already have chosen their colours (setArcs keeps them).
     mButtons.emplace(mRoot);
+    mButtons->set(mArcs[0], mArcs[1], mArcs[2], mArcs[3]);
     mLeaveArc = Draw::arc(mRoot, SDK::LVGL::kCx, SDK::LVGL::kCy, kLeaveRadius, 8, kLeaveFrom, kLeaveFrom + 1, 0xC00000);
     Draw::setHidden(mLeaveArc, true);
     mDev = Draw::label(mRoot, &poppins_regular_14, "", 40, 214, 160, LV_TEXT_ALIGN_CENTER, 0x808080);
@@ -71,6 +74,10 @@ void Screen::create()
 void Screen::setArcs(SDK::LVGL::Buttons::Color l1, SDK::LVGL::Buttons::Color l2, SDK::LVGL::Buttons::Color r1,
                      SDK::LVGL::Buttons::Color r2)
 {
+    mArcs[0] = l1;
+    mArcs[1] = l2;
+    mArcs[2] = r1;
+    mArcs[3] = r2;
     if (mButtons) {
         mButtons->set(l1, l2, r1, r2);
     }
@@ -78,8 +85,16 @@ void Screen::setArcs(SDK::LVGL::Buttons::Color l1, SDK::LVGL::Buttons::Color l2,
 
 void Screen::onSuspend()
 {
-    // The release will never come: drop the hold rather than leave on return.
+    // The release will never come: drop the hold rather than act on return.
+    cancelHolds();
+}
+
+void Screen::cancelHolds()
+{
     mLeave.cancel();
+    for (bool& a : mArmed) {
+        a = false;
+    }
     if (mLeaveArc) {
         Draw::setHidden(mLeaveArc, true);
     }
@@ -133,6 +148,9 @@ void Screen::handleKey(uint8_t code)
 {
     const uint32_t now = lv_tick_get();
     if (code == Btn::L1R2) {
+        // The chord replaces the two clicks; the presses and releases still
+        // come, and must not count as an L1 tap or an R2 one (or a hold).
+        cancelHolds();
         Draw::setHidden(mDev, !lv_obj_has_flag(mDev, LV_OBJ_FLAG_HIDDEN));
         updateDev(now);
         return;

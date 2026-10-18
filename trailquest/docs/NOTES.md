@@ -494,13 +494,32 @@ test turns up.
   peaks at 49 % (of 37 KB) on any screen.
 - Watch target: builds and links (compile check). GUI ELF 198,000 B text +
   4,396 data + 173,252 bss = 375,648 B (the sprite buffers 33 KB, the screen
-  slots 1.2 KB); service ELF 33,752 B, now with the engine; `.uapp` 232,492 B.
-- CI: see the run on the pushed commit.
+  slots 1.2 KB); service ELF 33,752 B, now with the engine; `.uapp` 232,868 B
+  after the review's fixes.
+- CI: run 174 green on the first Q2 commit (`1651487`); the fixes' run follows.
 
 **Not verified (cannot be, here).** Anything on the watch: how it reads at arm's
 length, the map's redraw time, whether the backlight hold is enough between
 turns, the haptics in play, whether a slow press sends a click on the watch,
 battery. That is Gate Q2.
+
+**Review before Gate Q2.** An independent review of the Q2 commit found three
+things, all fixed and checked in the simulator:
+
+1. *The bezel arcs were missing* on the map after the pack, a duel, an obstacle
+   or an offer, and on the title after a stage clear: the screens chose the
+   arcs' colours while building, before the arcs existed. The screen base now
+   keeps the colours and applies them once the arcs are made.
+2. *The L1+R2 chord* (the developer numbers) would also have counted as an L1
+   tap and an R2 tap on the watch (in a duel, a Surge). The chord now drops any
+   press in progress and any hold. The simulator has no chord, so this is
+   untested until the watch.
+3. *A lost message* could replay the previous step (the screen took the answer
+   to its "asking again" for the answer to its command), or leave a duel
+   showing Choose after it had ended. The World now carries the last command's
+   number and the last Hello's separately, so a command that never ran is told
+   apart from a slow answer, and the screen lets the player try again; a duel
+   ends when the World says so.
 
 **Gate Q2: what Jon must test.** Install the CI build of this branch
 (`watch-apps` artifact, `TrailQuest_*.uapp`), the way the Q0 probe went on. Then:

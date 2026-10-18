@@ -42,21 +42,26 @@ void Model::exitApp()
 
 uint16_t Model::next()
 {
-    mSentAt = lv_tick_get();
-    return ++mSeq;
+    mSentAt  = lv_tick_get();
+    mCommand = ++mSeq;
+    mHello   = 0;
+    mLost    = false;
+    return mCommand;
 }
 
 void Model::keepAlive(uint32_t nowMs)
 {
     if (waiting() && nowMs - mSentAt >= kAnswerMs) {
-        LOG_WARNING("no answer to command %u: asking again\n", static_cast<unsigned>(mSeq));
+        LOG_WARNING("no answer to command %u: asking again\n", static_cast<unsigned>(mCommand));
+        mSentAt = nowMs;   // once every kAnswerMs, not every frame
         hello();
     }
 }
 
 void Model::hello()
 {
-    SDK::send_msg<CustomMessage::Hello>(mKernel, next());
+    mHello = ++mSeq;
+    SDK::send_msg<CustomMessage::Hello>(mKernel, mHello);
 }
 
 void Model::newGame()
@@ -134,6 +139,12 @@ bool Model::customMessageHandler(SDK::MessageBase* msg)
             mAck      = m->ack;
             mBeat     = m->beat != 0;
             mHasWorld = true;
+            // The service answers in order: an answer to our Hello that does
+            // not carry the command's number means the command never ran.
+            if (mAck != mCommand && mHello != 0 && m->hello == mHello) {
+                LOG_WARNING("command %u was lost\n", static_cast<unsigned>(mCommand));
+                mLost = true;
+            }
             if (modelListener) {
                 modelListener->onWorld();
             }

@@ -149,7 +149,7 @@ void ObstacleScreen::onWorld()
         return;
     }
     const WorldView& w = mModel.world();
-    if (w.cause != ViewCause::ObstacleDone) {
+    if (mModel.lost() || w.cause != ViewCause::ObstacleDone) {
         setMode(Mode::Intro);   // refused: try again
         return;
     }

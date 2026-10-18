@@ -29,12 +29,12 @@ public:
 
     void onShow() override;
     void onWorld() override;
-    void onSuspend() override;
 
 protected:
     void build() override;
     void onKey(uint8_t code) override;
     void onFrame(uint32_t nowMs) override;
+    void cancelHolds() override;
 
 private:
     void refresh();

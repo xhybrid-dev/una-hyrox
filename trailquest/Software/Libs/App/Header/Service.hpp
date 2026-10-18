@@ -55,7 +55,8 @@ private:
     SDK::Kernel &                    mKernel;
     TrailQuest::Session              mSession;
     TrailQuest::SaveStore::Settings  mSettings;
-    uint16_t                         mAck = 0;
+    uint16_t                         mAck   = 0;   ///< The last command handled (World::ack).
+    uint16_t                         mHello = 0;   ///< The last Hello handled (World::hello).
 };
 
 #endif // SERVICE_HPP

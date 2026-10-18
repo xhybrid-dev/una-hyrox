@@ -302,7 +302,7 @@ void DuelScreen::onWorld()
         return;
     }
     const WorldView& w = mModel.world();
-    if (w.cause != ViewCause::DuelTurn && w.cause != ViewCause::DuelOver) {
+    if (mModel.lost() || (w.cause != ViewCause::DuelTurn && w.cause != ViewCause::DuelOver)) {
         setMode(Mode::Choose);   // refused: nothing happened
         return;
     }
@@ -417,12 +417,13 @@ void DuelScreen::onFrame(uint32_t nowMs)
             return;
         }
         snapToView();
-        const DuelView& d = mModel.duel();
-        if (d.outcome == DuelOutcome::Ongoing) {
+        // Over when the World says so (the duel snapshot alone could be one
+        // a full queue dropped).
+        const WorldView& w = mModel.world();
+        if (w.phase == RunPhase::InDuel) {
             setMode(Mode::Choose);
             return;
         }
-        const WorldView& w = mModel.world();
         TextFit::Lines   lines;
         Narrate::duelEnd(lines, w);
         const bool won = w.duel.outcome == DuelOutcome::Won;

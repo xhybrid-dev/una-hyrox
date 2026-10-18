@@ -114,10 +114,10 @@ void OfferScreen::onWorld()
         return;
     }
     const WorldView& w = mModel.world();
-    if (w.cause == ViewCause::Joined) {
+    if (!mModel.lost() && w.cause == ViewCause::Joined) {
         mModel.playFx(FxId::Win);
     }
-    if (w.cause == ViewCause::Refused) {
+    if (mModel.lost() || w.cause == ViewCause::Refused) {
         setMode(Mode::Offer);
         return;
     }

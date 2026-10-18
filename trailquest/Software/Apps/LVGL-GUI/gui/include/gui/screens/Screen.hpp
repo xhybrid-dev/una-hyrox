@@ -61,6 +61,10 @@ public:
     void onSuspend() override;
 
 protected:
+    /// Drop any hold in progress (the GUI is going off screen, or the L1+R2
+    /// chord took the buttons). A screen with holds of its own adds them.
+    virtual void cancelHolds();
+
     /// Populate mRoot. It exists and has the black background.
     virtual void build() = 0;
 
@@ -90,6 +94,9 @@ private:
     void updateDev(uint32_t nowMs);
 
     std::optional<SDK::LVGL::Buttons> mButtons;
+    /// The arcs' colours, kept so build() can set them before mButtons exists.
+    SDK::LVGL::Buttons::Color         mArcs[4] = { SDK::LVGL::Buttons::NONE, SDK::LVGL::Buttons::NONE,
+                                                    SDK::LVGL::Buttons::NONE, SDK::LVGL::Buttons::RED };
     bool                              mArmed[4] = {};   ///< L1, L2, R1, R2: a press is waiting for its click.
     TrailQuest::HoldTimer             mLeave { kLeaveHoldMs };
     lv_obj_t*                         mLeaveArc = nullptr;

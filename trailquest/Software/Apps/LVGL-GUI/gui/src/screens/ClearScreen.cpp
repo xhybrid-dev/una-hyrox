@@ -64,6 +64,9 @@ void ClearScreen::onWorld()
         return;
     }
     mWaiting = false;
+    if (mModel.lost()) {
+        return;   // try again with R1
+    }
     ScreenManager::instance().goTo(ScreenManager::screenFor(mModel.world()));
 }
 

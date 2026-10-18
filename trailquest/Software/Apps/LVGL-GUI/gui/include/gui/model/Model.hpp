@@ -41,7 +41,12 @@ public:
     bool                         beatOn() const { return mBeat; }
 
     /// A command is out and its World has not come back yet.
-    bool waiting() const { return mAck != mSeq; }
+    bool waiting() const { return mAck != mCommand && !mLost; }
+
+    /// The last command never reached the game (keepAlive() asked again and
+    /// the answer showed it had not run): the screen should let the player
+    /// try again. Cleared by the next command.
+    bool lost() const { return mLost; }
 
     /// The number of the command the last World answered.
     uint16_t ack() const { return mAck; }
@@ -81,15 +86,19 @@ private:
     /// trip is one frame, 100 ms, on the watch: Gate Q0).
     static constexpr uint32_t kAnswerMs = 2000;
 
+    /// Number a command (not a Hello) and start its clock.
     uint16_t next();
 
     TrailQuest::WorldView mWorld {};
     TrailQuest::DuelView  mDuel {};
     bool                  mHasWorld = false;
     bool                  mBeat     = true;
-    uint16_t              mSeq      = 0;
-    uint16_t              mAck      = 0;
+    uint16_t              mSeq      = 0;   ///< The last number given out.
+    uint16_t              mCommand  = 0;   ///< The last command's number.
+    uint16_t              mHello    = 0;   ///< The last Hello's number (0: none since the command).
+    uint16_t              mAck      = 0;   ///< World::ack last received.
     uint32_t              mSentAt   = 0;
+    bool                  mLost     = false;
 };
 
 #endif // MODEL_HPP

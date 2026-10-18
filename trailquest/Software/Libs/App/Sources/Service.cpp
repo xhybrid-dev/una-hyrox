@@ -142,10 +142,13 @@ bool Service::onCommand(const SDK::MessageBase &msg)
     if (type < HELLO || type > SETTINGS) {
         return false;
     }
-    mAck = static_cast<const Command &>(msg).seq;
+    const uint16_t seq = static_cast<const Command &>(msg).seq;
+    if (type == HELLO) {
+        mHello = seq;   // the game is untouched: the World says where it stands
+        return true;
+    }
+    mAck = seq;
     switch (type) {
-    case HELLO:
-        break;
     case NEW_GAME:
         mSession.newGame(entropy());
         LOG_INFO("new game\n");
@@ -202,7 +205,7 @@ void Service::sendViews()
             LOG_WARNING("duel view not sent\n");
         }
     }
-    if (!SDK::send_msg<CustomMessage::World>(mKernel, mSession.world(), mAck, mSettings.beat)) {
+    if (!SDK::send_msg<CustomMessage::World>(mKernel, mSession.world(), mAck, mHello, mSettings.beat)) {
         LOG_WARNING("world view not sent\n");
     }
 }

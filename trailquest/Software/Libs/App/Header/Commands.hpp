@@ -13,7 +13,9 @@
  * the service answers with a whole World snapshot (and a Duel snapshot while
  * there is a duel to show, sent first). Snapshots, not changes, so a message
  * the GUI's ten-deep queue drops costs nothing but a stale frame. Each command
- * carries a number the World echoes, so a screen knows its answer arrived.
+ * carries a number the World echoes, so a screen knows its answer arrived. A
+ * Hello (the GUI asking again after a silence) has its own echo, so an answer
+ * to the Hello without one to the command says the command never ran.
  *
  * The timing beat is judged in the GUI (Beat.hpp is header-only), against the
  * needle on screen, and sent as its result: no round trip before the player
@@ -57,22 +59,25 @@ constexpr SDK::MessageType::Type FX_PLAY      = 0x00000018;
 /// Service --> GUI: the world now, and what the last command did.
 struct World : public SDK::MessageBase {
     TrailQuest::WorldView view;
-    uint16_t              ack;    ///< The number of the last command handled.
-    uint8_t               beat;   ///< 1: the timing beat is on (the player's setting).
+    uint16_t              ack;     ///< The number of the last command handled (not a Hello).
+    uint16_t              hello;   ///< The number of the last Hello handled.
+    uint8_t               beat;    ///< 1: the timing beat is on (the player's setting).
 
     World()
         : SDK::MessageBase(WORLD)
         , view {}
         , ack(0)
+        , hello(0)
         , beat(1)
     {}
 
-    World(const TrailQuest::WorldView& v, uint16_t a, bool b)
+    World(const TrailQuest::WorldView& v, uint16_t a, uint16_t h, bool b)
         : World()
     {
-        view = v;
-        ack  = a;
-        beat = b ? 1u : 0u;
+        view  = v;
+        ack   = a;
+        hello = h;
+        beat  = b ? 1u : 0u;
     }
 };
 

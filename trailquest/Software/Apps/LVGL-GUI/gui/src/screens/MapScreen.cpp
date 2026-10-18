@@ -179,6 +179,11 @@ void MapScreen::onWorld()
         return;
     }
     const WorldView& w = mModel.world();
+    if (mMode == Mode::Waiting && mModel.lost()) {
+        mMode = Mode::Choose;   // the step never happened: choose again
+        refresh();
+        return;
+    }
     if (mMode == Mode::Waiting) {
         if (w.cause == ViewCause::Arrived) {
             mMode     = Mode::Walking;

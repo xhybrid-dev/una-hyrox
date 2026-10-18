@@ -77,8 +77,10 @@ void TitleScreen::onWorld()
 {
     if (mStarting && !mModel.waiting()) {
         mStarting = false;
-        ScreenManager::instance().goTo(ScreenManager::screenFor(mModel.world()));
-        return;
+        if (!mModel.lost()) {
+            ScreenManager::instance().goTo(ScreenManager::screenFor(mModel.world()));
+            return;
+        }
     }
     refresh();
 }
@@ -145,8 +147,8 @@ void TitleScreen::onFrame(uint32_t nowMs)
     }
 }
 
-void TitleScreen::onSuspend()
+void TitleScreen::cancelHolds()
 {
-    Screen::onSuspend();
+    Screen::cancelHolds();
     mNew.cancel();
 }
