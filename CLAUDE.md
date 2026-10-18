@@ -233,9 +233,13 @@ creatures, moves, art or type chart (brief section 9).
   table, and (Q1) the game itself: data tables in `Header/data/` (moves,
   spirits, items, stages; header-only), the duel, encounters, the run flow
   (`Run`), the save, and the Daily Trail seed. Every chance comes from one
-  seeded `Rng`, so a seed and the inputs replay a game exactly. The service
-  `Software/Libs/App` (from X Weigh-in); the GUI `Software/Apps/LVGL-GUI`
-  (screens, the sprite expander). No glance. Art is drawn by
+  seeded `Rng`, so a seed and the inputs replay a game exactly. `Session` (Q2)
+  is the game as the service runs it; `View.hpp`, `Layout.hpp`, `TextFit.hpp`
+  and `Narrate.hpp` are what the GUI draws from, and every string is
+  host-tested to fit the round face clear of the bezel arcs. The service
+  `Software/Libs/App` runs the Session and answers each command with
+  snapshots; the GUI `Software/Apps/LVGL-GUI` (seven screens, a screen manager
+  with no heap, the sprite expander) draws them. No glance. Art is drawn by
   `Tools/Art/gen_art.py` into `assets/sprites/sprites.c`; never edit that file.
 - **Watch builds come from CI**, as for the others. Tags `trailquest-vX.Y.Z`.
   Local watch builds are compile checks only (the stub recipe is in `NOTES.md`).
@@ -248,7 +252,10 @@ creatures, moves, art or type chart (brief section 9).
   - simulator: `trailquest/Software/Apps/LVGL-GUI/simulator` (a Ninja build in
     its `build/`; run `build/bin/TrailQuestSimulator`; keys 1-4 are L1-R2);
   - screens, cut to the round face: `docs/experiments/capture_screens.sh [out-dir]`
-    (into `docs/screens/`);
+    (a scripted stage 1, every screen, into `docs/screens/q2-*.png`);
+    `docs/experiments/sim_play.sh [seed]` plays stage 1 to the clear (beat off)
+    and checks the save is picked up again. Both clear the save in
+    `Software/Output`; `TRAILQUEST_SEED` fixes the simulator's seed;
   - art: `python3 trailquest/Tools/Art/gen_art.py` (writes the sprites and a
     preview sheet); icons: `python3 trailquest/Resources/make_icons.py`.
 

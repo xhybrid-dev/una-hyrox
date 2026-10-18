@@ -37,21 +37,28 @@ void Run::newGame(uint32_t seed)
     mState.bag[Item::Water] = kStartWater;
     mState.minutes          = kRunStartMinutes;
     mLastDuel = DuelResult{};
-    mOffered  = kNone;
     startStage(0);
 }
 
-void Run::resume(const RunState& s)
+void Run::resume(const RunState& s, uint32_t stir)
 {
     mState = s;
-    mRng.setState(s.rng);
+    mRng.setState(stir != 0 ? mixSeed(s.rng ^ stir) : s.rng);
+    syncRng();
     mLastDuel  = DuelResult{};
-    mOffered   = kNone;
     mWantsSave = false;
     mPhase     = RunPhase::AtNode;
-    if (node().kind == NodeKind::Boss && (mState.bossesBeaten & stageBit(mState.stage)) != 0) {
+    if (mState.offer != kNone) {
+        mPhase = RunPhase::JoinOffer;
+    } else if (node().kind == NodeKind::Boss && (mState.bossesBeaten & stageBit(mState.stage)) != 0) {
         mPhase = mState.stage + 1u >= kStageCount ? RunPhase::Finished : RunPhase::StageClear;
     }
+}
+
+void Run::rest(RunPhase phase)
+{
+    mPhase     = phase;
+    mWantsSave = true;
 }
 
 void Run::startStage(uint8_t st)
@@ -61,8 +68,7 @@ void Run::startStage(uint8_t st)
     mState.hutNode = 0;
     mState.weather = static_cast<uint8_t>(stage().weather[mRng.below(2)]);
     mState.stamina = runnerMaxWithPartners(mState).stamina;
-    mPhase         = RunPhase::AtNode;
-    mWantsSave     = true;
+    rest(RunPhase::AtNode);
     syncRng();
 }
 
@@ -165,7 +171,6 @@ ArriveResult Run::travel(uint8_t exitIndex)
         case NodeKind::Hut:
             mState.stamina = runnerMaxWithPartners(mState).stamina;
             mState.hutNode = mState.node;
-            mWantsSave     = true;
             r.what         = Arrival::Hut;
             break;
 
@@ -190,6 +195,9 @@ ArriveResult Run::travel(uint8_t exitIndex)
         case NodeKind::Start:
         default:
             break;
+    }
+    if (mPhase == RunPhase::AtNode) {
+        rest(RunPhase::AtNode);   // nothing to resolve here: a step ended on the map
     }
     syncRng();
     return r;
@@ -225,7 +233,7 @@ ObstacleResult Run::attemptObstacle(BeatResult beat)
         r.staminaLost  = static_cast<uint16_t>(before - mState.stamina);
         r.minutesLost  = ob.failMinutes;
     }
-    mPhase = RunPhase::AtNode;
+    rest(RunPhase::AtNode);
     syncRng();
     return r;
 }
@@ -303,8 +311,7 @@ void Run::finishDuel()
         gainXp(res.xp, res.levelsGained);
         if (res.boss) {
             mState.bossesBeaten = static_cast<uint8_t>(mState.bossesBeaten | stageBit(mState.stage));
-            mPhase     = RunPhase::StageClear;
-            mWantsSave = true;
+            rest(RunPhase::StageClear);
         } else {
             if (mRng.chance(kDropChance)) {
                 const ItemId item = pickFind(mRng);
@@ -313,11 +320,11 @@ void Run::finishDuel()
                 }
             }
             if (!hasPartner(mState, sp)) {
-                mOffered        = sp;
+                mState.offer    = sp;
                 res.joinOffered = true;
-                mPhase          = RunPhase::JoinOffer;
+                rest(RunPhase::JoinOffer);
             } else {
-                mPhase = RunPhase::AtNode;
+                rest(RunPhase::AtNode);
             }
         }
     } else {
@@ -328,34 +335,34 @@ void Run::finishDuel()
         mState.minutes = addMinutes(mState.minutes, kLossMinutes);
         mState.node    = mState.hutNode;
         mState.stamina = runnerMaxWithPartners(mState).stamina;
-        mPhase         = RunPhase::AtNode;
-        mWantsSave     = true;
+        rest(RunPhase::AtNode);
     }
     mLastDuel = res;
 }
 
 bool Run::acceptJoin(uint8_t replaceSlot)
 {
-    if (mPhase != RunPhase::JoinOffer || mOffered >= Spirit::Count || isBoss(mOffered)) {
+    const SpeciesId sp = mState.offer;
+    if (mPhase != RunPhase::JoinOffer || sp >= Spirit::Count || isBoss(sp)) {
         return false;
     }
     if (mState.partnerCount < kMaxPartners) {
-        mState.partners[mState.partnerCount++] = mOffered;
+        mState.partners[mState.partnerCount++] = sp;
     } else if (replaceSlot < kMaxPartners) {
-        mState.partners[replaceSlot] = mOffered;
+        mState.partners[replaceSlot] = sp;
     } else {
         return false;   // a full pack needs a name for who leaves
     }
-    mOffered = kNone;
-    mPhase   = RunPhase::AtNode;
+    mState.offer = kNone;
+    rest(RunPhase::AtNode);
     return true;
 }
 
 void Run::declineJoin()
 {
     if (mPhase == RunPhase::JoinOffer) {
-        mOffered = kNone;
-        mPhase   = RunPhase::AtNode;
+        mState.offer = kNone;
+        rest(RunPhase::AtNode);
     }
 }
 
@@ -365,8 +372,7 @@ void Run::nextStage()
         return;
     }
     if (mState.stage + 1u >= kStageCount) {
-        mPhase     = RunPhase::Finished;
-        mWantsSave = true;
+        rest(RunPhase::Finished);
         return;
     }
     startStage(static_cast<uint8_t>(mState.stage + 1u));

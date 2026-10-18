@@ -4,8 +4,9 @@
  * @brief   Everything about a game in progress that the save file keeps.
  *
  * Header-only (the GUI shows it). Plain integers in fixed-size arrays. A duel
- * in progress is not part of it: the game saves at huts and stage ends, so a
- * save is always taken standing on the map.
+ * or an obstacle in progress is not part of it: the game saves after every step
+ * that ends back on the map (or at an offer to join, or a stage clear), so
+ * quitting mid-duel loses only that stretch of trail.
  ******************************************************************************
  */
 
@@ -41,6 +42,7 @@ struct RunState {
     uint8_t   hutNode      = 0;    ///< Where a loss returns you, in this stage.
     uint8_t   bossesBeaten = 0;    ///< A bit per stage, this lap.
     uint8_t   cachesTaken  = 0;    ///< A bit per stage, this lap.
+    SpeciesId offer        = kNone;   ///< A beaten spirit waiting for an answer to join.
     uint32_t  spiritsMet    = 0;   ///< A bit per species, ever.
     uint32_t  spiritsBeaten = 0;   ///< A bit per species, ever.
     uint16_t  duelsWon     = 0;

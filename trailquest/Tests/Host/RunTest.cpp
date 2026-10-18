@@ -3,6 +3,9 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
+#include <utility>
+
 #include "Encounter.hpp"
 #include "Run.hpp"
 
@@ -167,7 +170,7 @@ TEST(Run, AnObstacleNeverSpendsTheRunner)
     }
 }
 
-TEST(Run, AHutRestoresAndIsTheSavePoint)
+TEST(Run, AHutRestoresAndIsWhereALossReturns)
 {
     TrailQuest::Run run;
     RunState s = standingAt(0, 1, 2);   // birch wood: its exit goes to the hut
@@ -463,6 +466,91 @@ TEST(Run, ResumingAtABeatenBossPicksUpTheStageClear)
     top.bossesBeaten = 0x1F;
     run.resume(top);
     EXPECT_EQ(run.phase(), RunPhase::Finished);
+}
+
+TEST(Run, EveryStepThatEndsOnTheMapAsksToSave)
+{
+    TrailQuest::Run run;
+    run.resume(standingAt(0, 0, 3));
+    EXPECT_FALSE(run.wantsSave());   // coming back is not a step
+
+    run.travel(1);   // the stepping stones
+    ASSERT_EQ(run.phase(), RunPhase::Obstacle);
+    EXPECT_FALSE(run.wantsSave());   // never in the middle of an obstacle
+    run.attemptObstacle(BeatResult::Good);
+    EXPECT_EQ(run.phase(), RunPhase::AtNode);
+    EXPECT_TRUE(run.wantsSave());
+    run.saved();
+
+    run.travel(1);   // the long meadow: a spirit
+    ASSERT_EQ(run.phase(), RunPhase::InDuel);
+    EXPECT_FALSE(run.wantsSave());   // nor of a duel
+    run.duelTurn(PlayerTurn{});
+    if (run.phase() == RunPhase::InDuel) {
+        EXPECT_FALSE(run.wantsSave());
+    }
+    fight(run);
+    EXPECT_TRUE(run.wantsSave());    // won (an offer) or lost (the hut): either way
+    run.saved();
+
+    if (run.phase() == RunPhase::JoinOffer) {
+        run.declineJoin();
+        EXPECT_TRUE(run.wantsSave());
+        run.saved();
+    }
+    // An arrival with nothing to resolve saves too (here, the old gate's cache).
+    TrailQuest::Run hut;
+    hut.resume(standingAt(0, 3, 3));
+    hut.travel(0);   // to the old gate (a cache)
+    EXPECT_EQ(hut.phase(), RunPhase::AtNode);
+    EXPECT_TRUE(hut.wantsSave());
+}
+
+TEST(Run, QuittingAtAnOfferComesBackToTheOffer)
+{
+    TrailQuest::Run run;
+    run.resume(standingAt(0, 0, 20));
+    run.travel(0);   // the birch wood: a spirit
+    fight(run);
+    ASSERT_EQ(run.phase(), RunPhase::JoinOffer);
+    const RunState saved = run.state();
+    EXPECT_NE(saved.offer, kNone);
+    EXPECT_EQ(saved.offer, run.offered());
+
+    TrailQuest::Run back;
+    back.resume(saved);
+    EXPECT_EQ(back.phase(), RunPhase::JoinOffer);
+    EXPECT_EQ(back.offered(), saved.offer);
+    EXPECT_TRUE(back.acceptJoin());
+    EXPECT_EQ(back.state().offer, kNone);
+    EXPECT_EQ(back.state().partnerCount, 1u);
+    EXPECT_EQ(back.state().partners[0], saved.offer);
+}
+
+TEST(Run, AStirredResumeMeetsAFreshSpiritAndNoStirReplays)
+{
+    const RunState s = standingAt(0, 0, 3, 1234);
+    TrailQuest::Run a, b;
+    a.resume(s);
+    b.resume(s);
+    a.travel(0);
+    b.travel(0);
+    EXPECT_EQ(a.duel().setup().species, b.duel().setup().species);
+    EXPECT_EQ(a.duel().setup().speciesLevel, b.duel().setup().speciesLevel);
+    EXPECT_EQ(a.state().rng, b.state().rng);
+
+    // Coming back after quitting mid-duel: the service stirs with its clock,
+    // so the same stretch does not hold the same spirit every time.
+    std::set<std::pair<SpeciesId, uint8_t>> met;
+    for (uint32_t stir = 1; stir <= 40; ++stir) {
+        TrailQuest::Run r;
+        r.resume(s, stir * 7919u);
+        EXPECT_NE(r.state().rng, s.rng);
+        EXPECT_NE(r.state().rng, 0u);
+        r.travel(0);
+        met.insert({ r.duel().setup().species, r.duel().setup().speciesLevel });
+    }
+    EXPECT_GT(met.size(), 3u);
 }
 
 TEST(Run, PerfectBeatsAreCounted)

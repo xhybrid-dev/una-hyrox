@@ -1,12 +1,13 @@
 # Trail Quest for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** Q1 (the game core and balance) built, 17 October 2026, and waiting
-at Gate Q1 for Jon (NOTES, "Phase Q1"; `BALANCE.md`). Gate Q0 passed on a real
-watch the same day.
+**Status:** Q2 (stage 1 playable) built, 18 October 2026, and waiting at Gate
+Q2 for Jon, played on the watch (NOTES, "Phase Q2"). Gates Q0 (17 October) and
+Q1 (18 October) passed.
 Decisions taken: tone "funny start, serious summit"; full 5 stages; Daily Trail
 as the planned extra; generated pixel art; a loss sends you back to the last
-hut; bosses are big Trail Spirits; a beaten spirit offers to join.
+hut; bosses are big Trail Spirits; a beaten spirit offers to join; a short run
+(a quick game on a watch); saves after every step; a top-down map.
 **Read with:** `NOTES.md` (findings, decisions and the gates), `BALANCE.md`
 (the numbers) and `DESIGN.md` (the look, the voice and the roster). Where this
 brief and `NOTES.md` disagree, `NOTES.md` is right: it was written after the
@@ -50,7 +51,8 @@ Win, and a creature joins your pack as a running partner. At the end of each
 stage a boss waits at the summit.
 
 It is a game first. Short sessions (2 to 5 minutes), one run through the
-stages in about 2 to 3 hours of play, then a harder second lap.
+stages in well under an hour of play (Gate Q1: "a quick game on a watch, not
+a console"), then a harder second lap.
 
 It is not a copy of anything. No Pokémon names, creatures, moves, art, music,
 type chart or catchphrases are used. The shared idea is only "meet creatures,
@@ -208,8 +210,8 @@ or decide. Build the watch target and the simulator after every change.
 |---|---|---|
 | **Q0: feasibility** | A probe screen: a scene, three animated sprites, the button bezel, a timing beat, the feedback patterns, and live frame/memory numbers. Measure on a real watch | **Gate Q0:** the art looks right and the timing beat is playable at 10 frames a second on the watch, or Jon accepts a menu-only duel |
 | **Q1: core** | World graph, duel engine, stats, items, save; host tests and the balance simulator | **Gate Q1:** duels are deterministic and balanced on paper (win-rate targets agreed with Jon) |
-| **Q2: one stage** | Stage 1 playable end to end in the simulator: map, route choice, 4 creatures, one boss, huts, save | **Gate Q2:** Jon plays stage 1 in the simulator and it is fun for 10 minutes |
-| **Q3: service and watch** | Service from RunLVGL, haptics and sound, real-watch build from CI | **Gate Q3:** stage 1 plays on a real watch; battery over a 30-minute session recorded |
+| **Q2: one stage** | Stage 1 playable end to end: map, route choice, 4 creatures, one boss, huts, save (and, since Jon tests on the watch, the save and haptics on the watch) | **Gate Q2:** Jon plays stage 1 on the watch (the CI build) and it is fun for 10 minutes |
+| **Q3: service and watch** | Sound (pitched jingles, if the firmware plays them), the beat tuned from real strikes, what the Q2 test turns up | **Gate Q3:** stage 1 plays well on a real watch; battery over a 30-minute session recorded |
 | **Q4: the rest** | Stages 2 to 5, the remaining creatures, items, levelling, second lap | **Gate Q4:** a full run can be finished; no dead ends found by the route tests |
 | **Q5: release** | Icons, store package, tags `trailquest-vX.Y.Z` | **Gate Q5:** Jon uploads to the portal |
 

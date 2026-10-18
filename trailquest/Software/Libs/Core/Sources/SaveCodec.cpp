@@ -20,12 +20,12 @@ namespace
 
 enum Key : uint8_t {
     kTq = 0, kRng, kLv, kXp, kSt, kPc, kP0, kP1, kP2, kBag, kStage, kNode, kHut, kMin,
-    kWx, kLap, kBoss, kCache, kMet, kBeat, kWon, kLost, kPerf, kKeyCount
+    kWx, kLap, kBoss, kCache, kMet, kBeat, kWon, kLost, kPerf, kOffer, kKeyCount
 };
 
 const char* const kNames[kKeyCount] = {
     "tq", "rng", "lv", "xp", "st", "pc", "p0", "p1", "p2", "bag", "stage", "node", "hut", "min",
-    "wx", "lap", "boss", "cache", "met", "beat", "won", "lost", "perf",
+    "wx", "lap", "boss", "cache", "met", "beat", "won", "lost", "perf", "offer",
 };
 
 /// Parse an unsigned decimal of up to 10 digits that fits 32 bits.
@@ -65,18 +65,31 @@ bool parseBag(const char* s, size_t len, uint32_t out[Item::Count])
     return n == Item::Count;
 }
 
+/// The game saves after every step that ends on the map, so any place is a
+/// save point except a boss not yet beaten (that step ends in the duel).
 bool savePoint(const RunState& s)
 {
     const NodeDef& n = nodeDef(s.stage, s.node);
-    switch (n.kind) {
-        case NodeKind::Start:
-        case NodeKind::Hut:
-            return true;
-        case NodeKind::Boss:
-            return (s.bossesBeaten & (1u << s.stage)) != 0;   // a stage cleared
-        default:
-            return false;
+    if (n.kind == NodeKind::Boss) {
+        return (s.bossesBeaten & (1u << s.stage)) != 0;   // a stage cleared
     }
+    return true;
+}
+
+/// An offer to join waits only where a regular spirit was just beaten, and
+/// only from one not already in the pack.
+bool offerMakesSense(const RunState& s)
+{
+    if (s.offer == kNone) {
+        return true;
+    }
+    if (s.offer >= Spirit::Count || isBoss(s.offer) || hasPartner(s, s.offer)) {
+        return false;
+    }
+    if ((s.spiritsBeaten & (1u << s.offer)) == 0) {
+        return false;
+    }
+    return nodeDef(s.stage, s.node).kind == NodeKind::Encounter;
 }
 
 } // namespace
@@ -125,7 +138,7 @@ bool valid(const RunState& s)
     if (hut != NodeKind::Hut && hut != NodeKind::Start) {
         return false;
     }
-    if (!savePoint(s)) {
+    if (!savePoint(s) || !offerMakesSense(s)) {
         return false;
     }
     if (s.stamina == 0 || s.stamina > runnerMaxWithPartners(s).stamina) {
@@ -154,7 +167,7 @@ size_t encode(const RunState& s, char* out, size_t cap)
         "pc=%u\np0=%u\np1=%u\np2=%u\n"
         "bag=%u,%u,%u,%u,%u\n"
         "stage=%u\nnode=%u\nhut=%u\nmin=%u\nwx=%u\nlap=%u\n"
-        "boss=%u\ncache=%u\nmet=%lu\nbeat=%lu\nwon=%u\nlost=%u\nperf=%u\n",
+        "boss=%u\ncache=%u\nmet=%lu\nbeat=%lu\nwon=%u\nlost=%u\nperf=%u\noffer=%u\n",
         static_cast<unsigned long>(kVersion), static_cast<unsigned long>(s.rng),
         static_cast<unsigned>(s.level), static_cast<unsigned>(s.xp), static_cast<unsigned>(s.stamina),
         static_cast<unsigned>(s.partnerCount), static_cast<unsigned>(s.partners[0]),
@@ -165,7 +178,8 @@ size_t encode(const RunState& s, char* out, size_t cap)
         static_cast<unsigned>(s.minutes), static_cast<unsigned>(s.weather), static_cast<unsigned>(s.lap),
         static_cast<unsigned>(s.bossesBeaten), static_cast<unsigned>(s.cachesTaken),
         static_cast<unsigned long>(s.spiritsMet), static_cast<unsigned long>(s.spiritsBeaten),
-        static_cast<unsigned>(s.duelsWon), static_cast<unsigned>(s.duelsLost), static_cast<unsigned>(s.perfects));
+        static_cast<unsigned>(s.duelsWon), static_cast<unsigned>(s.duelsLost), static_cast<unsigned>(s.perfects),
+        static_cast<unsigned>(s.offer));
     if (n <= 0 || static_cast<size_t>(n) >= cap) {
         out[0] = '\0';
         return 0;
@@ -236,7 +250,7 @@ bool decode(const char* text, size_t len, RunState& out)
     // Narrowing, checked: a value too big for its field is refused, not cut.
     auto fits8  = [](uint32_t x) { return x <= 0xFFu; };
     auto fits16 = [](uint32_t x) { return x <= 0xFFFFu; };
-    static const uint8_t kBytes[] = { kLv, kPc, kP0, kP1, kP2, kStage, kNode, kHut, kWx, kLap, kBoss, kCache };
+    static const uint8_t kBytes[] = { kLv, kPc, kP0, kP1, kP2, kStage, kNode, kHut, kWx, kLap, kBoss, kCache, kOffer };
     static const uint8_t kWords[] = { kXp, kSt, kMin, kWon, kLost, kPerf };
     for (uint8_t k : kBytes) {
         if (!fits8(v[k])) {
@@ -279,6 +293,7 @@ bool decode(const char* text, size_t len, RunState& out)
     s.duelsWon      = static_cast<uint16_t>(v[kWon]);
     s.duelsLost     = static_cast<uint16_t>(v[kLost]);
     s.perfects      = static_cast<uint16_t>(v[kPerf]);
+    s.offer         = static_cast<SpeciesId>(v[kOffer]);
 
     if (!valid(s)) {
         return false;

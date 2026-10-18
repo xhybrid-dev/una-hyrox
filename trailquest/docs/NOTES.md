@@ -20,7 +20,14 @@ is right. British English.
 | 17 Oct 2026 | Each stage's boss is a big Trail Spirit; the summit's is the Summit Wolf | Jon |
 | 17 Oct 2026 | A beaten spirit offers to join; accept or decline; with a full pack, name who leaves | Jon |
 | 17 Oct 2026 | No lead partner: R1 plays the partner best placed against the spirit met (Q1 balance) | Claude, for Gate Q1 |
-| 17 Oct 2026 | Balance targets as in `BALANCE.md` | proposed, Gate Q1 |
+| 17 Oct 2026 | Balance targets as in `BALANCE.md` | agreed at Gate Q1 |
+| 18 Oct 2026 | A short run is right: "a quick game on a watch, not a console" (about 15 minutes of screens for the Ridge) | Jon |
+| 18 Oct 2026 | Gate Q2 is played on the watch (the CI build), not in the simulator | Jon |
+| 18 Oct 2026 | The game saves after every step that ends on the map (not only at huts) | Jon |
+| 18 Oct 2026 | Route choices on a top-down map of the stage | Jon |
+| 18 Oct 2026 | The beat is judged in the GUI (Beat.hpp is header-only) and sent as its result, so "PERFECT" shows with no round trip | Claude |
+| 18 Oct 2026 | R2 held 1.5 s leaves from any screen; a quick R2 is the screen's own (Fuel in a duel) | Claude |
+| 18 Oct 2026 | This build stops after the Valley Path (Session::kPlayableStages = 1) until Q4 | Claude |
 
 ## Findings from the SDK (17 October 2026)
 
@@ -381,6 +388,136 @@ Still open from Gate Q0, whenever convenient: can the six feedback patterns be
 told apart blind; does the 30 s backlight hold; does R2 leave cleanly; the
 battery over 10 minutes.
 
+## Gate Q1: result (18 October 2026)
+
+Jon: "Short run is good, it's a quick game on a watch, not a console. Let's
+progress to Q2." **Gate Q1 is passed.** The run's length (about 15 minutes of
+screens for the Ridge) is accepted as it is; the targets, the roster, the
+summit's difficulty and the rule changes stand as proposed (`BALANCE.md`).
+
+## Phase Q2: stage 1, playable (18 October 2026)
+
+**Decided with Jon at the start** (see Decisions): Gate Q2 is played on the
+watch; the game saves after every step; route choices on a top-down map. So the
+watch-side work the brief left for Q3 (saving on the watch, haptics in play)
+came forward; Q3 keeps sound (pitched jingles), battery and whatever the watch
+test turns up.
+
+**Built.**
+
+- **Core** (`Software/Libs/Core`, all host-tested):
+  - *Save after every step.* `Run` asks to save whenever a step ends on the
+    map, at an offer to join, at a stage clear and at the summit; never in the
+    middle of an obstacle or a duel. `RunState` gains `offer` (a beaten spirit
+    waiting for an answer), so quitting at an offer comes back to it. The save
+    accepts any place but an unbeaten boss's (`SaveCodec`, key `offer`).
+    Quitting mid-duel comes back to the last step: the stretch is walked again.
+  - *A stirred resume.* `Run::resume(state, stir)` mixes the service's clock
+    into the saved chance, so coming back after quitting mid-duel meets a fresh
+    spirit (quitting cannot dodge a fight, nor replay it). Stir 0 replays exactly.
+  - *`Session`* (service-only): the game as the service runs it. Commands in
+    (new game, travel, obstacle, duel turn, join, advance), views out
+    (`View.hpp`: `WorldView`, `DuelView`, plain structs the GUI reads), and when
+    to save. A command that does not fit the moment is refused and changes
+    nothing.
+  - *Text that fits* (`TextFit.hpp`, `Layout.hpp`, `Narrate.hpp`, header-only):
+    the round face's width at each row; the rows every screen uses; and every
+    line the game says (each duel event, every card), built to fit. Press Start
+    2P is monospace, so fitting is arithmetic, and the host tests prove every
+    name, move, item, place, exit and narrated line fits where it is drawn,
+    clear of the bezel arcs.
+  - *The map's layout* (`data/MapLayout.hpp`): all five stages share one shape,
+    so one layout serves them; tests check every stage matches it, every place
+    is on the face and clear of the text, and no path crosses a place.
+  - *`HoldTimer.hpp`* from Knitting (with its tests), for the holds.
+  - The settings (the beat on or off) in their own file, `settings.txt`.
+- **Messages** (`Libs/App/Header/Commands.hpp`): World and Duel snapshots from
+  the service; Hello, NewGame, Travel, ObstacleTry, DuelTurn, Join, Advance,
+  Settings and FxPlay from the GUI, each numbered; the World echoes the number.
+  The Q0 probe's BeatPress/BeatResult are gone. Every message is asserted under
+  256 bytes (the World is about 120, the Duel about 180).
+- **Service**: loads the save and settings, runs the Session, answers every
+  command with the World (and the Duel while there is one), then saves if asked;
+  holds the backlight 30 s after each command. One log line a step.
+- **GUI** (`Software/Apps/LVGL-GUI`): a screen manager (HybridX Trail's, but no
+  heap: two static slots), and seven screens: the title, the map, an obstacle,
+  the duel, an offer to join, the pack (three pages) and the stage clear.
+  Shared widgets: corner words by the arcs, a card, bars, the beat bar, flat
+  shapes for the map (Streak's `Paint`). Every screen: R2 held 1.5 s leaves (a
+  red arc grows on its bezel), L1+R2 shows the developer numbers. A click
+  counts only if its press came to the same screen outside the beat; a slow
+  press with no click counts on its release. An answer that does not come
+  within 2 s is asked for again. The Q0 probe screen is gone.
+- **Art**: Blister (a beetle), Chafe (a crab) and Old Mossback (a giant
+  tortoise, drawn on 32x32, so it stands taller); sprites now carry their size.
+  Sheet: `docs/screens/art-sheet.png`.
+- **Scripts**: `docs/experiments/capture_screens.sh` (every screen of a scripted
+  run, `docs/screens/q2-*.png`), `docs/experiments/sim_play.sh` (plays stage 1
+  to the clear with the beat off, then leaves and checks the save is picked up).
+
+**Findings.**
+
+- *The bezel arcs eat text.* The first screens had words under the arcs ("Play"
+  on R1's, "Beat" on L2's, an exit name between L2's and R2's). The arcs sit at
+  a radius of 110-116 px in four spans, so the layout now keeps every label's
+  box inside 109 px and every centred line clear of the spans (a host test,
+  from the SDK's arc angles). Consequences: a card is a title of 12 characters
+  and four lines of 13; exit names are 10 at most (some renamed: "The stream",
+  "Straight", "The pool"); the corner words are at most 5 at the top, 6 at the
+  bottom left.
+- *Text that does not fit is caught by the tests, not on the watch.* They found
+  five spirits' lines too long for a card (reworded: Bonk, Niggle, The Shale
+  King, Hypo, The Knife-Edge), two moves too long for a line ("Side scuttle",
+  "Antler rush") and a card line about a full bag.
+- *A strike's click is not a tap.* The button that strikes the beat sends its
+  click a frame later, after the result has arrived, and it dismissed the
+  result card at once. Fixed in the screen base (above).
+- *The beat in the simulator*: the needle starts when the choosing button's
+  click arrives, about 0.2 s after it goes down, so a script strikes PERFECT 1.3 s
+  after choosing. A player reacts to the needle they see, so this does not touch
+  play; it makes the scripts reliable.
+- *A player who misses every beat loses.* An auto-player striking at a fixed
+  0.9 s lost six duels running (Miss is half damage). With the beat off (every
+  turn Good) it clears the stage, as `run_sim`'s menu-only player does.
+
+**Verified.**
+
+- Host tests: **170 pass** (51 new: Session 8, TextFit 7, Layout 8, MapLayout 5,
+  HoldTimer 17, Run 3, Save 3; and the old ones updated for the new save rule).
+  Among them: every save asked for in 60 played games reloads exactly; stage 1
+  played to the clear by commands alone, 40 seeds; quitting at an offer comes
+  back to it; a stirred resume meets other spirits.
+- `balance_sim` and `run_sim`: unchanged (the save rules touch no numbers).
+- Simulator: builds clean; `sim_play.sh` clears stage 1 (54 presses) and the save
+  is picked up after leaving; `capture_screens.sh` runs a whole stage with the
+  beat on, two duels won, one obstacle, the boss, all 26 screens. LVGL's pool
+  peaks at 49 % (of 37 KB) on any screen.
+- Watch target: builds and links (compile check). GUI ELF 198,000 B text +
+  4,396 data + 173,252 bss = 375,648 B (the sprite buffers 33 KB, the screen
+  slots 1.2 KB); service ELF 33,752 B, now with the engine; `.uapp` 232,492 B.
+- CI: see the run on the pushed commit.
+
+**Not verified (cannot be, here).** Anything on the watch: how it reads at arm's
+length, the map's redraw time, whether the backlight hold is enough between
+turns, the haptics in play, whether a slow press sends a click on the watch,
+battery. That is Gate Q2.
+
+**Gate Q2: what Jon must test.** Install the CI build of this branch
+(`watch-apps` artifact, `TrailQuest_*.uapp`), the way the Q0 probe went on. Then:
+
+1. Play stage 1 from the title to Old Mossback (about 10 minutes, perhaps a few
+   tries). On the title R1 plays; on the map L1 picks the way, R1 goes, L2 shows
+   the pack; in a duel L1 Surge, L2 Settle, R1 the skill (its name in green),
+   R2 fuel; after choosing, any button strikes the beat.
+2. Is it fun? What would make it more so?
+3. The beat every turn: right, or a chore? (L2 on the title turns it off.)
+4. Is the text readable at arm's length? Anything clipped by the edge or the arcs?
+5. Is the map clear: which way you are choosing, where you are, what is where?
+6. Do the buzzes help (a hit, a miss, a perfect, a win, a loss)?
+7. Leave in the middle (hold R2 1.5 s) and come back: are you where you were?
+8. Still open from Q0: does the screen stay on long enough between turns;
+   battery over the session.
+
 ## Open items
 
 - The scene is a few flat shapes. A tile map (the route screens) is not tested
@@ -389,14 +526,14 @@ battery over 10 minutes.
 - The app has no configuration fields, so CI's manifest check is not wired for it.
 - Gate Q0's unreported items (feedback patterns blind, backlight hold, R2 exit,
   battery): see the gate record above.
-- The service does not run the core yet: Q2 wires `Run` into it, with the
-  messages the screens need (a duel's `TurnLog` is the playback for one turn).
-- The save is written only where `Run::wantsSave()` says (a stage's start, a
-  hut, a boss beaten, a loss, the summit); Q2 decides whether leaving mid-stage
-  saves too.
 - The second lap's balance is untested (`run_sim` stops at the summit): Q4.
-- Dialogue (what each spirit says) is not written; the roster's one-line pains
-  in `DESIGN.md` are the start of it.
+  The GUI has no screen for the summit's finish or the next lap yet (Q4).
+- Stages 2-5 need their spirits' art (Q4); until then a spirit without art
+  shows as Stitch (only a test build can reach one).
+- Dialogue is one line a spirit (its intro); a second line for Doubt's return,
+  and the bosses' parting words, are Q4 content.
+- The beat's zones are Q0's (a 1.6 s sweep, 400 ms good, 200 ms perfect). Q3
+  logs real strikes on the watch and may widen them.
 
 ## Review before Gate Q0 (17 October 2026)
 

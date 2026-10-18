@@ -181,7 +181,10 @@ TEST(Save, OutOfRangeAndInconsistentValuesAreRefused)
         { "bag", "1,1,1" },           // too few counts
         { "bag", "1,x,1,1,1" },
         { "stage", "5" },
-        { "node", "1" },              // the birch wood: not a save point
+        { "node", "8" },              // Mossback's pool, not yet beaten: that step ends in the duel
+        { "offer", "0" },             // an offer at the trailhead, from a spirit never beaten
+        { "offer", "4" },             // a boss never joins
+        { "offer", "22" }, { "offer", "256" },
         { "node", "40" },
         { "hut", "1" },               // not a hut
         { "wx", "9" },
@@ -196,6 +199,78 @@ TEST(Save, OutOfRangeAndInconsistentValuesAreRefused)
         const std::string text = withLine(good, b.key, b.value);
         EXPECT_FALSE(SaveCodec::decode(text.c_str(), text.size(), out)) << b.key << "=" << b.value;
     }
+}
+
+TEST(Save, AnOfferIsKeptOnlyWhereItMakesSense)
+{
+    TrailQuest::Run run;
+    run.newGame(3);
+    RunState s = run.state();
+    s.node          = 1;   // the birch wood
+    s.spiritsMet    = 1u << Spirit::Stitch;
+    s.spiritsBeaten = 1u << Spirit::Stitch;
+    s.offer         = Spirit::Stitch;
+    EXPECT_TRUE(SaveCodec::valid(s));
+    EXPECT_TRUE(SaveCodec::decode(encoded(s).c_str(), encoded(s).size(), s));
+
+    RunState t = s;
+    t.node = 3;   // the valley hut: no spirit was beaten there
+    EXPECT_FALSE(SaveCodec::valid(t));
+    t = s;
+    t.spiritsBeaten = 0;   // never beaten
+    t.spiritsMet    = 0;
+    EXPECT_FALSE(SaveCodec::valid(t));
+    t = s;
+    t.partnerCount = 1;   // already running with you
+    t.partners[0]  = Spirit::Stitch;
+    EXPECT_FALSE(SaveCodec::valid(t));
+}
+
+TEST(Save, EveryStepThatAsksToSaveMakesAValidSave)
+{
+    // The service saves whenever the game asks. Each of those states, in many
+    // games played many ways, must round-trip, or a save would be refused.
+    int saves = 0;
+    for (uint32_t seed = 1; seed <= 60; ++seed) {
+        TrailQuest::Run run;
+        run.newGame(seed);
+        for (int step = 0; step < 400 && run.phase() != RunPhase::Finished; ++step) {
+            if (run.wantsSave()) {
+                const RunState s = run.state();
+                const std::string text = encoded(s);
+                RunState back;
+                ASSERT_TRUE(SaveCodec::decode(text.c_str(), text.size(), back)) << "seed " << seed << ", step " << step
+                                                                                 << "\n" << text;
+                EXPECT_TRUE(same(s, back));
+                run.saved();
+                ++saves;
+            }
+            switch (run.phase()) {
+                case RunPhase::AtNode:
+                    run.travel(static_cast<uint8_t>((seed + static_cast<uint32_t>(step)) % run.node().exitCount));
+                    break;
+                case RunPhase::Obstacle:
+                    run.attemptObstacle(step % 2 ? BeatResult::Miss : BeatResult::Good);
+                    break;
+                case RunPhase::InDuel: {
+                    PlayerTurn t;
+                    t.action = static_cast<Action>(static_cast<uint32_t>(step) % 3u);
+                    t.beat   = step % 4 == 0 ? BeatResult::Miss : BeatResult::Good;
+                    run.duelTurn(t);
+                } break;
+                case RunPhase::JoinOffer:
+                    if (seed % 3 == 0) {
+                        run.declineJoin();
+                    } else {
+                        run.acceptJoin(static_cast<uint8_t>(seed % kMaxPartners));
+                    }
+                    break;
+                case RunPhase::StageClear: run.nextStage(); break;
+                default: break;
+            }
+        }
+    }
+    EXPECT_GT(saves, 1000);
 }
 
 TEST(Save, APartnerMustBeARegularSpiritAndAppearOnce)
@@ -256,4 +331,19 @@ TEST(Save, AnInvalidStateIsNeverWritten)
     bad.level = 0;
     EXPECT_FALSE(SaveStore::save(fs, bad));
     EXPECT_TRUE(same(SaveStore::load(fs).state, good));
+}
+
+TEST(Save, SettingsDefaultToTheBeatAndRoundTrip)
+{
+    TreeFileSystem fs;
+    EXPECT_TRUE(SaveStore::loadSettings(fs).beat);   // nothing saved: the beat is on
+    SaveStore::Settings off;
+    off.beat = false;
+    ASSERT_TRUE(SaveStore::saveSettings(fs, off));
+    EXPECT_FALSE(SaveStore::loadSettings(fs).beat);
+    SaveStore::Settings on;
+    ASSERT_TRUE(SaveStore::saveSettings(fs, on));
+    EXPECT_TRUE(SaveStore::loadSettings(fs).beat);
+    // A save game and the settings live in different files.
+    EXPECT_EQ(SaveStore::load(fs).source, SaveStore::Source::None);
 }

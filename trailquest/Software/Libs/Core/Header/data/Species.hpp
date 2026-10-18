@@ -65,7 +65,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     // Stage 1: Valley Path. Light; teaches the wheel.
     { "Stitch", "fox", "Finds the gap under your ribs and moves in.",
       1, Affinity::Pace, 90, 1, 0, -1, { Move::SideStitch, Move::Pounce }, 50, 0 },
-    { "Bonk", "bear", "Sits on you at mile twenty. Does not apologise.",
+    { "Bonk", "bear", "Sits on you at mile 20. Does not apologise.",
       1, Affinity::Grit, 120, -2, 0, 1, { Move::HitTheWall, Move::Lumber }, 40, 0 },
     { "Blister", "beetle", "Small. Patient. Lives in your left sock.",
       1, Affinity::Form, 95, 0, 0, -1, { Move::RubRaw, Move::Nip }, 50, 0 },
@@ -81,7 +81,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
       2, Affinity::Pace, 120, 2, -1, 0, { Move::Seize, Move::Swarm }, 50, 0 },
     { "Puff", "owl", "Asks if you are sure about this, very loudly.",
       2, Affinity::Grit, 90, -1, 0, 2, { Move::Wheeze, Move::Hoot }, 50, kSpeciesNight },
-    { "Niggle", "shrew", "Not an injury. Not yet. Keeps you wondering.",
+    { "Niggle", "shrew", "Not an injury yet. Keeps you guessing.",
       2, Affinity::Form, 125, 1, 1, 0, { Move::Nag, Move::Scurry }, 50, 0 },
     { "The Steep", "great stag", "The hill that keeps going after it should stop.",
       2, Affinity::Pace, 135, 0, 0, 1, { Move::AntlerCharge, Move::LongClimb }, 55, kSpeciesBoss },
@@ -95,7 +95,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
       3, Affinity::Form, 125, 1, 1, -1, { Move::Skid, Move::Trip }, 50, 0 },
     { "Ankle-biter", "marmot", "Knows exactly which stone will roll.",
       3, Affinity::Form, 125, 0, 1, 0, { Move::AnkleSnap, Move::Burrow }, 50, 0 },
-    { "The Shale King", "stone ram", "The mountain, deciding whether to let you pass.",
+    { "The Shale King", "stone ram", "The mountain, deciding if you may pass.",
       3, Affinity::Form, 140, -2, 2, 0, { Move::ShaleCrash, Move::Landslide }, 55, kSpeciesBoss },
 
     // Stage 4: Ridge Line. Exposed; the jokes thin out.
@@ -103,9 +103,9 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
       4, Affinity::Pace, 90, 1, -1, 0, { Move::Gust, Move::Headwind }, 50, 0 },
     { "Vertigo", "raven", "Circles where the ground falls away.",
       4, Affinity::Grit, 105, 1, 0, 1, { Move::Spiral, Move::Peck }, 50, 0 },
-    { "Hypo", "snow hare", "The cold you stop noticing. That is the danger.",
+    { "Hypo", "snow hare", "The cold you stop feeling. That's the danger.",
       4, Affinity::Form, 135, 1, 1, 0, { Move::Chill, Move::Bound }, 50, kSpeciesNight },
-    { "The Knife-Edge", "eagle", "Owns the narrow ridge, and the drop either side.",
+    { "The Knife-Edge", "eagle", "Owns the drop on either side.",
       4, Affinity::Pace, 110, 0, 0, 0, { Move::Stoop, Move::Updraught }, 55, kSpeciesBoss },
 
     // Stage 5: The Summit. Quiet and serious.

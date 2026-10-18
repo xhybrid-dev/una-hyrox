@@ -1,8 +1,8 @@
 /**
  ******************************************************************************
  * @file    SaveStore.hpp
- * @brief   The game's save file on the watch: save at a save point, load at
- *          start.
+ * @brief   The game's save file on the watch (written after every step that
+ *          ends on the map, read at start), and the player's settings.
  *
  * save.txt in the app's own folder (Apps/TrailQuest/), written whole through
  * SafeFile, which keeps save.txt.bak as the previous good copy. A load tries
@@ -44,6 +44,18 @@ bool save(SDK::Interface::IFileSystem& fs, const RunState& state);
 
 /// Load the saved game, if there is a usable one.
 Loaded load(SDK::Interface::IFileSystem& fs);
+
+/// The player's choices, kept apart from the game (a new game keeps them):
+/// settings.txt, "beat=1" or "beat=0".
+constexpr const char* kSettingsFile = "settings.txt";
+
+struct Settings {
+    bool beat = true;   ///< The timing beat in duels and obstacles; off: menu only.
+};
+
+bool     saveSettings(SDK::Interface::IFileSystem& fs, const Settings& settings);
+/// The saved settings, or the defaults if there are none (or they are unreadable).
+Settings loadSettings(SDK::Interface::IFileSystem& fs);
 
 } // namespace TrailQuest::SaveStore
 

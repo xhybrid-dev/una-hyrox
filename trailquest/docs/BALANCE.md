@@ -229,7 +229,9 @@ and x5/4), so practice shows; and Surge is 14 power (from 12). Then, in order:
 
 ## For Gate Q1
 
-Jon, please agree or change:
+**Decided, 18 October 2026** (NOTES, "Gate Q1: result"): a short run is right,
+"a quick game on a watch, not a console"; the targets, the summit and the rule
+changes stand as proposed. The questions as they were put:
 
 1. **The targets** above (regular 80-95 % in 3-6 turns; bosses 65-85 % fresh;
    each boss within a level of par; every run finishes).

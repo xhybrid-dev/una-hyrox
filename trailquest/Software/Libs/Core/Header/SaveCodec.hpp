@@ -11,10 +11,12 @@
  *   bag=gel,water,salt,poles,headtorch
  *   stage=…  node=…  hut=…  min=…  wx=…  lap=…
  *   boss=…  cache=…  met=…  beat=…  won=…  lost=…  perf=…
+ *   offer=…                 a beaten spirit waiting for an answer (255: none)
  *
  * decode() is strict: every key must be there and in range, and the whole must
- * make sense (a partner that is a boss, a node that is not a save point, more
- * consumables than the bag holds: all refused). A refused file makes the store
+ * make sense (a partner that is a boss, an unbeaten boss's place, an offer from
+ * a spirit already in the pack, more consumables than the bag holds: all
+ * refused). A refused file makes the store
  * fall back to the backup copy, then to a new game. Unknown keys are ignored,
  * so a later version can add some.
  ******************************************************************************

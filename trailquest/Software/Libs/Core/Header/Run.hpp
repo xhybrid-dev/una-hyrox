@@ -72,7 +72,7 @@ enum class Arrival : uint8_t {
     Found,         ///< item (or bagFull)
     Duel,          ///< a spirit: phase InDuel
     Obstacle,      ///< phase Obstacle
-    Hut,           ///< rested, the save point
+    Hut,           ///< rested; where a loss returns you
     Boss,          ///< the stage's boss: phase InDuel
     Refused,       ///< not a valid move now (wrong phase or exit)
 };
@@ -108,8 +108,11 @@ public:
     /// A new game from @p seed.
     void newGame(uint32_t seed);
 
-    /// Carry on from a saved state (already checked by the save codec).
-    void resume(const RunState& s);
+    /// Carry on from a saved state (already checked by the save codec). A
+    /// non-zero @p stir mixes the saved chance with it, so coming back after
+    /// quitting mid-duel meets a fresh spirit rather than the same one; 0
+    /// replays exactly (the tests).
+    void resume(const RunState& s, uint32_t stir = 0);
 
     const RunState& state() const { return mState; }
     RunPhase        phase() const { return mPhase; }
@@ -133,7 +136,7 @@ public:
     const DuelResult& lastDuel() const { return mLastDuel; }
 
     // -- JoinOffer -----------------------------------------------------------
-    SpeciesId offered() const { return mOffered; }
+    SpeciesId offered() const { return mState.offer; }
     /// Take the offer. With a full pack, @p replaceSlot names who leaves;
     /// otherwise pass kNone. False if that is not possible.
     bool acceptJoin(uint8_t replaceSlot = kNone);
@@ -143,13 +146,15 @@ public:
     void nextStage();
     void startNextLap();
 
-    /// The service saves when this is set (huts, new stages, a loss), then
-    /// calls saved().
+    /// The service saves when this is set, then calls saved(). It is set after
+    /// every step that ends in a resting phase (AtNode, JoinOffer, StageClear,
+    /// Finished), never in the middle of an obstacle or a duel.
     bool wantsSave() const { return mWantsSave; }
     void saved() { mWantsSave = false; }
 
 private:
     void startStage(uint8_t stage);
+    void rest(RunPhase phase);
     void startDuel(SpeciesId sp, uint8_t level);
     MoveId bestTechnique(const DuelSetup& base) const;
     void finishDuel();
@@ -165,7 +170,6 @@ private:
     RunPhase   mPhase     = RunPhase::AtNode;
     Duel       mDuel;
     DuelResult mLastDuel;
-    SpeciesId  mOffered   = kNone;
     bool       mWantsSave = false;
 };
 

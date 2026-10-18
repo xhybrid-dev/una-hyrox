@@ -69,7 +69,7 @@ inline constexpr MoveDef kMoves[Move::Count] = {
     { "Lumber",            7, Affinity::Grit, 0, Effect::None,   0  },
     { "Rub raw",           5, Affinity::Form, 0, Effect::Drain,  50 },
     { "Nip",               7, Affinity::Form, 0, Effect::None,   0  },
-    { "Sideways scuttle",  7, Affinity::Form, 0, Effect::Slow,   30 },
+    { "Side scuttle",      7, Affinity::Form, 0, Effect::Slow,   30 },
     { "Pinch",             8, Affinity::Form, 0, Effect::None,   0  },
     { "Moss slam",        11, Affinity::Grit, 0, Effect::None,   0  },
     { "Shell snap",        9, Affinity::Form, 0, Effect::None,   0  },
@@ -82,7 +82,7 @@ inline constexpr MoveDef kMoves[Move::Count] = {
     { "Hoot",              9, Affinity::Grit, 0, Effect::None,   0  },
     { "Nag",               5, Affinity::Form, 0, Effect::Rattle, 50 },
     { "Scurry",            8, Affinity::Pace, 0, Effect::None,   0  },
-    { "Antler charge",    11, Affinity::Pace, 0, Effect::None,   0  },
+    { "Antler rush",      11, Affinity::Pace, 0, Effect::None,   0  },
     { "Long climb",        8, Affinity::Grit, 0, Effect::Drain,  40 },
     // Stage 3.
     { "Leap",              8, Affinity::Pace, 0, Effect::None,   0  },
