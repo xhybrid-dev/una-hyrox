@@ -1,11 +1,15 @@
 # Trail Quest for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** Q0 (feasibility) built in the simulator and as a watch compile
-check, 17 October 2026; waiting on Jon's test on a real watch (Gate Q0).
+**Status:** Q2 (stage 1 playable) built, 18 October 2026, and waiting at Gate
+Q2 for Jon, played on the watch (NOTES, "Phase Q2"). Gates Q0 (17 October) and
+Q1 (18 October) passed.
 Decisions taken: tone "funny start, serious summit"; full 5 stages; Daily Trail
-as the planned extra; generated pixel art.
-**Read with:** `NOTES.md` (findings, decisions and the Q0 gate). Where this
+as the planned extra; generated pixel art; a loss sends you back to the last
+hut; bosses are big Trail Spirits; a beaten spirit offers to join; a short run
+(a quick game on a watch); saves after every step; a top-down map.
+**Read with:** `NOTES.md` (findings, decisions and the gates), `BALANCE.md`
+(the numbers) and `DESIGN.md` (the look, the voice and the roster). Where this
 brief and `NOTES.md` disagree, `NOTES.md` is right: it was written after the
 SDK check, and the sections below were not all rewritten. The corrections are
 listed next.
@@ -14,8 +18,10 @@ listed next.
 > 1. The watch GUI runs at **10 frames a second**, not 30, and delivers one
 >    button code per frame. Turn-based is right; the timing beat needs wide
 >    zones (never under 200 ms) and is optional.
-> 2. The buzzer has **no pitch** (a duration and one of four volumes), so there is
->    no chiptune. Sound is rhythm; the vibro does most of the work.
+> 2. The buzzer had **no pitch** (a duration and one of four volumes), so no
+>    chiptune. *Since SDK v1.6.0 it may have:* each note can carry a frequency,
+>    played if the watch's firmware is new enough (NOTES, finding 3). Not yet
+>    tried on a watch.
 > 3. The display is round, so the game's art is not edge to edge: headings and
 >    text sit inside the circle.
 > 4. Colours are on a grid of **0x00, 0x40, 0x80, 0xC0** a channel, and indexed
@@ -23,6 +29,15 @@ listed next.
 >    pool). Sprites are our own 4-bit format, expanded into RAM buffers.
 > 5. Everything the GUI process uses from the core must be **header-only**: the
 >    GUI links none of the library sources.
+>
+> **Changes in Q1 (17 October 2026)**, which supersede sections 3-5 below (NOTES,
+> "Phase Q1", lists them all): there is no lead partner (R1 plays the partner
+> best placed against the spirit met); Settle is a Grit move; damage uses the
+> stat the move's affinity names; stamina comes back on the trail and before a
+> boss; partners do not level on their own; five kinds of item for now; the
+> roster is 17 regular spirits and 5 bosses (`DESIGN.md`), and Camber is not in
+> it (no river stage). A first crossing of the Ridge is far shorter than the
+> "2 to 3 hours" of section 1: a decision at Gate Q1.
 
 ---
 
@@ -36,7 +51,8 @@ Win, and a creature joins your pack as a running partner. At the end of each
 stage a boss waits at the summit.
 
 It is a game first. Short sessions (2 to 5 minutes), one run through the
-stages in about 2 to 3 hours of play, then a harder second lap.
+stages in well under an hour of play (Gate Q1: "a quick game on a watch, not
+a console"), then a harder second lap.
 
 It is not a copy of anything. No Pokémon names, creatures, moves, art, music,
 type chart or catchphrases are used. The shared idea is only "meet creatures,
@@ -147,7 +163,8 @@ From the SDK docs checked on 17 October 2026 (to be re-verified in Q0):
   at 10 frames a second.
 - Four buttons (L1, L2, R1, R2), no touchscreen.
 - Vibration (8-note melodies of 21 named effects) and a buzzer (10 notes, each
-  a duration and a volume of 0, 33, 66 or 100; no pitch).
+  a duration and a volume of 0, 33, 66 or 100; a pitch since SDK v1.6.0, if the
+  firmware supports it).
 - No MMU, no heap churn in the loop, fixed-size messages (the standing rules).
 
 Design consequences:
@@ -193,8 +210,8 @@ or decide. Build the watch target and the simulator after every change.
 |---|---|---|
 | **Q0: feasibility** | A probe screen: a scene, three animated sprites, the button bezel, a timing beat, the feedback patterns, and live frame/memory numbers. Measure on a real watch | **Gate Q0:** the art looks right and the timing beat is playable at 10 frames a second on the watch, or Jon accepts a menu-only duel |
 | **Q1: core** | World graph, duel engine, stats, items, save; host tests and the balance simulator | **Gate Q1:** duels are deterministic and balanced on paper (win-rate targets agreed with Jon) |
-| **Q2: one stage** | Stage 1 playable end to end in the simulator: map, route choice, 4 creatures, one boss, huts, save | **Gate Q2:** Jon plays stage 1 in the simulator and it is fun for 10 minutes |
-| **Q3: service and watch** | Service from RunLVGL, haptics and sound, real-watch build from CI | **Gate Q3:** stage 1 plays on a real watch; battery over a 30-minute session recorded |
+| **Q2: one stage** | Stage 1 playable end to end: map, route choice, 4 creatures, one boss, huts, save (and, since Jon tests on the watch, the save and haptics on the watch) | **Gate Q2:** Jon plays stage 1 on the watch (the CI build) and it is fun for 10 minutes |
+| **Q3: service and watch** | Sound (pitched jingles, if the firmware plays them), the beat tuned from real strikes, what the Q2 test turns up | **Gate Q3:** stage 1 plays well on a real watch; battery over a 30-minute session recorded |
 | **Q4: the rest** | Stages 2 to 5, the remaining creatures, items, levelling, second lap | **Gate Q4:** a full run can be finished; no dead ends found by the route tests |
 | **Q5: release** | Icons, store package, tags `trailquest-vX.Y.Z` | **Gate Q5:** Jon uploads to the portal |
 
@@ -231,13 +248,15 @@ worth finishing. Q4 is mostly content and balance, not new engineering.
    About 16 creatures at 2 frames each, plus 5 tile sets and a runner sprite.
 7. **Tone.** Light and funny (Stitch, Bonk, Doubt) or more serious and
    atmospheric? The names above lean light.
-8. **Sound.** Closed: the buzzer has no pitch, so haptics plus rhythmic beeps
-   (NOTES, finding 3).
+8. **Sound.** Reopened by SDK v1.6.0: notes can carry a pitch. Short pitched
+   jingles (a win, a level-up, a boss) are worth a test on the watch; the
+   game must still work as rhythm on older firmware (NOTES, finding 3).
 
 ## 11. Questions for UNA / SDK checks (do not guess; answer in Q0)
 
 Answered from the SDK (details and citations in `NOTES.md`): the frame rate is
-10 a second; the buzzer has no pitch; press, click and release codes exist;
+10 a second; the buzzer has pitch only since SDK v1.6.0 and only on new enough
+firmware; press, click and release codes exist;
 saving is through `IFileSystem` in the app's folder. Still open for the watch
 itself (the Q0 gate): real render time per frame, whether the backlight hold
 works, the order button codes arrive in, which button the system keeps for itself,
