@@ -622,6 +622,23 @@ battery over a session follow.
    captured in `docs/screens/q3-02` to `q3-09`, `q3-32` and `q3-36`): change anything.
 5. Still open: battery over a 30-minute session.
 
+### Jon's watch test of Q3 part 1 (19 October 2026)
+
+Battery drain "seems ok considering the use and screen time". Three notes on
+the screens, all fixed:
+
+1. "What does Beat mean?" It was the timing beat (press as the needle hits the
+   green), but the word said nothing. The title's L2 is now **Timing**, with
+   "(on)" or "(off)" under it.
+2. The title was cramped between where you are and L2's word: a line now sits
+   between them, and the rows are spaced out.
+3. In a duel the words at the top ("Surge Skill" over the technique) touched
+   each other, sat on the bright sky, and nothing said what Surge and Skill do.
+   The rows are 20 px apart (was 16), on a darker band, and the first duel of a
+   game opens with a help card (three pages: L1 Surge and L2 Settle; R1 Skill
+   and R2 Fuel; the needle, only while the beat is on). Any of L1, L2 or R1
+   pages on. `Narrate::helpPage`, host-tested to fit.
+
 ## Open items
 
 - The scene is a few flat shapes. A tile map (the route screens) is not tested

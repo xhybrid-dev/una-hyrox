@@ -49,13 +49,13 @@ constexpr const char* kYes    = "Yes";
 constexpr const char* kNo     = "No";
 constexpr const char* kPlay   = "Play";
 constexpr const char* kNew    = "New";
-constexpr const char* kBeat   = "Beat";
+constexpr const char* kTiming = "Timing";   // title, L2: the timing beat on or off
 constexpr const char* kOk     = "OK";
 constexpr const char* kSkip   = "Skip";
 
 inline constexpr const char* kTopLeft[]     = { kSurge, kNext, kNew, kSkip };       // L1
 inline constexpr const char* kTopRight[]    = { kSkill, kUse, kGo, kYes, kPlay, kOk };  // R1
-inline constexpr const char* kBottomLeft[]  = { kSettle, kBack, kNo, kPack, kBeat };   // L2
+inline constexpr const char* kBottomLeft[]  = { kSettle, kBack, kNo, kPack, kTiming };   // L2
 inline constexpr const char* kBottomRight[] = { kFuel, kBack };                        // R2
 inline constexpr const char* kMapLeft[]     = { kPath };                               // L1 on the map
 inline constexpr const char* kMapRight[]    = { kGo };                                 // R1 on the map
@@ -324,6 +324,44 @@ inline void offer(Lines& out, SpeciesId sp, bool leaving)
     out.clear();
     TextFit::addLine(out, speciesDef(sp).name, Layout::kCardCols);
     TextFit::addLine(out, leaving ? "leaves?" : "joins you?", Layout::kCardCols);
+}
+
+/// How many pages of "your moves" help there are: the four moves, and (while
+/// the timing beat is on) the needle.
+constexpr uint8_t kHelpPages = 3;
+
+/// The pages the duel's help card shows, as card lines (a title of 12, then
+/// four of 13). @p page past the end gives an empty card.
+inline void helpPage(Lines& out, uint8_t page)
+{
+    using Layout::kCardCols;
+    using Layout::kCardTitleCols;
+    out.clear();
+    switch (page) {
+        case 0:
+            TextFit::addLine(out, "L1 and L2", kCardTitleCols);
+            TextFit::addLine(out, "Surge: a hard", kCardCols);
+            TextFit::addLine(out, "hit, costs", kCardCols);
+            TextFit::addLine(out, "stamina.", kCardCols);
+            TextFit::addLine(out, "Settle: rest", kCardCols);
+            break;
+        case 1:
+            TextFit::addLine(out, "R1 and R2", kCardTitleCols);
+            TextFit::addLine(out, "Skill: your", kCardCols);
+            TextFit::addLine(out, "partner's", kCardCols);
+            TextFit::addLine(out, "move.", kCardCols);
+            TextFit::addLine(out, "Fuel: an item", kCardCols);
+            break;
+        case 2:
+            TextFit::addLine(out, "The needle", kCardTitleCols);
+            TextFit::addLine(out, "Choose, then", kCardCols);
+            TextFit::addLine(out, "tap as the", kCardCols);
+            TextFit::addLine(out, "needle is in", kCardCols);
+            TextFit::addLine(out, "the green.", kCardCols);
+            break;
+        default:
+            break;
+    }
 }
 
 /// A story page's body, as the story card's lines (its headline is the

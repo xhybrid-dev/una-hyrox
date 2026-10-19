@@ -62,7 +62,7 @@ constexpr uint8_t kCardCols      = 13;
 constexpr uint8_t kCardTitleCols = 12;
 
 constexpr int32_t kNarrRow   = 56;
-constexpr int32_t kNarrPitch = 16;
+constexpr int32_t kNarrPitch = 20;   // a gap between the two rows (the labels' and the technique's)
 constexpr uint8_t kNarrLines = 2;
 constexpr uint8_t kNarrCols  = 12;
 

@@ -15,6 +15,7 @@
 #include "Layout.hpp"
 #include "Narrate.hpp"
 #include "gui/Sprites.hpp"
+#include "gui/screens/DuelScreen.hpp"
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/screens/StoryScreen.hpp"
 
@@ -37,10 +38,12 @@ void TitleScreen::build()
     mSpirit.create(mRoot, 104, 78, TRAILQUEST_SPRITE_FOX, SpriteBuffers::small(1), SpriteBuffers::kSmall);
     mBear.create(mRoot, 152, 78, TRAILQUEST_SPRITE_BEAR, SpriteBuffers::small(2), SpriteBuffers::kSmall);
 
-    mStatus = Ui::rowLabel(mRoot, 136, mStatusText);
+    mStatus = Ui::rowLabel(mRoot, 134, mStatusText);
+    // A line between where you are and the buttons' words.
+    Draw::hline(mRoot, 60, 153, 120, Ui::Ink::kEdge);
     mCorners.create(mRoot);
-    mBeat = Ui::rowLabel(mRoot, 178, mBeatText, Ui::Ink::kDim);
-    mHint = Ui::rowLabel(mRoot, 196, "Hold R2", Ui::Ink::kDim);
+    mBeat = Ui::rowLabel(mRoot, 180, mBeatText, Ui::Ink::kDim);
+    mHint = Ui::rowLabel(mRoot, 198, "Hold R2", Ui::Ink::kDim);
     // Under the corner labels' rows the face is narrow: no label there but
     // the hint, which says how to leave.
     refresh();
@@ -67,10 +70,10 @@ void TitleScreen::refresh()
         std::snprintf(mStatusText, sizeof(mStatusText), "A new run");
     }
     lv_label_set_text_static(mStatus, mStatusText);
-    std::snprintf(mBeatText, sizeof(mBeatText), "Beat: %s", mModel.beatOn() ? "on" : "off");
+    std::snprintf(mBeatText, sizeof(mBeatText), "(%s)", mModel.beatOn() ? "on" : "off");
     lv_label_set_text_static(mBeat, mBeatText);
 
-    mCorners.set(saved ? Label::kNew : nullptr, known ? Label::kPlay : nullptr, Label::kBeat, nullptr);
+    mCorners.set(saved ? Label::kNew : nullptr, known ? Label::kPlay : nullptr, Label::kTiming, nullptr);
     setArcs(saved ? Buttons::AMBER : Buttons::NONE, Buttons::WHITE, known ? Buttons::GREEN : Buttons::NONE, Buttons::RED);
 }
 
@@ -81,6 +84,7 @@ void TitleScreen::onWorld()
         if (!mModel.lost()) {
             // The opening tale and the first stage's pages, then the map.
             StoryScreen::newGame();
+            DuelScreen::newGame();
             StoryScreen::play(StoryPlan::of(StoryId::Opening, StoryId::StageStart, mModel.world().state.stage));
             return;
         }

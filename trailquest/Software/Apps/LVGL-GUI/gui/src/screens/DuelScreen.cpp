@@ -28,6 +28,8 @@ namespace Label = TrailQuest::Narrate::Label;
 using SDK::LVGL::Buttons;
 using namespace TrailQuest;
 
+bool DuelScreen::sHelpSeen = false;
+
 namespace
 {
 constexpr uint8_t kEventFrames = 9;    ///< Each event of a turn stays this many frames (0.9 s).
@@ -87,6 +89,8 @@ void DuelScreen::build()
     Draw::box(mRoot, 0, 104, 240, 22, 0x008000);
     Draw::box(mRoot, 0, 122, 240, 18, 0x00C000);
     Draw::box(mRoot, 0, 138, 240, 20, 0x804000);
+    // A darker band behind the words at the top, so they read on any sky.
+    lv_obj_set_style_bg_opa(Draw::box(mRoot, 0, 48, 240, 44, Ui::Ink::kPanel), LV_OPA_80, 0);
 
     mRunner.create(mRoot, kRunnerX, kGroundY - 48, TRAILQUEST_SPRITE_RUNNER, SpriteBuffers::small(0), SpriteBuffers::kSmall);
     const uint8_t sprite = Art::spriteFor(d.species);
@@ -122,6 +126,21 @@ void DuelScreen::onShow()
     }
 }
 
+uint8_t DuelScreen::helpPages() const
+{
+    // The needle's page only matters while the timing beat is on.
+    return mModel.beatOn() ? Narrate::kHelpPages : static_cast<uint8_t>(Narrate::kHelpPages - 1u);
+}
+
+void DuelScreen::showHelp(uint8_t page)
+{
+    mHelpPage = page;
+    TextFit::Lines lines;
+    Narrate::helpPage(lines, page);
+    mCard.show(lines);
+    setMode(Mode::Help);
+}
+
 void DuelScreen::say(const TextFit::Lines& lines, uint32_t color)
 {
     mSaid = lines;
@@ -135,12 +154,17 @@ void DuelScreen::setMode(Mode m)
 {
     mMode = m;
     mBeat.setHidden(m != Mode::Beat);
-    if (m != Mode::Intro && m != Mode::End) {
+    if (m != Mode::Intro && m != Mode::End && m != Mode::Help) {
         mCard.hide();
     }
     const DuelView& d = mModel.duel();
     TextFit::Lines  none;
     switch (m) {
+        case Mode::Help:
+            say(none, Ui::Ink::kText);
+            mCorners.set(nullptr, mHelpPage + 1u < helpPages() ? Label::kNext : Label::kOk, nullptr, nullptr);
+            setArcs(Buttons::NONE, Buttons::NONE, Buttons::GREEN, Buttons::RED);
+            break;
         case Mode::Intro:
         case Mode::End:
             say(none, Ui::Ink::kText);
@@ -248,7 +272,21 @@ void DuelScreen::onKey(uint8_t code)
     switch (mMode) {
         case Mode::Intro:
             if (code == Btn::R1 || code == Btn::L1 || code == Btn::L2) {
-                setMode(Mode::Choose);
+                if (!sHelpSeen) {
+                    sHelpSeen = true;
+                    showHelp(0);
+                } else {
+                    setMode(Mode::Choose);
+                }
+            }
+            break;
+        case Mode::Help:
+            if (code == Btn::R1 || code == Btn::L1 || code == Btn::L2) {
+                if (mHelpPage + 1u < helpPages()) {
+                    showHelp(static_cast<uint8_t>(mHelpPage + 1u));
+                } else {
+                    setMode(Mode::Choose);
+                }
             }
             break;
         case Mode::Choose:

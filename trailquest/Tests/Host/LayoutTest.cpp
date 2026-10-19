@@ -342,6 +342,19 @@ TEST(Layout, EveryDuelEndObstacleOfferAndStageCardFits)
     }
 }
 
+TEST(Layout, EveryHelpPageFitsACard)
+{
+    for (uint8_t p = 0; p < Narrate::kHelpPages; ++p) {
+        Lines l;
+        Narrate::helpPage(l, p);
+        EXPECT_EQ(l.count, kCardLines) << int(p);
+        expectFits(l, kCardLines, kCardCols, "help");
+    }
+    Lines none;
+    Narrate::helpPage(none, Narrate::kHelpPages);
+    EXPECT_EQ(none.count, 0u);
+}
+
 TEST(Layout, EveryStoryPageFitsItsCard)
 {
     for (StoryId id : { StoryId::Opening, StoryId::StageStart, StoryId::BossAhead, StoryId::BossBeaten }) {

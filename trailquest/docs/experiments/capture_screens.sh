@@ -72,6 +72,9 @@ key 3;              snap q3-11-map                 # where each way leads, under
 key 1;              snap q3-12-map-other-way
 key 1
 key 3 1.6;          snap q3-13-duel-intro          # the woods path: a spirit
+key 3;              snap q3-13a-help-moves        # the first duel explains the buttons
+key 3;              snap q3-13b-help-moves2
+key 3;              snap q3-13c-help-needle
 key 3;              snap q3-14-duel-choose
 key 4;              snap q3-15-duel-fuel
 key 4
