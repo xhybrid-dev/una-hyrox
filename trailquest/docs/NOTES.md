@@ -28,6 +28,8 @@ is right. British English.
 | 18 Oct 2026 | The beat is judged in the GUI (Beat.hpp is header-only) and sent as its result, so "PERFECT" shows with no round trip | Claude |
 | 18 Oct 2026 | R2 held 1.5 s leaves from any screen; a quick R2 is the screen's own (Fuel in a duel) | Claude |
 | 18 Oct 2026 | This build stops after the Valley Path (Session::kPlayableStages = 1) until Q4 | Claude |
+| 18 Oct 2026 | Creatures are named for how they look, colour and animal (the Red Fox, the Old Tortoise); the runner's jokes stay in their lines and moves | Jon, at Gate Q2 |
+| 18 Oct 2026 | Story at the key moments: an opening tale, each stage's start, its boss ahead and beaten; the map says where each way leads | Jon, at Gate Q2 |
 
 ## Findings from the SDK (17 October 2026)
 
@@ -452,7 +454,7 @@ test turns up.
   tortoise, drawn on 32x32, so it stands taller); sprites now carry their size.
   Sheet: `docs/screens/art-sheet.png`.
 - **Scripts**: `docs/experiments/capture_screens.sh` (every screen of a scripted
-  run, `docs/screens/q2-*.png`), `docs/experiments/sim_play.sh` (plays stage 1
+  run, `docs/screens/q2-*.png`, replaced by `q3-*.png` in Q3), `docs/experiments/sim_play.sh` (plays stage 1
   to the clear with the beat off, then leaves and checks the save is picked up).
 
 **Findings.**
@@ -537,6 +539,106 @@ things, all fixed and checked in the simulator:
 8. Still open from Q0: does the screen stay on long enough between turns;
    battery over the session.
 
+## Gate Q2: result (18 October 2026)
+
+Jon played stage 1 on the watch (the CI build): "It's working incredibly well."
+**Gate Q2 is passed.** Two notes, both taken into Q3 (below):
+
+1. "I'm not convinced on the naming of the creatures as chafe and blister etc,
+   can they be typical creatures based on their appearance." Decided: colour
+   and animal.
+2. "A bit hard to follow the journey. Perhaps a few text story explaining
+   screens could help build a story?" Decided: story at the key moments.
+
+## Phase Q3: the Gate Q2 notes (part 1, 18 October 2026)
+
+Q3 is "what the Q2 test turns up", then sound and the beat. Part 1 is Jon's two
+notes; part 2 (pitched jingles, the beat tuned from real strikes) and the
+battery over a session follow.
+
+**Built.**
+
+- **Names.** Every spirit is named for how it looks; ids, numbers and lines
+  are unchanged, so saves and the balance are untouched (`balance_sim` and
+  `run_sim` re-run: every number the same). One line changed (the stag's: it
+  leaned on "The Steep") and two places ("Tortoise pool", "Stag's crag").
+
+  | Stage | Spirits | Boss |
+  |---|---|---|
+  | 1 Valley Path | Red Fox, Brown Bear, Ruby Beetle, Sand Crab | Old Tortoise |
+  | 2 Switchback Climb | Fire Newt, Gnat Swarm, Barn Owl, Pygmy Shrew | The Great Stag |
+  | 3 Scree Fields | Rock Goat, Mist Wisp, Wall Lizard, Marmot | The Ram King |
+  | 4 Ridge Line | Wind Sprite, Raven, Snow Hare | The Golden Eagle |
+  | 5 The Summit | Ghost Goat, Snow Fox, the Mist Wisp again | The Summit Wolf |
+
+  The `Spirit::` ids and the sprites (`gen_art.py`: fox, bear, beetle, crab,
+  tortoise) follow; the art itself is unchanged.
+- **Story** (`Libs/Core/Header/data/Story.hpp`, header-only): pages of a
+  headline (9 characters), a body (five lines of 12 on the card) and who
+  stands in the scene. The opening tale (six pages: the Ridge, the spirits, a
+  duel and the beat, the wheel, the pack, the map and leaving); for each of the
+  five stages, two pages as it starts (the place, then its boss), one at the
+  boss and one when it is beaten. All five stages are written, so Q4 has them.
+  `StoryPlan` plays one or two stories in a row (a new game: the opening, then
+  stage 1's).
+- **The story screen** (`gui/screens/StoryScreen.*`): the headline, the card,
+  and a strip of the stage's sky and ground with the runner and the spirit or
+  boss the page is about. R1 the next page (OK on the last), L1 skips. When it
+  ends it goes where the game is (`screenFor`), so it needs no command and
+  cannot get out of step with the service. Where it plays: a new game (title,
+  eight pages, then the map); a new stage (Q4's); the boss ahead, the first
+  time this game (not on a retry after a loss); the boss beaten, before the
+  stage clear. Picking a save up still says "Welcome back".
+- **The map says where each way leads**, on a new row under the way's name:
+  "A spirit", "A hazard", "A hut", "Supplies" ("Nothing" once taken), "Quiet",
+  "The boss". The stamina bar moved down under it. The map's stage-start card
+  now says only the day's weather and the time ("Clear today", "It's dawn."):
+  the story has said where you are, but the weather changes the fight (rain
+  dulls Form moves, wind Pace ones), so it stays. (The plan dropped this card;
+  kept, as one short card, for that reason.)
+
+**Verified.**
+
+- Host tests: 174 pass (was 170): every story page fits its card and has a
+  headline that fits row 28; the story's rows and the map's new row are clear
+  of the bezel arcs; every way on every map says something that fits; a plan
+  pages through its stories in order and never past them.
+- Simulator: `capture_screens.sh` (now `docs/screens/q3-*.png`, 38 screens, the
+  q2 set replaced) plays the opening tale, the map with its new row, both boss
+  pages and the clear; `sim_play.sh` still clears stage 1 (64 presses, 10 of
+  them story pages) and the save is picked up. LVGL pool peak 49 % (the story
+  screen 27-36 %).
+- Watch compile check: links; GUI 379,532 B (+3.9 KB), service 33,816 B,
+  `.uapp` 236,692 B.
+
+**Gate Q3 (part 1): what Jon must test** (the CI build, `watch-apps`):
+
+1. Start a new game (hold L1 on the title over the save). Read the opening tale:
+   the right length, or skip it with L1? Does it make the game clear?
+2. Do the names read better? Any you would change?
+3. Is the journey easier to follow: the stage's pages, the boss's page before
+   the fight and after, and the map's row saying where each way leads?
+4. The copy, line by line (`Libs/Core/Header/data/Story.hpp`; the pages are
+   captured in `docs/screens/q3-02` to `q3-09`, `q3-32` and `q3-36`): change anything.
+5. Still open: battery over a 30-minute session.
+
+### Jon's watch test of Q3 part 1 (19 October 2026)
+
+Battery drain "seems ok considering the use and screen time". Three notes on
+the screens, all fixed:
+
+1. "What does Beat mean?" It was the timing beat (press as the needle hits the
+   green), but the word said nothing. The title's L2 is now **Timing**, with
+   "(on)" or "(off)" under it.
+2. The title was cramped between where you are and L2's word: a line now sits
+   between them, and the rows are spaced out.
+3. In a duel the words at the top ("Surge Skill" over the technique) touched
+   each other, sat on the bright sky, and nothing said what Surge and Skill do.
+   The rows are 20 px apart (was 16), on a darker band, and the first duel of a
+   game opens with a help card (three pages: L1 Surge and L2 Settle; R1 Skill
+   and R2 Fuel; the needle, only while the beat is on). Any of L1, L2 or R1
+   pages on. `Narrate::helpPage`, host-tested to fit.
+
 ## Open items
 
 - The scene is a few flat shapes. A tile map (the route screens) is not tested
@@ -548,9 +650,10 @@ things, all fixed and checked in the simulator:
 - The second lap's balance is untested (`run_sim` stops at the summit): Q4.
   The GUI has no screen for the summit's finish or the next lap yet (Q4).
 - Stages 2-5 need their spirits' art (Q4); until then a spirit without art
-  shows as Stitch (only a test build can reach one).
-- Dialogue is one line a spirit (its intro); a second line for Doubt's return,
-  and the bosses' parting words, are Q4 content.
+  shows as the Red Fox (only a test build can reach one), in a duel and on the
+  story pages.
+- Dialogue is one line a spirit (its intro); a second line for the Mist Wisp's
+  return is Q4 content (the bosses' pages are written: `data/Story.hpp`).
 - The beat's zones are Q0's (a 1.6 s sweep, 400 ms good, 200 ms perfect). Q3
   logs real strikes on the watch and may widen them.
 

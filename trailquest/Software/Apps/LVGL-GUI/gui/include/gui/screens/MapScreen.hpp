@@ -12,6 +12,9 @@
  *   L1  the other way (where there are two)    R1  go
  *   L2  the pack                                R2 held: leave
  *
+ * Under the chosen way's name, what lies that way (a spirit, a hazard, a
+ * hut...), so a fork is a choice.
+ *
  * After a step: the runner walks the line (about a second), then a duel or
  * an obstacle takes over, or a card says what was there (any button).
  ******************************************************************************
@@ -51,6 +54,7 @@ private:
     lv_obj_t*   mDot     = nullptr;
     lv_obj_t*   mClock   = nullptr;
     lv_obj_t*   mExit    = nullptr;
+    lv_obj_t*   mLeads   = nullptr;   ///< What lies the chosen way.
     Ui::Corners mCorners;
     Ui::Bar     mStamina;
     Ui::Card    mCard;

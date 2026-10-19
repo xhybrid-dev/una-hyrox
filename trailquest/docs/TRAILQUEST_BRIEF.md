@@ -1,13 +1,15 @@
 # Trail Quest for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** Q2 (stage 1 playable) built, 18 October 2026, and waiting at Gate
-Q2 for Jon, played on the watch (NOTES, "Phase Q2"). Gates Q0 (17 October) and
-Q1 (18 October) passed.
+**Status:** Q3 part 1 (creatures named for how they look, the story, the map
+saying where each way leads) built, 18 October 2026, for Jon to play on the
+watch (NOTES, "Phase Q3"). Gates Q0 (17 October), Q1 and Q2 (18 October)
+passed.
 Decisions taken: tone "funny start, serious summit"; full 5 stages; Daily Trail
 as the planned extra; generated pixel art; a loss sends you back to the last
 hut; bosses are big Trail Spirits; a beaten spirit offers to join; a short run
-(a quick game on a watch); saves after every step; a top-down map.
+(a quick game on a watch); saves after every step; a top-down map; creatures
+named colour and animal; story at the key moments.
 **Read with:** `NOTES.md` (findings, decisions and the gates), `BALANCE.md`
 (the numbers) and `DESIGN.md` (the look, the voice and the roster). Where this
 brief and `NOTES.md` disagree, `NOTES.md` is right: it was written after the
@@ -92,6 +94,10 @@ partner), supply cache (item), and the boss.
 
 Original, athlete-flavoured, and named for what they do to a runner. Working
 names only, to be replaced by Jon's:
+
+(Gate Q2 renamed them for what they look like, colour and animal: the Red Fox,
+the Brown Bear, the Rock Goat. The names below are the brief's first drafts;
+`DESIGN.md` has the roster and `NOTES.md` the decision.)
 
 - **Stitch**: a fox-like creature that gives you a stitch, so it hits stamina.
 - **Bonk**: a heavy bear-shape that drains energy late in the stage.

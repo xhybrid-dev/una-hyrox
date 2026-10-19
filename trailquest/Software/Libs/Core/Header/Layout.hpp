@@ -15,9 +15,13 @@
  *   row 160   L2's word at the left, R2's at the right
  *   row 176   the map's chosen exit
  *   row 190   the duel's runner numbers
+ *   row 192   on the map: what lies that way
  *
  * The map moves its top labels up (row 42, under the clock at row 24) to
  * leave the middle of the face to the trail.
+ *
+ * A story page has its headline on row 28 and its body on the card's rows,
+ * five lines of twelve (no title line), over a strip of scene (rows 156 on).
  *
  * The duel's narration takes the label rows while a turn plays back (no
  * button does anything then), two lines of twelve.
@@ -58,7 +62,7 @@ constexpr uint8_t kCardCols      = 13;
 constexpr uint8_t kCardTitleCols = 12;
 
 constexpr int32_t kNarrRow   = 56;
-constexpr int32_t kNarrPitch = 16;
+constexpr int32_t kNarrPitch = 20;   // a gap between the two rows (the labels' and the technique's)
 constexpr uint8_t kNarrLines = 2;
 constexpr uint8_t kNarrCols  = 12;
 
@@ -68,6 +72,16 @@ constexpr uint8_t kExitCols = 10;
 constexpr int32_t kFootRow  = 190;
 constexpr uint8_t kFootCols = 10;
 
+/// A story page's body: on the card's rows, every line as narrow as the
+/// title row's.
+constexpr int32_t kStoryRow   = kCardRow;
+constexpr uint8_t kStoryLines = kCardLines;
+constexpr uint8_t kStoryCols  = kCardTitleCols;
+/// The scene under it: the sky from kSceneTop, the ground from kSceneGround,
+/// which the figures stand on.
+constexpr int32_t kSceneTop    = 156;
+constexpr int32_t kSceneGround = 216;
+
 constexpr int32_t kMapClockRow  = 24;
 constexpr uint8_t kMapClockCols = 8;
 constexpr int32_t kMapLabelRow   = 42;
@@ -76,6 +90,11 @@ constexpr int32_t kMapLabelRight = 196;
 /// The map's places are drawn between these rows (icons included).
 constexpr int32_t kMapTop    = 60;
 constexpr int32_t kMapBottom = 174;
+/// Under the chosen way's name (kExitRow): what lies that way.
+constexpr int32_t kLeadsRow  = 192;
+constexpr uint8_t kLeadsCols = 9;
+/// The runner's stamina, under that.
+constexpr int32_t kMapBarRow = 212;
 
 } // namespace TrailQuest::Layout
 

@@ -24,6 +24,7 @@
 #include "data/Moves.hpp"
 #include "data/Species.hpp"
 #include "data/Stages.hpp"
+#include "data/Story.hpp"
 
 namespace TrailQuest::Narrate
 {
@@ -48,12 +49,13 @@ constexpr const char* kYes    = "Yes";
 constexpr const char* kNo     = "No";
 constexpr const char* kPlay   = "Play";
 constexpr const char* kNew    = "New";
-constexpr const char* kBeat   = "Beat";
+constexpr const char* kTiming = "Timing";   // title, L2: the timing beat on or off
 constexpr const char* kOk     = "OK";
+constexpr const char* kSkip   = "Skip";
 
-inline constexpr const char* kTopLeft[]     = { kSurge, kNext, kNew };              // L1
+inline constexpr const char* kTopLeft[]     = { kSurge, kNext, kNew, kSkip };       // L1
 inline constexpr const char* kTopRight[]    = { kSkill, kUse, kGo, kYes, kPlay, kOk };  // R1
-inline constexpr const char* kBottomLeft[]  = { kSettle, kBack, kNo, kPack, kBeat };   // L2
+inline constexpr const char* kBottomLeft[]  = { kSettle, kBack, kNo, kPack, kTiming };   // L2
 inline constexpr const char* kBottomRight[] = { kFuel, kBack };                        // R2
 inline constexpr const char* kMapLeft[]     = { kPath };                               // L1 on the map
 inline constexpr const char* kMapRight[]    = { kGo };                                 // R1 on the map
@@ -229,8 +231,9 @@ inline void duelEnd(Lines& out, const WorldView& w)
     }
 }
 
-/// The card on the map: a new stage, a game picked up, or what a step found.
-/// Empty (count 0) when there is nothing to say.
+/// The card on the map: a new stage's conditions (its story has said where
+/// it is), a game picked up, or what a step found. Empty (count 0) when there
+/// is nothing to say.
 inline void arrival(Lines& out, const WorldView& w)
 {
     using Layout::kCardCols;
@@ -240,9 +243,8 @@ inline void arrival(Lines& out, const WorldView& w)
     switch (w.cause) {
         case ViewCause::NewGame:
         case ViewCause::StageStarted:
-            TextFit::wrap(out, stageDef(w.state.stage).name, Layout::kCardTitleCols, 2);
             std::snprintf(line, sizeof(line), "%s today", weatherName(w.state.weather));
-            TextFit::addLine(out, line, kCardCols);
+            TextFit::addLine(out, line, Layout::kCardTitleCols);
             TextFit::addLine(out, timeName(w.timeOfDay), kCardCols);
             return;
         case ViewCause::Loaded:
@@ -322,6 +324,75 @@ inline void offer(Lines& out, SpeciesId sp, bool leaving)
     out.clear();
     TextFit::addLine(out, speciesDef(sp).name, Layout::kCardCols);
     TextFit::addLine(out, leaving ? "leaves?" : "joins you?", Layout::kCardCols);
+}
+
+/// How many pages of "your moves" help there are: the four moves, and (while
+/// the timing beat is on) the needle.
+constexpr uint8_t kHelpPages = 3;
+
+/// The pages the duel's help card shows, as card lines (a title of 12, then
+/// four of 13). @p page past the end gives an empty card.
+inline void helpPage(Lines& out, uint8_t page)
+{
+    using Layout::kCardCols;
+    using Layout::kCardTitleCols;
+    out.clear();
+    switch (page) {
+        case 0:
+            TextFit::addLine(out, "L1 and L2", kCardTitleCols);
+            TextFit::addLine(out, "Surge: a hard", kCardCols);
+            TextFit::addLine(out, "hit, costs", kCardCols);
+            TextFit::addLine(out, "stamina.", kCardCols);
+            TextFit::addLine(out, "Settle: rest", kCardCols);
+            break;
+        case 1:
+            TextFit::addLine(out, "R1 and R2", kCardTitleCols);
+            TextFit::addLine(out, "Skill: your", kCardCols);
+            TextFit::addLine(out, "partner's", kCardCols);
+            TextFit::addLine(out, "move.", kCardCols);
+            TextFit::addLine(out, "Fuel: an item", kCardCols);
+            break;
+        case 2:
+            TextFit::addLine(out, "The needle", kCardTitleCols);
+            TextFit::addLine(out, "Choose, then", kCardCols);
+            TextFit::addLine(out, "tap as the", kCardCols);
+            TextFit::addLine(out, "needle is in", kCardCols);
+            TextFit::addLine(out, "the green.", kCardCols);
+            break;
+        default:
+            break;
+    }
+}
+
+/// A story page's body, as the story card's lines (its headline is the
+/// page's own, shown as it is).
+inline void storyPage(Lines& out, const StoryPage& p)
+{
+    out.clear();
+    TextFit::wrap(out, p.body, Layout::kStoryCols, Layout::kStoryLines);
+}
+
+/// What lies along exit @p exit from where the runner stands, for the map's
+/// row under the way's name (Layout::kLeadsCols): every place says what it is
+/// before the runner goes there.
+inline const char* leadsTo(const WorldView& w, uint8_t exit)
+{
+    const NodeDef& here = nodeDef(w.state.stage, w.state.node);
+    if (exit >= here.exitCount || exit >= kMaxExits) {
+        return "";
+    }
+    const uint8_t  bit = static_cast<uint8_t>(1u << (w.state.stage < 8 ? w.state.stage : 7));
+    const NodeDef& to  = nodeDef(w.state.stage, here.exits[exit].to);
+    switch (to.kind) {
+        case NodeKind::Encounter: return "A spirit";
+        case NodeKind::Obstacle:  return "A hazard";
+        case NodeKind::Hut:       return "A hut";
+        case NodeKind::Cache:     return (w.state.cachesTaken & bit) != 0 ? "Nothing" : "Supplies";
+        case NodeKind::Boss:      return "The boss";
+        case NodeKind::Start:     return "The start";
+        case NodeKind::Trail:
+        default:                  return "Quiet";
+    }
 }
 
 /// The card when a stage's boss is beaten. @p last is true when this build

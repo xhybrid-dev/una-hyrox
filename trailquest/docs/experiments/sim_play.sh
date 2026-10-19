@@ -5,7 +5,8 @@
 # service and screens.
 #
 # The beat is turned off (every turn counts as Good, as menu-only play does)
-# and R1 does everything: the first way at each fork, the skill in every duel,
+# and R1 does everything: the story pages, the first way at each fork, the
+# skill in every duel,
 # yes to every offer. Then it leaves (R2 held), starts the simulator again and
 # checks the game picks up from the save.
 #

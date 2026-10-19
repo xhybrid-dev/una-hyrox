@@ -33,6 +33,7 @@ enum class ScreenId : uint8_t {
     Offer,
     Pack,
     Clear,
+    Story,
 };
 
 class ScreenManager

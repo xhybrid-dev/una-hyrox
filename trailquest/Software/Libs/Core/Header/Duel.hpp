@@ -92,7 +92,7 @@ struct DuelSetup {
     Stats     runnerMax;              ///< With partners' bonuses.
     uint16_t  runnerStamina = 0;      ///< Carried in from the trail.
     MoveId    technique     = Move::TrailCraft;
-    SpeciesId species       = Spirit::Stitch;
+    SpeciesId species       = Spirit::RedFox;
     uint8_t   speciesLevel  = 1;
     Terrain   terrain       = Terrain::Path;
     Weather   weather       = Weather::Clear;

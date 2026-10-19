@@ -4,9 +4,9 @@
 // The figures are worked by hand from the rule in Duel.hpp and the tables (the
 // tuned numbers of docs/BALANCE.md). A level 1 runner has stamina 40 and pace,
 // form and grit 10; at level 1 the level scale is exactly 1. At level 1:
-//   Stitch  (Pace) stamina 36, pace 11, form 10, grit 9
-//   Bonk    (Grit) stamina 48, pace 8,  form 10, grit 11
-//   Blister (Form) stamina 38, pace 10, form 10, grit 9
+//   Red Fox     (Pace) stamina 36, pace 11, form 10, grit 9
+//   Brown Bear  (Grit) stamina 48, pace 8,  form 10, grit 11
+//   Ruby Beetle (Form) stamina 38, pace 10, form 10, grit 9
 // The runner's moves: Surge 14 Pace (costs 4), Settle 5 Grit, Trail craft 9
 // in the terrain's affinity (Form on the Path, + 2 for suiting it).
 
@@ -68,7 +68,7 @@ Played playOut(const DuelSetup& setup, uint32_t seed, Action action)
 
 TEST(Duel, StartsFromTheSetupAndTheSpiritsRow)
 {
-    DuelSetup s = setupFor(Spirit::Stitch);
+    DuelSetup s = setupFor(Spirit::RedFox);
     s.runnerStamina = 25;
     Duel d;
     d.start(s);
@@ -83,18 +83,18 @@ TEST(Duel, StartsFromTheSetupAndTheSpiritsRow)
 
 TEST(Duel, ARunnerCarriedInWithMoreThanFullIsHeldToFull)
 {
-    DuelSetup s = setupFor(Spirit::Stitch);
+    DuelSetup s = setupFor(Spirit::RedFox);
     s.runnerStamina = 999;
     Duel d;
     d.start(s);
     EXPECT_EQ(d.runner().stamina, 40u);
 }
 
-TEST(Duel, SurgeAgainstStitchWorkedByHand)
+TEST(Duel, SurgeAgainstRedFoxWorkedByHand)
 {
     // 14 x (10+10)/(10+11) = 13.3; no wheel (Pace on Pace); rounds to 13.
     Duel d;
-    d.start(setupFor(Spirit::Stitch));
+    d.start(setupFor(Spirit::RedFox));
     EXPECT_EQ(d.estimate(Action::Surge), 13u);
     EXPECT_EQ(d.estimate(Action::Surge, BeatResult::Perfect), 20u);   // x 3/2: 19.99
     EXPECT_EQ(d.estimate(Action::Surge, BeatResult::Miss), 7u);        // x 1/2: 6.66
@@ -104,7 +104,7 @@ TEST(Duel, SettleIsGritAndBeatsPace)
 {
     // Grit, not suited to the Path: 5. 5 x 20/19 = 5.26, x 3/2 (Grit beats Pace) = 7.9 -> 8.
     Duel d;
-    d.start(setupFor(Spirit::Stitch));
+    d.start(setupFor(Spirit::RedFox));
     EXPECT_EQ(d.estimate(Action::Settle), 8u);
 }
 
@@ -112,12 +112,12 @@ TEST(Duel, TrailCraftTakesTheTerrainsAffinity)
 {
     // Form on the Path: 9 + 2 = 11. 11 x 20/20 = 11, x 3/4 (Form loses to Pace) = 8.25 -> 8.
     Duel d;
-    d.start(setupFor(Spirit::Stitch));
+    d.start(setupFor(Spirit::RedFox));
     EXPECT_EQ(d.moveFor(Action::Technique), Move::TrailCraft);
     EXPECT_EQ(d.affinityFor(Move::TrailCraft), Affinity::Form);
     EXPECT_EQ(d.estimate(Action::Technique), 8u);
 
-    DuelSetup ridge = setupFor(Spirit::Stitch);
+    DuelSetup ridge = setupFor(Spirit::RedFox);
     ridge.terrain = Terrain::Ridge;   // favours Pace
     d.start(ridge);
     EXPECT_EQ(d.affinityFor(Move::TrailCraft), Affinity::Pace);
@@ -125,8 +125,8 @@ TEST(Duel, TrailCraftTakesTheTerrainsAffinity)
 
 TEST(Duel, APartnersTechniqueUsesItsMoveAndTheWheel)
 {
-    // Bonk's Lumber is Grit (7); Grit beats Pace: 7 x 20/19 = 7.37, x 3/2 = 11.
-    DuelSetup s = setupFor(Spirit::Stitch);
+    // The Brown Bear's Lumber is Grit (7); Grit beats Pace: 7 x 20/19 = 7.37, x 3/2 = 11.
+    DuelSetup s = setupFor(Spirit::RedFox);
     s.technique = Move::Lumber;
     Duel d;
     d.start(s);
@@ -136,7 +136,7 @@ TEST(Duel, APartnersTechniqueUsesItsMoveAndTheWheel)
 
 TEST(Duel, AnInvalidTechniqueFallsBackToTrailCraft)
 {
-    DuelSetup s = setupFor(Spirit::Stitch);
+    DuelSetup s = setupFor(Spirit::RedFox);
     s.technique = 250;
     Duel d;
     d.start(s);
@@ -145,17 +145,17 @@ TEST(Duel, AnInvalidTechniqueFallsBackToTrailCraft)
 
 TEST(Duel, TheWheelRewardsTheRightMove)
 {
-    // Surge (Pace) against Blister (Form): 14 x 20/20 = 14, x 3/2 = 21.
+    // Surge (Pace) against the Ruby Beetle (Form): 14 x 20/20 = 14, x 3/2 = 21.
     Duel d;
-    d.start(setupFor(Spirit::Blister));
+    d.start(setupFor(Spirit::RubyBeetle));
     EXPECT_EQ(d.estimate(Action::Surge), 21u);
 }
 
 TEST(Duel, RainWeakensFormMoves)
 {
-    // Trail craft (Form on the Path) against Blister (Form, no wheel):
+    // Trail craft (Form on the Path) against the Ruby Beetle (Form, no wheel):
     // 11 x 20/20 = 11 dry; in the rain 10.
-    DuelSetup s = setupFor(Spirit::Blister);
+    DuelSetup s = setupFor(Spirit::RubyBeetle);
     Duel d;
     d.start(s);
     EXPECT_EQ(d.estimate(Action::Technique), 11u);
@@ -167,8 +167,8 @@ TEST(Duel, RainWeakensFormMoves)
 
 TEST(Duel, WindWeakensPaceMovesForBothSides)
 {
-    // Surge against Blister in the wind: 14 - 1 = 13, x 3/2 = 19.5 -> 20.
-    DuelSetup s = setupFor(Spirit::Blister);
+    // Surge against the Ruby Beetle in the wind: 14 - 1 = 13, x 3/2 = 19.5 -> 20.
+    DuelSetup s = setupFor(Spirit::RubyBeetle);
     s.weather = Weather::Wind;
     Duel d;
     d.start(s);
@@ -178,7 +178,7 @@ TEST(Duel, WindWeakensPaceMovesForBothSides)
 
 TEST(Duel, HitChanceFollowsPaceMistAndTheDark)
 {
-    DuelSetup s = setupFor(Spirit::Stitch);
+    DuelSetup s = setupFor(Spirit::RedFox);
     Duel d;
     d.start(s);
     EXPECT_EQ(d.chanceToLand(Side::Runner), 88u);   // 90 + 2 x (10 - 11)
@@ -195,11 +195,11 @@ TEST(Duel, TheFasterSideGoesFirstAndTheRunnerOnATie)
     uint8_t bag[Item::Count] = {};
     Rng r(5);
     Duel d;
-    d.start(setupFor(Spirit::Bonk));   // pace 8: slower than the runner
+    d.start(setupFor(Spirit::BrownBear));   // pace 8: slower than the runner
     EXPECT_TRUE(d.play(PlayerTurn{}, r, bag).runnerFirst);
-    d.start(setupFor(Spirit::Stitch));   // pace 11: faster
+    d.start(setupFor(Spirit::RedFox));   // pace 11: faster
     EXPECT_FALSE(d.play(PlayerTurn{}, r, bag).runnerFirst);
-    DuelSetup level = setupFor(Spirit::Blister);   // pace 10: level
+    DuelSetup level = setupFor(Spirit::RubyBeetle);   // pace 10: level
     d.start(level);
     EXPECT_TRUE(d.play(PlayerTurn{}, r, bag).runnerFirst);
     level.weather = Weather::Wind;   // wind weakens Pace moves, not the order
@@ -209,13 +209,13 @@ TEST(Duel, TheFasterSideGoesFirstAndTheRunnerOnATie)
 
 TEST(Duel, TheFinishingPushAddsHalfTheRunnersGritBelowAQuarter)
 {
-    // A level 5 runner (14 each, level scale 14/10) against a level 1 Bonk (48).
+    // A level 5 runner (14 each, level scale 14/10) against a level 1 Brown Bear (48).
     // Surge: 14 x (10+14)/(10+8) = 18.7, x 3/4 (Pace loses to Grit) = 14.0 -> 14,
     // x 1.4 = 19. Below a quarter (under 12) the runner adds 14 / 2 = 7 before
-    // the scale: 21 x 1.4 = 29. If Bonk has slowed the runner (pace 12):
+    // the scale: 21 x 1.4 = 29. If the Brown Bear has slowed the runner (pace 12):
     // 14 x 22/18 x 3/4 = 12.8 -> 13, + 7 = 20, x 1.4 = 28.
     Duel d;
-    d.start(setupFor(Spirit::Bonk, 1, 5));
+    d.start(setupFor(Spirit::BrownBear, 1, 5));
     ASSERT_EQ(d.estimate(Action::Surge), 19u);
     Rng r(11);
     uint8_t bag[Item::Count] = {};
@@ -237,7 +237,7 @@ TEST(Duel, StaminaAddsUpOverATurn)
 {
     // Surge costs 4; the runner then loses exactly what the log says.
     Duel d;
-    d.start(setupFor(Spirit::Bonk));
+    d.start(setupFor(Spirit::BrownBear));
     Rng r(3);
     uint8_t bag[Item::Count] = {};
     const uint16_t before = d.runner().stamina;
@@ -260,7 +260,7 @@ TEST(Duel, StaminaAddsUpOverATurn)
 
 TEST(Duel, SurgeNeverSpendsTheRunnerByItself)
 {
-    DuelSetup s = setupFor(Spirit::Bonk);   // the runner acts first
+    DuelSetup s = setupFor(Spirit::BrownBear);   // the runner acts first
     s.runnerStamina = 3;
     Duel d;
     d.start(s);
@@ -273,7 +273,7 @@ TEST(Duel, SurgeNeverSpendsTheRunnerByItself)
 
 TEST(Duel, FuelUsesAnItemFromTheBag)
 {
-    DuelSetup s = setupFor(Spirit::Stitch);
+    DuelSetup s = setupFor(Spirit::RedFox);
     s.runnerStamina = 10;
     Duel d;
     d.start(s);
@@ -299,7 +299,7 @@ TEST(Duel, FuelWithNothingUsableLosesTheTurn)
 {
     for (ItemId item : { static_cast<ItemId>(Item::Gel), static_cast<ItemId>(Item::Headtorch), static_cast<ItemId>(99) }) {
         Duel d;
-        d.start(setupFor(Spirit::Bonk));
+        d.start(setupFor(Spirit::BrownBear));
         Rng r(4);
         uint8_t bag[Item::Count] = {};
         bag[Item::Headtorch] = 1;
@@ -312,7 +312,7 @@ TEST(Duel, FuelWithNothingUsableLosesTheTurn)
         EXPECT_EQ(bag[Item::Headtorch], 1u);
     }
     Duel d;
-    d.start(setupFor(Spirit::Bonk));
+    d.start(setupFor(Spirit::BrownBear));
     Rng r(4);
     PlayerTurn t;
     t.action = Action::Fuel;
@@ -323,7 +323,7 @@ TEST(Duel, FuelWithNothingUsableLosesTheTurn)
 TEST(Duel, PolesAddFormForTheRestOfTheDuel)
 {
     Duel d;
-    d.start(setupFor(Spirit::Bonk));
+    d.start(setupFor(Spirit::BrownBear));
     const uint16_t before = d.estimate(Action::Technique);   // Trail craft: Form on the Path
     Rng r(8);
     uint8_t bag[Item::Count] = {};
@@ -342,7 +342,7 @@ TEST(Duel, EffectsLastThreeTurnsAndOneAtATime)
     // must wear off exactly at the end of its third turn (or the duel ends).
     int seen = 0;
     for (uint32_t seed = 1; seed <= 200; ++seed) {
-        for (SpeciesId sp : { static_cast<SpeciesId>(Spirit::Blister), static_cast<SpeciesId>(Spirit::Cramp), static_cast<SpeciesId>(Spirit::Doubt) }) {
+        for (SpeciesId sp : { static_cast<SpeciesId>(Spirit::RubyBeetle), static_cast<SpeciesId>(Spirit::GnatSwarm), static_cast<SpeciesId>(Spirit::MistWisp) }) {
             Duel d;
             d.start(setupFor(sp, 2, 3));
             Rng r(seed);
@@ -377,7 +377,7 @@ TEST(Duel, ABossRestsOnceWhenLow)
     int rested = 0;
     for (uint32_t seed = 1; seed <= 50; ++seed) {
         Duel d;
-        d.start(setupFor(Spirit::OldMossback, 2, 6));   // a strong runner
+        d.start(setupFor(Spirit::OldTortoise, 2, 6));   // a strong runner
         Rng r(seed);
         uint8_t bag[Item::Count] = {};
         int rests = 0;
@@ -446,7 +446,7 @@ TEST(Duel, TheSameSeedAndTurnsReplayTheSameDuel)
 TEST(Duel, AnEndedDuelIgnoresFurtherTurns)
 {
     Duel d;
-    d.start(setupFor(Spirit::Stitch, 1, 20));   // a level 20 runner against a level 1 spirit
+    d.start(setupFor(Spirit::RedFox, 1, 20));   // a level 20 runner against a level 1 spirit
     Rng r(1);
     uint8_t bag[Item::Count] = {};
     while (d.outcome() == DuelOutcome::Ongoing) {

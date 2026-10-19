@@ -10,7 +10,9 @@
  *
  * then the timing beat (any button strikes; if it is on), then the turn plays
  * back event by event: a line of text, the hit fighter flashes, the bars move,
- * the wrist buzzes. At the end, what was won or lost, and on.
+ * the wrist buzzes. The first duel of a game explains the four moves first
+ * (a card, three pages). At the end, what was won or lost, and on (a beaten boss
+ * has its story page before the stage clear).
  *
  * The duel runs in the service; this screen sends the turn and plays back the
  * events the answer carries (DuelView::log), from the numbers it showed
@@ -34,6 +36,9 @@ public:
     void onShow() override;
     void onWorld() override;
 
+    /// A new game: the moves are explained again at its first duel.
+    static void newGame() { sHelpSeen = false; }
+
 protected:
     void build() override;
     void onKey(uint8_t code) override;
@@ -41,7 +46,7 @@ protected:
     bool rawKeys() const override { return mMode == Mode::Beat; }
 
 private:
-    enum class Mode : uint8_t { Intro, Choose, Fuel, Beat, Waiting, Playback, End };
+    enum class Mode : uint8_t { Intro, Help, Choose, Fuel, Beat, Waiting, Playback, End };
 
     void setMode(Mode m);
     void choose(TrailQuest::Action a);
@@ -52,6 +57,8 @@ private:
     void say(const TrailQuest::TextFit::Lines& lines, uint32_t color);
     bool nextFuel(uint8_t from);
     void showFuel();
+    void showHelp(uint8_t page);
+    uint8_t helpPages() const;
 
     Sprite      mRunner;
     Sprite      mSpirit;
@@ -83,6 +90,11 @@ private:
     uint32_t           mLastFlip  = 0;
     uint8_t            mFrame     = 0;
     lv_obj_t*          mFlash     = nullptr;   ///< The sprite hit by the current event.
+    uint8_t            mHelpPage  = 0;
+
+    /// The help card (what each button does) is shown once a game, at the
+    /// first duel's first turn.
+    static bool sHelpSeen;
 };
 
 #endif // TRAILQUEST_DUEL_SCREEN_HPP

@@ -15,6 +15,7 @@
 #include "data/MapLayout.hpp"
 #include "gui/Art.hpp"
 #include "gui/screens/ScreenManager.hpp"
+#include "gui/screens/StoryScreen.hpp"
 #include "gui/widgets/Paint.hpp"
 
 namespace Draw  = SDK::LVGL::Draw;
@@ -80,8 +81,9 @@ void MapScreen::build()
     mDot  = Draw::dot(mRoot, 0, 0, 3, 0xC00000);   // the runner's red cap
     mClock = Ui::rowLabel(mRoot, Layout::kMapClockRow, mClockText);
     mCorners.createForMap(mRoot);
-    mExit = Ui::rowLabel(mRoot, Layout::kExitRow, "", Ui::Ink::kAmber);
-    mStamina.create(mRoot, 70, 198, 100, 6, Ui::Ink::kGreen);
+    mExit  = Ui::rowLabel(mRoot, Layout::kExitRow, "", Ui::Ink::kAmber);
+    mLeads = Ui::rowLabel(mRoot, Layout::kLeadsRow, "", Ui::Ink::kText);
+    mStamina.create(mRoot, 70, Layout::kMapBarRow, 100, 6, Ui::Ink::kGreen);
     mCard.create(mRoot);
     refresh();
 }
@@ -125,6 +127,7 @@ void MapScreen::refresh()
 
     const bool choosing = mMode == Mode::Choose && here.exitCount > 0;
     Ui::setText(mExit, choosing ? here.exits[mChoice].label : "", Ui::Ink::kAmber);
+    Ui::setText(mLeads, choosing ? Narrate::leadsTo(w, mChoice) : "", Ui::Ink::kText);
     if (mMode == Mode::Card) {
         mCorners.set(nullptr, Label::kOk, nullptr, nullptr);
         setArcs(Buttons::NONE, Buttons::NONE, Buttons::GREEN, Buttons::RED);
@@ -201,6 +204,11 @@ void MapScreen::arrive()
     const WorldView& w = mModel.world();
     mChoice = 0;
     const ScreenId next = ScreenManager::screenFor(w);
+    if (next == ScreenId::Duel && nodeDef(w.state.stage, w.state.node).kind == NodeKind::Boss
+        && StoryScreen::firstSightOfBoss(w.state.stage)) {
+        StoryScreen::play(StoryPlan::of(StoryId::BossAhead, w.state.stage));
+        return;
+    }
     if (next != ScreenId::Map) {
         ScreenManager::instance().goTo(next);
         return;

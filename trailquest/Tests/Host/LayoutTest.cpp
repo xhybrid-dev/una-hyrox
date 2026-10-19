@@ -59,7 +59,17 @@ TEST(Layout, EachRowHoldsItsColumns)
     EXPECT_LE(kBottomLabelRow + TextFit::kGlyph, kExitRow);
     EXPECT_LE(kMapLabelRow + TextFit::kGlyph, kMapTop);
     EXPECT_LE(kMapClockRow + TextFit::kGlyph, kMapLabelRow);
+    // The map's foot: the way's name, what lies that way, the stamina bar.
+    EXPECT_GE(TextFit::colsAt(kLeadsRow), kLeadsCols);
+    EXPECT_LE(kMapBottom, kExitRow);
+    EXPECT_LE(kExitRow + TextFit::kGlyph, kLeadsRow);
+    EXPECT_LE(kLeadsRow + TextFit::kGlyph, kMapBarRow);
+    // A story page: its body on the card's rows, the scene below them.
+    EXPECT_GE(TextFit::colsOver(kStoryRow, kStoryLines, kCardPitch), kStoryCols);
+    EXPECT_LE(kStoryRow + (kStoryLines - 1) * kCardPitch + TextFit::kGlyph, kSceneTop);
+    EXPECT_LT(kSceneTop, kSceneGround);
 }
+
 
 namespace
 {
@@ -161,6 +171,10 @@ TEST(Layout, NoLineOfTextRunsIntoAnArc)
     // The duel's second narration row is shown with the arcs lit (the
     // technique's name); the first only while they are dark.
     EXPECT_TRUE(centredClear(kNarrRow + kNarrPitch, kNarrCols));
+    EXPECT_TRUE(centredClear(kLeadsRow, kLeadsCols));
+    for (uint8_t i = 0; i < kStoryLines; ++i) {
+        EXPECT_TRUE(centredClear(kStoryRow + i * kCardPitch, kStoryCols)) << int(i);
+    }
 }
 
 TEST(Layout, EveryMoveItemAndExitNameFitsItsRow)
@@ -326,4 +340,110 @@ TEST(Layout, EveryDuelEndObstacleOfferAndStageCardFits)
             }
         }
     }
+}
+
+TEST(Layout, EveryHelpPageFitsACard)
+{
+    for (uint8_t p = 0; p < Narrate::kHelpPages; ++p) {
+        Lines l;
+        Narrate::helpPage(l, p);
+        EXPECT_EQ(l.count, kCardLines) << int(p);
+        expectFits(l, kCardLines, kCardCols, "help");
+    }
+    Lines none;
+    Narrate::helpPage(none, Narrate::kHelpPages);
+    EXPECT_EQ(none.count, 0u);
+}
+
+TEST(Layout, EveryStoryPageFitsItsCard)
+{
+    for (StoryId id : { StoryId::Opening, StoryId::StageStart, StoryId::BossAhead, StoryId::BossBeaten }) {
+        for (uint8_t st = 0; st < kStageCount; ++st) {
+            const Story s = story(id, st);
+            ASSERT_GT(s.count, 0u);
+            for (uint8_t i = 0; i < s.count; ++i) {
+                const StoryPage& p = s.pages[i];
+                EXPECT_GT(len(p.head), 0u) << p.body;
+                EXPECT_LE(len(p.head), static_cast<size_t>(kHeadCols)) << p.head;
+                Lines l;
+                Narrate::storyPage(l, p);
+                EXPECT_TRUE(l.fits) << p.body;
+                EXPECT_LE(l.count, kStoryLines) << p.body;
+                for (uint8_t k = 0; k < l.count; ++k) {
+                    EXPECT_LE(len(l.text[k]), static_cast<size_t>(kStoryCols)) << p.body << ": " << l.text[k];
+                }
+                EXPECT_TRUE(p.who == kNone || p.who < Spirit::Count) << p.head;
+            }
+        }
+    }
+}
+
+TEST(Layout, EveryWayOnTheMapSaysWhereItLeads)
+{
+    for (uint8_t st = 0; st < kStageCount; ++st) {
+        for (uint8_t n = 0; n < kStages[st].nodeCount; ++n) {
+            WorldView w = worldAt(st, n);
+            for (uint8_t taken : { uint8_t{0}, uint8_t{0xFF} }) {
+                w.state.cachesTaken = taken;
+                for (uint8_t e = 0; e < kStages[st].nodes[n].exitCount; ++e) {
+                    const char* t = Narrate::leadsTo(w, e);
+                    EXPECT_GT(len(t), 0u) << kStages[st].nodes[n].name;
+                    EXPECT_LE(len(t), static_cast<size_t>(kLeadsCols)) << t;
+                }
+                // No such way: nothing to say.
+                EXPECT_EQ(len(Narrate::leadsTo(w, kStages[st].nodes[n].exitCount)), 0u);
+            }
+        }
+    }
+    // The valley's first fork: the woods have a spirit, the stream a hazard;
+    // the old gate's box says if it has been taken.
+    WorldView w = worldAt(0, 0);
+    EXPECT_STREQ(Narrate::leadsTo(w, 0), "A spirit");
+    EXPECT_STREQ(Narrate::leadsTo(w, 1), "A hazard");
+    w = worldAt(0, 3);
+    EXPECT_STREQ(Narrate::leadsTo(w, 0), "Supplies");
+    w.state.cachesTaken = 0x01;
+    EXPECT_STREQ(Narrate::leadsTo(w, 0), "Nothing");
+    w = worldAt(0, 7);
+    EXPECT_STREQ(Narrate::leadsTo(w, 0), "The boss");
+}
+
+TEST(Story, APlanPlaysItsStoriesInARow)
+{
+    const StoryPlan opening = StoryPlan::of(StoryId::Opening, StoryId::StageStart, 0);
+    const Story     tale    = story(StoryId::Opening, 0);
+    ASSERT_EQ(opening.pageCount(), tale.count + kStageStartPages);
+    EXPECT_EQ(opening.page(0), &tale.pages[0]);
+    EXPECT_EQ(opening.page(tale.count - 1), &tale.pages[tale.count - 1]);
+    EXPECT_EQ(opening.page(tale.count), &kStageStart[0][0]);
+    EXPECT_EQ(opening.page(tale.count + 1), &kStageStart[0][1]);
+    EXPECT_EQ(opening.page(tale.count + 2), nullptr);
+    EXPECT_EQ(opening.page(255), nullptr);
+
+    const StoryPlan boss = StoryPlan::of(StoryId::BossAhead, 2);
+    ASSERT_EQ(boss.pageCount(), 1u);
+    EXPECT_EQ(boss.page(0), &kBossAhead[2]);
+    EXPECT_EQ(boss.page(0)->who, kStages[2].boss);
+    EXPECT_EQ(boss.page(1), nullptr);
+
+    // Each stage's goal and its boss pages show its own boss.
+    for (uint8_t st = 0; st < kStageCount; ++st) {
+        EXPECT_EQ(kStageStart[st][1].who, kStages[st].boss) << int(st);
+        EXPECT_EQ(kBossAhead[st].who, kStages[st].boss) << int(st);
+        EXPECT_EQ(kBossBeaten[st].who, kStages[st].boss) << int(st);
+    }
+
+    // Out of range: the first stage, never past the tables; an empty plan is empty.
+    EXPECT_EQ(StoryPlan::of(StoryId::BossBeaten, 200).page(0), &kBossBeaten[0]);
+    EXPECT_EQ(StoryPlan{}.pageCount(), 0u);
+    EXPECT_EQ(StoryPlan{}.page(0), nullptr);
+}
+
+TEST(Layout, TheMapsStaminaBarIsOnTheFace)
+{
+    // MapScreen: 100 px wide, 6 tall, centred, at kMapBarRow.
+    for (int32_t y : { kMapBarRow, kMapBarRow + 6 }) {
+        EXPECT_GE(TextFit::chordAt(y), 100 + 2 * TextFit::kMargin) << y;
+    }
+    EXPECT_TRUE(clearOfArcs(70, kMapBarRow, 170, kMapBarRow + 6));
 }

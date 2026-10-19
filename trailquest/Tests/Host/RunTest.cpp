@@ -298,9 +298,9 @@ TEST(Run, AFullPackMustNameWhoLeaves)
 {
     TrailQuest::Run run;
     RunState s = standingAt(0, 0, 20);
-    s.partners[0] = Spirit::Gale;
-    s.partners[1] = Spirit::Vertigo;
-    s.partners[2] = Spirit::Hypo;
+    s.partners[0] = Spirit::WindSprite;
+    s.partners[1] = Spirit::Raven;
+    s.partners[2] = Spirit::SnowHare;
     s.partnerCount = 3;
     run.resume(s);
     ASSERT_EQ(run.travel(0).what, Arrival::Duel);
@@ -343,7 +343,7 @@ TEST(Run, APartnerLendsItsStat)
 {
     TrailQuest::Run run;
     RunState s = standingAt(0, 0, 5);
-    s.partners[0]  = Spirit::Bonk;   // Grit
+    s.partners[0]  = Spirit::BrownBear;   // Grit
     s.partnerCount = 1;
     run.resume(s);
     EXPECT_EQ(runnerMaxWithPartners(run.state()).grit, runnerStats(5).grit + kPartnerBonus);
@@ -356,9 +356,9 @@ TEST(Run, ThePartnerBestPlacedForThisSpiritStepsUp)
     for (uint32_t seed = 1; seed <= 40; ++seed) {
         TrailQuest::Run run;
         RunState s = standingAt(0, 0, 5, seed);
-        s.partners[0]  = Spirit::Bonk;      // a Grit move
-        s.partners[1]  = Spirit::Stitch;    // a Pace move
-        s.partners[2]  = Spirit::Blister;   // a Form move
+        s.partners[0]  = Spirit::BrownBear;      // a Grit move
+        s.partners[1]  = Spirit::RedFox;    // a Pace move
+        s.partners[2]  = Spirit::RubyBeetle;   // a Form move
         s.partnerCount = 3;
         run.resume(s);
         ASSERT_EQ(run.travel(0).what, Arrival::Duel);
@@ -381,10 +381,10 @@ TEST(Run, WithNoPartnersTheTechniqueIsTrailCraft)
 
 TEST(Run, APartnerLendsAMoveOfItsOwnKind)
 {
-    // Hypo is a Form spirit with a Form move and a stronger Pace one: it
-    // lends the Form one. Bonk lends the stronger of its two Grit moves.
-    EXPECT_EQ(signatureMove(Spirit::Hypo), Move::Chill);
-    EXPECT_EQ(signatureMove(Spirit::Bonk), Move::HitTheWall);
+    // The Snow Hare is a Form spirit with a Form move and a stronger Pace one: it
+    // lends the Form one. The Brown Bear lends the stronger of its two Grit moves.
+    EXPECT_EQ(signatureMove(Spirit::SnowHare), Move::Chill);
+    EXPECT_EQ(signatureMove(Spirit::BrownBear), Move::HitTheWall);
     for (SpeciesId sp = 0; sp < Spirit::Count; ++sp) {
         const SpeciesDef& d = kSpecies[sp];
         const bool hasOwn = moveDef(d.moves[0]).affinity == d.affinity || moveDef(d.moves[1]).affinity == d.affinity;
@@ -416,7 +416,7 @@ TEST(Run, BeatingABossClearsTheStageAndTheNextBegins)
     RunState s = standingAt(0, 6, 20);
     run.resume(s);
     ASSERT_EQ(run.travel(0).what, Arrival::Boss);
-    EXPECT_EQ(run.duel().setup().species, Spirit::OldMossback);
+    EXPECT_EQ(run.duel().setup().species, Spirit::OldTortoise);
     fight(run);
     ASSERT_EQ(run.lastDuel().outcome, DuelOutcome::Won);
     EXPECT_TRUE(run.lastDuel().boss);

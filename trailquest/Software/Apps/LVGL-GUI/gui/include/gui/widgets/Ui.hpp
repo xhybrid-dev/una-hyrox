@@ -67,6 +67,9 @@ public:
     void createForMap(lv_obj_t* parent);
     void set(const char* l1, const char* r1, const char* l2, const char* r2);
     void setHidden(bool hidden);
+    /// Above everything else (a card's panel, shown later, overlaps the top
+    /// pair's descenders by its border).
+    void raise();
 
 private:
     void place(lv_obj_t* parent, int32_t topRow, int32_t topLeft, int32_t topRight);

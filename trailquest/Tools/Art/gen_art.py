@@ -159,8 +159,8 @@ def runner(frame):
     return c
 
 
-def stitch(frame):
-    """Stitch: a fox-like creature that gives you a stitch (the yellow zig-zag)."""
+def fox(frame):
+    """The Red Fox: it gives you a stitch (the yellow zig-zag)."""
     c = Canvas()
     c.tri((5, 9), (8, 1), (11, 9), 6)             # left ear
     c.tri((13, 9), (16, 1), (19, 9), 6)           # right ear
@@ -178,8 +178,8 @@ def stitch(frame):
     return c.shifted(0, -1) if frame else c
 
 
-def bonk(frame):
-    """Bonk: a heavy, tired bear-shape; the blue drop is the sweat."""
+def bear(frame):
+    """The Brown Bear: heavy and tired (it is the bonk); the blue drop is the sweat."""
     c = Canvas()
     c.ellipse(6, 5, 2, 2, 9)                      # left ear
     c.ellipse(18, 5, 2, 2, 9)                     # right ear
@@ -196,8 +196,8 @@ def bonk(frame):
     return c.shifted(0, 1) if frame else c
 
 
-def blister(frame):
-    """Blister: a small, patient beetle, red as a rubbed heel."""
+def beetle(frame):
+    """The Ruby Beetle: small and patient, red as a rubbed heel (a blister)."""
     c = Canvas()
     c.ellipse(12, 14, 8, 7, 13)                   # shell
     c.rect(12, 8, 12, 21, 10)                     # where the wing cases meet
@@ -214,8 +214,8 @@ def blister(frame):
     return c
 
 
-def chafe(frame):
-    """Chafe: a crab that walks sideways into every seam you own."""
+def crab(frame):
+    """The Sand Crab: walks sideways into every seam you own (chafing)."""
     c = Canvas()
     c.ellipse(12, 15, 8, 4, 6)                    # body
     c.ellipse(12, 16, 5, 2, 5)                    # underside
@@ -232,8 +232,8 @@ def chafe(frame):
     return c
 
 
-def mossback(frame):
-    """Old Mossback: a giant tortoise, the valley's guard. Never once hurried."""
+def tortoise(frame):
+    """The Old Tortoise: mossy, the valley's guard. Never once hurried."""
     c = Canvas(BOSS_SIZE)
     c.ellipse(18, 16, 12, 9, 12)                  # shell
     c.rect(7, 21, 29, 22, 9)                      # the shell's rim
@@ -255,11 +255,11 @@ def mossback(frame):
 
 SPRITES = [
     ("runner", runner),
-    ("stitch", stitch),
-    ("bonk", bonk),
-    ("blister", blister),
-    ("chafe", chafe),
-    ("mossback", mossback),
+    ("fox", fox),
+    ("bear", bear),
+    ("beetle", beetle),
+    ("crab", crab),
+    ("tortoise", tortoise),
 ]
 
 
