@@ -33,6 +33,13 @@ uint16_t give(uint16_t stamina, uint32_t amount, uint16_t max)
 
 Side other(Side s) { return s == Side::Runner ? Side::Spirit : Side::Runner; }
 
+/// @p dmg times num/den, at least 1.
+uint32_t scaled(uint32_t dmg, uint32_t num, uint32_t den)
+{
+    const uint32_t v = (dmg * num + den / 2u) / den;
+    return v < 1u ? 1u : v;
+}
+
 } // namespace
 
 void Duel::start(const DuelSetup& setup)
@@ -40,6 +47,8 @@ void Duel::start(const DuelSetup& setup)
     mSetup   = setup;
     mTurn    = 0;
     mRested  = false;
+    mTurnTell = Twist::None;
+    mBraced   = false;
     mOutcome = DuelOutcome::Ongoing;
 
     mRunner         = Fighter{};
@@ -54,6 +63,10 @@ void Duel::start(const DuelSetup& setup)
     const SpeciesDef& sp = speciesDef(setup.species);
     mSpirit          = Fighter{};
     mSpirit.max      = speciesStats(sp, setup.speciesLevel);
+    {
+        const uint32_t st = static_cast<uint32_t>(mSpirit.max.stamina) * setup.staminaPct / 100u;
+        mSpirit.max.stamina = static_cast<uint16_t>(st < 1u ? 1u : (st > 999u ? 999u : st));
+    }
     mSpirit.stamina  = mSpirit.max.stamina;
     mSpirit.affinity = sp.affinity;
     mSpirit.level    = clampLevel(setup.speciesLevel);
@@ -75,6 +88,23 @@ Duel::Eff Duel::effective(const Fighter& f) const
         e.grit = lower(e.grit, kEffectStatDrop);
     }
     return e;
+}
+
+Twist Duel::tell() const
+{
+    const SpeciesDef& sp = speciesDef(mSetup.species);
+    if (mOutcome != DuelOutcome::Ongoing || (sp.flags & kSpeciesBoss) == 0 || sp.twist == Twist::None
+        || sp.twistPeriod == 0) {
+        return Twist::None;
+    }
+    const uint32_t n = static_cast<uint32_t>(mTurn) + 1u;   // the turn about to be played, counting from 1
+    if (n % sp.twistPeriod != 0) {
+        return Twist::None;
+    }
+    if (sp.twist == Twist::Alternate) {
+        return (n / sp.twistPeriod) % 2u == 1u ? Twist::Charge : Twist::Guard;
+    }
+    return sp.twist;
 }
 
 MoveId Duel::moveFor(Action a) const
@@ -196,11 +226,31 @@ void Duel::act(Side by, MoveId move, BeatResult beat, Rng& rng, TurnLog& log)
         log.add(e);
         return;
     }
-    const uint16_t dmg = damage(by, move, aff, beat);
+    uint16_t dmg = damage(by, move, aff, beat);
+    // A twist's turn: the boss's charge hits double (half if braced); its guard
+    // halves the runner's hit. Said after the hit, so the playback shows it.
+    EventKind twistEvent = EventKind::Hit;   // Hit: none
+    Side      twistBy    = Side::Spirit;
+    if (by == Side::Spirit && mTurnTell == Twist::Charge) {
+        dmg        = static_cast<uint16_t>(mBraced ? scaled(dmg, kBraceNum, kBraceDen) : scaled(dmg, kChargeNum, kChargeDen));
+        twistEvent = mBraced ? EventKind::Braced : EventKind::Charged;
+        twistBy    = mBraced ? Side::Runner : Side::Spirit;
+    } else if (by == Side::Runner && mTurnTell == Twist::Guard) {
+        dmg        = static_cast<uint16_t>(scaled(dmg, kGuardNum, kGuardDen));
+        twistEvent = EventKind::Guarded;
+    }
     target.stamina = take(target.stamina, dmg);
     e.kind   = EventKind::Hit;
     e.amount = dmg;
     log.add(e);
+    if (twistEvent != EventKind::Hit) {
+        DuelEvent t;
+        t.kind   = twistEvent;
+        t.actor  = twistBy;
+        t.move   = move;
+        t.amount = dmg;
+        log.add(t);
+    }
 
     if (md.effect != Effect::None && target.effect == Effect::None && target.stamina > 0
         && rng.chance(md.effectChance)) {
@@ -355,6 +405,8 @@ TurnLog Duel::play(const PlayerTurn& turn, Rng& rng, uint8_t* bag)
         return log;
     }
 
+    mTurnTell = tell();
+    mBraced   = turn.action == Action::Settle;
     log.runnerFirst = effective(mRunner).pace >= effective(mSpirit).pace;
     if (log.runnerFirst) {
         runnerAct(turn, rng, bag, log);

@@ -43,6 +43,9 @@ two. All rows are inside the targets today.
 | Effects | Drain (-2 a turn), Slow (-2 pace), Rattle (-2 grit); 3 turns; one at a time | `Types.hpp` |
 | Snow | the runner loses 1 stamina a turn (level-scaled) | `Duel.cpp` |
 | Bosses | rest once below 30 %, recovering 25 % | `Duel.hpp` |
+| Boss twists | a boss tells every 3rd turn (the Old Tortoise every 4th): a **charge** hits x2, or x1/2 if the runner Settles; a **guard** halves the runner's damage that turn; the Summit Wolf alternates | `Duel.cpp`, `data/Species.hpp` |
+| The needle | stage 1: sweep 1600 ms, good zone 400, perfect 200; each stage 100 ms faster and the good zone 40 narrower (stage 5: 1200 / 240); each lap a further 100 / 20, to 1000 / 200. Perfect stays two frames (the 10 fps floor) | `Beat.hpp` (`beatFor`) |
+| Stage softening | the spirits of stage 2-5 have 94, 98, 82 and 81 % of their row's stamina, set against the sharper needle | `data/Stages.hpp` (`kSpiritPct`) |
 | Duel cap | 12 turns, then the larger share of stamina wins (the spirit on a tie) | `Duel.hpp` |
 | Spirits' levels | the stage's band: Valley 1-2, Climb 4-5, Scree 7-9, Ridge 10-12, Summit 13-15; a boss one above the band; +5 a lap | `data/Stages.hpp`, `Encounter.hpp` |
 | Between duels | each stretch of trail gives back 25 % stamina; a hut fills it; so does arriving at a boss | `Run.cpp` |
@@ -66,6 +69,13 @@ Its timing beat is drawn from a skill profile:
 | good | 45 % | 40 % | 15 % | x1.15 |
 | menu-only | 0 | 100 % | 0 | x1.00 |
 
+Q4: the profiles are the rates on stage 1's needle. On a sharper needle
+(`Policy.hpp`, `scaledFor`) perfects scale with the sweep (a faster needle is
+harder to place) and good-or-better with the good zone's width, so a casual
+player at the summit lands about 19 % perfect and 42 % good-or-better. The
+player also answers a boss's tell (Settles) 50 % of the time when casual, always
+when good, never menu-only.
+
 So the menu-only mode (no beat) plays like a casual player who uses the beat,
 which is the intent: the beat rewards practice, and leaving it off costs nothing
 against a casual player. The profiles are guesses; Q3 measures real presses on
@@ -83,28 +93,29 @@ earlier stages (one of each affinity) and plays the best of them as Technique;
 
 | Spirit | Stage | Runner | Casual: won, turns | Good | Menu-only | Solo, casual | Check |
 |---|---|---|---|---|---|---|---|
+| Red Fox | 1 | L1 alone | 85 %, 5.4 | 91 %, 4.6 | 84 %, 5.4 | 86 % | ok |
 | Brown Bear | 1 | L1 alone | 90 %, 4.3 | 94 %, 3.7 | 91 %, 4.3 | 90 % | ok |
 | Ruby Beetle | 1 | L1 alone | 84 %, 3.0 | 92 %, 2.6 | 86 %, 2.8 | 84 % | ok |
 | Sand Crab | 1 | L1 alone | 89 %, 3.1 | 94 %, 2.7 | 91 %, 2.9 | 89 % | ok |
-| Old Tortoise (boss) | 1 | L2 alone | 79 %, 6.0 | 92 %, 5.0 | 87 %, 6.5 | 79 % | ok |
-| Fire Newt | 2 | L4 with pack | 84 %, 5.2 | 90 %, 4.4 | 85 %, 5.3 | 79 % | ok |
-| Gnat Swarm | 2 | L4 with pack | 90 %, 4.2 | 94 %, 3.6 | 95 %, 3.7 | 76 % | ok |
-| Barn Owl | 2 | L4 with pack | 82 %, 5.2 | 90 %, 4.5 | 89 %, 5.1 | 80 % | ok |
-| Pygmy Shrew | 2 | L4 with pack | 82 %, 3.8 | 90 %, 3.3 | 90 %, 3.7 | 76 % | ok |
-| The Great Stag (boss) | 2 | L5 with pack | 81 %, 6.5 | 91 %, 5.4 | 81 %, 7.2 | 25 % | ok |
-| Rock Goat | 3 | L8 with pack | 91 %, 4.1 | 95 %, 3.5 | 90 %, 4.0 | 76 % | ok |
-| Mist Wisp | 3 | L8 with pack | 94 %, 4.2 | 97 %, 3.6 | 95 %, 4.1 | 87 % | ok |
-| Wall Lizard | 3 | L8 with pack | 81 %, 3.6 | 86 %, 3.2 | 87 %, 3.7 | 71 % | ok |
-| Marmot | 3 | L8 with pack | 90 %, 3.6 | 94 %, 3.1 | 93 %, 3.7 | 77 % | ok |
-| The Ram King (boss) | 3 | L9 with pack | 78 %, 5.0 | 90 %, 4.1 | 82 %, 5.7 | 56 % | ok |
-| Wind Sprite | 4 | L11 with pack | 81 %, 3.3 | 89 %, 2.8 | 87 %, 3.2 | 70 % | ok |
-| Raven | 4 | L11 with pack | 84 %, 4.6 | 91 %, 4.0 | 89 %, 4.7 | 40 % | ok |
-| Snow Hare | 4 | L11 with pack | 87 %, 3.4 | 93 %, 2.9 | 91 %, 3.5 | 77 % | ok |
-| The Golden Eagle (boss) | 4 | L12 with pack | 80 %, 5.3 | 91 %, 4.4 | 90 %, 4.8 | 44 % | ok |
-| Ghost Goat | 5 | L14 with pack | 85 %, 4.7 | 92 %, 4.1 | 88 %, 5.1 | 60 % | ok |
-| Snow Fox | 5 | L14 with pack | 90 %, 3.9 | 95 %, 3.3 | 96 %, 3.4 | 77 % | ok |
-| Mist Wisp | 5 | L14 with pack | 82 %, 5.3 | 90 %, 4.8 | 89 %, 5.1 | 48 % | ok |
-| The Summit Wolf (boss) | 5 | L15 with pack | 76 %, 6.6 | 87 %, 5.8 | 78 %, 6.9 | 13 % | ok |
+| Old Tortoise (boss) | 1 | L2 alone | 76 %, 6.4 | 91 %, 5.5 | 89 %, 6.4 | 76 % | ok |
+| Fire Newt | 2 | L4 with pack | 86 %, 5.0 | 90 %, 4.4 | 84 %, 4.9 | 79 % | ok |
+| Gnat Swarm | 2 | L4 with pack | 89 %, 4.1 | 93 %, 3.5 | 95 %, 3.7 | 75 % | ok |
+| Barn Owl | 2 | L4 with pack | 83 %, 5.1 | 90 %, 4.5 | 89 %, 4.7 | 81 % | ok |
+| Pygmy Shrew | 2 | L4 with pack | 87 %, 3.7 | 92 %, 3.2 | 90 %, 3.7 | 75 % | ok |
+| The Great Stag (boss) | 2 | L5 with pack | 75 %, 5.0 | 92 %, 4.4 | 69 %, 5.6 | 40 % | ok |
+| Rock Goat | 3 | L8 with pack | 89 %, 4.3 | 93 %, 3.8 | 90 %, 4.0 | 70 % | ok |
+| Mist Wisp | 3 | L8 with pack | 92 %, 4.4 | 96 %, 3.8 | 98 %, 3.6 | 84 % | ok |
+| Wall Lizard | 3 | L8 with pack | 81 %, 3.5 | 88 %, 3.1 | 88 %, 3.2 | 71 % | ok |
+| Marmot | 3 | L8 with pack | 87 %, 3.8 | 92 %, 3.3 | 93 %, 3.3 | 72 % | ok |
+| The Ram King (boss) | 3 | L9 with pack | 74 %, 4.7 | 84 %, 4.1 | 93 %, 3.2 | 50 % | ok |
+| Wind Sprite | 4 | L11 with pack | 82 %, 3.1 | 87 %, 2.8 | 92 %, 2.5 | 69 % | ok |
+| Raven | 4 | L11 with pack | 87 %, 4.3 | 92 %, 3.7 | 98 %, 3.4 | 47 % | ok |
+| Snow Hare | 4 | L11 with pack | 88 %, 3.2 | 92 %, 2.8 | 95 %, 2.4 | 77 % | ok |
+| The Golden Eagle (boss) | 4 | L12 with pack | 77 %, 4.2 | 91 %, 3.8 | 95 %, 2.9 | 52 % | ok |
+| Ghost Goat | 5 | L14 with pack | 86 %, 4.6 | 91 %, 4.2 | 97 %, 3.5 | 60 % | ok |
+| Snow Fox | 5 | L14 with pack | 88 %, 3.9 | 91 %, 3.5 | 96 %, 3.1 | 77 % | ok |
+| Mist Wisp | 5 | L14 with pack | 83 %, 5.1 | 89 %, 4.6 | 94 %, 4.5 | 52 % | ok |
+| The Summit Wolf (boss) | 5 | L15 with pack | 78 %, 4.9 | 93 %, 4.6 | 93 %, 3.8 | 30 % | ok |
 
 Turns are the mean over all duels, won or lost. The Mist Wisp appears twice on purpose:
 it follows you from the scree to the summit, stronger.
@@ -118,52 +129,52 @@ leaves when the pack is full), obstacles and duels played by the policy above.
 Play time is estimated at 5 s a duel turn, 6 s a stretch of trail, 6 s an
 obstacle and 4 s an offer: screens only, no reading.
 
-**Casual.** Every game reached the summit; level 17.4 at the end, three partners.
-About 15 minutes of play for the Ridge.
+**Casual.** Every game reached the summit; level 17.0 at the end. About 14 minutes.
 
 | Stage | Par at the boss | Level at the boss (mean, range) | Duels won / lost | Regular duels won | Boss attempts | Boss first time | In the dark / wind | Play time |
 |---|---|---|---|---|---|---|---|---|
-| 1 Valley Path | 2 | 2.0 (1-3) | 3.4 / 0.4 | 89 % | 1.1 | 84 % | 0 % / 0 % | 2 min |
-| 2 Switchback Climb | 5 | 5.3 (4-7) | 4.0 / 1.0 | 83 % | 1.4 | 61 % | 0 % / 0 % | 2 min |
-| 3 Scree Fields | 9 | 8.5 (7-11) | 4.3 / 1.8 | 74 % | 1.6 | 53 % | 6 % / 0 % | 3 min |
-| 4 Ridge Line | 12 | 12.0 (10-15) | 4.2 / 1.7 | 74 % | 1.5 | 58 % | 15 % / 49 % | 3 min |
-| 5 The Summit | 15 | 15.2 (13-19) | 4.7 / 2.2 | 74 % | 1.8 | 44 % | 26 % / 0 % | 3 min |
+| 1 Valley Path | 2 | 2.0 (1-3) | 3.5 / 0.4 | 89 % | 1.2 | 80 % | 0 % / 0 % | 2 min |
+| 2 Switchback Climb | 5 | 5.3 (4-7) | 3.7 / 0.8 | 83 % | 1.3 | 73 % | 0 % / 0 % | 2 min |
+| 3 Scree Fields | 9 | 8.5 (7-11) | 4.4 / 2.0 | 71 % | 1.6 | 52 % | 7 % / 0 % | 3 min |
+| 4 Ridge Line | 12 | 11.9 (10-15) | 3.8 / 1.3 | 73 % | 1.3 | 70 % | 15 % / 49 % | 2 min |
+| 5 The Summit | 15 | 15.0 (12-18) | 4.3 / 1.9 | 71 % | 1.6 | 57 % | 26 % / 0 % | 3 min |
 
-**Good.** Every game reached the summit; level 16.9 at the end. About 12 minutes.
+**Good.** Every game reached the summit; level 16.4 at the end. About 11 minutes.
 
 | Stage | Par at the boss | Level at the boss (mean, range) | Duels won / lost | Regular duels won | Boss attempts | Boss first time | In the dark / wind | Play time |
 |---|---|---|---|---|---|---|---|---|
-| 1 Valley Path | 2 | 2.1 (1-3) | 3.2 / 0.1 | 94 % | 1.0 | 94 % | 0 % / 0 % | 1 min |
-| 2 Switchback Climb | 5 | 5.2 (4-7) | 3.6 / 0.5 | 89 % | 1.2 | 77 % | 0 % / 0 % | 2 min |
-| 3 Scree Fields | 9 | 8.3 (7-11) | 3.8 / 1.0 | 80 % | 1.3 | 68 % | 1 % / 0 % | 2 min |
-| 4 Ridge Line | 12 | 11.6 (10-14) | 3.8 / 1.1 | 78 % | 1.3 | 69 % | 4 % / 49 % | 2 min |
-| 5 The Summit | 15 | 14.8 (12-17) | 4.3 / 1.4 | 79 % | 1.6 | 56 % | 21 % / 0 % | 3 min |
+| 1 Valley Path | 2 | 2.1 (1-3) | 3.2 / 0.2 | 94 % | 1.0 | 93 % | 0 % / 0 % | 1 min |
+| 2 Switchback Climb | 5 | 5.2 (4-7) | 3.3 / 0.4 | 88 % | 1.1 | 89 % | 0 % / 0 % | 2 min |
+| 3 Scree Fields | 9 | 8.2 (7-10) | 3.9 / 1.3 | 76 % | 1.4 | 65 % | 1 % / 0 % | 2 min |
+| 4 Ridge Line | 12 | 11.6 (10-14) | 3.5 / 0.9 | 77 % | 1.1 | 82 % | 4 % / 47 % | 2 min |
+| 5 The Summit | 15 | 14.6 (12-18) | 3.8 / 1.2 | 74 % | 1.3 | 74 % | 19 % / 0 % | 2 min |
 
-**Menu-only.** Every game reached the summit; level 17.4 at the end. About 15 minutes.
+**Menu-only.** Every game reached the summit; level 16.6 at the end. About 11 minutes.
 
 | Stage | Par at the boss | Level at the boss (mean, range) | Duels won / lost | Regular duels won | Boss attempts | Boss first time | In the dark / wind | Play time |
 |---|---|---|---|---|---|---|---|---|
 | 1 Valley Path | 2 | 2.0 (1-3) | 3.3 / 0.3 | 90 % | 1.1 | 89 % | 0 % / 0 % | 2 min |
-| 2 Switchback Climb | 5 | 5.2 (4-7) | 3.9 / 0.9 | 86 % | 1.4 | 64 % | 0 % / 0 % | 2 min |
-| 3 Scree Fields | 9 | 8.5 (7-11) | 4.3 / 1.5 | 77 % | 1.6 | 56 % | 4 % / 0 % | 3 min |
-| 4 Ridge Line | 12 | 11.9 (10-14) | 4.0 / 1.4 | 75 % | 1.4 | 66 % | 11 % / 52 % | 2 min |
-| 5 The Summit | 15 | 15.1 (13-18) | 5.0 / 2.3 | 75 % | 2.0 | 39 % | 26 % / 0 % | 4 min |
+| 2 Switchback Climb | 5 | 5.2 (4-7) | 3.8 / 0.7 | 87 % | 1.3 | 68 % | 0 % / 0 % | 2 min |
+| 3 Scree Fields | 9 | 8.4 (7-11) | 3.9 / 1.1 | 78 % | 1.3 | 68 % | 1 % / 0 % | 2 min |
+| 4 Ridge Line | 12 | 11.7 (10-14) | 3.4 / 0.6 | 83 % | 1.1 | 86 % | 6 % / 50 % | 1 min |
+| 5 The Summit | 15 | 14.6 (13-17) | 4.0 / 1.1 | 82 % | 1.4 | 64 % | 25 % / 0 % | 2 min |
 
 ## Reading the results
 
 - **The duels are where they should be.** Every regular spirit is 81-94 % for a
-  casual player, fresh, in 3.0-5.4 turns; every boss is 76-81 %.
+  casual player, fresh, in 3.0-5.4 turns; every boss is 74-78 % (after Q4's twists
+  and sharper needle, tuned back into the targets: see "Q4 tuning" below).
 - **A real run is harder than a fresh duel**, by design: the runner arrives part
   recovered (a stretch of trail gives back a quarter), with whatever is left in
   the bag, a pack picked by chance, and sometimes in the dark. Regular duels in
-  a run are won 74-89 % of the time, and the first try at a boss 44-84 %.
+  a run are won 71-89 % of the time, and the first try at a boss 52-80 %.
 - **The summit is the hardest place**, and meant to be: snow costs the runner
   stamina every turn, a quarter of runs get there after dark, and the Summit
-  Wolf is the longest fight (6.6 turns). A casual player needs 1.8 tries on
-  average, a good one 1.6. This is the "serious summit". If it is too much, the
+  Wolf alternates charge and guard. A casual player needs 1.6 tries at it on
+  average, a good one 1.3. This is the "serious summit". If it is too much, the
   first levers are snow (not scaling it by level) and the Wolf's stamina.
-- **Partners matter most for bosses.** Without a pack, the Great Stag falls to 25 %
-  and the Summit Wolf to 13 %; regular spirits drop about 10 points. Collecting
+- **Partners matter most for bosses.** Without a pack, the Great Stag falls to 40 %
+  and the Summit Wolf to 30 %; regular spirits drop about 10 points. Collecting
   spirits is not optional flavour.
 - **The XP curve keeps up.** The runner reaches every boss within a level of par
   on average, in every profile (within half a level for a casual player), with no grinding (the simulated player never
@@ -214,6 +225,25 @@ and x5/4), so practice shows; and Surge is 14 power (from 12). Then, in order (t
    Grit spirits drag past six turns. The Old Tortoise's stamina came down (135 to
    120 %), the Fire Newt and the Barn Owl were made shorter and sharper (less stamina, one more
    grit), and the Summit Wolf's stamina came down (115 to 105 %).
+
+## Q4 tuning (19 October 2026)
+
+Two things changed the fights: the needle sharpens stage by stage, and each boss
+has a twist (a warning, then a charge or a guard). Run as they were, the
+simulator's casual player fell to 44-55 % against the later bosses and to
+66-78 % against several regular spirits. Without shortening the needle's ladder
+(Jon asked for it) the spirits gave:
+
+10. **A stage-level softening**, `kSpiritPct` (the stages' spirits at 100, 94,
+    98, 82 and 81 % of their row's stamina), tuned so the mean casual win in each
+    stage is about 87 %. It is a stage's lever, not a species', because the Mist
+    Wisp lives in two stages and the needle is a stage's.
+11. **Each boss's own stamina** was then tuned so a casual player wins 74-78 %.
+    The Wall Lizard was left at 75 % and came down (125 to 113 %).
+
+Every row is inside the targets again, and every run in every profile reaches
+the summit. Menu-only play, which never reads a tell, wins 69 % against the Great
+Stag (65-85 % is the target): the twists are meant to be read.
 
 ## What the simulators do not know
 

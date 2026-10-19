@@ -199,9 +199,10 @@ void Bar::setHidden(bool hidden)
 
 // -- BeatBar -------------------------------------------------------------------------
 
-void BeatBar::create(lv_obj_t* parent, int32_t x, int32_t y, int32_t w)
+void BeatBar::create(lv_obj_t* parent, int32_t x, int32_t y, int32_t w, const BeatConfig& cfg)
 {
     constexpr int32_t kH = 12;
+    mCfg = clampBeat(cfg);
     mX = x;
     mW = w;
     auto zone = [&](uint32_t widthMs, uint32_t color) {

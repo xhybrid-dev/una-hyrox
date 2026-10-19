@@ -74,6 +74,7 @@ struct DuelView {
     uint8_t     dark         = 0;
     uint8_t     chanceRunner = 0;   ///< Per cent the runner's move lands now.
     uint8_t     chanceSpirit = 0;
+    uint8_t     tell         = 0;   ///< Twist: what the coming turn is (0: nothing special).
     uint16_t    estimate[3]  = {};  ///< Damage now with a Good beat: Surge, Settle, Technique.
     FighterView runner;
     FighterView spirit;

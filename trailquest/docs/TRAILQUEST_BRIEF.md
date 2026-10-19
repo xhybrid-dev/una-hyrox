@@ -1,10 +1,9 @@
 # Trail Quest for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** Q3 part 1 (creatures named for how they look, the story, the map
-saying where each way leads) built, 18 October 2026, for Jon to play on the
-watch (NOTES, "Phase Q3"). Gates Q0 (17 October), Q1 and Q2 (18 October)
-passed.
+**Status:** Q4 drop 1 (stages 2 and 3 open, boss twists, a sharper needle) built,
+19 October 2026, for Jon to play on the watch (NOTES, "Phase Q4"). Gates Q0
+(17 October), Q1 and Q2 (18 October) passed; Q3's part 1 played well.
 Decisions taken: tone "funny start, serious summit"; full 5 stages; Daily Trail
 as the planned extra; generated pixel art; a loss sends you back to the last
 hut; bosses are big Trail Spirits; a beaten spirit offers to join; a short run

@@ -29,6 +29,9 @@ is right. British English.
 | 18 Oct 2026 | R2 held 1.5 s leaves from any screen; a quick R2 is the screen's own (Fuel in a duel) | Claude |
 | 18 Oct 2026 | This build stops after the Valley Path (Session::kPlayableStages = 1) until Q4 | Claude |
 | 18 Oct 2026 | Creatures are named for how they look, colour and animal (the Red Fox, the Old Tortoise); the runner's jokes stay in their lines and moves | Jon, at Gate Q2 |
+| 19 Oct 2026 | The needle sharpens each stage and lap (faster, a narrower good zone; perfect stays two frames); the later stages' spirits soften to match | Jon asked, Claude set the numbers |
+| 19 Oct 2026 | Q4 excitement = boss twists (a tell, then a charge or a guard); rare spirits and trail events left for later | Jon |
+| 19 Oct 2026 | Q4 in two drops: stages 2-3 first, then 4-5, the summit finale and the second lap | Jon |
 | 18 Oct 2026 | Story at the key moments: an opening tale, each stage's start, its boss ahead and beaten; the map says where each way leads | Jon, at Gate Q2 |
 
 ## Findings from the SDK (17 October 2026)
@@ -639,6 +642,54 @@ the screens, all fixed:
    and R2 Fuel; the needle, only while the beat is on). Any of L1, L2 or R1
    pages on. `Narrate::helpPage`, host-tested to fit.
 
+## Phase Q4: the rest of the Ridge (19 October 2026, drop 1)
+
+Jon after the watch test: the needle is "fairly easy but good. Could increase in
+speed and accuracy for later levels"; "continue through Q4 with some exciting
+adventures". Decided: boss twists as the excitement; two drops, stages 2-3 first.
+
+**Built (drop 1).**
+
+- **The needle** (`Beat.hpp`, `beatFor(stage, lap)`): stage 1 unchanged; each
+  stage 100 ms faster with a good zone 40 ms narrower; each lap 100 / 20 more,
+  floored at 1000 / 200. Perfect stays 200 ms (two frames: the floor at 10 fps).
+  `BeatBar::create` takes the config; the duel and the obstacle pass the
+  stage's.
+- **Boss twists** (`Duel.cpp`, `data/Species.hpp`): `Duel::tell()` says what the
+  coming turn is. Charge: the boss's hit x2, or x1/2 if the runner chose Settle;
+  Guard: the runner's damage x1/2. The Old Tortoise guards every 4th turn, the
+  Great Stag and the Golden Eagle charge and the Ram King guards every 3rd, the
+  Summit Wolf alternates. `DuelView::tell`; the duel screen shows a warning card
+  first (`Narrate::twistTell`) and the playback says the effect
+  (`Charged`, `Braced`, `Guarded` events).
+- **Balance** (`BALANCE.md`, "Q4 tuning"): the simulated player scales its
+  beat rates to the needle and answers tells 50 % (casual) or always (good). The
+  stage-level softening `kSpiritPct` (100, 94, 98, 82, 81) and each boss's own
+  stamina put every row back in the targets; every run reaches the summit.
+- **Art**: ten sprites, stages 2 and 3 (Fire Newt, Gnat Swarm, Barn Owl, Pygmy
+  Shrew, Great Stag; Rock Goat, Mist Wisp, Wall Lizard, Marmot, Ram King), same
+  palette; the sheet wraps into rows.
+- **Stages 2 and 3 are open** (`kPlayableStages = 3`): the stage clear goes on to
+  the next stage's story pages. The route graph tests (no loops, no dead ends,
+  every place reachable) already covered all five stages.
+
+**Verified.** Host tests 184 (the beat ladder, the tell schedule per boss, a
+charge doubling and a Settle bracing it, a guard halving, every warning and event
+line fits its card, stages 1-3 played through the real session);
+`sim_play.sh` plays stages 1-3 (513 presses for a plain R1-only player, 9 losses)
+and picks the save up at the stage 3 clear; `capture_boss.sh [stage]` starts just
+before a boss from a written save and captures its page, warning card and twist
+(`docs/screens/q4-stag-*`, `q4-ram-*`); the watch compile check links (GUI
+388,260 B, service 34,224 B, `.uapp` 245,940 B).
+
+**Gate Q4a: what Jon must test** (the CI build, `watch-apps`): play stages 1-3.
+
+1. Do the boss warnings and twists feel fair and exciting? Is the text clear
+   (what to do on a Charge, on a Guard)?
+2. Is the sharper needle right at stages 2 and 3 (still fair, a little harder)?
+3. Do the new creatures read well on the watch? Any you would redraw?
+4. Is each stage's difficulty about right (you can win, you can lose)?
+
 ## Open items
 
 - The scene is a few flat shapes. A tile map (the route screens) is not tested
@@ -654,8 +705,10 @@ the screens, all fixed:
   story pages.
 - Dialogue is one line a spirit (its intro); a second line for the Mist Wisp's
   return is Q4 content (the bosses' pages are written: `data/Story.hpp`).
-- The beat's zones are Q0's (a 1.6 s sweep, 400 ms good, 200 ms perfect). Q3
-  logs real strikes on the watch and may widen them.
+- The needle's stage-1 zones are Q0's (a 1.6 s sweep, 400 ms good, 200 ms
+  perfect), which Jon finds "fairly easy but good"; later stages sharpen (Q4).
+  Real strikes are not logged off the watch, so the simulator's profiles remain
+  guesses.
 
 ## Review before Gate Q0 (17 October 2026)
 

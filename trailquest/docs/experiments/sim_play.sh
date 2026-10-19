@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# Play stage 1 from a new game to the stage clear in the PC simulator, and say
-# whether it got there: an end-to-end check of the whole game through the real
+# Play stages 1-3 (all this build opens) from a new game to the last stage clear
+# in the PC simulator, and say whether it got there: an end-to-end check of the whole game through the real
 # service and screens.
 #
 # The beat is turned off (every turn counts as Good, as menu-only play does)
@@ -33,7 +33,9 @@ sleep 2
 
 start() {
     ( cd "$BIN" && exec env DISPLAY=$DISP TRAILQUEST_SEED=$SEED stdbuf -oL -eL ./TrailQuestSimulator >> "$LOG" 2>&1 ) & SIMPID=$!
-    sleep 3
+    # Wait (up to 20 s) for the GUI, then a moment for the title to be ready.
+    for _ in $(seq 1 100); do grep -aq 'GUI is now running' "$LOG" && break; sleep 0.2; done
+    sleep 2
 }
 key() { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-0.9}"; }
 
@@ -41,24 +43,26 @@ key() { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-0.9}"; }
 start
 key 2 0.5          # the beat off
 cleared=""
-for i in $(seq 1 300); do
+if grep -aq 'beat: ' "$LOG"; then echo "FAIL: the beat is on (the L2 press was missed)" >&2; exit 1; fi
+for i in $(seq 1 900); do
     key 3
-    if grep -aq 'step: .* phase 4 ' "$LOG"; then cleared=$i; break; fi
+    if [ "$i" = 20 ] && grep -aq 'beat: ' "$LOG"; then echo "FAIL: the beat is on (the L2 press was missed)" >&2; exit 1; fi
+    if [ "$(grep -ac 'step: .* phase 4 ' "$LOG")" -ge 3 ]; then cleared=$i; break; fi
 done
 
 echo "=== steps ==="
 grep -a 'step:' "$LOG" | sed 's/^.*step: /  /'
 if [ -z "$cleared" ]; then
-    echo "FAIL: no stage clear after 300 presses" >&2
+    echo "FAIL: stages 1-3 not cleared after 900 presses" >&2
     exit 1
 fi
-echo "Stage 1 cleared after $cleared presses."
+echo "Stages 1-3 cleared after $cleared presses."
 
 # Leave (R2 held), start again, and check the save is picked up.
 DISPLAY=$DISP xdotool keydown 4; sleep 2; DISPLAY=$DISP xdotool keyup 4; sleep 1
 kill -9 $SIMPID 2>/dev/null; SIMPID=""
 start
-if grep -aq 'resumed: stage 0, place 8' "$LOG"; then
+if grep -aq 'resumed: stage 2, place 8' "$LOG"; then
     echo "The save was picked up at the stage clear."
 else
     echo "FAIL: the save was not picked up" >&2

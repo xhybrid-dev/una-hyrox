@@ -11,7 +11,8 @@
  * then the timing beat (any button strikes; if it is on), then the turn plays
  * back event by event: a line of text, the hit fighter flashes, the bars move,
  * the wrist buzzes. The first duel of a game explains the four moves first
- * (a card, three pages). At the end, what was won or lost, and on (a beaten boss
+ * (a card, three pages). On a turn the boss tells (its twist), a card warns
+ * first and says what to do. At the end, what was won or lost, and on (a beaten boss
  * has its story page before the stage clear).
  *
  * The duel runs in the service; this screen sends the turn and plays back the
@@ -46,7 +47,7 @@ protected:
     bool rawKeys() const override { return mMode == Mode::Beat; }
 
 private:
-    enum class Mode : uint8_t { Intro, Help, Choose, Fuel, Beat, Waiting, Playback, End };
+    enum class Mode : uint8_t { Intro, Help, Tell, Choose, Fuel, Beat, Waiting, Playback, End };
 
     void setMode(Mode m);
     void choose(TrailQuest::Action a);
@@ -58,6 +59,7 @@ private:
     bool nextFuel(uint8_t from);
     void showFuel();
     void showHelp(uint8_t page);
+    void toChoose();
     uint8_t helpPages() const;
 
     Sprite      mRunner;
@@ -91,6 +93,7 @@ private:
     uint8_t            mFrame     = 0;
     lv_obj_t*          mFlash     = nullptr;   ///< The sprite hit by the current event.
     uint8_t            mHelpPage  = 0;
+    uint8_t            mTellTurn  = 0xFF;   ///< The turn whose boss warning has been shown.
 
     /// The help card (what each button does) is shown once a game, at the
     /// first duel's first turn.

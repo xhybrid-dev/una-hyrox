@@ -50,7 +50,7 @@ void ObstacleScreen::build()
     mHead = Ui::rowLabel(mRoot, Layout::kHeadRow, "", Ui::Ink::kGold);
     mCard.create(mRoot);
     mCorners.create(mRoot);
-    mBeat.create(mRoot, kBeatX, kBeatY, kBeatW);
+    mBeat.create(mRoot, kBeatX, kBeatY, kBeatW, beatFor(mModel.world().state.stage, mModel.world().state.lap));
     mBeat.setHidden(true);
 }
 

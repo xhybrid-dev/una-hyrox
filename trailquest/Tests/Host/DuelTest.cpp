@@ -12,6 +12,8 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "Duel.hpp"
 #include "Progress.hpp"
 
@@ -457,4 +459,155 @@ TEST(Duel, AnEndedDuelIgnoresFurtherTurns)
     const TurnLog log = d.play(PlayerTurn{}, r, bag);
     EXPECT_EQ(log.count, 0u);
     EXPECT_EQ(d.turn(), turns);
+}
+
+// -- Boss twists ----------------------------------------------------------------
+
+namespace
+{
+
+/// The tell before each of the first @p turns turns of a duel against @p sp,
+/// with a runner who cannot be hurt and does nothing (Fuel with an empty bag).
+std::vector<Twist> tellsOver(SpeciesId sp, uint8_t turns)
+{
+    DuelSetup s = setupFor(sp);
+    s.runnerMax.stamina = 5000;
+    s.runnerStamina     = 5000;
+    Duel d;
+    d.start(s);
+    Rng     r(5);
+    uint8_t bag[Item::Count] = {};
+    std::vector<Twist> out;
+    for (uint8_t i = 0; i < turns && d.outcome() == DuelOutcome::Ongoing; ++i) {
+        out.push_back(d.tell());
+        PlayerTurn t;
+        t.action = Action::Fuel;
+        d.play(t, r, bag);
+    }
+    return out;
+}
+
+} // namespace
+
+TEST(Twist, TheTellsFollowEachBossSchedule)
+{
+    const Twist N = Twist::None, C = Twist::Charge, G = Twist::Guard;
+    // The Old Tortoise guards on every 4th turn; the Great Stag charges, the Ram
+    // King guards and the Golden Eagle charges on every 3rd.
+    EXPECT_EQ(tellsOver(Spirit::OldTortoise, 8), (std::vector<Twist>{ N, N, N, G, N, N, N, G }));
+    EXPECT_EQ(tellsOver(Spirit::GreatStag, 9), (std::vector<Twist>{ N, N, C, N, N, C, N, N, C }));
+    EXPECT_EQ(tellsOver(Spirit::RamKing, 6), (std::vector<Twist>{ N, N, G, N, N, G }));
+    EXPECT_EQ(tellsOver(Spirit::GoldenEagle, 6), (std::vector<Twist>{ N, N, C, N, N, C }));
+    // The Summit Wolf alternates: charge, then guard, and so on.
+    EXPECT_EQ(tellsOver(Spirit::SummitWolf, 12), (std::vector<Twist>{ N, N, C, N, N, G, N, N, C, N, N, G }));
+}
+
+TEST(Twist, OnlyBossesTellAndNothingTellsOnceItIsOver)
+{
+    for (SpeciesId sp = 0; sp < Spirit::Count; ++sp) {
+        if (isBoss(sp)) {
+            continue;
+        }
+        for (Twist t : tellsOver(sp, 12)) {
+            EXPECT_EQ(t, Twist::None) << speciesDef(sp).name;
+        }
+    }
+    DuelSetup s = setupFor(Spirit::GreatStag);
+    s.runnerMax.stamina = 5000;
+    s.runnerStamina     = 5000;
+    Duel d;
+    d.start(s);
+    Rng     r(1);
+    uint8_t bag[Item::Count] = {};
+    while (d.outcome() == DuelOutcome::Ongoing) {
+        PlayerTurn t;
+        t.action = Action::Fuel;
+        d.play(t, r, bag);
+    }
+    EXPECT_EQ(d.tell(), Twist::None);   // the 12th turn ended it: no turn left to tell
+}
+
+TEST(Twist, AChargeHitsDoubleAndASettleBracesItToHalf)
+{
+    // The Great Stag (Pace moves, nothing that changes the runner's stats) hits
+    // for the same each turn with a given move; its charge turn is the 3rd.
+    int doubled = 0, braced = 0;
+    for (bool settle : { false, true }) {
+        for (uint32_t seed = 1; seed <= 80; ++seed) {
+            DuelSetup s = setupFor(Spirit::GreatStag);
+            s.runnerMax.stamina = 5000;
+            s.runnerStamina     = 5000;
+            Duel d;
+            d.start(s);
+            Rng     r(seed);
+            uint8_t bag[Item::Count] = {};
+            uint16_t base[Move::Count] = {};
+            for (uint8_t turn = 0; turn < 3; ++turn) {
+                PlayerTurn t;
+                t.action = (turn == 2 && settle) ? Action::Settle : Action::Fuel;
+                const TurnLog log = d.play(t, r, bag);
+                for (uint8_t i = 0; i < log.count; ++i) {
+                    const DuelEvent& e = log.events[i];
+                    if (e.kind == EventKind::Hit && e.actor == Side::Spirit) {
+                        if (turn < 2) {
+                            base[e.move] = e.amount;
+                        } else if (base[e.move] != 0) {
+                            ASSERT_LT(i + 1u, static_cast<unsigned>(log.count));
+                            const DuelEvent& tw = log.events[i + 1];
+                            if (settle) {
+                                EXPECT_EQ(tw.kind, EventKind::Braced);
+                                EXPECT_EQ(tw.actor, Side::Runner);
+                                EXPECT_EQ(e.amount, (base[e.move] + 1u) / 2u);
+                                ++braced;
+                            } else {
+                                EXPECT_EQ(tw.kind, EventKind::Charged);
+                                EXPECT_EQ(tw.actor, Side::Spirit);
+                                EXPECT_EQ(e.amount, 2u * base[e.move]);
+                                ++doubled;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    EXPECT_GT(doubled, 10);   // the checks above really ran
+    EXPECT_GT(braced, 10);
+}
+
+TEST(Twist, AGuardHalvesTheRunnersHitOnItsTurnOnly)
+{
+    // The Old Tortoise guards on its 4th turn. The runner Surges every turn;
+    // its damage is estimated before each turn from the same state.
+    int guarded = 0;
+    for (uint32_t seed = 1; seed <= 60; ++seed) {
+        DuelSetup s = setupFor(Spirit::OldTortoise, 5);
+        s.runnerMax.stamina = 5000;
+        s.runnerStamina     = 5000;
+        Duel d;
+        d.start(s);
+        Rng     r(seed);
+        uint8_t bag[Item::Count] = {};
+        for (uint8_t turn = 0; turn < 4 && d.outcome() == DuelOutcome::Ongoing; ++turn) {
+            const uint16_t est = d.estimate(Action::Surge);
+            PlayerTurn     t;
+            t.action = Action::Surge;
+            const TurnLog log = d.play(t, r, bag);
+            for (uint8_t i = 0; i < log.count; ++i) {
+                const DuelEvent& e = log.events[i];
+                if (e.kind == EventKind::Guarded) {
+                    EXPECT_EQ(turn, 3u);
+                    ASSERT_GT(i, 0u);
+                    EXPECT_EQ(log.events[i - 1].kind, EventKind::Hit);
+                    EXPECT_EQ(log.events[i - 1].actor, Side::Runner);
+                    EXPECT_EQ(log.events[i - 1].amount, (est + 1u) / 2u);
+                    ++guarded;
+                }
+                if (e.kind == EventKind::Hit && e.actor == Side::Runner && turn != 3) {
+                    EXPECT_EQ(e.amount, est);   // an ordinary turn is untouched
+                }
+            }
+        }
+    }
+    EXPECT_GT(guarded, 10);
 }

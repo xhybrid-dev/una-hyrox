@@ -31,6 +31,15 @@ namespace TrailQuest
 constexpr uint8_t kSpeciesBoss  = 0x01;   ///< A stage's boss: never joins.
 constexpr uint8_t kSpeciesNight = 0x02;   ///< Met only outside full daylight (dawn, dusk, night).
 
+/// A boss's twist: on every twistPeriod-th turn it tells (the GUI warns
+/// first) and the turn is special (docs/DESIGN.md, "Boss twists").
+enum class Twist : uint8_t {
+    None = 0,
+    Charge,      ///< Its attack hits double; the runner's Settle braces, and it hits half.
+    Guard,       ///< The runner's damage is halved this turn.
+    Alternate,   ///< Charge on the first tell, Guard on the second, and so on.
+};
+
 struct SpeciesDef {
     const char* name;
     const char* kind;          ///< What it looks like, for the art.
@@ -44,6 +53,8 @@ struct SpeciesDef {
     MoveId      moves[2];
     uint8_t     firstMoveWeight;   ///< Per cent of turns it uses moves[0].
     uint8_t     flags;
+    Twist       twist       = Twist::None;   ///< A boss's twist.
+    uint8_t     twistPeriod = 0;             ///< It tells every this many turns.
 };
 
 namespace Spirit
@@ -74,7 +85,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Sand Crab", "crab", "Walks sideways into every seam you own.",
       1, Affinity::Form, 100, -1, 0, 0, { Move::SidewaysScuttle, Move::Pinch }, 50, 0 },
     { "Old Tortoise", "giant tortoise", "Guards the valley's end. Has never once hurried.",
-      1, Affinity::Grit, 120, -3, 0, 1, { Move::MossSlam, Move::ShellSnap }, 60, kSpeciesBoss },
+      1, Affinity::Grit, 114, -3, 0, 1, { Move::MossSlam, Move::ShellSnap }, 60, kSpeciesBoss, Twist::Guard, 4 },
 
     // Stage 2: Switchback Climb. Stamina matters.
     { "Fire Newt", "red newt", "Pours hot sand into your quads on every bend.",
@@ -86,7 +97,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Pygmy Shrew", "shrew", "Not an injury yet. Keeps you guessing.",
       2, Affinity::Form, 125, 1, 1, 0, { Move::Nag, Move::Scurry }, 50, 0 },
     { "The Great Stag", "great stag", "Runs up the hill that never ends.",
-      2, Affinity::Pace, 135, 0, 0, 1, { Move::AntlerCharge, Move::LongClimb }, 55, kSpeciesBoss },
+      2, Affinity::Pace, 115, 0, 0, 1, { Move::AntlerCharge, Move::LongClimb }, 55, kSpeciesBoss, Twist::Charge, 3 },
 
     // Stage 3: Scree Fields. Technical; footing matters.
     { "Rock Goat", "mountain goat", "Makes loose rock look easy, on purpose.",
@@ -94,11 +105,11 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Mist Wisp", "mist", "Speaks in your own voice. Knows your splits.",
       3, Affinity::Grit, 120, 0, 0, 2, { Move::SecondGuess, Move::Fog }, 50, 0 },
     { "Wall Lizard", "lizard", "Waits on the wet slab for your best stride.",
-      3, Affinity::Form, 125, 1, 1, -1, { Move::Skid, Move::Trip }, 50, 0 },
+      3, Affinity::Form, 113, 1, 1, -1, { Move::Skid, Move::Trip }, 50, 0 },
     { "Marmot", "marmot", "Knows exactly which stone will roll.",
       3, Affinity::Form, 125, 0, 1, 0, { Move::AnkleSnap, Move::Burrow }, 50, 0 },
     { "The Ram King", "stone ram", "The mountain, deciding if you may pass.",
-      3, Affinity::Form, 140, -2, 2, 0, { Move::ShaleCrash, Move::Landslide }, 55, kSpeciesBoss },
+      3, Affinity::Form, 111, -2, 2, 0, { Move::ShaleCrash, Move::Landslide }, 55, kSpeciesBoss, Twist::Guard, 3 },
 
     // Stage 4: Ridge Line. Exposed; the jokes thin out.
     { "Wind Sprite", "wind spirit", "Leans on you from the side, for hours.",
@@ -108,7 +119,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Snow Hare", "snow hare", "The cold you stop feeling. That's the danger.",
       4, Affinity::Form, 135, 1, 1, 0, { Move::Chill, Move::Bound }, 50, kSpeciesNight },
     { "The Golden Eagle", "eagle", "Owns the drop on either side.",
-      4, Affinity::Pace, 110, 0, 0, 0, { Move::Stoop, Move::Updraught }, 55, kSpeciesBoss },
+      4, Affinity::Pace, 92, 0, 0, 0, { Move::Stoop, Move::Updraught }, 55, kSpeciesBoss, Twist::Charge, 3 },
 
     // Stage 5: The Summit. Quiet and serious.
     { "Ghost Goat", "ghost goat", "Takes a little of every breath.",
@@ -116,7 +127,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Snow Fox", "snow fox", "Quick, white, and already at your fingers.",
       5, Affinity::Pace, 115, 1, 1, 0, { Move::FrostBite, Move::Flurry }, 50, 0 },
     { "The Summit Wolf", "wolf", "Has followed you since the valley.",
-      5, Affinity::Grit, 105, 0, 0, 1, { Move::Howl, Move::LongChase }, 50, kSpeciesBoss },
+      5, Affinity::Grit, 88, 0, 0, 1, { Move::Howl, Move::LongChase }, 50, kSpeciesBoss, Twist::Alternate, 3 },
 };
 
 /// The spirit, or the Red Fox for an id out of range (no MMU: never read past the table).

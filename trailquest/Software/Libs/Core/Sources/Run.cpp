@@ -251,6 +251,7 @@ void Run::startDuel(SpeciesId sp, uint8_t level)
     s.weather       = mState.weather < static_cast<uint8_t>(Weather::Count) ? static_cast<Weather>(mState.weather)
                                                                            : Weather::Clear;
     s.dark          = dark();
+    s.staminaPct    = spiritPct(mState.stage);
     s.technique     = bestTechnique(s);
     mDuel.start(s);
     mState.spiritsMet |= speciesBit(sp);

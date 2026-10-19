@@ -60,6 +60,15 @@ constexpr int32_t kHitMin        = 60;
 constexpr int32_t kHitMax        = 100;
 constexpr int32_t kHitMistOrDark = 10;
 
+/// A twist's multipliers, as fractions: a charge hits twice as hard, a braced
+/// one half, and a guard halves the runner's damage.
+constexpr uint32_t kChargeNum = 2;
+constexpr uint32_t kChargeDen = 1;
+constexpr uint32_t kBraceNum  = 1;
+constexpr uint32_t kBraceDen  = 2;
+constexpr uint32_t kGuardNum  = 1;
+constexpr uint32_t kGuardDen  = 2;
+
 /// A boss rests once below this share of its stamina, recovering kBossRestPct.
 constexpr uint32_t kBossRestBelowPct = 30;
 constexpr uint32_t kBossRestPct      = 25;
@@ -97,6 +106,7 @@ struct DuelSetup {
     Terrain   terrain       = Terrain::Path;
     Weather   weather       = Weather::Clear;
     bool      dark          = false;  ///< Night without a headtorch.
+    uint8_t   staminaPct    = 100;    ///< The spirit's stamina, per cent of its row's (the stage's spiritPct()).
 };
 
 /// The player's choice for a turn.
@@ -116,6 +126,9 @@ enum class EventKind : uint8_t {
     UsedItem,
     NoItem,      ///< Fuel with nothing to use: the turn is lost
     Rested,      ///< a boss's rest
+    Charged,     ///< the boss's charge landed (its hit was doubled)
+    Braced,      ///< the runner's Settle took half of a charge
+    Guarded,     ///< the boss's guard halved the runner's hit
 };
 
 struct DuelEvent {
@@ -158,6 +171,10 @@ public:
     const Fighter&   spirit() const { return mSpirit; }
     const DuelSetup& setup() const { return mSetup; }
 
+    /// What the coming turn is, if the boss tells: Twist::Charge or Guard, or
+    /// None (also once the duel is over, and for a spirit with no twist).
+    Twist tell() const;
+
     /// The move an action uses (kNone for Fuel).
     MoveId moveFor(Action a) const;
     /// The affinity a runner's move is played in (Trail craft takes the terrain's).
@@ -191,6 +208,8 @@ private:
     Fighter     mSpirit;
     uint8_t     mTurn      = 0;
     bool        mRested    = false;
+    Twist       mTurnTell  = Twist::None;   ///< The tell of the turn being played.
+    bool        mBraced    = false;         ///< The runner chose Settle this turn.
     DuelOutcome mOutcome   = DuelOutcome::Ongoing;
 };
 

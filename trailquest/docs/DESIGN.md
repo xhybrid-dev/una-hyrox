@@ -141,6 +141,34 @@ Grit beats Pace). "Night" spirits appear only at dawn, dusk or night.
 | Mist Wisp, again | mist | Grit | The same spirit as on the scree, higher up; a second line is for the dialogue (Q4). | as on the scree |
 | **The Summit Wolf** (boss) | wolf | Grit | Has followed you since the valley. | Howl (rattles), Long chase (drains) |
 
+## Boss twists (Q4)
+
+Each boss fights its own way, with a warning first. On a turn the boss *tells*
+(a card before the choice: its headline in red, what is coming, what to do) the
+turn is special, and the playback says so ("Charge! Double hit", "Braced! Half
+the hit", "Guarded! Half damage"):
+
+| Boss | Tells | The turn | Answer |
+|---|---|---|---|
+| Old Tortoise | every 4th turn | **Guard**: your hits do half | Settle or Fuel; keep the Surge |
+| The Great Stag | every 3rd turn | **Charge**: its hit is double | Settle braces: it hits half |
+| The Ram King | every 3rd turn | **Guard** | as above |
+| The Golden Eagle | every 3rd turn | **Charge** (a dive) | as above |
+| The Summit Wolf | every 3rd turn | **Charge**, then **Guard**, and so on | read which it is |
+
+A player who ignores the tells still wins (menu-only play wins about 70 % against
+the Great Stag); one who reads them wins more, and the fight is shorter.
+
+## The needle (Q4)
+
+The timing needle (the beat) sharpens as you climb: stage 1 is the original
+(a 1.6 s sweep, a 400 ms good zone, a 200 ms perfect zone), each later stage
+sweeps 100 ms faster with a good zone 40 ms narrower, to 1.2 s and 240 ms at the
+summit; each lap round the Ridge a little more, to 1.0 s and 200 ms. The perfect
+zone stays 200 ms: that is two frames at the watch's 10 frames a second, and
+anything narrower cannot be told from luck. The later stages' spirits give a
+little in return (`kSpiritPct`), so the game stays winnable (`BALANCE.md`).
+
 A beaten regular spirit offers to join; up to three run with you. Each lends +1
 to its affinity's stat, and its own-affinity move becomes R1's Technique when it
 is the best partner for the spirit in front of you. Bosses never join.

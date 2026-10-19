@@ -8,6 +8,7 @@
 #include "gui/screens/DuelScreen.hpp"
 
 #include <cstdio>
+#include <cstring>
 
 #include "SDK/GUI/Button.hpp"
 #include "SDK/GUI/LVGL/Draw.hpp"
@@ -104,7 +105,7 @@ void DuelScreen::build()
     mNarr[0] = Ui::rowLabel(mRoot, Layout::kNarrRow, mSaid.text[0]);
     mNarr[1] = Ui::rowLabel(mRoot, Layout::kNarrRow + Layout::kNarrPitch, mSaid.text[1]);
     mCorners.create(mRoot);
-    mBeat.create(mRoot, kBeatX, kBeatY, kBeatW);
+    mBeat.create(mRoot, kBeatX, kBeatY, kBeatW, beatFor(mModel.world().state.stage, mModel.world().state.lap));
     mCard.create(mRoot);
 }
 
@@ -119,11 +120,35 @@ void DuelScreen::onShow()
     if (d.turn == 0 && d.log.count == 0) {
         TextFit::Lines lines;
         Narrate::spiritIntro(lines, d.species);
-        mCard.show(lines, isBoss(d.species) ? Ui::Ink::kRed : Ui::Ink::kGold);
+        const uint32_t ink = isBoss(d.species) ? Ui::Ink::kRed : Ui::Ink::kGold;
+        mCard.show(lines, ink);
+        if (std::strlen(speciesDef(d.species).name) > Layout::kCardTitleCols) {
+            mCard.setColor(1, ink);   // the name wrapped onto a second line: the same colour
+        }
         setMode(Mode::Intro);
     } else {
-        setMode(Mode::Choose);
+        toChoose();
     }
+}
+
+void DuelScreen::toChoose()
+{
+    // A turn the boss tells on starts with a warning card (once per turn: coming
+    // back from the fuel list does not show it again).
+    const DuelView& d = mModel.duel();
+    if (d.tell != 0 && mTellTurn != d.turn) {
+        mTellTurn = d.turn;
+        TextFit::Lines lines;
+        Narrate::twistTell(lines, d.species, static_cast<Twist>(d.tell));
+        if (lines.count > 0) {
+            LOG_INFO("tell: %u, turn %u\n", static_cast<unsigned>(d.tell), static_cast<unsigned>(d.turn));
+            mCard.show(lines, Ui::Ink::kRed);
+            setMode(Mode::Tell);
+            mModel.playFx(FxId::Miss);   // a short low buzz: look out
+            return;
+        }
+    }
+    setMode(Mode::Choose);
 }
 
 uint8_t DuelScreen::helpPages() const
@@ -154,12 +179,17 @@ void DuelScreen::setMode(Mode m)
 {
     mMode = m;
     mBeat.setHidden(m != Mode::Beat);
-    if (m != Mode::Intro && m != Mode::End && m != Mode::Help) {
+    if (m != Mode::Intro && m != Mode::End && m != Mode::Help && m != Mode::Tell) {
         mCard.hide();
     }
     const DuelView& d = mModel.duel();
     TextFit::Lines  none;
     switch (m) {
+        case Mode::Tell:
+            say(none, Ui::Ink::kText);
+            mCorners.set(nullptr, Label::kOk, nullptr, nullptr);
+            setArcs(Buttons::NONE, Buttons::NONE, Buttons::GREEN, Buttons::RED);
+            break;
         case Mode::Help:
             say(none, Ui::Ink::kText);
             mCorners.set(nullptr, mHelpPage + 1u < helpPages() ? Label::kNext : Label::kOk, nullptr, nullptr);
@@ -276,7 +306,7 @@ void DuelScreen::onKey(uint8_t code)
                     sHelpSeen = true;
                     showHelp(0);
                 } else {
-                    setMode(Mode::Choose);
+                    toChoose();
                 }
             }
             break;
@@ -285,8 +315,13 @@ void DuelScreen::onKey(uint8_t code)
                 if (mHelpPage + 1u < helpPages()) {
                     showHelp(static_cast<uint8_t>(mHelpPage + 1u));
                 } else {
-                    setMode(Mode::Choose);
+                    toChoose();
                 }
+            }
+            break;
+        case Mode::Tell:
+            if (code == Btn::R1 || code == Btn::L1 || code == Btn::L2) {
+                setMode(Mode::Choose);
             }
             break;
         case Mode::Choose:
@@ -466,7 +501,7 @@ void DuelScreen::onFrame(uint32_t nowMs)
         // a full queue dropped).
         const WorldView& w = mModel.world();
         if (w.phase == RunPhase::InDuel) {
-            setMode(Mode::Choose);
+            toChoose();
             return;
         }
         TextFit::Lines   lines;
