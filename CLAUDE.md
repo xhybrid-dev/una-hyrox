@@ -136,9 +136,10 @@ Streak and Trail.
 ## HybridX Run (`hybridx-run/`)
 A fifth app, and a test: the SDK's RunLVGL copied, plus a VO2max estimate
 worked out live during the run (ACSM running equation, %HRR ≈ %VO2R, max HR
-entered or Tanaka from birth year and month). It exists to check the method
-against a Garmin. It is independent of the other apps.
-- **Docs:** findings, decisions, method, phases (R0-R5) and the review:
+entered or Tanaka from birth year and month), with a VO2max glance. It
+exists to check the method against a Garmin. It is independent of the other
+apps.
+- **Docs:** findings, decisions, method, phases (R0-R6) and the review:
   `hybridx-run/docs/NOTES.md`. Read it at the start of each Run phase.
 - **Rules:** the same standing rules as Race apply.
 - **Layout:** the pure VO2max core `Software/Libs/Core` (its only SDK use is
@@ -156,7 +157,10 @@ against a Garmin. It is independent of the other apps.
   - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
     log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>` (also shows
     what the raw GPS speed would have given, from the `scale` column).
-  - simulator: `hybridx-run/Software/Apps/LVGL-GUI/simulator`.
+- **The VO2max glance** (R6): `Software/Apps/HybridXRunGlance-CMake` with
+  `Software/Libs/Glance`; it reads the app's `../SharedData/HybridX/vo2max.json`.
+  Preview (the simulator cannot run glances):
+  `docs/experiments/glance_preview.py build-tests/glance_preview <out.png>`.
 
 ## X Weigh-in (`x-weighin/`)
 A sixth app: an on-watch weight tracker in kg. Weigh in on the watch, see the

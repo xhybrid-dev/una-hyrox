@@ -79,9 +79,10 @@ jobs:
           # hybridx-trail/docs/PROBE.md.
           build hybridx-trail/Software/Apps/HybridXTrail-CMake trail
           build hybridx-trail/Tools/Probe/Software/Apps/Probe-CMake trail-probe
-          # HybridX Run: a RunLVGL copy that estimates VO2max (a test app) --
-          # see hybridx-run/docs/NOTES.md.
+          # HybridX Run: a RunLVGL copy that estimates VO2max (a test app),
+          # and its VO2max glance -- see hybridx-run/docs/NOTES.md.
           build hybridx-run/Software/Apps/HybridXRun-CMake run
+          build hybridx-run/Software/Apps/HybridXRunGlance-CMake run-glance
           # X Weigh-in: an on-watch weight tracker, and its glance -- see
           # x-weighin/docs/NOTES.md.
           build x-weighin/Software/Apps/XWeighIn-CMake weighin
@@ -104,6 +105,7 @@ jobs:
           cp hybridx-trail/Output/*.uapp watch-apps/
           cp hybridx-trail/Tools/Probe/Output/*.uapp watch-apps/
           cp hybridx-run/Output/*.uapp watch-apps/
+          cp hybridx-run/Output/Glance/*.uapp watch-apps/
           cp x-weighin/Output/*.uapp watch-apps/
           cp x-weighin/Output/Glance/*.uapp watch-apps/
           cp trailquest/Output/*.uapp watch-apps/
@@ -273,7 +275,8 @@ jobs:
             --check-bounds hybridx-run/Software/Libs/App/Sources/AppConfigFields.cpp
 
       - name: HybridX Run host tests
-        # The pure VO2max core (profile, steady windows, history and its JSON).
+        # The pure VO2max core (profile, steady windows, history and its JSON)
+        # and the glance's view and layout.
         run: |
           export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
           cmake -S hybridx-run/Tests/Host -B ci-build/run-tests -DCMAKE_BUILD_TYPE=Debug

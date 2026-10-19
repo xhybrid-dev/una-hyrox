@@ -44,22 +44,27 @@ void Vo2History::add(const RunRecord& r)
         mRuns[mFirst] = r;
         mFirst = static_cast<uint8_t>((mFirst + 1) % Config::kHistoryRuns);
     }
+    RunRecord& added = mRuns[(mFirst + mCount - 1) % Config::kHistoryRuns];
+    if (added.shownX10 == 0) {
+        added.shownX10 = rollingOver(mCount);
+    }
 }
 
 void Vo2History::addSorted(const RunRecord& r)
 {
     RunRecord tmp[Config::kHistoryRuns + 1];
     uint8_t   n      = 0;
-    bool      placed = false;
+    uint8_t   placed = Config::kHistoryRuns + 1;   // where r went in tmp
     for (uint8_t i = 0; i < mCount; ++i) {
         const RunRecord& e = at(i);
-        if (!placed && r.utc < e.utc) {
+        if (placed > n && r.utc < e.utc) {
+            placed   = n;
             tmp[n++] = r;
-            placed   = true;
         }
         tmp[n++] = e;
     }
-    if (!placed) {
+    if (placed > n) {
+        placed   = n;
         tmp[n++] = r;
     }
     const uint8_t skip = n > Config::kHistoryRuns ? static_cast<uint8_t>(n - Config::kHistoryRuns) : 0;
@@ -67,6 +72,13 @@ void Vo2History::addSorted(const RunRecord& r)
     mCount = static_cast<uint8_t>(n - skip);
     for (uint8_t i = 0; i < mCount; ++i) {
         mRuns[i] = tmp[skip + i];
+    }
+    // The value shown after r, and after every run after it, has changed.
+    // (If r was older than all ten kept it was dropped, and nothing has.)
+    if (placed >= skip) {
+        for (uint8_t i = static_cast<uint8_t>(placed - skip); i < mCount; ++i) {
+            mRuns[i].shownX10 = rollingOver(static_cast<uint8_t>(i + 1));
+        }
     }
 }
 
@@ -169,7 +181,7 @@ size_t Vo2History::toJson(char* buf, size_t cap) const
     buf[0] = '\0';
     SDK::JsonStreamWriter w(buf, cap);
     w.startMap();
-    w.add("v", static_cast<uint8_t>(3));
+    w.add("v", static_cast<uint8_t>(4));
     w.add("restHr", mWatchRestHr);
     w.add("trail", mTrailMark);
     w.startArray("maxes");
@@ -185,6 +197,7 @@ size_t Vo2History::toJson(char* buf, size_t cap) const
         w.add(r.vo2x10);
         w.add(r.windows);
         w.add(r.source);
+        w.add(r.shownX10);
         w.endArray();
     }
     w.endArray();
@@ -209,7 +222,7 @@ bool Vo2History::fromJson(const char* text, size_t len)
 
     Vo2History h;
     int64_t v = 0;
-    if (!readInt(r, "v", 1, 3, v)) {
+    if (!readInt(r, "v", 1, 4, v)) {
         return false;
     }
     const int64_t version = v;
@@ -253,7 +266,7 @@ bool Vo2History::fromJson(const char* text, size_t len)
     }
     for (size_t i = 0; i < runs; ++i) {
         char q[24];
-        int64_t utc = 0, vo2 = 0, win = 0, src = 0;
+        int64_t utc = 0, vo2 = 0, win = 0, src = 0, shown = 0;
         std::snprintf(q, sizeof(q), "runs[%u][0]", static_cast<unsigned>(i));
         bool ok = readInt(r, q, 1, 0xFFFFFFFFll, utc);
         std::snprintf(q, sizeof(q), "runs[%u][1]", static_cast<unsigned>(i));
@@ -261,19 +274,52 @@ bool Vo2History::fromJson(const char* text, size_t len)
                            static_cast<int64_t>(Config::kMaxPlausibleVo2 * 10.0f), vo2);
         std::snprintf(q, sizeof(q), "runs[%u][2]", static_cast<unsigned>(i));
         ok = ok && readInt(r, q, Config::kMinWindows, Config::kMaxWindows, win);
-        if (version >= 3) {
+        // Numbers a run has, by version: 1 and 2 three (the 17 October build's
+        // version 2 four, the fourth the value shown after the run), 3 four
+        // (the fourth the source), 4 five (source, then the value shown).
+        // The value shown (R6) is worked out when the run is added if the
+        // file does not have it.
+        size_t fields = 0;
+        std::snprintf(q, sizeof(q), "runs[%u]", static_cast<unsigned>(i));
+        ok = ok && r.getArrayLength(q, fields);
+        const size_t minFields = version >= 4 ? 5 : (version == 3 ? 4 : 3);
+        const size_t maxFields = version >= 4 ? 5 : (version == 3 ? 4 : (version == 2 ? 4 : 3));
+        ok = ok && fields >= minFields && fields <= maxFields;
+        size_t shownAt = 99;   // the index of the shown value, if it has one
+        if (ok && version >= 3) {
             std::snprintf(q, sizeof(q), "runs[%u][3]", static_cast<unsigned>(i));
-            ok = ok && readInt(r, q, 0, 1, src);
+            ok = readInt(r, q, 0, 1, src);
+            shownAt = 4;
+        } else if (version == 2) {
+            shownAt = 3;
+        }
+        if (ok && fields > shownAt) {
+            std::snprintf(q, sizeof(q), "runs[%u][%u]", static_cast<unsigned>(i), static_cast<unsigned>(shownAt));
+            ok = readInt(r, q, static_cast<int64_t>(Config::kMinPlausibleVo2 * 10.0f),
+                         static_cast<int64_t>(Config::kMaxPlausibleVo2 * 10.0f), shown);
         }
         if (!ok) {
             return false;
         }
         h.add(RunRecord{static_cast<uint32_t>(utc), static_cast<uint16_t>(vo2), static_cast<uint16_t>(win),
-                        static_cast<uint8_t>(src)});
+                        static_cast<uint8_t>(src), static_cast<uint16_t>(shown)});
     }
 
     *this = h;
     return true;
+}
+
+uint8_t Vo2History::trendX10(uint16_t* out, uint8_t max) const
+{
+    if (out == nullptr) {
+        return 0;
+    }
+    const uint8_t n = mCount < max ? mCount : max;
+    const uint8_t from = static_cast<uint8_t>(mCount - n);
+    for (uint8_t i = 0; i < n; ++i) {
+        out[i] = at(static_cast<uint8_t>(from + i)).shownX10;
+    }
+    return n;
 }
 
 size_t Vo2History::toSharedJson(char* buf, size_t cap) const
@@ -285,10 +331,18 @@ size_t Vo2History::toSharedJson(char* buf, size_t cap) const
     const uint32_t last = mCount ? at(static_cast<uint8_t>(mCount - 1)).utc : 0;
     SDK::JsonStreamWriter w(buf, cap);
     w.startMap();
-    w.add("v", static_cast<uint8_t>(1));
+    w.add("v", static_cast<uint8_t>(2));
     w.add("vo2maxX10", rollingX10());
     w.add("runs", mCount);
     w.add("utc", last);
+    w.add("beforeX10", rollingX10Before());
+    uint16_t trend[Config::kHistoryRuns];
+    const uint8_t n = trendX10(trend, Config::kHistoryRuns);
+    w.startArray("trend");
+    for (uint8_t i = 0; i < n; ++i) {
+        w.add(trend[i]);
+    }
+    w.endArray();
     w.endMap();
     if (w.isError()) {
         buf[0] = '\0';

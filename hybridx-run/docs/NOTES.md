@@ -356,11 +356,82 @@ glance later.
 - `vo2_log_report.py` on a hand-made log reproduces the watch's 54.4, and 52.6
   with `--max-hr 185`.
 
+## R6: the VO2max glance (17 October 2026)
+
+Jon asked for a glance like X Weigh-in's, showing the VO2max trend and the
+current figure. His choices: the bars are "the average over time" (the shown
+figure as it stood after each of the last 10 runs); the glance is called
+"VO2max".
+
+- **A second `.uapp`**: `Software/Apps/HybridXRunGlance-CMake`, `APP_TYPE
+  Glance`, no icon, development `APP_ID 1EC7F5A0424304CD` (first 16 hex of
+  md5("HybridXRunGlance")), "VO2max" on the glances screen, built to
+  `Output/Glance/`, versioned from `run-v*` tags. `Software/Libs/Glance`:
+  `GlanceView` (reads the shared file, every value range-checked; anything
+  odd is "no data"), `GlanceLayout` (pure), `Service` (X Weigh-in's: draw on
+  `EVENT_GLANCE_START`, push on the tick, exit on stop). It never writes.
+- **What it reads**: `../SharedData/HybridX/vo2max.json`, now version 2:
+  version 1's keys plus `beforeX10` and `trend`, the shown figure after each
+  kept run, oldest first:
+  `{"v":2,"vo2maxX10":523,"runs":5,"utc":1791000000,"beforeX10":519,"trend":[505,512,519,523]}`.
+  The app writes it when it opens (new) as well as on save, so an updated
+  app gives the glance a version 2 file before the next run. A version 1
+  file reads as "No runs yet" until then.
+- **The shown value is kept per run**: each run in `vo2.json` now ends with
+  the value shown once it was added: `[end, estimate, windows, source, shown]`,
+  file version 4 (version 3, from the Run link, added the source; this adds
+  the last number). Working the trend out from the kept runs alone was wrong
+  for the oldest bars once older runs had dropped out (the first preview
+  showed it: the oldest bar was one run's raw figure). Files of every earlier
+  version still read; where the number is missing it is worked out from the
+  runs read so far: exact for histories under 10 runs, an approximation for
+  the oldest four of a full one, and exact for every run saved from now on.
+  The 17 October build (CI run 171) wrote a version 2 file with four numbers
+  a run, the fourth being the shown value; that reads too.
+- **Trail runs counted later** (the Run link, `addSorted`) can land in the
+  middle of the history, which changes the figure shown after every run from
+  there on: those values are worked out again at the insertion (the same
+  approximation for the oldest four of a full history). A run older than all
+  ten kept is dropped and changes nothing.
+- **Layout** (the watch's 240x60, in the list's middle 172 px): "52.7" in
+  SemiBold 25 with a small grey "VO2", under it "+0.4 last run" (the change
+  at the latest run; "First run" for the first; 10 or more loses its decimal
+  so it fits); on the right, a bar a run, 4 px wide, newest white on the
+  right. Compact ("52.7 VO2" / "+0.4 last run") for a smaller area or
+  budget, tiny ("52.7 VO2") for a short one. No runs: "VO2max" / "No runs
+  yet". "since last run" (the app's page) does not fit the column.
+- **Bar scale** (a display choice, mine, for Jon to judge on the watch): the
+  bars' own range padded 0.5 either side and at least 4.0 ml/kg/min tall, so
+  run-to-run scatter of a few tenths looks steady, not like a cliff.
+- **Preview**: `docs/experiments/glance_preview.py build-tests/glance_preview
+  docs/screens/vo2-glance-preview.png [--store Resources/Glance/previews]`
+  (the simulator cannot run glances; the tool runs the real history, shared
+  file, view and layout code on made-up runs, in the SDK's Poppins).
+- `Resources/Glance/app-manifest.json` (type glance) and three previews, for a
+  store listing later.
+
+### R6 verified
+- Host tests: 118 after merging the Run link (76 before it; 18 of those new: trend and shared file, the per-run shown value and
+  old files, the glance's view and layout against the real font widths),
+  also under ASan + UBSan.
+- Watch target compile checks (not installable): the app 447,128 B, the
+  glance 28,404 B; no warnings in our code. Simulator builds; a seeded run
+  (old three-field `vo2.json`) wrote
+  `{"v":2,"vo2maxX10":522,"runs":3,"utc":1791300000,"beforeX10":519,"trend":[512,519,522]}`.
+- `docs/screens/vo2-glance-preview.png`: every panel fits the band.
+- Not yet seen on a watch: the glance's area (assumed 240x60 and 32
+  controls, as Streak's and X Weigh-in's), and whether the small "VO2" sits on
+  the figure's baseline (6 px down, from the font heights).
+
 ## Gate R: what Jon tests (the field test)
 
 1. **Install.** From the CI run's `watch-apps` artifact, copy
    `HybridXRun_*.uapp` into `Apps/HybridXRun/` on the watch (as Race, README
-   "Installing on a watch"). Never a container build.
+   "Installing on a watch"). Never a container build. For the glance (R6),
+   also copy `HybridXRunGlance_*.uapp` into `Apps/HybridXRunGlance/`; eject,
+   unplug and power-cycle the watch. It appears on the glances screen as
+   "VO2max". Open HybridX Run once after installing, so the glance has its
+   file.
 2. **Your numbers, on the watch.** Open HybridX Run, scroll to **VO2max**,
    press R1 for the page, R1 again for the profile: set your birth date, and
    your max HR if you know it from a test (leave it on "---" otherwise).
@@ -377,6 +448,9 @@ glance later.
    from them (`vo2_log_report.py`).
 6. **Check** after one phone sync that `Apps/HybridXRun/vo2.json` and
    `Logs/` are still there, and whether UNA's app shows VO2max (R4).
+7. **The glance**: after a saved run, check it shows the page's figure and
+   change, and a new bar. Send a photo: the area and the "VO2" baseline are
+   still unseen.
 
 Open questions for the field test: does the watch report a daily resting HR
 to apps (and when); does the GRADE sensor read sensibly; how often do wrist

@@ -284,6 +284,7 @@ private:
     void saveVo2Files();         ///< vo2.json and the public vo2max.json
     void feedVo2();
     void finishVo2(std::time_t endUtc);
+    void writeSharedVo2();
     void sendVo2Info();
     void fillVo2Page();
     void handleEvent(const CustomMessage::Vo2ProfileSave& event);

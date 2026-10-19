@@ -84,8 +84,8 @@ TEST(Vo2History, JsonRoundTrip)
     char buf[Vo2History::kMaxJsonBytes];
     const size_t n = h.toJson(buf, sizeof(buf));
     ASSERT_GT(n, 0u);
-    EXPECT_STREQ(buf, "{\"v\":3,\"restHr\":52,\"trail\":1791100000,\"maxes\":[186,184],"
-                      "\"runs\":[[1791000000,523,24,0],[1791100000,531,18,1]]}");
+    EXPECT_STREQ(buf, "{\"v\":4,\"restHr\":52,\"trail\":1791100000,\"maxes\":[186,184],"
+                      "\"runs\":[[1791000000,523,24,0,523],[1791100000,531,18,1,526]]}");
 
     Vo2History back;
     ASSERT_TRUE(back.fromJson(buf, n));
@@ -93,6 +93,7 @@ TEST(Vo2History, JsonRoundTrip)
     EXPECT_EQ(back.watchRestHr(), 52);
     EXPECT_EQ(back.autoMaxHr(), 184);
     EXPECT_EQ(back.at(1).vo2x10, 531);
+    EXPECT_EQ(back.at(1).shownX10, 526);
     EXPECT_EQ(back.rollingX10(), h.rollingX10());
     EXPECT_EQ(back.at(0).source, static_cast<uint8_t>(RunSource::Run));
     EXPECT_EQ(back.at(1).source, static_cast<uint8_t>(RunSource::Trail));
@@ -264,13 +265,183 @@ TEST(Vo2History, ReadStopsAtTheGivenLength)
 TEST(Vo2History, SharedJson)
 {
     Vo2History h;
-    char buf[96];
+    char buf[Vo2History::kMaxSharedJsonBytes];
     ASSERT_GT(h.toSharedJson(buf, sizeof(buf)), 0u);
-    EXPECT_STREQ(buf, "{\"v\":1,\"vo2maxX10\":0,\"runs\":0,\"utc\":0}");
+    EXPECT_STREQ(buf, "{\"v\":2,\"vo2maxX10\":0,\"runs\":0,\"utc\":0,\"beforeX10\":0,\"trend\":[]}");
     h.add(RunRecord{1791000000u, 523, 24});
     ASSERT_GT(h.toSharedJson(buf, sizeof(buf)), 0u);
-    EXPECT_STREQ(buf, "{\"v\":1,\"vo2maxX10\":523,\"runs\":1,\"utc\":1791000000}");
+    EXPECT_STREQ(buf, "{\"v\":2,\"vo2maxX10\":523,\"runs\":1,\"utc\":1791000000,"
+                      "\"beforeX10\":0,\"trend\":[523]}");
+    h.add(RunRecord{1791100000u, 533, 24});
+    ASSERT_GT(h.toSharedJson(buf, sizeof(buf)), 0u);
+    EXPECT_STREQ(buf, "{\"v\":2,\"vo2maxX10\":528,\"runs\":2,\"utc\":1791100000,"
+                      "\"beforeX10\":523,\"trend\":[523,528]}");
     EXPECT_EQ(h.toSharedJson(buf, 8), 0u);
+}
+
+TEST(Vo2History, RunsWithoutTheShownValueStillRead)
+{
+    // Before R6 each run had three fields: the shown value is worked out from
+    // the runs read so far.
+    const std::string t = "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10],[2,520,10,505]]}";
+    Vo2History h;
+    ASSERT_TRUE(h.fromJson(t.c_str(), t.size()));
+    EXPECT_EQ(h.at(0).shownX10, 500);
+    EXPECT_EQ(h.at(1).shownX10, 505);   // as written, not recomputed (510)
+}
+
+TEST(Vo2History, ABadShownValueFailsTheFile)
+{
+    const char* bad[] = {
+        "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10,0]]}",
+        "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10,9999]]}",
+        "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10,500,1]]}",
+        "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500]]}",
+    };
+    for (const char* s : bad) {
+        Vo2History h;
+        EXPECT_FALSE(h.fromJson(s, std::strlen(s))) << s;
+        EXPECT_EQ(h.size(), 0) << s;
+    }
+}
+
+TEST(Vo2History, EveryFileVersionStillReads)
+{
+    struct Case {
+        const char* json;
+        uint16_t    shown1;   // the value shown after the second run
+        uint8_t     source1;
+    };
+    const Case cases[] = {
+        // version 2, three numbers a run (before R6): shown worked out
+        { "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10],[2,520,10]]}", 510, 0 },
+        // version 2 of the 17 October build: the fourth number is the shown value
+        { "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10,500],[2,520,10,505]]}", 505, 0 },
+        // version 3 (Run link): the fourth number is the source
+        { "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0],[2,520,10,1]]}", 510, 1 },
+        // version 4: source, then the shown value
+        { "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500],[2,520,10,1,505]]}", 505, 1 },
+    };
+    for (const Case& c : cases) {
+        Vo2History h;
+        ASSERT_TRUE(h.fromJson(c.json, std::strlen(c.json))) << c.json;
+        ASSERT_EQ(h.size(), 2) << c.json;
+        EXPECT_EQ(h.at(1).shownX10, c.shown1) << c.json;
+        EXPECT_EQ(h.at(1).source, c.source1) << c.json;
+        EXPECT_EQ(h.at(0).shownX10, 500) << c.json;
+    }
+}
+
+TEST(Vo2History, TheWrongNumberOfFieldsForTheVersionFailsTheFile)
+{
+    const char* bad[] = {
+        "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10]]}",
+        "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500]]}",
+        "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0]]}",
+        "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,2,500]]}",   // source 2
+        "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,9999]]}",
+        "{\"v\":5,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500]]}",
+    };
+    for (const char* s : bad) {
+        Vo2History h;
+        EXPECT_FALSE(h.fromJson(s, std::strlen(s))) << s;
+        EXPECT_EQ(h.size(), 0) << s;
+    }
+}
+
+TEST(Vo2History, ATrailRunInsertedEarlierUpdatesTheShownValuesAfterIt)
+{
+    // Run's own runs at 1000, 3000, 4000, 5000; Trail's at 2000 turns up later.
+    Vo2History late;
+    const uint16_t v[] = { 500, 540, 560, 580 };
+    const uint32_t t[] = { 1000, 3000, 4000, 5000 };
+    for (int i = 0; i < 4; ++i) {
+        late.add(RunRecord{t[i], v[i], 10});
+    }
+    late.addSorted(RunRecord{2000, 520, 10, static_cast<uint8_t>(RunSource::Trail)});
+
+    // The same five runs, added in time order.
+    Vo2History inOrder;
+    const uint16_t v2[] = { 500, 520, 540, 560, 580 };
+    for (int i = 0; i < 5; ++i) {
+        RunRecord r{1000u * (i + 1), v2[i], 10};
+        inOrder.add(r);
+    }
+    uint16_t a[Config::kHistoryRuns] = {};
+    uint16_t b[Config::kHistoryRuns] = {};
+    ASSERT_EQ(late.trendX10(a, Config::kHistoryRuns), 5);
+    ASSERT_EQ(inOrder.trendX10(b, Config::kHistoryRuns), 5);
+    for (int i = 0; i < 5; ++i) {
+        EXPECT_EQ(a[i], b[i]) << i;
+    }
+    EXPECT_EQ(a[4], late.rollingX10());
+    EXPECT_EQ(late.at(1).source, static_cast<uint8_t>(RunSource::Trail));
+}
+
+TEST(Vo2History, ATrailRunOlderThanAllTenKeptChangesNothing)
+{
+    Vo2History h;
+    for (uint32_t i = 0; i < Config::kHistoryRuns; ++i) {
+        h.add(RunRecord{10000 + 1000 * i, static_cast<uint16_t>(500 + 3 * i), 10});
+    }
+    uint16_t before[Config::kHistoryRuns] = {};
+    ASSERT_EQ(h.trendX10(before, Config::kHistoryRuns), Config::kHistoryRuns);
+    h.addSorted(RunRecord{5, 700, 10, static_cast<uint8_t>(RunSource::Trail)});
+    ASSERT_EQ(h.size(), Config::kHistoryRuns);
+    uint16_t after[Config::kHistoryRuns] = {};
+    ASSERT_EQ(h.trendX10(after, Config::kHistoryRuns), Config::kHistoryRuns);
+    for (uint8_t i = 0; i < Config::kHistoryRuns; ++i) {
+        EXPECT_EQ(after[i], before[i]) << int(i);
+    }
+}
+
+TEST(Vo2History, JsonFitsWhenFull)
+{
+    Vo2History h;
+    for (uint8_t i = 0; i < Config::kHistoryRuns; ++i) {
+        h.addRunMax(220);
+    }
+    h.setWatchRestHr(100);
+    for (uint32_t i = 0; i < Config::kHistoryRuns; ++i) {
+        h.add(RunRecord{4000000000u + i, 950, Config::kMaxWindows});
+    }
+    char buf[Vo2History::kMaxJsonBytes];
+    EXPECT_GT(h.toJson(buf, sizeof(buf)), 0u);
+}
+
+TEST(Vo2History, SharedJsonFitsWhenFull)
+{
+    Vo2History h;
+    for (uint32_t i = 0; i < Config::kHistoryRuns + 3; ++i) {
+        h.add(RunRecord{4000000000u + i, 899, 65535});
+    }
+    char buf[Vo2History::kMaxSharedJsonBytes];
+    EXPECT_GT(h.toSharedJson(buf, sizeof(buf)), 0u);
+}
+
+TEST(Vo2History, TrendIsTheShownFigureAfterEachRun)
+{
+    Vo2History h;
+    uint16_t t[Config::kHistoryRuns] = {};
+    EXPECT_EQ(h.trendX10(t, Config::kHistoryRuns), 0u);
+    EXPECT_EQ(h.trendX10(nullptr, Config::kHistoryRuns), 0u);
+    for (uint16_t i = 0; i < 12; ++i) {
+        h.add(RunRecord{1000u + i, static_cast<uint16_t>(500 + 10 * i), 10});
+    }
+    ASSERT_EQ(h.trendX10(t, Config::kHistoryRuns), Config::kHistoryRuns);
+    // The last entry is today's figure, the one before it the figure before.
+    EXPECT_EQ(t[Config::kHistoryRuns - 1], h.rollingX10());
+    EXPECT_EQ(t[Config::kHistoryRuns - 2], h.rollingX10Before());
+    // Kept runs 2..11 (vo2 520..610), each with the value shown when it was
+    // added, so dropped runs still count: after run 2, runs 0..2 = 510; after
+    // run 6, runs 2..6 = 540.
+    EXPECT_EQ(t[0], 510);
+    EXPECT_EQ(t[4], 540);
+    // Fewer asked for: the newest ones.
+    uint16_t two[2] = {};
+    ASSERT_EQ(h.trendX10(two, 2), 2u);
+    EXPECT_EQ(two[1], h.rollingX10());
+    EXPECT_EQ(two[0], h.rollingX10Before());
 }
 
 TEST(Vo2History, RollingBeforeTheLatestRun)
