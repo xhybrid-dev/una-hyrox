@@ -33,6 +33,8 @@
 
 #include "SDK/Calibration/StrideMath.hpp"
 
+#include "SafeFile.hpp"   // HybridX Trail: a copy of Run's (Vo2Link)
+
 #define LOG_MODULE_PRX      "Service"
 #define LOG_MODULE_LEVEL    LOG_LEVEL_INFO
 #include "SDK/UnaLogger/Logger.h"
@@ -51,6 +53,14 @@ static float getPace(float speed, float threshold)
 // from the average while their seconds still count toward the duration. Using
 // the totals keeps distance, duration and the reported average pace mutually
 // consistent on every lap and session.
+// HybridX Trail: a latched HR, GPS speed or grade reading counts for the VO2
+// windows only while it is this recent (each reports about once a second), and a
+// window must have this many good seconds to be written for Run (Run judges
+// them again with its own 55).
+static constexpr uint32_t kVo2FreshMs      = 2500;
+static constexpr uint16_t kVo2MinGoodSec   = 40;
+static const char* const  kVo2SharedDir    = "../SharedData/HybridX";
+
 static float speedFromTotals(float distanceM, float activeTimeS)
 {
     return (activeTimeS > 0.0f) ? (distanceM / activeTimeS) : 0.0f;
@@ -98,6 +108,7 @@ Service::Service(SDK::Kernel &kernel)
     mDistanceCounter.init();
     mSpeedCounter.init(0.5f, 300.0f);
     mSpeedSmoother.init(0.5f, 300.0f);  // same valid range as the raw counter
+    mVo2Speed.init(0.5f, 300.0f);       // the same range, for the VO2 feed
     mHrCounter.init(20.0f, 300.0f);
     mAltitudeCounter.init(2.0f);
 
@@ -379,6 +390,7 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
             if (mGps.fix) { // Do not change position if no fix
                 parser.getCoordinates(mGps.latitude, mGps.longitude, mGps.altitude);
                 mGpsPrecisionM = parser.getPrecision();
+                mGpsPosFresh   = true;   // consumed by the VO2 speed filter each tick
             }
             LOG_DEBUG("Location: fix %u, lat %f, lon %f\n", mGps.fix, mGps.latitude, mGps.longitude);
         }
@@ -389,6 +401,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
             mGpsSpeedValid    = parser.isSpeedValid();
             mGpsDeadReckoning = parser.isDeadReckoning();
             mGpsSpeedFresh    = true;   // consumed by the pace smoother each tick
+            mVo2SpeedLastMs   = mKernel.sys.getTimeMs();   // for the VO2 windows
+            mVo2SpeedSeen     = true;
             // Only feed a current (valid-fix) speed into the aggregated metrics
             // so acquisition / fix-loss / dead-reckoning readings don't inflate
             // the max-speed statistics.
@@ -426,6 +440,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
         if (parser.isDataValid()) {
             mGradeData.gradePct   = parser.getGradePct();
             mGradeData.gradeValid = parser.isGradeValid();
+            mVo2GradeLastMs       = mKernel.sys.getTimeMs();   // for the VO2 windows
+            mVo2GradeSeen         = true;
             LOG_DEBUG("Grade:    %.2f %% (valid %u)\n",
                       mGradeData.gradePct, mGradeData.gradeValid);
         }
@@ -452,6 +468,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
         if (parser.isDataValid()) {
             mHrCounter.add(parser.getBpm());           // arbitrated (kernel's choice)
             mTrackData.hrTrustLevel = parser.getTrustLevel();
+            mVo2HrLastMs  = mKernel.sys.getTimeMs();   // for the VO2 windows
+            mVo2HrSeen    = true;
             mHrSource     = static_cast<uint8_t>(parser.getSource());
             mHrOpticalBpm = static_cast<uint8_t>(parser.getOpticalBpm());
             mHrExternalBpm= static_cast<uint8_t>(parser.getExternalBpm());
@@ -849,6 +867,7 @@ void Service::startTrack(std::time_t utc)
     // Outdoor stride calibrator: reset latched inputs and load the stored LUT
     // for this session.
     mGradeData = {};
+    startVo2(utc);
     mGpsSpeedValid    = false;
     mGpsSpeedFresh    = false;
     mGpsDeadReckoning = false;
@@ -953,8 +972,15 @@ void Service::processTrack()
     // tracking the raw speed of a standing runner while the activity was paused.
     if (mTrackState == Track::State::ACTIVE) {
         mSpeedSmoother.tick(mGpsSpeedMs, mGpsSpeedValid && mGpsSpeedFresh);
+        // The VO2 windows use UNA's corrected speed, as Run's do (Run R6b): the
+        // receiver's own reads 0.7-5.8% low, and the ACSM cost goes with speed.
+        // A second filter beside the smoother, so Trail's pace readout is untouched.
+        mVo2Speed.tick(mGpsSpeedMs, mGpsSpeedValid && mGpsSpeedFresh,
+                       mGps.latitude, mGps.longitude, mGps.fix && mGpsPosFresh);
         mGpsSpeedFresh = false;
     }
+    feedVo2();
+    mGpsPosFresh = false;
     mTrackData.speed = mSpeedSmoother.getSpeed();
 
     mTrackData.avgSpeed    = speedFromTotals(mTrackData.distance, mTrackData.totalTime);
@@ -1223,6 +1249,7 @@ void Service::stopTrack(bool discard)
             // Do NOT notify: the .fit is left unfinished, so the crash-recovery
             // marker (if any) stays for the next boot to finalize.
         }
+        saveVo2Windows();   // for HybridX Run
     } else {
         mActivityWriter.discard();
     }
@@ -1248,6 +1275,115 @@ void Service::stopTrack(bool discard)
     }
 
     disconnect();
+}
+
+// -- HybridX Trail: VO2 windows for HybridX Run ---------------------------------------
+
+void Service::startVo2(std::time_t utc)
+{
+    mVo2Builder.reset();
+    mVo2Speed.reset();
+    mVo2WindowCount = 0;
+    mVo2RunId       = static_cast<uint32_t>(utc);
+    mVo2HrSeen      = false;
+    mVo2SpeedSeen   = false;
+    mVo2GradeSeen   = false;
+    mGpsPosFresh    = false;
+}
+
+void Service::feedVo2()
+{
+    const uint32_t nowMs = mKernel.sys.getTimeMs();
+    // Unsigned deltas: the ms clock wraps.
+    const bool hrFresh    = mVo2HrSeen && static_cast<uint32_t>(nowMs - mVo2HrLastMs) <= kVo2FreshMs;
+    const bool speedFresh = mVo2SpeedSeen && static_cast<uint32_t>(nowMs - mVo2SpeedLastMs) <= kVo2FreshMs;
+    const bool gradeFresh = mVo2GradeSeen && static_cast<uint32_t>(nowMs - mVo2GradeLastMs) <= kVo2FreshMs;
+
+    const float hr = mHrCounter.getCurrent();
+
+    // Exactly Run's feed (its feedVo2): the same fields, the same freshness gates,
+    // the same corrected speed, so a minute is built the same in both apps.
+    RunVo2::Sample s;
+    s.active        = (mTrackState == Track::State::ACTIVE);
+    s.speedMs       = mVo2Speed.getInstantSpeed();
+    s.speedValid    = mVo2Speed.hasCurrentSample() && speedFresh;
+    s.speedScale    = mVo2Speed.getScale();
+    s.deadReckoning = mGpsDeadReckoning;
+    s.gradePct      = mGradeData.gradePct;
+    s.gradeValid    = mGradeData.gradeValid && gradeFresh;   // stale: taken as level
+    s.hrBpm         = (hrFresh && hr > 0.0f && hr < 255.0f) ? static_cast<uint8_t>(hr + 0.5f) : 0;
+    s.hrTrust       = mTrackData.hrTrustLevel;   // the raw value: the core applies RunLVGL's 1-3 test
+    mVo2Builder.addSecond(s);
+
+    // Keep the minutes Run could use: past the warm-up, with enough good seconds.
+    // The first kWindowFileMaxWindows only (two hours of steady running).
+    RunVo2::WindowRecord w;
+    if (mVo2Builder.popWindow(w) && w.activeSec > RunVo2::Config::kWarmUpSec &&
+        w.goodSec >= kVo2MinGoodSec && mVo2WindowCount < RunVo2::kWindowFileMaxWindows) {
+        mVo2Windows[mVo2WindowCount++] = w;
+    }
+}
+
+namespace
+{
+
+/// One of Run's slot files: the primary, else its backup, whichever has a header
+/// that reads. The run ID in it, or 0.
+uint32_t readSlotId(SDK::Interface::IFileSystem& fs, uint8_t slot, char* buf, size_t cap)
+{
+    for (int backup = 0; backup < 2; ++backup) {
+        const size_t len = RunVo2::SafeFile::read(fs, RunVo2::kWindowFilePaths[slot], backup != 0, buf, cap);
+        if (len > 0) {
+            RunVo2::WindowFileReader reader(buf, len);
+            RunVo2::WindowFileInfo   info;
+            if (reader.open(info)) {
+                return info.runId;
+            }
+        }
+    }
+    return 0;
+}
+
+}  // namespace
+
+void Service::saveVo2Windows()
+{
+    // The run's steady minutes, for HybridX Run to count when it next opens:
+    // one of three slot files in the shared folder, the oldest overwritten.
+    // Nothing is written for a run with nothing to say. A temporary 8 KB buffer,
+    // not a stack array (the service stack is small); once, at save.
+    const uint8_t maxHr = mVo2Builder.sustainedMaxHr();
+    if (mVo2WindowCount == 0 && maxHr == 0) {
+        LOG_INFO("VO2 windows: nothing to leave for Run\n");
+        return;
+    }
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[RunVo2::kWindowFileBytes]);
+    if (!buf) {
+        LOG_WARNING("VO2 windows: no memory to write the file\n");
+        return;
+    }
+
+    uint32_t ids[RunVo2::kWindowFileSlots] = {};
+    for (uint8_t i = 0; i < RunVo2::kWindowFileSlots; ++i) {
+        ids[i] = readSlotId(mKernel.fs, i, buf.get(), RunVo2::kWindowFileBytes);
+    }
+    const uint8_t slot = RunVo2::windowFileSlotToWrite(ids);
+
+    const size_t len = RunVo2::writeWindowFile(buf.get(), RunVo2::kWindowFileBytes, mVo2RunId, maxHr,
+                                               mVo2Windows, mVo2WindowCount);
+    if (len == 0) {
+        LOG_WARNING("VO2 windows: could not make the file\n");
+        return;
+    }
+    mKernel.fs.mkdir("../SharedData");   // already there on a watch that has run Streak or Race
+    mKernel.fs.mkdir(kVo2SharedDir);
+    if (!RunVo2::SafeFile::write(mKernel.fs, RunVo2::kWindowFilePaths[slot], buf.get(), len)) {
+        LOG_WARNING("VO2 windows: could not save %s\n", RunVo2::kWindowFilePaths[slot]);
+        return;
+    }
+    LOG_INFO("VO2 windows for Run: run %lu, %u windows, max HR %u, slot %u (%lu bytes)\n",
+             static_cast<unsigned long>(mVo2RunId), mVo2WindowCount, maxHr, slot,
+             static_cast<unsigned long>(len));
 }
 
 void Service::pauseTrack(bool pause)

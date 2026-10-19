@@ -7,6 +7,9 @@ This workspace holds two folders:
   and sets `UNA_SDK`; bump the SDK there and new sessions follow.
 - `hybridx-race/`: our app, a HYROX-format race timer for the UNA Watch.
 
+SDK status: pinned at `sdk-v1.6.0` (`bd04a5b8`) since 14 October 2026. See
+`hybridx-race/docs/NOTES.md` 5.21-5.28 before any SDK or firmware-compatibility work.
+
 ## Before any work
 1. Read `hybridx-race/docs/HYBRIDX_RACE_BRIEF.md` in full at the start of each phase.
 2. Read `hybridx-race/docs/NOTES.md` for decisions and findings so far (create it in Phase 0).
@@ -26,6 +29,7 @@ This workspace holds two folders:
 - Build for the watch: `cmake -G "Unix Makefiles" -S hybridx-race/Software/Apps/HybridXRace-CMake -B hybridx-race/build && cmake --build hybridx-race/build`
 - Host tests: see `Docs/unit-testing.md`
 - Simulator: see `Docs/Simulator.md` and `Docs/Tutorials/RunLVGL/ARCHITECTURE.md`
+- Race's pace plan in the simulator (two races, about 2 minutes): `hybridx-race/docs/experiments/pace_plan_capture.sh [out-dir] [last|target]`
 
 ## About Jon
 Chartered engineer, runs HybridX (Hyrox coaching platform). Comfortable with TypeScript/Next.js, new to embedded C++. Explain build or toolchain steps he must do himself clearly and one at a time.
@@ -84,6 +88,10 @@ independent of Race and Streak.
   the phone over the watch's BLE File Transfer Service for release (NOTES,
   "Phone delivery over BLE"). The Android sender is `Tools/RouteSender`
   (plain Java, no Gradle; its README has the test plan).
+- **Run link:** Trail leaves its runs' steady minutes in the shared folder for
+  HybridX Run's VO2max (NOTES "Run link"; plan in `hybridx-run/docs/VO2_LINK_PLAN.md`).
+  `Software/Libs/Vo2Link` holds **copies of Run's window code** (edit Run's, then
+  `Utilities/check-vo2-link-copies.sh --sync`; CI checks they match).
 - **Watch builds come from CI**, as for Streak. So does the Route Sender APK
   (`.github/workflows/route-sender.yml`, artifact `route-sender-apk`).
 - **Commands:**
@@ -101,7 +109,9 @@ independent of Race and Streak.
     set, else Ubuntu's `android-sdk-platform-23 aapt apksigner zipalign
     dalvik-exchange` (dl.google.com is blocked in the container).
 
-## HybridX Intervals (`hybridx-intervals/`)
+## HybridX Intervals (`hybridx-intervals/`) — RETIRED (14 October 2026)
+No further work: UNA is building structured workouts into Running (see
+`hybridx-race/docs/NOTES.md` 5.25). Code and notes stay for reference only.
 A fourth app: structured workouts (warm-up, work and rest steps with pace or
 heart-rate targets, repeats, cool-down) for running. It is independent of Race,
 Streak and Trail.
@@ -142,8 +152,11 @@ apps.
   - a run in the simulator: `docs/experiments/sim_run.sh [seconds] [shots]
     [app_config.json]` (`SEED=1` for a history); the VO2max screens:
     `docs/experiments/capture_vo2.sh [out-dir]` (into `docs/screens/`);
+  - Trail's runs counted by Run (synthetic files): `docs/experiments/sim_trail_ingest.sh`
+    (needs the simulator and `build-tests/make_trail_run`);
   - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
-    log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>`.
+    log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>` (also shows
+    what the raw GPS speed would have given, from the `scale` column).
 - **The VO2max glance** (R6): `Software/Apps/HybridXRunGlance-CMake` with
   `Software/Libs/Glance`; it reads the app's `../SharedData/HybridX/vo2max.json`.
   Preview (the simulator cannot run glances):
@@ -168,21 +181,7 @@ Strava. It is independent of the other apps.
   - host tests: `cmake -S x-weighin/Tests/Host -B x-weighin/build-tests && cmake --build x-weighin/build-tests && x-weighin/build-tests/x-weighin-host-tests`;
   - simulator: `x-weighin/Software/Apps/LVGL-GUI/simulator` (settings in
     `Software/Output/app_config.json`);
-  - a run in the simulator, with screenshots: `docs/experiments/sim_run.sh [shots-dir] [app_config.json]`.
-
-## X Velocity (`x-velocity/`)
-A seventh app, at the brief stage: a gym tool. It counts reps, measures bar speed
-per rep (velocity-based training, with a buzz when the set slows past a cut-off),
-and runs a jump test (height from flight time). It is independent of the other apps;
-its rep counter is meant to be reused by Race for wall balls and burpees later.
-- **Docs:** brief, plan and phases (V0-V5): `x-velocity/docs/X_VELOCITY_BRIEF.md`;
-  the desk study and findings: `NOTES.md`; the Gate V0 probe plan and Jon's
-  gym-session protocol: `PROBE.md`. Read the brief and `NOTES.md` at the start of
-  each Velocity phase, and work only on that phase.
-- **Rules:** the same standing rules as Race apply. Recorded probe sets are the
-  host-test data: never tune the counter on a set without adding it as a test.
-- **Watch builds come from CI**, as for the others. Tags `velocity-vX.Y.Z`
-  (the name is still Jon's decision, brief §11).
+  - a run in the simulator, with screenshots: `docs/experiments/sim_run.sh [shots-dir] [app_config.json]`;
   - every screen in the simulator, and a weigh-in round trip:
     `docs/experiments/capture_screens.sh [out-dir]` (into `docs/screens/`);
   - a sample log: `build-tests/make_log <out.csv> [days] [seed]`; a log's trend
@@ -198,3 +197,97 @@ its rep counter is meant to be reused by Race for wall balls and burpees later.
     the steps: `docs/SUBMISSION.md`;
   - store images (previews, mock-ups, marketing, one set per listing):
     `docs/experiments/store_images.py build-tests/glance_preview docs/store`.
+
+## X Velocity (`x-velocity/`)
+A seventh app, at the brief stage: a gym tool. It counts reps, measures bar speed
+per rep (velocity-based training, with a buzz when the set slows past a cut-off),
+and runs a jump test (height from flight time). It is independent of the other apps;
+its rep counter is meant to be reused by Race for wall balls and burpees later.
+- **Docs:** brief, plan and phases (V0-V5): `x-velocity/docs/X_VELOCITY_BRIEF.md`;
+  the desk study and findings: `NOTES.md`; the Gate V0 probe plan and Jon's
+  gym-session protocol: `PROBE.md`. Read the brief and `NOTES.md` at the start of
+  each Velocity phase, and work only on that phase.
+- **Rules:** the same standing rules as Race apply. Recorded probe sets are the
+  host-test data: never tune the counter on a set without adding it as a test.
+- **Watch builds come from CI**, as for the others. Tags `velocity-vX.Y.Z`
+  (the name is still Jon's decision, brief §11).
+
+## Trail Quest (`trailquest/`)
+A ninth app, and a game: a Game Boy-style, turn-based trail-running adventure.
+You run "The Ridge" (5 stages), choose routes at forks, meet original creatures
+("Trail Spirits") that become running partners, and win short duels with pace and
+grit; each stage ends with a boss. Planned extra: Daily Trail (a run seeded from
+the date). It is independent of the other apps. Original only: no Pokémon names,
+creatures, moves, art or type chart (brief section 9).
+- **Docs:** brief, plan and phases (Q0-Q6): `trailquest/docs/TRAILQUEST_BRIEF.md`;
+  findings, decisions and the gate records: `NOTES.md`; look and voice:
+  `DESIGN.md`. Read the brief and `NOTES.md` at the start of each phase, and work
+  only on that phase. Where the brief and `NOTES.md` disagree, `NOTES.md` is right.
+- **Rules:** the same standing rules as Race apply. Also:
+  - the GUI runs at **10 frames a second** and gets one button code per frame, so
+    the game is turn-based and any timing input needs zones of at least two frames;
+  - the buzzer's **pitch** (SDK v1.6.0) plays only on new enough firmware, so every
+    sound must work as rhythm alone; the vibro carries the meaning;
+  - the display is round: keep text inside the circle;
+  - colours are on the display's grid (each channel 0x00, 0x40, 0x80 or 0xC0);
+  - the GUI process links none of the library sources, so **anything the GUI uses
+    from `Libs/Core` must be header-only**; the simulator hides this, the watch
+    build catches it.
+- **Layout:** the pure core `Software/Libs/Core`: the timing beat, the feedback
+  table, and (Q1) the game itself: data tables in `Header/data/` (moves,
+  spirits, items, stages; header-only), the duel, encounters, the run flow
+  (`Run`), the save, and the Daily Trail seed. Every chance comes from one
+  seeded `Rng`, so a seed and the inputs replay a game exactly. `Session` (Q2)
+  is the game as the service runs it; `View.hpp`, `Layout.hpp`, `TextFit.hpp`
+  and `Narrate.hpp` are what the GUI draws from, and every string is
+  host-tested to fit the round face clear of the bezel arcs. The service
+  `Software/Libs/App` runs the Session and answers each command with
+  snapshots; the GUI `Software/Apps/LVGL-GUI` (eight screens, a screen manager
+  with no heap, the sprite expander) draws them. The story pages (Q3) are
+  `Header/data/Story.hpp`, shown by `StoryScreen`. No glance. Art is drawn by
+  `Tools/Art/gen_art.py` into `assets/sprites/sprites.c`; never edit that file.
+- **Watch builds come from CI**, as for the others. Tags `trailquest-vX.Y.Z`.
+  Local watch builds are compile checks only (the stub recipe is in `NOTES.md`).
+- **Commands:**
+  - host tests: `cmake -S trailquest/Tests/Host -B trailquest/build-tests && cmake --build trailquest/build-tests && trailquest/build-tests/trailquest-host-tests`;
+  - balance (built with the tests; `docs/BALANCE.md` has the targets and how to
+    read them): every spirit, many duels, `build-tests/balance_sim [n] [--md out]
+    [--csv out]`; whole games, `build-tests/run_sim [runs] [casual|good|menu]
+    [--md out]`. Re-run both after changing any number in `Libs/Core`;
+  - simulator: `trailquest/Software/Apps/LVGL-GUI/simulator` (a Ninja build in
+    its `build/`; run `build/bin/TrailQuestSimulator`; keys 1-4 are L1-R2);
+  - screens, cut to the round face: `docs/experiments/capture_screens.sh [out-dir]`
+    (a scripted stage 1 with its story pages, every screen, into
+    `docs/screens/q3-*.png`);
+    `docs/experiments/sim_play.sh [seed]` plays stage 1 to the clear (beat off)
+    and checks the save is picked up again. Both clear the save in
+    `Software/Output`; `TRAILQUEST_SEED` fixes the simulator's seed;
+  - art: `python3 trailquest/Tools/Art/gen_art.py` (writes the sprites and a
+    preview sheet); icons: `python3 trailquest/Resources/make_icons.py`.
+
+## Knitting (`knitting/`)
+An eighth app: a knitting counter. Press a button for every row, group rows into
+sets (rows and sets, like reps and sets), and see the rows in this set (big), the
+set number and the total rows (small). Buttons: R1 counts a row (hold: undo a row),
+L1 starts the next set, L2 resets (hold 1.5 s), R2 exits. It is an activity-free utility: no GPS, no FIT files,
+nothing syncs. It is independent of the other apps.
+- **Docs:** findings, decisions and phases (K0-K5): `knitting/docs/NOTES.md`.
+  Read it at the start of each Knitting phase, and work only on that phase.
+- **Rules:** the same standing rules as Race apply.
+- **Layout:** as X Weigh-in: the pure core `Software/Libs/Core` (header-only where
+  the GUI uses it), the service and messages `Software/Libs/App`, the GUI
+  `Software/Apps/LVGL-GUI`, the watch build `Software/Apps/Knitting-CMake`.
+- **Watch builds come from CI**, as for the others. Tags `knitting-vX.Y.Z`. App ID
+  `CDA5282FFDCE502F` (portal-issued). The store package (`Utilities/pack-store-zip.sh`,
+  CI artifact `knitting-store-zip`) and the release steps: `docs/SUBMISSION.md`.
+- **Commands:**
+  - host tests: `cmake -S knitting/Tests/Host -B knitting/build-tests && cmake --build knitting/build-tests && knitting/build-tests/knitting-host-tests`;
+  - simulator: `knitting/Software/Apps/LVGL-GUI/simulator` (keys 1-4 are L1, L2, R1, R2);
+  - a run in the simulator, with screenshots: `docs/experiments/capture_screens.sh [out-dir]`
+    (into `docs/screens/`). It needs Xvfb, xdotool and ImageMagick. Also
+    `resume_check.sh` (the saved count) and `hold_check.sh` (the holds; key
+    down, wait, key up, as on the watch); `store_previews.sh` (the four store
+    previews, into `Resources/previews/`); store images (watch mock-ups in teal
+    and white, cards, banner): `UNA_SDK=... python3 docs/experiments/store_images.py docs/store`.
+  - a local watch compile check needs Race's `syscall_stubs.c` built with
+    `-mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb`, and `pyelftools`.

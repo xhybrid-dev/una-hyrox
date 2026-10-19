@@ -9,6 +9,7 @@
 
 #include "gui/Strings.hpp"
 #include "gui/screens/ScreenManager.hpp"
+#include "PaceMenu.hpp"
 #include "gui/theme/Theme.hpp"
 
 using namespace SDK::GUI;
@@ -26,10 +27,12 @@ WheelMenu::Item kItems[App::MenuNav::Root::Settings::ID_COUNT] = {
     { Style::Tip,    "Run length" },
     { Style::Tip,    "Split lock" },
     { Style::Toggle, "Vibrate\non split" },
+    { Style::Tip,    "Target time" },
 };
 
 char kLockoutTip[8] = "3 s";
 char kRunDistanceTip[8] = "1 km";
+char kTargetTip[8] = "Off";
 }  // namespace
 
 MenuSettingsScreen::MenuSettingsScreen(Model& model)
@@ -74,6 +77,9 @@ void MenuSettingsScreen::refreshItems()
     snprintf(kRunDistanceTip, sizeof(kRunDistanceTip), "%s",
              Race::runWork(mSettings.runDistanceM));
     kItems[Menu::ID_RUN_DISTANCE].tip = kRunDistanceTip;
+
+    Race::PaceMenu::targetText(kTargetTip, sizeof(kTargetTip), mSettings.targetFinishMin);
+    kItems[Menu::ID_TARGET].tip = kTargetTip;
 
     mMenu->refresh();
 }
@@ -121,6 +127,12 @@ void MenuSettingsScreen::confirm()
 
     case Menu::ID_VIBRATE:
         mSettings.vibrateOnSplit = !mSettings.vibrateOnSplit;
+        break;
+
+    case Menu::ID_TARGET:
+        // Off, then 1:00 in steps of five minutes to 4:00, then Off. The phone sets any minute;
+        // here, five at a press is the most that is worth cycling.
+        mSettings.targetFinishMin = Race::PaceMenu::nextTargetMin(mSettings.targetFinishMin);
         break;
 
     default:

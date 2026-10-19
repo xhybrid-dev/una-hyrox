@@ -11,6 +11,18 @@ strips the prefix for the SDK's version script. The steps are in
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-13
+
+The store packages only; the app and the glance are unchanged from 1.0.0.
+
+### Fixed
+
+- **The portal refused 1.0.0's manifests.** Both now carry the activity keys
+  the portal requires of every app, set to "not used"
+  (`supportsLaps` … `stravaExport`).
+- **The `previews` key is dropped,** the one key the portal did not allow. The
+  previews folder is still in the zip.
+
 ## [1.0.0] - 2026-10-13
 
 The first store release, tagged `weighin-v1.0.0`. Two listings: X Weigh-in

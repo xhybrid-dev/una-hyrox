@@ -377,13 +377,22 @@ figure as it stood after each of the last 10 runs); the glance is called
   The app writes it when it opens (new) as well as on save, so an updated
   app gives the glance a version 2 file before the next run. A version 1
   file reads as "No runs yet" until then.
-- **The shown value is kept per run**: each run in `vo2.json` is now
-  `[end, estimate, windows, shown]`. Working the trend out from the kept runs
-  alone was wrong for the oldest bars once older runs had dropped out (the
-  first preview showed it: the oldest bar was one run's raw figure). Files
-  with three fields still read, the fourth worked out from the runs read so
-  far: exact for histories under 10 runs, an approximation for the oldest
-  four of a full one, and exact for every run saved from now on.
+- **The shown value is kept per run**: each run in `vo2.json` now ends with
+  the value shown once it was added: `[end, estimate, windows, source, shown]`,
+  file version 4 (version 3, from the Run link, added the source; this adds
+  the last number). Working the trend out from the kept runs alone was wrong
+  for the oldest bars once older runs had dropped out (the first preview
+  showed it: the oldest bar was one run's raw figure). Files of every earlier
+  version still read; where the number is missing it is worked out from the
+  runs read so far: exact for histories under 10 runs, an approximation for
+  the oldest four of a full one, and exact for every run saved from now on.
+  The 17 October build (CI run 171) wrote a version 2 file with four numbers
+  a run, the fourth being the shown value; that reads too.
+- **Trail runs counted later** (the Run link, `addSorted`) can land in the
+  middle of the history, which changes the figure shown after every run from
+  there on: those values are worked out again at the insertion (the same
+  approximation for the oldest four of a full history). A run older than all
+  ten kept is dropped and changes nothing.
 - **Layout** (the watch's 240x60, in the list's middle 172 px): "52.7" in
   SemiBold 25 with a small grey "VO2", under it "+0.4 last run" (the change
   at the latest run; "First run" for the first; 10 or more loses its decimal
@@ -402,7 +411,7 @@ figure as it stood after each of the last 10 runs); the glance is called
   store listing later.
 
 ### R6 verified
-- Host tests: 76 (18 new: trend and shared file, the per-run shown value and
+- Host tests: 118 after merging the Run link (76 before it; 18 of those new: trend and shared file, the per-run shown value and
   old files, the glance's view and layout against the real font widths),
   also under ASan + UBSan.
 - Watch target compile checks (not installable): the app 447,128 B, the
@@ -454,3 +463,215 @@ HR trust levels drop at tempo pace.
   not to %VO2max. Med Sci Sports Exerc 1997;29(3):410-414.
 - Tanaka H, Monahan KD, Seals DR. Age-predicted maximal heart rate revisited.
   J Am Coll Cardiol 2001;37(1):153-156.
+
+---
+
+## SDK v1.6.0 (14 October 2026)
+
+The SDK released v1.6.0 (structured workouts, GPS speed filter, buzzer pitch, shared `:/Workouts`). Our pin is unchanged (`a7a995a1`); ABI 3 / kernel 1.4.0 at both. What it means for this app, and the plan to move the pin, are in `hybridx-race/docs/NOTES.md`, "Amendment — UNA SDK v1.6.0 reviewed" (5.21-5.24).
+
+**Decision (14 October 2026):** re-sync with UNA's updated Run app (v1.6.0) and add `GpsSpeedFilter`. See `hybridx-race/docs/NOTES.md` 5.25.
+
+## R6a: UNA's RunLVGL (sdk-v1.6.0) merged in (14 October 2026)
+
+Run is a copy of RunLVGL, so v1.6.0's changes (structured workouts, the GPS speed filter, the
+56 KB LVGL pool, assorted fixes) were brought in with a **three-way merge**, not by copying
+files over: base = RunLVGL at `a7a995a1` (what Run was copied from), theirs = RunLVGL at
+`sdk-v1.6.0`, ours = Run. `git merge-file` per file, with the SDK's `Libs/Header` and
+`Libs/Sources` mapped to our `Libs/App/Header` and `Libs/App/Sources`.
+
+| Result | Files |
+|---|---|
+| Untouched by us, taken from UNA | 27 |
+| New in v1.6.0 (workout screens, `WorkoutUi`, `WorkoutFaces`, `WorkoutLabel`, ...) | 13 |
+| Merged cleanly | 3 |
+| Conflicted, resolved by hand | 12 (20 hunks) |
+
+**How the conflicts were resolved.** Every `HybridX Run` block was kept; UNA's structure was
+adopted around them.
+- **Message IDs collided.** UNA's `WORKOUT_LIST`..`WORKOUT_STEP` took `0x13`-`0x16` and
+  `WORKOUT_DETAILS_REQUEST`/`WORKOUT_END` `0x17`-`0x18`, which our `VO2_UPDATE` and
+  `VO2_PROFILE_SAVE` already used (`0x13`, `0x14`). Ours moved to `0x19` and `0x1A`. They are only
+  ever used by name and never stored, so nothing else changes.
+- **Menu.** `Root::Id` is now Start, Workouts, Intervals, VO2max, Settings; the item table and the
+  enum agree (checked). `vo2Profile` is still reset with the other children.
+- **FIT local message numbers.** `L_MAX_MET` (ours) and `L_MEMO_GLOB` (UNA's workout writer) both
+  kept: 13 and 14, under FIT's limit of 15 local message types.
+- **Service.** Our speed and grade freshness stamps (`mSpeedLastMs`, `mSpeedSeen`) now sit inside
+  UNA's peak-speed logic; the VO2 reset in `trackStart` stays, and UNA's `mLapCarryMs = 0`; UNA
+  moved the `mSummary` set-up lower (it sizes the lap reserve for workout steps), so ours was
+  dropped as a duplicate.
+- Simulator `CMakeLists.txt` takes UNA's `LV_MEM_SIZE` 56 KB with our app ID and name.
+  `HybridXRun-CMake` got the same define from the merge.
+
+**Behaviour of ours is unchanged in this commit:** the VO2 windows still read the receiver's raw
+speed (`mGpsSpeedMs`). The corrected speed comes in R6b, so any change in results is separable.
+
+### R6a verified
+- Host tests: 58 pass (core unchanged).
+- Simulator builds against `sdk-v1.6.0` with no warnings in `hybridx-run/` and no conflict
+  markers left. `sim_run.sh` (150 s, with a seeded history): the run starts, saves a FIT, the VO2
+  lines, `vo2.json`, the SharedData copy and the tuning log are all written as before.
+- Screens: the main menu shows Workouts and the recent VO2max; the VO2 page is intact; the
+  Workouts list opens (empty in the simulator: "Copy .fit files to the Workouts folder").
+- Not yet: the watch build (CI) and its size and RAM; no watch run.
+
+## R6b: VO2max on UNA's corrected speed (14 October 2026)
+
+**The change.** `feedVo2()` now feeds the windows `mSpeedFilter.getInstantSpeed()` (the latest
+sample times the filter's scale) with `hasCurrentSample()` as the validity gate, in place of the
+receiver's raw `mGpsSpeedMs`. Same 1 Hz cadence and the same freshness and dead-reckoning gates
+as before; `getSpeed()` (the 2-tick mean) was not used, so the window's 8% spread test sees the
+same kind of per-second values as it did. UNA's filter is ticked earlier in `processTrack()`, so
+the VO2 feed reads the current second.
+
+**Why.** UNA measured the receiver's speed over ground against the position track on eight
+simultaneous recordings: 0.7% low on an open road race, 5.8% low under tree cover, while the
+position track matched an odometer to 1.2%. The ACSM running cost is `3.5 + 0.2 v + ...`, and
+v is the term that carries almost all of it, so a speed that reads low by a few percent made the
+VO2max low by about as much. The filter measures the correction itself (an exponential average
+of position distance over Doppler distance, time constant 180 s) and applies it.
+
+**What to expect.** The same run now reads higher: roughly +1% of VO2max on open road, up to
+about +5% under trees: a 4% correction moves 52.5 to 54.4 in the hand-checked case below (about
++2 ml/kg/min). The correction needs about 3 minutes to settle; the VO2 warm-up is 300 s,
+so no kept window used a half-converged scale (about 80% settled at the first kept window).
+
+**Tuning log.** A `scale` column is appended to each window line (the mean correction over the
+window's good seconds, 1.000 = none; empty logs from before R6b simply lack the column).
+`vo2_log_report.py` now also prints what the same windows would have given on the raw speed
+(speed / scale), so one log shows the size of the correction. Hand-checked: 200 m/min, scale
+1.040, HR 160 (rest 50, max 190) gives 54.4 corrected and 52.5 raw.
+
+### R6b verified
+- Host tests: 59 pass (one new: the window log records the mean correction over good seconds
+  only; the log format test updated).
+- Simulator: builds with no warnings in `hybridx-run/`; a 200 s run writes the log with the
+  `scale` column. In the simulator the scale is about 1.000 (its simulated track agrees with its
+  simulated speed), so this shows the plumbing, **not the size of the effect**.
+- Not verified: the effect on a real run, and against Jon's Garmin. That needs a field run on the
+  CI build: compare the report's corrected and raw figures and the Garmin's.
+
+### R6 CI (run 138 on `fe0fa67`: green)
+Both jobs passed: the watch build (every app, ST's toolchain) and the host tests, including Run's
+59. The `watch-apps` artifact (a zip of all the `.uapp` files) is 1,810,144 bytes against
+1,781,923 on the previous run (136), **+28,221 bytes**. Run is the only app whose code changed
+between the two, so that growth is Run's: the structured-workout engine, screens and FIT reader
+UNA added. Run's own `.uapp` size was not read separately (the log's storage host is blocked from
+the container); earlier figures were 419,996 B at R0 and 430,276 B at R2. The app linked with the
+56 KB LVGL pool, so RAM fits. Still no run on a watch.
+
+## L1: windows built once, judged per window, and a shared file format (15 October 2026)
+
+First build phase of the Run and Trail link (`VO2_LINK_PLAN.md`, approved the
+same day). Pure core only: no service, GUI or Trail change.
+
+- **`WindowBuilder`** (`Vo2Window.*`, `Vo2WindowConfig.hpp`): the per-second
+  accumulation and the auto max HR, moved out of `Vo2Run`. It makes a
+  `WindowRecord` of integers per minute and judges nothing. **These two files
+  and `Vo2WindowFile.*` are the ones Trail will copy byte for byte** (L4, with a
+  CI identity check). Config the judge alone uses stays in `Vo2Config.hpp`, so
+  Run's tuning never touches Trail.
+- **`Vo2Run`** keeps the same public API (the service is unchanged) and now
+  judges records; **`addWindow()`** judges a window built elsewhere, by the same
+  rules, and `noteSustainedMax()` takes that run's max HR.
+- **Two rule changes**, from Jon's 14 October log: the HR range limit is 12 bpm
+  (was 10: eight windows missed it by 1-3 bpm), and a window is "too steep" when
+  its **mean** grade is outside -3% to +10% or more than 10 of its seconds were
+  (was: any one second). The builder counts the steep seconds; a window
+  record carries the count.
+- **`Vo2WindowFile.*`**: one run as JSON, `{"v":1,"id":<start utc>,"max":<HR>,
+  "w":[[activeSec,goodSec,speed,spread,grade+3000,steep,hr,hrMin,hrMax],...]}`,
+  at most 120 windows (the first ones), 8 KB buffer. Every value bounded on
+  read; malformed, empty or newer files read as nothing. Windows are read by
+  index (the SDK reader searches from the start each time).
+- **Found: the SDK's JSON writer prints signed 32-bit values with `%ld`**
+  (`JsonStreamWriter.cpp:526`). That is right where `int32_t` is a `long` (the
+  watch's compiler) and wrong where it is an `int` (the host: a -27 came out as
+  4294967269). So the file holds no negative number: grade is stored offset by
+  3000. The SDK is read-only here; nothing else in Run writes a negative.
+- **A spike still moves the figure a little**: one +15% second per minute is
+  0.25% of mean grade, adding ACSM cost (55.0 not 54.4 on the test run). It is
+  no longer rejected, which is the point; whether to drop such seconds from the
+  mean is for the field data (the log has only window means).
+
+### L1 verified
+- Host tests: 77 (18 new: the builder, the judge on records, the file codec,
+  and Jon's run as a fixture), green, also under ASan + UBSan.
+- **Jon's 14 October run replayed** (47 windows, max HR 182, resting 41): old
+  rules 22 windows, 45.2; L1 rules 34 windows, 45.1 (the test also checks the
+  `vo2_log_whatif.py` numbers independently).
+- Watch target compile check (Ubuntu's arm-none-eabi-gcc 13.2 with Race's
+  syscall stubs, so **not for a watch**; the watch copy comes from CI):
+  `HybridXRun_0.0.0-dev.uapp` 487,824 B, no warnings outside SDK files. Needed
+  `pip install pyelftools` for the SDK's packer.
+- Simulator builds; a 120 s run (`SEED=1 sim_run.sh 120`) saves the FIT,
+  `vo2.json`, the shared copy and the tuning log as before.
+- Not done, by design: nothing reads or writes the window file yet (L2, L4).
+
+## L2: Run counts the runs Trail left behind (15 October 2026)
+
+Second build phase of the link (`VO2_LINK_PLAN.md`). Run now reads Trail's
+window files; nothing writes them yet (Trail is L4), so on a real watch this
+does nothing until then. Tested with synthetic files.
+
+- **Where and when.** At start-up (`loadVo2`, once: the apps never run
+  together), `Service::ingestTrailRuns()` reads the three slot files
+  `../SharedData/HybridX/trail_vo2_0.json` to `_2.json` (`kWindowFilePaths`), by
+  name, never by listing the folder. Each is read from its primary, else its
+  `.bak`, as Run's own files are. An 8 KB buffer is allocated for the
+  duration (the service stack is 10 KB) and freed.
+- **What is counted.** Runs newer than the history's **Trail mark** (the newest
+  Trail run ID already handled), oldest first; the mark moves as each is
+  handled. So a run is never counted twice even if it has rolled out of the
+  ten-run ring, and a copy in two slots counts once. The mark also moves past a
+  **corrupt** file (a good header but a window out of range), so it is not
+  retried for ever, and past a run with too few steady minutes (counted as
+  nothing).
+- **Judged by Run.** Each window goes through `Vo2Run::addWindow()`: the same
+  rules and the same profile as a run recorded here. Its sustained max HR joins
+  the run maxima (so Trail runs help the auto max HR, which needs two runs). The
+  run joins the history **in time order** (`addSorted`), tagged as from Trail.
+- **No profile, no counting.** If the profile is not complete (no birth year, no
+  resting HR), the files are left for another day and the mark does not move.
+- **`vo2.json` is version 3**: each run's source (0 Run, 1 Trail) and the
+  Trail mark. Version 1 and 2 files still read (sources all Run, mark 0).
+  `vo2max.json` (the public copy) is rewritten after an ingest too.
+- Core: `Vo2TrailIngest.*` (judge one file, pick the next slot), `Vo2History`
+  (source, mark, `addSorted`). Host tests: **90** (13 new).
+- **Not shown yet:** the screens do not say how many runs came from Trail
+  (L3), and the log line (`Trail run <id>: ...`) is the only trace.
+
+### L2 verified
+- Host tests: 90, also under ASan + UBSan.
+- Simulator (`docs/experiments/sim_trail_ingest.sh`, three starts):
+  1. two new Trail runs (12 and 8 windows) and a junk file: both counted, in
+     time order between Run's own, history 5 runs, auto max HR 176 from two
+     runs, `vo2.json` v3 with sources and mark. The figures match the arithmetic
+     by hand (200 m/min, HR 160, rest 50, Tanaka 180: 50.8; 190 m/min, HR 158:
+     49.2);
+  2. the same files: nothing counted again, files unchanged;
+  3. a newer run with 3 windows: the mark moves, no estimate, history unchanged.
+- Watch target compile check (not for a watch): 490,260 B, no warnings
+  outside SDK files. Simulator builds.
+- Not yet verified: a real Trail file from a watch (L4), and the time Run takes
+  to read three files on the watch (the SDK reader searches from the start for
+  each value: about 120 windows x 9 values per run).
+
+## L4 (Run's part): the average grade-adjusted pace, and the slot rule (15 October 2026)
+
+L4 is mostly Trail's (`hybridx-trail/docs/NOTES.md`, "Run link"); two things
+changed here, both in the files Trail copies, so Trail's copies were refreshed
+(`hybridx-trail/Utilities/check-vo2-link-copies.sh --sync`).
+
+- **Average grade-adjusted speed** (`WindowBuilder::avgGradeAdjustedSpeedMs()`,
+  `Vo2Run` passes it through). Over every second moving at 0.5 m/s or more with
+  a valid speed (heart rate not needed), the speed as if level, using ACSM's own
+  uphill gain: `v x (1 + 4.5 x grade)`, grade clamped to 0..20%, downhill
+  counted as level. Uphill only, until a downhill model exists (Minetti was
+  deferred). Pace is `1 / speed`. The service logs it at save
+  (`Average grade-adjusted pace: N s/km over S s moving`); no screen yet.
+- **`windowFileSlotToWrite()`**: Trail's three slot files; an empty one first,
+  else the oldest run's.
+- Host tests: **96** (6 new), also under ASan + UBSan. Watch target compile
+  check 490,732 B (not for a watch), simulator builds.

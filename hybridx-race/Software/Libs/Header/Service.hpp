@@ -40,6 +40,8 @@
 #include "ActivitySummarySerializer.hpp"
 #include "ActivityWriter.hpp"
 #include "Commands.hpp"
+#include "Cues.hpp"
+#include "PacePlan.hpp"
 #include "RaceModel.hpp"
 #include "RecordSpool.hpp"
 #include "Settings.hpp"
@@ -127,6 +129,7 @@ private:
     // -- The race ----------------------------------------------------------------
 
     Race::RaceModel mRace;
+    Race::PacePlan  mPlan;   ///< Targets for the race in progress; inactive with none
     Track::State    mTrackState = Track::State::INACTIVE;
     Track::Data     mRaceData {};
     std::time_t     mRaceStartUtc = 0;  ///< Wall time of the start, for FIT
@@ -223,7 +226,11 @@ private:
     void notifySegment(Race::SegmentType type);
     void notifyNewActivity();
     void backlightOn(uint32_t timeoutMs = skBacklightTimeout);
-    void playBuzzerPattern(uint16_t beepMs, uint8_t count = 1u, uint16_t silenceMs = 100u);
+    void playBuzzerPattern(uint16_t beepMs, uint8_t count = 1u, uint16_t silenceMs = 100u,
+                           uint16_t pitchHz = 0u);
+    void playCue(const Race::Cues::Cue &cue);
+    /// Whether each pace mode can be used for each format, from the last saved race.
+    void fillPaceStatus(uint8_t (&out)[Race::kFormatCount][Race::kPaceModeCount]) const;
     void playVibroPattern(SDK::Message::RequestVibroPlay::Effect effect, uint8_t count = 1u,
                           uint16_t silenceMs = 100u);
 

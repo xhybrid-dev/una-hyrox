@@ -79,12 +79,13 @@ TEST(Vo2History, JsonRoundTrip)
     h.addRunMax(186);
     h.addRunMax(184);
     h.add(RunRecord{1791000000u, 523, 24});
-    h.add(RunRecord{1791100000u, 531, 18});
+    h.add(RunRecord{1791100000u, 531, 18, static_cast<uint8_t>(RunSource::Trail)});
+    h.setTrailMarkUtc(1791100000u);
     char buf[Vo2History::kMaxJsonBytes];
     const size_t n = h.toJson(buf, sizeof(buf));
     ASSERT_GT(n, 0u);
-    EXPECT_STREQ(buf, "{\"v\":2,\"restHr\":52,\"maxes\":[186,184],"
-                      "\"runs\":[[1791000000,523,24,523],[1791100000,531,18,526]]}");
+    EXPECT_STREQ(buf, "{\"v\":4,\"restHr\":52,\"trail\":1791100000,\"maxes\":[186,184],"
+                      "\"runs\":[[1791000000,523,24,0,523],[1791100000,531,18,1,526]]}");
 
     Vo2History back;
     ASSERT_TRUE(back.fromJson(buf, n));
@@ -94,6 +95,83 @@ TEST(Vo2History, JsonRoundTrip)
     EXPECT_EQ(back.at(1).vo2x10, 531);
     EXPECT_EQ(back.at(1).shownX10, 526);
     EXPECT_EQ(back.rollingX10(), h.rollingX10());
+    EXPECT_EQ(back.at(0).source, static_cast<uint8_t>(RunSource::Run));
+    EXPECT_EQ(back.at(1).source, static_cast<uint8_t>(RunSource::Trail));
+    EXPECT_EQ(back.trailMarkUtc(), 1791100000u);
+    EXPECT_EQ(back.countFrom(RunSource::Trail), 1);
+    EXPECT_EQ(back.countFrom(RunSource::Run), 1);
+}
+
+TEST(Vo2History, ReadsVersionTwoAsRunsFromRun)
+{
+    const char* t = "{\"v\":2,\"restHr\":50,\"maxes\":[180,181],\"runs\":[[1790500000,512,22],[1790900000,524,30]]}";
+    Vo2History h;
+    ASSERT_TRUE(h.fromJson(t, std::strlen(t)));
+    EXPECT_EQ(h.size(), 2);
+    EXPECT_EQ(h.countFrom(RunSource::Run), 2);
+    EXPECT_EQ(h.trailMarkUtc(), 0u);
+}
+
+TEST(Vo2History, VersionThreeNeedsItsNewFields)
+{
+    const char* bad[] = {
+        "{\"v\":3,\"restHr\":0,\"maxes\":[],\"runs\":[]}",                              // no trail mark
+        "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,6]]}",        // no source
+        "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,6,2]]}",      // source 2
+        "{\"v\":3,\"restHr\":0,\"trail\":99999999999,\"maxes\":[],\"runs\":[]}",      // mark overflow
+    };
+    for (const char* t : bad) {
+        Vo2History h;
+        EXPECT_FALSE(h.fromJson(t, std::strlen(t))) << t;
+        EXPECT_EQ(h.size(), 0) << t;
+    }
+}
+
+TEST(Vo2History, AddSortedKeepsTimeOrder)
+{
+    Vo2History h;
+    h.add(RunRecord{100, 500, 10});
+    h.add(RunRecord{300, 520, 10});
+    h.addSorted(RunRecord{200, 510, 10, static_cast<uint8_t>(RunSource::Trail)});
+    ASSERT_EQ(h.size(), 3);
+    EXPECT_EQ(h.at(0).utc, 100u);
+    EXPECT_EQ(h.at(1).utc, 200u);
+    EXPECT_EQ(h.at(1).source, static_cast<uint8_t>(RunSource::Trail));
+    EXPECT_EQ(h.at(2).utc, 300u);
+    h.addSorted(RunRecord{400, 530, 10});   // newest goes last
+    EXPECT_EQ(h.at(3).utc, 400u);
+    h.addSorted(RunRecord{50, 480, 10});    // oldest goes first
+    EXPECT_EQ(h.at(0).utc, 50u);
+}
+
+TEST(Vo2History, AddSortedOnAFullRingDropsTheOldest)
+{
+    Vo2History h;
+    for (uint32_t i = 1; i <= Config::kHistoryRuns; ++i) {
+        h.add(RunRecord{i * 100, 500, 10});
+    }
+    // Newer than the oldest: the oldest goes.
+    h.addSorted(RunRecord{550, 510, 10});
+    ASSERT_EQ(h.size(), Config::kHistoryRuns);
+    EXPECT_EQ(h.at(0).utc, 200u);
+    EXPECT_EQ(h.at(4).utc, 550u);
+    // Older than every run kept: it would roll out anyway, so it is not added.
+    h.addSorted(RunRecord{50, 400, 10});
+    ASSERT_EQ(h.size(), Config::kHistoryRuns);
+    EXPECT_EQ(h.at(0).utc, 200u);
+}
+
+TEST(Vo2History, ALateTrailRunCountsAtItsPlaceInTime)
+{
+    // Run's own latest five weigh in; a Trail run from before them does not
+    // replace the newest.
+    Vo2History h;
+    for (uint32_t i = 1; i <= 5; ++i) {
+        h.add(RunRecord{i * 100, 500, 10});
+    }
+    h.addSorted(RunRecord{250, 600, 10, static_cast<uint8_t>(RunSource::Trail)});
+    // Latest five are now 250..500: (600 + 4 x 500) / 5 weights equal.
+    EXPECT_EQ(h.rollingX10(), 520);
 }
 
 TEST(Vo2History, ReadsVersionOne)
@@ -224,6 +302,96 @@ TEST(Vo2History, ABadShownValueFailsTheFile)
         Vo2History h;
         EXPECT_FALSE(h.fromJson(s, std::strlen(s))) << s;
         EXPECT_EQ(h.size(), 0) << s;
+    }
+}
+
+TEST(Vo2History, EveryFileVersionStillReads)
+{
+    struct Case {
+        const char* json;
+        uint16_t    shown1;   // the value shown after the second run
+        uint8_t     source1;
+    };
+    const Case cases[] = {
+        // version 2, three numbers a run (before R6): shown worked out
+        { "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10],[2,520,10]]}", 510, 0 },
+        // version 2 of the 17 October build: the fourth number is the shown value
+        { "{\"v\":2,\"restHr\":0,\"maxes\":[],\"runs\":[[1,500,10,500],[2,520,10,505]]}", 505, 0 },
+        // version 3 (Run link): the fourth number is the source
+        { "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0],[2,520,10,1]]}", 510, 1 },
+        // version 4: source, then the shown value
+        { "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500],[2,520,10,1,505]]}", 505, 1 },
+    };
+    for (const Case& c : cases) {
+        Vo2History h;
+        ASSERT_TRUE(h.fromJson(c.json, std::strlen(c.json))) << c.json;
+        ASSERT_EQ(h.size(), 2) << c.json;
+        EXPECT_EQ(h.at(1).shownX10, c.shown1) << c.json;
+        EXPECT_EQ(h.at(1).source, c.source1) << c.json;
+        EXPECT_EQ(h.at(0).shownX10, 500) << c.json;
+    }
+}
+
+TEST(Vo2History, TheWrongNumberOfFieldsForTheVersionFailsTheFile)
+{
+    const char* bad[] = {
+        "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10]]}",
+        "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500]]}",
+        "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0]]}",
+        "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,2,500]]}",   // source 2
+        "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,9999]]}",
+        "{\"v\":5,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500]]}",
+    };
+    for (const char* s : bad) {
+        Vo2History h;
+        EXPECT_FALSE(h.fromJson(s, std::strlen(s))) << s;
+        EXPECT_EQ(h.size(), 0) << s;
+    }
+}
+
+TEST(Vo2History, ATrailRunInsertedEarlierUpdatesTheShownValuesAfterIt)
+{
+    // Run's own runs at 1000, 3000, 4000, 5000; Trail's at 2000 turns up later.
+    Vo2History late;
+    const uint16_t v[] = { 500, 540, 560, 580 };
+    const uint32_t t[] = { 1000, 3000, 4000, 5000 };
+    for (int i = 0; i < 4; ++i) {
+        late.add(RunRecord{t[i], v[i], 10});
+    }
+    late.addSorted(RunRecord{2000, 520, 10, static_cast<uint8_t>(RunSource::Trail)});
+
+    // The same five runs, added in time order.
+    Vo2History inOrder;
+    const uint16_t v2[] = { 500, 520, 540, 560, 580 };
+    for (int i = 0; i < 5; ++i) {
+        RunRecord r{1000u * (i + 1), v2[i], 10};
+        inOrder.add(r);
+    }
+    uint16_t a[Config::kHistoryRuns] = {};
+    uint16_t b[Config::kHistoryRuns] = {};
+    ASSERT_EQ(late.trendX10(a, Config::kHistoryRuns), 5);
+    ASSERT_EQ(inOrder.trendX10(b, Config::kHistoryRuns), 5);
+    for (int i = 0; i < 5; ++i) {
+        EXPECT_EQ(a[i], b[i]) << i;
+    }
+    EXPECT_EQ(a[4], late.rollingX10());
+    EXPECT_EQ(late.at(1).source, static_cast<uint8_t>(RunSource::Trail));
+}
+
+TEST(Vo2History, ATrailRunOlderThanAllTenKeptChangesNothing)
+{
+    Vo2History h;
+    for (uint32_t i = 0; i < Config::kHistoryRuns; ++i) {
+        h.add(RunRecord{10000 + 1000 * i, static_cast<uint16_t>(500 + 3 * i), 10});
+    }
+    uint16_t before[Config::kHistoryRuns] = {};
+    ASSERT_EQ(h.trendX10(before, Config::kHistoryRuns), Config::kHistoryRuns);
+    h.addSorted(RunRecord{5, 700, 10, static_cast<uint8_t>(RunSource::Trail)});
+    ASSERT_EQ(h.size(), Config::kHistoryRuns);
+    uint16_t after[Config::kHistoryRuns] = {};
+    ASSERT_EQ(h.trendX10(after, Config::kHistoryRuns), Config::kHistoryRuns);
+    for (uint8_t i = 0; i < Config::kHistoryRuns; ++i) {
+        EXPECT_EQ(after[i], before[i]) << int(i);
     }
 }
 

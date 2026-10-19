@@ -167,6 +167,26 @@ with open(dst, "w") as f:
     f.write("\n")
 PY
 
+# -- The portal's own manifest check ----------------------------------------
+# The UNA portal (apps.unawatch.com) validates the manifest more strictly than
+# the SDK's tools. It refused 1.0.0 (13 October 2026, docs/NOTES.md, W5):
+#   - it requires the activity keys for every app type, so a utility or a glance
+#     still carries them, set to "not used" (Docs/app-config-json.md's Files
+#     example has the same set);
+#   - it allows no other keys: one was extra, and "previews" is the only key
+#     ours shared that no SDK example carries. The previews/ folder itself
+#     passed ("Valid assets").
+python3 - "$STAGE/app-manifest.json" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1]))
+need = ["supportsLaps", "supportsDistance", "supportsTrack", "supportsHeartbeat", "supportsElevation",
+        "supportsStep", "supportsSpeed", "customMeasures", "stravaExport"]
+missing = [k for k in need if k not in m]
+banned = [k for k in ("previews",) if k in m]
+if missing or banned:
+    sys.exit("The portal would refuse this manifest: missing %s, not allowed %s" % (missing, banned))
+PY
+
 # -- Validate, then and only then zip ----------------------------------------
 
 python3 "$PACKER/min_kernel_version.py" --stamp "$STAGE/app-manifest.json"

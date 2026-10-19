@@ -643,3 +643,62 @@ answered.
 - [ ] UNA's answer to the forum post and the request.
 - [ ] Scan with the UNA app force-stopped: does the watch advertise then?
       This only matters for a web-page sender, which is ruled out anyway on iPhone.
+
+---
+
+## SDK v1.6.0 (14 October 2026)
+
+The SDK released v1.6.0 (structured workouts, GPS speed filter, buzzer pitch, shared `:/Workouts`). Our pin is unchanged (`a7a995a1`); ABI 3 / kernel 1.4.0 at both. What it means for this app, and the plan to move the pin, are in `hybridx-race/docs/NOTES.md`, "Amendment — UNA SDK v1.6.0 reviewed" (5.21-5.24).
+
+**Decision (14 October 2026):** take the alert improvements from v1.6; GPX delivery to the watch is still the blocker. See `hybridx-race/docs/NOTES.md` 5.25.
+
+## Run link: Trail leaves its runs for HybridX Run's VO2max (15 October 2026)
+
+Trail's runs count towards the VO2max HybridX Run shows. Trail judges and shows
+nothing of it: when a run is saved it writes the run's steady minutes to the
+shared folder, and Run counts them the next time it opens. The plan, the
+decisions and the other half are in `hybridx-run/docs/VO2_LINK_PLAN.md` and
+Run's NOTES (L1, L2, L4).
+
+- **What Trail writes.** One of three files, `../SharedData/HybridX/
+  trail_vo2_0.json` to `_2.json` (the empty slot, else the oldest run's), with
+  the run's start UTC as its ID, its sustained max HR and up to 120 windows
+  (the first two hours): minutes past the 5-minute warm-up with 40+ good
+  seconds (Run judges them again with its own 55). Nothing is written for a run
+  with no windows and no max HR, or for a discarded run. Format:
+  `hybridx-run/Software/Libs/Core/Header/Vo2WindowFile.hpp`.
+- **The code is Run's, copied** (`Software/Libs/Vo2Link`, README there): the
+  window builder, the file codec and `SafeFile`. CI fails if a copy differs
+  (`Utilities/check-vo2-link-copies.sh`, which also `--sync`s from Run).
+- **The same speed as Run's.** Run feeds its windows UNA's *corrected* GPS speed
+  (`GpsSpeedFilter`, Run R6b: the receiver's raw speed reads 0.7-5.8% low and
+  the ACSM cost goes with speed). Trail is on the older RunLVGL base and has
+  only `SpeedSmoother`, so it now runs a **second filter, `mVo2Speed`, beside
+  the smoother, with Run's geometry (2 / 180 / 2 ticks)**, ticked from the same
+  place; only the VO2 feed reads it. **Trail's own pace readout, maxima and FIT
+  are unchanged.** This needed three more latches (position fresh, and
+  freshness stamps for HR, GPS speed and grade), all for the feed.
+- **Where it hooks in.** `startTrack` resets (`startVo2`); each `processTrack`
+  tick runs the filter and `feedVo2()` (the same fields, gates and 2.5 s
+  freshness as Run's); `stopTrack` on a save calls `saveVo2Windows()`. The
+  windows (about 2.4 KB) and the builder are members of `Service`; the 8 KB
+  file buffer is allocated once at save and freed.
+- **Also computed, not shown:** the run's average grade-adjusted speed (Run's
+  NOTES, L4). Trail does not log it yet.
+
+### Run link verified
+- Host tests: **149** (5 new), also under ASan + UBSan.
+- Watch target compile check (Ubuntu's arm-none-eabi-gcc with the syscall
+  stubs, **not for a watch**; the watch copy comes from CI): 452,332 B, no
+  warnings outside SDK files. Size against before was not measured. Simulator
+  builds.
+- Simulator, a 430 s run of `sim-wrong-turn.gpx`, saved: `trail_vo2_0.json`
+  written (113 B: run ID, max HR 145, two windows). **That real file was then
+  put in Run's simulator, which read it**: 2 windows kept, the run's max HR
+  added, no estimate (it takes 5 steady minutes), the mark moved.
+- Not verified: anything on a watch; that the corrected speed agrees between
+  the two apps on one run (needs a field run: the same route in both); the time
+  Run takes to read the files; Trail's RAM on the watch (about 3 KB more, and
+  the 8 KB buffer at save).
+- Not done: Trail's pace readout still uses the receiver's raw speed (as
+  before); moving Trail onto UNA's newer base is a separate, larger job.

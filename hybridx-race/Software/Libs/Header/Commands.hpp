@@ -96,6 +96,11 @@ struct SettingsUpd : public SDK::MessageBase
     uint8_t  hrThresholds[kHrThresholdsCount] {};
     uint8_t  hrThresholdsCount = 0u;
 
+    /// Whether each pace mode can be used, per race format: PacePlan::Status as a byte, indexed
+    /// [format][mode]. The service works it out from the last saved race, because the GUI never
+    /// sees the segments. Off is always Ready.
+    uint8_t  paceStatus[Race::kFormatCount][Race::kPaceModeCount] {};
+
     SettingsUpd() : SDK::MessageBase(SETTINGS_UPDATE), settings {} {}
     explicit SettingsUpd(const Settings &s) : SettingsUpd() { settings = s; }
 };

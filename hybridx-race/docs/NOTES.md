@@ -1833,3 +1833,353 @@ uploaded**. So the one key the portal rejects is `previews`, which
 `Docs/app-config-json.md` documents. `Resources/app-manifest.json` drops it, and
 `pack-store-zip.sh` strips it from any staged manifest. Worth telling UNA: their
 docs and portal disagree on it.
+
+---
+
+## Amendment — UNA SDK v1.6.0 reviewed; pin not yet moved (14 October 2026)
+
+This is the shared record for all the apps in this repository (Streak, Trail,
+Intervals, Run, Weigh-in and Velocity point here). Notes only at the time: no
+code, pin or CI change. The pin was moved afterwards: see 5.28.
+
+### 5.21 Where we stand
+
+| | |
+|---|---|
+| Pinned (`UNA_SDK_REF` in `watch-builds.yml`) | `a7a995a1` (22 Sep 2026; 17 commits *before* the `sdk-v1.5.0` tag) |
+| Latest SDK release | `sdk-v1.6.0` = `bd04a5b8` (13 Oct 2026, "Una Watch 1.6.0") |
+| Distance | 83 commits from the pin to v1.6.0 (17 of them up to v1.5.0) |
+| SDK ABI (`KERNEL_INTERFACE_VERSION`) | 3 at the pin **and** at v1.6.0 |
+| `abi_kernel_map.json` | identical at both: ABI 3 -> kernel firmware **1.4.0** |
+
+So the v1.6 SDK does not raise the kernel floor: `minKernelVersion` stays
+1.4.0 for every app, and apps built on v1.6 are not gated to firmware 1.6 by
+the packer. Read from the SDK, not inferred. **Not established:** whether the
+v1.6 *features* below need firmware 1.6 on the watch. The release notes do not
+say, and I found no separate firmware changelog (UNA site, search). Ask UNA
+before promising any v1.6 feature to users (and see 5.24).
+
+So we are actually behind v1.5.0 as well as v1.6.0. The README/NOTES wording
+`apps-v1.5.0-rc4-8-ga7a995a1` is the `git describe` of the pin, not a release.
+
+### 5.22 What v1.6.0 contains
+
+From the GitHub release notes and the 83 commits (headers diffed against the
+pin):
+
+**Watch users**
+- Structured workouts in Running: steps with live pace or heart-rate target
+  gauge, zone alerts, a beep each second near a step's end. Workouts are FIT
+  workout files, loaded over USB for now (phone support "to come"). The
+  built-in Intervals mode now runs on the same engine, one lap per step.
+- Steadier pace: GPS speed corrected against the position track, pace smoothed
+  over 8 s.
+- Use the watch while charging (Back exits the charging screen); face picker
+  lists up to 99 faces.
+- Reliability: daily steps and health data survive a hard reboot; a flooding
+  app no longer resets the watch.
+
+**Developers (additive; nothing in the diff removes or changes an existing
+API we call)**
+- New `SDK::Workout` library (`Libs/Header/SDK/Workout/`): `WorkoutEngine`,
+  `WorkoutProgram`, `Intervals` builder, `TargetGauge`, `WorkoutAlerts`,
+  `WorkoutLibrary`, `ScheduleState` (needs `UNA_SDK_SOURCES_JSON`),
+  `StepLabel`. CMake: new `UNA_SDK_SOURCES_WORKOUT`, now part of
+  `UNA_SDK_SOURCES_SERVICE`; `StepLabel.cpp` also joins the GUI source sets.
+- New `FitWorkoutReader` / `FitWorkoutWriter` (in `UNA_SDK_SOURCES_FIT`);
+  `FitProfile.hpp` extended. `--gc-sections` drops them from apps that do not
+  use them.
+- New `Metrics/GpsSpeedFilter.hpp` (the pace correction).
+- Buzzer notes carry a pitch: `IBuzzer::Note::frequency` and
+  `RequestBuzzerPlay::Note::{reserved, frequency}`, 500-20000 Hz, 0 = default.
+  Uses former padding; `Note` stays 8 bytes (static_assert). A kernel without
+  it plays every note at the default pitch.
+- Shared, read-only `:/Workouts` folder (and `:/Workouts/Schedule`, files
+  named `YYYY-MM-DD.fit`), read through `WorkoutLibrary`. Also read-only `:/`
+  volume-root folders beside SharedData, and a documented SharedData
+  convention (docs commits `5b82605`..`ee53d24`).
+- LVGL: `LV_MEM_SIZE` now overridable per app (default still 40 KB; RunLVGL
+  sets 56 KB); `WheelMenu::setCircular(bool)`; per-slot hints
+  (`itemTip`, `centerTipColor`).
+- Simulator keeps volume-root paths in a `Volume` folder; host test doubles
+  list files in the in-memory file system.
+- IMU frames timestamped from the BMI270 hardware counter.
+
+**Between the pin and v1.5.0** (the pin was cut before the tag): over-aligned
+and nothrow `new` no longer pull the exception runtime into every app;
+`APP_GLANCE_INTF` withdrawn in CMake (the error says what to do); font pruning
+and a CI font check; `ACCELEROMETER` documented in m/s^2 and `FUSION`
+acceleration as including gravity. `APP_GLANCE_INTF` was checked: no app in
+this repository sets it, so its withdrawal does not affect us.
+
+### 5.23 What it means per app (assessed from headers and diffs, not built)
+
+| App | Effect | Action |
+|---|---|---|
+| Race | None required. Buzzer pitch could separate split/finish cues; `GpsSpeedFilter` is an option for run pace. | none now |
+| Streak | Counts activities from any app: structured-workout runs are ordinary activities, but confirm the FIT files from v1.6 Running (laps per step) still parse in its reader. Glance builds are unaffected by the `APP_GLANCE_INTF` withdrawal. | test on the new pin |
+| Trail | Pitched buzzer could make the off-course alert distinct. Copies RunLVGL (`a7a995a1`); RunLVGL changed a lot in v1.6 (Service.cpp, Commands.hpp). | do not re-sync; copy stays verbatim at its pin |
+| Intervals | **Overlaps** UNA's own structured workouts (FIT files, `:/Workouts`, on-watch builder `buildIntervals()`). Ours is JSON files in `Workouts/`. | Jon's decision: stay JSON, read FIT too, or defer to UNA's. Raise before P2/P3 work |
+| Run | Copies RunLVGL (`a7a995a1`). GpsSpeedFilter changes the speed behind pace; may shift the VO2max estimate's speed input. | re-check a field-test run on the new pin before trusting comparisons with Garmin |
+| Weigh-in | Glance builds unaffected (see Streak). LVGL pool and Wheel changes are opt-in. | test on the new pin |
+| Velocity | IMU timestamps from the hardware counter are directly relevant to the probe (V0) and to rep timing. | read `SensorsLayer.md` at the new pin before the V0 probe |
+
+### 5.24 Plan to align (done in 5.28)
+
+Same method as 5.17-5.18, done on a branch:
+1. Check `LV_MEM_SIZE` and message-struct use in each app against the diffs
+   above (`APP_GLANCE_INTF` already checked).
+2. Scratch worktree of the SDK at `sdk-v1.6.0`; build host tests, simulator and
+   watch targets for all seven apps with no code changes; run the simulator
+   sessions each app's phase notes describe.
+3. If clean: move `UNA_SDK_REF` to `bd04a5b8`, update `README.md` (it says
+   `apps-v1.5.0-rc4-8-ga7a995a1`), `THIRD-PARTY-LICENSES.md`, and the pin
+   mentions in each app's NOTES (those are historical for the copies of
+   RunLVGL: leave them).
+4. Ask UNA: does a v1.6 feature need firmware 1.6 on the watch, and is there a
+   firmware changelog? Until answered, keep `minKernelVersion` at the
+   packer-derived 1.4.0 and do not use `frequency` as the only way to tell cues
+   apart.
+5. Tag nothing; releases are separate.
+
+### 5.25 Decisions after the v1.6 review (Jon, 14 October 2026)
+
+| App | Decision |
+|---|---|
+| Intervals | **Retired.** UNA is developing structured workouts in Running; ours would duplicate it. Code and notes stay in the repo for reference, nothing further is built. A workout-*building* platform is a possible later opportunity (UNA may have one planned): not started. |
+| Run (VO2max) | Update with the changes in UNA's updated Run app (RunLVGL at v1.6.0), including `GpsSpeedFilter`. Re-sync is a deliberate step: the app was a verbatim copy at `a7a995a1`, so diff first. Field-test numbers before and after will not compare directly. |
+| Race | (a) **Pace-plan mode**, a configurable option when setting up the activity; targets are user-entered (no invented HYROX pacing data). (b) **Distinct cues** via buzzer pitch. (c) Explore structured workouts (see 5.26). (d) **Field test of burpee and wall-ball rep counting** from the IMU. |
+| Streak | **No change.** It needs to see every activity, and v1.6 does not widen what it can see. Stays as is. |
+| Trail | Take the alert improvements (deadband/dwell, repeat-after-gap, distinct tones). **Still blocked** on getting GPX files onto the watch: UNA has no phone delivery; the BLE route (Route Sender) remains the plan. |
+| Weigh-in | Small update: entry screens (non-circular wheel, per-item hints). |
+| Velocity | Not mentioned: unchanged (still at brief stage). |
+
+### 5.26 Can an app put workouts in `:/Workouts`? (answer from the SDK)
+
+**No.** `Docs/shared-data.md` (SDK `ee53d24`): folders at the volume root, today
+only `:/Workouts`, "are read-only to apps. Opening a file in one for writing
+returns `false`, and so do `write()`, `truncate()`, `rename()`, `remove()` and
+`mkdir()`." So Race cannot drop preformatted workouts there on install.
+
+Caveats worth knowing:
+- The **simulator does not enforce this**: a write to `:/` succeeds there and
+  fails on the watch. Never test a write to `:/Workouts` in the simulator and
+  trust it.
+- The only writable path out of an app's root is `../SharedData/`. But
+  `SDK::Workout::Library` scans only `:/Workouts` and `:/Workouts/Schedule`
+  (constants in `WorkoutLibrary.hpp:38-40`), so UNA's Running would not list
+  files from `SharedData`.
+- Users (or a phone/desktop tool) can seed `:/Workouts` over USB; the folder is
+  visible as mass storage. That is the route for a coach platform today.
+- **Not established:** whether an installed `.uapp` can carry extra data files
+  that land in the app's own folder. Check the packer before relying on it.
+- What an app *can* do: read FIT workouts with `FitWorkoutReader` from any path
+  it can open (its own folder, or `:/Workouts`), and run them with the SDK
+  engine inside its own screens. So Race could ship its own HYROX sessions as
+  data and run them itself, but not make them appear in UNA's Running.
+
+### 5.27 Next steps, in order (each its own phase, plan mode first)
+
+1. Pin bump to `sdk-v1.6.0` (5.24 method), all apps built and tested.
+2. Run: re-sync to RunLVGL v1.6.0 and add `GpsSpeedFilter`.
+3. Race: pace-plan option and distinct cues; then the structured-workout
+   exploration; the rep-count field test needs a probe plan first (shared with
+   Velocity's V0).
+4. Trail alert work and Weigh-in entry screens.
+
+### 5.28 Pin moved to sdk-v1.6.0 (14 October 2026)
+
+`UNA_SDK_REF` is now `bd04a5b8ebc7cb56cdbabe7071bad0468f9f7249` (`sdk-v1.6.0`), up from
+`a7a995a1`. No app code changed. Done the 5.17 way: verified in a scratch checkout of the tag
+(submodules initialised; `ThirdParty` is the same tree at both commits, so LVGL is unchanged)
+before the pin was edited.
+
+**Host tests, same on both SDKs** (old pin run first as the baseline): Race 100, Streak 115,
+Trail 144, Intervals 113, Run 58, Weigh-in 113, all passing. Race's core is pure, so its tests
+only use the SDK's test framework; the other four compile SDK sources.
+
+**Simulators**, all six built against v1.6.0 (Ninja, Debug) with no errors. Warnings: 45 against
+44 on the old pin, the one extra being the SDK's own new `WorkoutLibrary.cpp:184`
+(`-Wformat-truncation` on a `snprintf` whose file-name length the code already checks is under
+64 bytes, so benign; SDK code, not ours to edit). Each simulator ran 12 s under Xvfb with no
+crash or assert. Race was driven through its full capture script (`capture_screens.sh`, 20
+screens) and ended with the same queue-drain log lines as in 5.17.
+
+**Not done locally:** the watch target. The container has no ST toolchain, and Ubuntu's compiler
+only links with stubs (5.20), so the watch build is CI's job. The push triggers `Watch builds`;
+its result:
+
+**CI, run 136 on `66ea2c2`: green.** Every app built with ST's toolchain on the new pin and
+the host-test job passed. Artifact sizes against the last green run on the old pin (run 135):
+`watch-apps` 1,781,923 bytes against 1,796,417 (a zip of all the `.uapp` files, so a total, not
+per app; 0.8% smaller, no sign the new Workout sources are being linked into apps that do not
+use them), `race-store-zip` 243,783 against 243,624, `weighin-store-zip` 196,298 against
+203,150. Per-app `.uapp` sizes were not compared. The real `una-sdk/` checkout is now at
+`bd04a5b8`, so new sessions follow the pin.
+
+**Still unproven:** nothing here has run on a watch. A watch build that compiles and links says
+nothing about v1.6 behaviour on the device, or about which firmware the new features need.
+
+**Found along the way**
+- The simulator links its binary into each app's own `build/bin` (git-ignored), not into the
+  chosen build directory, so a build against another SDK silently replaces the one you were
+  about to run. Rebuild before running after switching SDKs.
+- `APP_GLANCE_INTF` is withdrawn in v1.5 and no app sets it. The two glance apps are
+  `APP_TYPE Glance`, so only their packed header byte changes (0x22 to 0x02, both read as a glance).
+- SDK ABI is 3 at both commits, so `minKernelVersion` stays 1.4.0 (5.21).
+
+### 5.29 Distinct cues (15 October 2026)
+
+First of the two Race changes decided in 5.25: the buzzer pitch SDK v1.6 added
+(`RequestBuzzerPlay::Note::frequency`, 500-20000 Hz, 0 = default, `reserved` 0).
+
+- **`Cues.hpp`** (pure): a `Cue{beepMs, count, silenceMs, pitchHz}` per event. Beep counts and
+  lengths are exactly the old ones (run 1 x 150 ms, station 2 x 150 ms, Roxzone 1 x 80 ms, finish
+  1 x 400 ms), so on firmware that predates pitch, which plays every note at its default (SDK
+  header), the cues still differ by rhythm. The vibration is untouched.
+- **Pitches** are notes of the C scale inside the 1047-8372 Hz range UNA chose for its own zone
+  alerts (SDK `490da762`): run C7 2093, station G7 3136, Roxzone C8 4186, finish C6 1047. Roxzone in
+  and out sound the same. These are a starting point: **nothing has been heard on a watch**, so
+  they may need tuning by ear (one place: `Cues.hpp`).
+- `Service::playBuzzerPattern` gained a `pitchHz` argument (silent gap notes stay at 0) and a
+  `playCue()` helper; `notifySegment()` and the finish cue use the table.
+
+**Verified:** host tests 104 pass (100 + 4 new `CuesTest`: shapes as the brief's 8.3, Roxzone in/out
+alike, four distinct pitches all in range, a corrupt segment type makes no sound). Simulator builds;
+a full scripted race through the real service sends the mock buzzer a run at 2093 Hz, a station as two
+beeps at 3136 Hz around a silent 0 Hz gap, and the finish at 400 ms and 1047 Hz (the Roxzone cue is
+covered by the unit test; the scripted flow has Roxzone off). Not verified: how it sounds, and the
+watch build (CI).
+
+### 5.30 The pace plan core (15 October 2026)
+
+Second of the Race changes from 5.25: a time target per segment and how the race stands against it
+(F14). **Pure C++, no SDK, host-tested; not yet wired to the service or the screens (next commit).**
+
+**No pacing data is invented.** The brief wants a share table from Jon's results data (D6); none has
+been supplied, so both modes take their numbers from the athlete's own last saved race:
+- **Last race:** each segment's target is its time in the last race.
+- **Target:** the last race's *shape* (each segment's share of its total) scaled so the race
+  finishes in the target time (the last segment takes the rounding remainder, so the targets add up
+  exactly). A real share table can replace the shape later in one place.
+
+**Matching and availability.**
+- Segments match on (type, round), so a Half can use a Full as its plan (Half B takes rounds 5-8).
+- A segment the last race lacked has no target (0). Last race needs at least one match.
+- Target needs the last race to cover every segment of this race, or the targets could not add up
+  to the target time: a Full from a Half, or Roxzone on from a race without it, is unavailable
+  (`NoMatch`). A Half from a Full, or Roxzone off from a race with it, is covered.
+- Run length: a run's time is scaled by this race's run length over the last race's, so a 500 m sim
+  measures against a 1 km race in proportion; stations and Roxzone are never scaled. The saved
+  summary now records `run_m`; a summary from before this (no key) reads as 1000 m. The serializer's
+  buffer is sized to the file, so the extra key needs no limit change.
+- Statuses: Off, Ready, NoLastRace, NoMatch, NoTarget. Anything but Ready leaves the race running
+  with no plan.
+
+**Live numbers** are recomputed from the race model's closed segments on every call, so undo, pause
+and a split the lockout ignored need no handling of their own (each has a test).
+- *Delta* (positive = behind): the sum of (actual - target) over closed segments that have a target,
+  plus the time the open segment has run past its own target. It never goes negative inside a
+  segment: ahead is credited at the split, not guessed halfway through.
+- *Projection*: the active time so far plus the open segment's remaining target plus every later
+  target, i.e. where the race ends if the plan is held from here. It is withheld (not understated)
+  when any remaining segment has no target, and after the race is over.
+
+**Verified:** host tests 128 pass (104 + 24 new `PacePlanTest`). To prove the tests can fail, four
+deliberate bugs were put into `PacePlan.cpp` one at a time (a flipped over-target test, a projection
+that dropped the time so far, a Target coverage check weakened, run-length scaling removed): each was
+caught by 2 to 6 tests, and the code was restored. Simulator builds; a scripted race through the real
+service saves `summary.json` with `"run_m":1000`. Not verified: the screens (not built yet), the watch
+build (CI).
+
+### 5.31 The pace plan on the watch (15 October 2026)
+
+Third commit of the Race work from 5.25: the plan (5.30) is wired to settings, the service, and the
+screens.
+
+**What it does.**
+- **Main menu: a Pace plan row** between Format and Last race. Pressing select cycles Off, Last race,
+  Target, Off, skipping any mode the last race cannot support for the chosen format. The hint says
+  the mode ("Last race", "Target 1:45") or why it cannot be used ("No saved race", "Doesn't match",
+  "No target set"). With nothing saved, Off is the only mode and a press does nothing.
+- **Race screen.** With a plan, the total time moves left and the delta sits to its right: amber
+  behind (`+0:05`), green ahead (`-0:04`), white within half a second of plan. The segment time turns
+  amber once it passes the segment's own target. **No sound**: Jon chose delta on screen only.
+  Without a plan the screen is unchanged (checked below).
+- **Status face:** "Finish h:mm:ss", the projection, below the battery (it first went where the
+  battery icon covers it, found by looking at the screenshot, and moved).
+- **Settings:** a Target time row, Off then 1:00 to 4:00 in steps of five minutes (a phone value
+  between steps moves up to the next step). The phone sets any minute, as the field `targetFinishMin`
+  (0-240), which is back in the manifest and the field table (it was withdrawn in 5.23).
+- The plan is chosen on the watch, so `paceMode` lives in the settings file, not AppConfig.
+
+**How it fits together.**
+- The service builds the plan at race start from the last *saved* race: `mSummary` is replaced only
+  when a race is saved (a discarded race never replaces it). A plan that cannot be built leaves the
+  race running with none; a race is never refused.
+- The GUI never sees the segments, and it cycles the format without telling the service, so the
+  service tells it, in the settings message, whether each mode is usable for **each** format
+  (`paceStatus[format][mode]`), refreshed whenever settings change and after a race is saved. The
+  row's rules (next mode, wording, target steps) are in a pure header, `PaceMenu.hpp`, so they are
+  host-tested.
+- `RaceDataUpd` carries the plan's live numbers in fixed fields. **Message sizes**: `SettingsUpd`
+  and `RaceDataUpd` grew; the largest is 88 bytes in the simulator build (64-bit header) and 80 on
+  the watch (32-bit header) against the 256-byte pool, measured with a probe built for both. Every
+  struct is already `static_assert`ed against 256.
+
+**Deviation from the brief, for Jon.** The brief's F14 takes segment shares from a table in the
+HybridX results data (D6); none has been supplied, so *Target* uses the shape of the athlete's own
+last race. A real share table would replace one function. Nothing is invented.
+
+**Verified.**
+- Host tests: 145 pass (100 originally; +4 cues, +24 plan, +5 delta text, +12 menu rules).
+- SDK validator on the manifest and field table: 5 fields, schema OK, table matches.
+- Simulator, scripted (`docs/experiments/pace_plan_capture.sh [out-dir] [last|target]`: a saved Half
+  A of 6 s segments, then a second race against it): the row offers only Off with nothing saved;
+  after a save it cycles Off, Last race, Target and shows "Target 0:01" for a 1-minute phone target;
+  Target is skipped when no time is set; race 2 starts with "mode 1, status 1" (and "mode 2, status
+  1" for Target); the delta is green ahead (-0:04), amber behind (+0:05), the segment time goes amber
+  past its target, the status face shows the projection; `pace_mode`, the target and `run_m` are in
+  the saved files, and the phone's target survives the values-file write-back.
+- No-plan screens unchanged: the existing `capture_screens.sh` flow, compared pixel by pixel with the
+  committed captures: 11 of 16 identical. Of the five that differ, the race face differs only in a
+  44x26 px patch (the simulated heart rate), the Settings and Last race menus only along the left
+  edge (the scroll indicator: one more row), and the Format menu because the new Pace plan row now
+  shows beneath it. That script needed one more key press for the extra row and was updated.
+- Screens saved in `docs/screens/` (`phase6-pace-*`, `phase4-02b-main-pace`).
+
+**Not verified.** Anything on a watch: how the colours and the crowded centre read at arm's length
+mid-effort, and how the pitches (5.29) sound. The delta under a real race with real pauses. CI's
+watch build and size. The published store listing still has the 0.1.0 manifest, so the phone shows the
+new Target finish field only after a new version is released with this manifest.
+
+**CI, run 141 on `34dcf43`: green.** Both jobs passed: the watch build (every app, ST's toolchain) and
+the host tests, including "HybridX Race settings declaration" (the manifest, with the restored
+`targetFinishMin`, against the C++ field table), Race's host tests, and the Race store package.
+Sizes against run 138 (the Run merge): `watch-apps` 1,812,300 bytes against 1,810,144 (+2,156, a zip
+of all the `.uapp` files, so a total; Race is the only app whose code changed, so that is Race's
+cost for the cues and the pace plan, about 0.1%); `race-store-zip` 246,063 against 243,774 (+2,289).
+Per-app `.uapp` sizes were not compared. Still nothing run on a watch.
+
+### 5.32 Icon recoloured to black (15 October 2026)
+
+The store listing shows the icon on a light grey disc, where the white glyph from
+5.19 is barely visible. `Resources/icon_60x60.png` and `icon_30x30.png` are now
+black (RGB 0,0,0), with the alpha (shape) unchanged; `icon.png` in the store zip
+is the 60x60 copy. This reverses the 5.19 colour choice, at Jon's request.
+**Open question:** 5.19 chose white because the watch UI is black; if the watch's
+own app list is dark, the black glyph may be faint there. Check on the watch; if so,
+the fix is a light tile behind the black X. Icon-only change: no code touched.
+
+### 5.33 Release 1.0.0 (16 October 2026)
+
+Jon asked for v1.0 of Race. `CHANGELOG.md`: "Unreleased" becomes 1.0.0 (the pace plan,
+the distinct cue pitches, the black icon, the SDK v1.6.0 build, the manifest fix); the release
+commit is tagged `v1.0.0` and `apps-v1.0.0`, as 0.1.0 was (5.30). CI builds the tag with
+`--expect-version 1.0.0`, so `race-store-zip` is `HybridXRace-1.0.0.zip` or there is none.
+Same App ID (`5C4D6F49335E5E17`), so on the portal this is the app's **Version** tab, **Upload
+New**, not a new app (SUBMISSION.md).
+
+**Not run on a watch:** the pace plan, the cue pitches and the new icon (5.21-5.32 say so). The
+changelog says so too. The 1.0 number is Jon's call; the first real race with the pace plan is
+the test, and a 1.0.1 follows if it finds anything.

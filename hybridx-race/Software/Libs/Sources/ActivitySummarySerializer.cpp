@@ -70,6 +70,7 @@ bool ActivitySummarySerializer::save(const ActivitySummary &summary)
     writer.add("format", static_cast<uint8_t>(summary.format));
     writer.add("roxzone", summary.roxzone);
     writer.add("completed", summary.completed);
+    writer.add("run_m", summary.runDistanceM);
     writer.add("start_utc", static_cast<uint32_t>(summary.startUtc));
     writer.add("total_ms", summary.totalMs);
     writer.add("runs_ms", summary.runsMs);
@@ -149,6 +150,8 @@ bool ActivitySummarySerializer::load(ActivitySummary &summary)
 
     reader.get("roxzone", summary.roxzone);
     reader.get("completed", summary.completed);
+    // Absent in a file saved before the pace plan: stays 0, which the plan reads as 1 km.
+    reader.get("run_m", summary.runDistanceM);
 
     uint32_t startUtc = 0u;
     if (reader.get("start_utc", startUtc)) {

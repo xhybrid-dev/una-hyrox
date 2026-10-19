@@ -64,12 +64,15 @@ submodule; without `--recurse-submodules` the GUI will not build.
 
 ```bash
 git clone --recurse-submodules https://github.com/UNAWatch/una-sdk.git
-cd una-sdk && git checkout a7a995a1 && git submodule update --init --recursive
+cd una-sdk && git checkout sdk-v1.6.0 && git submodule update --init --recursive
 ```
 
-`a7a995a1` (`apps-v1.5.0-rc4-8-ga7a995a1`) is the commit this app is built and
+`sdk-v1.6.0` (`bd04a5b8`) is the release this app is built and
 tested against. The SDK ABI it carries is 3, which means the watch needs kernel
 firmware **1.4.0 or newer**.
+
+The pin moved from `a7a995a1` to `sdk-v1.6.0` on 14 October 2026. v1.6.0 keeps ABI 3, so
+the firmware floor is unchanged; see `hybridx-race/docs/NOTES.md`, 5.21-5.28.
 
 **2. Point `UNA_SDK` at it.** Every build reads this.
 
@@ -149,7 +152,10 @@ builds its apps, with ST's toolchain. To download the result:
    (see `hybridx-trail/docs/PROBE.md`), HybridX Run, a test app that
    estimates VO2max (see `hybridx-run/docs/NOTES.md`), and X Weigh-in, an
    on-watch weight tracker, and its glance (in development; see
-   `x-weighin/docs/NOTES.md`). A glance goes in a folder of its own, named
+   `x-weighin/docs/NOTES.md`), and Trail Quest, a turn-based trail-running
+   adventure (Q0 feasibility probe; see `trailquest/docs/NOTES.md`). A glance goes in a folder of its own, named
+   `x-weighin/docs/NOTES.md`), and Knitting, a knitting row and set counter
+   (first store release 1.0.0; see `knitting/docs/NOTES.md` and `knitting/docs/SUBMISSION.md`). A glance goes in a folder of its own, named
    like its file: `Apps/HXStreakGlance/`, `Apps/XWeighInGlance/`.
 
 Until the app is on the store, installing is a file copy:

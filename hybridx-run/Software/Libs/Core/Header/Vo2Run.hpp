@@ -4,7 +4,10 @@
  * @brief   One run's VO2max: steady one-minute windows, then an estimate.
  *
  * The service calls addSecond() once per track tick (1 Hz) with the values it
- * already latches. Each full window that is steady enough keeps two numbers:
+ * already latches; a WindowBuilder turns them into window records, and this
+ * class judges each record. Windows built elsewhere (HybridX Trail's, read
+ * from the shared folder) come in through addWindow() and are judged by the
+ * same rules. Each window that is steady enough keeps two numbers:
  * its oxygen cost from the ACSM running equation,
  *     VO2 = 3.5 + 0.2 v + 0.9 v grade   (ml/kg/min, v in m/min),
  * and its mean HR. estimate() turns each into a VO2max with the athlete's
@@ -20,25 +23,15 @@
 #ifndef RUN_VO2_RUN_HPP
 #define RUN_VO2_RUN_HPP
 
+#include <algorithm>
 #include <cstdint>
 
 #include "Vo2Config.hpp"
 #include "Vo2Profile.hpp"
+#include "Vo2Window.hpp"
 
 namespace RunVo2
 {
-
-/// One second of the track, as the service has it.
-struct Sample {
-    bool    active        = false;   ///< track running (not paused)
-    float   speedMs       = 0.0f;
-    bool    speedValid    = false;
-    bool    deadReckoning = false;
-    float   gradePct      = 0.0f;
-    bool    gradeValid    = false;
-    uint8_t hrBpm         = 0;
-    float   hrTrust       = 0.0f;   ///< the kernel's raw trust level
-};
 
 /// Why a window was not kept (counts are for the NOTES and the tests).
 struct WindowCounts {
@@ -68,6 +61,7 @@ struct WindowLog {
     uint8_t       hrMin        = 0;
     uint8_t       hrMax        = 0;
     uint16_t      costX10      = 0;   ///< ACSM oxygen cost, ml/kg/min x 10
+    uint16_t      speedScaleX1000 = 0; ///< mean GPS speed correction, x 1000; 0 = not known
 };
 
 enum class RunStatus : uint8_t {
@@ -100,9 +94,23 @@ public:
     /// The estimate so far, with this profile. Can be called at any time.
     RunResult estimate(const Profile& profile) const;
 
+    /// Judge one window built elsewhere (Trail's, from the shared folder) and
+    /// keep it if it counts. Same rules as the run's own windows; no log.
+    /// Returns the outcome.
+    WindowOutcome addWindow(const WindowRecord& w);
+
     /// Highest HR held for kAutoMaxHoldSec with good trust after the
-    /// warm-up; 0 if none.
-    uint8_t sustainedMaxHr() const { return mSustainedMax; }
+    /// warm-up; 0 if none. Includes noteSustainedMax().
+    uint8_t sustainedMaxHr() const { return std::max(mBuilder.sustainedMaxHr(), mNotedMax); }
+
+    /// The run's average speed as if level, m/s (0 = none), and the seconds
+    /// behind it. See WindowBuilder.
+    float    avgGradeAdjustedSpeedMs() const { return mBuilder.avgGradeAdjustedSpeedMs(); }
+    uint32_t movingSec() const { return mBuilder.movingSec(); }
+
+    /// A sustained max HR measured elsewhere, for a run whose windows came in
+    /// through addWindow().
+    void noteSustainedMax(uint8_t bpm) { mNotedMax = std::max(mNotedMax, bpm); }
 
     const WindowCounts& counts() const { return mCounts; }
 
@@ -116,26 +124,11 @@ private:
         uint16_t hrX10;     ///< mean HR, bpm x 10
     };
 
-    void closeWindow();
-    void clearWindow();
+    /// The tests in their fixed order; stores the window when it counts.
+    WindowOutcome judge(const WindowRecord& w, uint16_t& costX10);
 
-    // Current window.
-    uint16_t mSec       = 0;
-    uint16_t mGood      = 0;
-    // Speed sums are of the deviation from the window's first good sample
-    // (a shifted sum): E[x^2] - E[x]^2 on raw single-precision speeds loses
-    // the variance of a steady pace to rounding.
-    float    mSpeedRef  = 0.0f;
-    float    mSumSpeed  = 0.0f;   ///< sum of (speed - mSpeedRef)
-    float    mSumSpeed2 = 0.0f;   ///< sum of (speed - mSpeedRef)^2
-    float    mSumGrade  = 0.0f;
-    uint32_t mSumHr     = 0;
-    uint8_t  mMinHr     = 255;
-    uint8_t  mMaxHr     = 0;
-    bool     mTooSteep  = false;
-
-    uint32_t mActiveSec = 0;
-    uint16_t mWindowIndex = 0;
+    WindowBuilder mBuilder;
+    uint8_t       mNotedMax = 0;
 
     WindowLog mLog;
     bool      mLogReady = false;
@@ -143,12 +136,6 @@ private:
     Window   mWindows[Config::kMaxWindows] = {};
     uint16_t mWindowCount = 0;
     WindowCounts mCounts;
-
-    // Auto max: the last kAutoMaxHoldSec good HR readings.
-    uint8_t  mHold[Config::kAutoMaxHoldSec] = {};
-    uint8_t  mHoldCount = 0;
-    uint8_t  mHoldNext  = 0;
-    uint8_t  mSustainedMax = 0;
 };
 
 }  // namespace RunVo2

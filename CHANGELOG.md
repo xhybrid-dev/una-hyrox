@@ -11,6 +11,42 @@ when it stamps `BUILD_VERSION` into the `.uapp`.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-16
+
+The first feature release since 0.1.0: a pace plan for races, a distinct pitch
+for each race event, a clearer store icon, and a build on SDK v1.6.0.
+
+### Added
+
+- **Pace plan.** A new *Pace plan* row on the main menu: Off, Last race, or Target. *Last race*
+  measures the race against your last saved race, segment by segment. *Target* spreads a target
+  finish time over the segments in the proportions of your last race (set the time on the phone to
+  the minute, or in Settings in steps of five). The race screen shows how far ahead or behind you are
+  (green or amber), the segment time turns amber once it passes its target, and the status face shows
+  the projected finish. Nothing sounds for it. A mode the last race cannot support for the chosen
+  format says why instead of offering it. Needs a saved race.
+- **Target finish** is back as a phone setting (`targetFinishMin`, 0 to 240 minutes).
+- **Distinct cue pitch.** Each race event now has its own pitch as well as its own beep
+  shape: run C7, station G7, Roxzone C8, finish C6. The beep counts and lengths are unchanged,
+  so on firmware that predates the SDK's buzzer pitch the cues still differ by rhythm.
+
+### Changed
+
+- **The store icon is black.** The white mark was barely visible on the store's light grey disc.
+  The app icon files (`icon_60x60.png`, `icon_30x30.png`) are now black with the same shape.
+  If it reads too faintly on the watch's dark app list, a light tile behind it is the fix.
+- **Built on UNA SDK v1.6.0** (was a pre-v1.5 commit). No change to how the app behaves.
+
+### Fixed
+
+- **The store accepts the manifest.** The portal rejected `app-manifest.json` for its `previews`
+  key, so the key is dropped from the packaged manifest (the screenshots still ship in the zip).
+
+### Notes
+
+- The pace plan and the new cue pitches have been tested in the simulator and by host tests, but
+  not yet on a watch; the first race with them is the real test (`docs/ON_WATCH_TESTS.md`).
+
 ## [0.1.0] - 2026-10-10
 
 The first release, for the UNA app store (App ID `5C4D6F49335E5E17`). Run on a

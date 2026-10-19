@@ -7,7 +7,13 @@ kept window's VO2max worked out the app's way (ACSM cost already logged;
 50% HRR floor and the 15-95 plausibility range), and their median, which is
 the run's figure when at least 5 windows remain. --max-hr / --rest-hr replace
 the logged profile, to see what a measured max HR (or Garmin's) would have
-given. Standard library only.
+given.
+
+Logs from R6b on have a `scale` column: the GPS speed correction (SDK
+GpsSpeedFilter) the speed was multiplied by. For those the report also shows
+what the same windows would have given on the receiver's raw speed (speed /
+scale), i.e. what the app said before R6b. Older logs have no `scale`: their
+speed was raw. Standard library only.
 
 Usage:  python3 vo2_log_report.py [--max-hr N] [--rest-hr N] [--rows] log.csv [more.csv ...]
 """
@@ -20,6 +26,12 @@ import sys
 MIN_HRR = 0.50          # Vo2Config kMinHrrPct
 VO2_RANGE = (15.0, 95.0)
 MIN_WINDOWS = 5
+
+
+def acsm_cost(m_min, grade_pct):
+    """The app's ACSM cost (Vo2Run.cpp acsmRunningVo2): downhill counts as 0."""
+    grade = grade_pct / 100.0 if grade_pct > 0 else 0.0
+    return 3.5 + 0.2 * m_min + 0.9 * m_min * grade
 
 
 def read_log(path):
@@ -56,6 +68,8 @@ def report(path, args):
     print("   windows:", ", ".join(f"{k} {v}" for k, v in sorted(outcomes.items())) or "none")
 
     estimates = []
+    raw_estimates = []   # the same windows on the receiver's raw speed (R6b logs)
+    scales = []
     if max_hr <= rest_hr:
         print(f"   no estimate: max HR {max_hr} not above resting HR {rest_hr}")
     else:
@@ -73,6 +87,11 @@ def report(path, args):
                 vo2 = 3.5 + (cost - 3.5) / hrr
                 if VO2_RANGE[0] <= vo2 <= VO2_RANGE[1]:
                     estimates.append(vo2)
+                    scale = float(r.get("scale") or 0.0)
+                    if scale > 0.0:
+                        raw_cost = acsm_cost(float(r["speed_m_min"]) / scale, float(r["grade_pct"]))
+                        raw_estimates.append(3.5 + (raw_cost - 3.5) / hrr)
+                        scales.append(scale)
                 else:
                     why = f"implausible {vo2:.1f}"
             if args.rows:
@@ -85,6 +104,11 @@ def report(path, args):
               f"(spread {min(estimates):.1f}-{max(estimates):.1f})")
     else:
         print(f"   estimate: none ({len(estimates)} usable windows, {MIN_WINDOWS} needed)")
+    if len(raw_estimates) >= MIN_WINDOWS:
+        corrected = statistics.median(estimates)
+        raw = statistics.median(raw_estimates)
+        print(f"   on the raw receiver speed it would have been {raw:.1f} "
+              f"(speed correction x{statistics.mean(scales):.3f} on average, {corrected - raw:+.1f})")
     if result:
         print(f"   watch said: {result}")
 

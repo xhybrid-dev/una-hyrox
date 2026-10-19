@@ -47,6 +47,7 @@ struct ActivitySummary
     Race::Format format = Race::Format::Full;
     bool roxzone = false;
     bool completed = false;   ///< False when the race was ended early
+    uint16_t runDistanceM = 0u;  ///< Run length, metres; 0 when not recorded (an older file)
 
     std::time_t startUtc = 0;
 

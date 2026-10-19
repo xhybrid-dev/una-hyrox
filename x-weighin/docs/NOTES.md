@@ -992,6 +992,54 @@ listing. `docs/experiments/store_images.py` makes them, and
 
 The portal gives no image sizes, so these are common ones.
 
+### The portal refused 1.0.0's manifests, so 1.0.1 (13 October 2026)
+
+Jon uploaded both 1.0.0 zips. The portal reported "Valid assets", "Valid
+.uapp", "Valid app ID" and "Valid app version", but refused the manifest:
+
+> JSON validation error in file app-manifest.json: (root) must have required
+> property 'supportsLaps', … 'supportsDistance', … 'supportsTrack', …
+> 'supportsHeartbeat', … 'supportsElevation', … 'supportsStep', …
+> 'supportsSpeed', … 'customMeasures', … 'stravaExport', (root) must NOT have
+> additional properties
+
+**What it means:**
+- **The keys it requires.** The portal wants the activity keys for every app
+  type. Our manifests are a utility and a glance, so they left them out.
+  - The SDK's tools do not check for them: `app-config.schema.json` requires
+    only `manifest_version`.
+  - `Docs/app-config-json.md`'s Files example carries all nine, and so does
+    Race's manifest.
+  - Nothing in the SDK says they are required. The latest SDK (`bd04a5b`) has
+    the same docs and schema as our pin.
+- **The key it refuses.** The validator lists every error, and it gave one
+  "additional properties", so exactly one key was unexpected.
+  - Of our keys, the SDK's example manifests (Files, Waypoint) cover all but
+    `previews`.
+  - The Waypoint example has `description`, `configFile` and `configFields`.
+  - So `previews` is dropped from both manifests. This is inferred from the
+    error, not documented.
+  - The `previews/` folder stays in the zip, since the portal passed it as
+    assets.
+
+**Fix:**
+- **Both manifests:** they now carry `supportsLaps`, `supportsDistance`,
+  `supportsTrack`, `supportsHeartbeat`, `supportsElevation`, `supportsStep` and
+  `stravaExport` (all false), `supportsSpeed` "none" and `customMeasures` [],
+  as the Files example. `previews` is gone.
+- **`pack-store-zip.sh`:** it now refuses a manifest without those keys, or
+  with `previews`, so CI catches it before the portal does. A trial with
+  `previews` back and `stravaExport` removed failed as it should.
+- **Version 1.0.1.** The app and glance code are unchanged, but the zips must be
+  rebuilt by a tagged CI run, and the tag `weighin-v1.0.0` already names the
+  old manifests.
+
+**Open:**
+- If the portal still refuses, its message (and anything that names the
+  property) decides the next step.
+- Race's manifest also has `previews`, so Race's upload would have failed the
+  same way; it has not been uploaded yet (Race NOTES, the upload step).
+
 ## Gate W5: what Jon tests (after the store install)
 
 1. **Both install** from the store through the UNA app: X Weigh-in opens, and
@@ -1007,3 +1055,11 @@ The portal gives no image sizes, so these are common ones.
 
 - **The `sex` field's encoding** is fixed from here on. Changing a field's type
   later discards the user's value (`Docs/app-config-fields.md` §7.3).
+
+---
+
+## SDK v1.6.0 (14 October 2026)
+
+The SDK released v1.6.0 (structured workouts, GPS speed filter, buzzer pitch, shared `:/Workouts`). Our pin is unchanged (`a7a995a1`); ABI 3 / kernel 1.4.0 at both. What it means for this app, and the plan to move the pin, are in `hybridx-race/docs/NOTES.md`, "Amendment — UNA SDK v1.6.0 reviewed" (5.21-5.24).
+
+**Decision (14 October 2026):** small update to the entry screens (non-circular wheel, hints). See `hybridx-race/docs/NOTES.md` 5.25.

@@ -11,6 +11,9 @@
 #include "SDK/Metrics/MonotonicCounter.hpp"
 #include "SDK/Metrics/VariableCounter.hpp"
 #include "SDK/Metrics/SpeedSmoother.hpp"
+#include "SDK/Metrics/GpsSpeedFilter.hpp"   // HybridX Trail: the corrected speed Run uses, for the VO2 windows
+#include "Vo2Window.hpp"
+#include "Vo2WindowFile.hpp"
 #include "SDK/Metrics/DeltaCounter.hpp"
 #include "SDK/Metrics/ThrottledSample.hpp"
 #include "SDK/Filters/SimpleLPF.hpp"
@@ -105,6 +108,7 @@ private:
         bool  gradeValid      = false;
     } mGradeData{};
     float       mGpsSpeedMs       = 0.0f; ///< Latest raw GPS speed (instantaneous source).
+    bool        mGpsPosFresh      = false; ///< A position sample arrived since the last track tick (the VO2 speed filter).
     bool        mGpsSpeedValid    = false;
     bool        mGpsSpeedFresh    = false; ///< A speed sample arrived since the last track tick.
     bool        mGpsDeadReckoning = false;
@@ -153,6 +157,30 @@ private:
     } mGps{};
 
     float mSeaLevelPressure = 0.0f; // Pa
+
+    // -- HybridX Trail: VO2 windows for HybridX Run (docs/NOTES.md "Run link") ----
+    // The same window records and the same corrected speed as Run's own, written
+    // as a file in the shared folder when a run is saved; Run counts it when it
+    // next opens. Trail judges nothing and shows nothing of it.
+    static constexpr std::size_t skVo2SpeedSmoothTicks = 2;    // = Run's geometry
+    static constexpr std::size_t skVo2SpeedScaleTau    = 180;
+    static constexpr std::size_t skVo2SpeedChordTicks  = 2;
+    void startVo2(std::time_t utc);
+    void feedVo2();
+    void saveVo2Windows();
+    SDK::Metric::GpsSpeedFilter<skVo2SpeedSmoothTicks,
+                                skVo2SpeedScaleTau,
+                                skVo2SpeedChordTicks>   mVo2Speed;     ///< ticked beside mSpeedSmoother; only the VO2 feed reads it
+    RunVo2::WindowBuilder  mVo2Builder;
+    RunVo2::WindowRecord   mVo2Windows[RunVo2::kWindowFileMaxWindows] = {};   ///< this run's candidate windows, the first ones
+    uint16_t               mVo2WindowCount = 0;
+    uint32_t               mVo2RunId       = 0;   ///< the run's start, UTC seconds
+    uint32_t               mVo2HrLastMs    = 0;   ///< getTimeMs() of the latest HR, GPS speed and grade samples
+    uint32_t               mVo2SpeedLastMs = 0;
+    uint32_t               mVo2GradeLastMs = 0;
+    bool                   mVo2HrSeen      = false;
+    bool                   mVo2SpeedSeen   = false;
+    bool                   mVo2GradeSeen   = false;
 
     // -- Track state ----------------------------------------------------------
 

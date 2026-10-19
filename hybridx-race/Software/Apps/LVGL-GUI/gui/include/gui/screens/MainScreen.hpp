@@ -43,6 +43,7 @@ private:
 
     void confirm();
     void cycleFormat();
+    void cyclePace();
     void updateBackground();
 
 
