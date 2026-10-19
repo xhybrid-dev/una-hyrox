@@ -192,3 +192,49 @@ TEST(Beat, PressedAtTheStartOfTheSweepIsAMissForTheDefaults)
     EXPECT_EQ(j.result, BeatResult::Miss);
     EXPECT_EQ(j.offsetMs, 400);        // the near way round: 400 ms after the target, a pass on
 }
+
+TEST(Beat, StageOneIsTheOriginalBeat)
+{
+    const BeatConfig c = beatFor(0, 0);
+    const BeatConfig d = defaults();
+    EXPECT_EQ(c.sweepMs, d.sweepMs);
+    EXPECT_EQ(c.goodMs, d.goodMs);
+    EXPECT_EQ(c.perfectMs, d.perfectMs);
+    EXPECT_EQ(c.targetMs, d.targetMs);
+}
+
+TEST(Beat, EachStageAndLapIsInRangeAndNoEasierThanTheLast)
+{
+    for (uint8_t lap = 0; lap < 4; ++lap) {
+        for (uint8_t stage = 0; stage < 5; ++stage) {
+            const BeatConfig c = beatFor(stage, lap);
+            const BeatConfig k = clampBeat(c);
+            EXPECT_EQ(c.sweepMs, k.sweepMs) << int(stage) << "/" << int(lap);
+            EXPECT_EQ(c.goodMs, k.goodMs);
+            EXPECT_EQ(c.targetMs, k.targetMs);
+            EXPECT_EQ(c.perfectMs, kMinPerfectMs);   // two frames, the floor
+            EXPECT_GE(c.goodMs, c.perfectMs);
+            if (stage > 0) {   // each stage no easier than the one before it...
+                EXPECT_LE(c.sweepMs, beatFor(stage - 1, lap).sweepMs);
+                EXPECT_LE(c.goodMs, beatFor(stage - 1, lap).goodMs);
+            }
+            if (lap > 0) {     // ...and each lap no easier than the one before.
+                EXPECT_LE(c.sweepMs, beatFor(stage, lap - 1).sweepMs);
+                EXPECT_LE(c.goodMs, beatFor(stage, lap - 1).goodMs);
+            }
+        }
+    }
+}
+
+TEST(Beat, TheLadderMatchesTheDesignAndHasAFloor)
+{
+    EXPECT_EQ(beatFor(1, 0).sweepMs, 1500u);
+    EXPECT_EQ(beatFor(1, 0).goodMs, 360u);
+    EXPECT_EQ(beatFor(4, 0).sweepMs, 1200u);
+    EXPECT_EQ(beatFor(4, 0).goodMs, 240u);
+    EXPECT_EQ(beatFor(4, 1).sweepMs, 1100u);
+    // Far out: the floors hold, and a stage or lap past the end is the last.
+    EXPECT_EQ(beatFor(4, 20).sweepMs, 1000u);
+    EXPECT_EQ(beatFor(4, 20).goodMs, 200u);
+    EXPECT_EQ(beatFor(200, 255).sweepMs, 1000u);
+}

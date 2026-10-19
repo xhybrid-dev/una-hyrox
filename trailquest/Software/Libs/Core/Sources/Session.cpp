@@ -184,6 +184,7 @@ DuelView Session::duel() const
     v.dark         = d.setup().dark ? 1u : 0u;
     v.chanceRunner = d.chanceToLand(Side::Runner);
     v.chanceSpirit = d.chanceToLand(Side::Spirit);
+    v.tell         = static_cast<uint8_t>(d.tell());
     v.estimate[0]  = d.estimate(Action::Surge);
     v.estimate[1]  = d.estimate(Action::Settle);
     v.estimate[2]  = d.estimate(Action::Technique);

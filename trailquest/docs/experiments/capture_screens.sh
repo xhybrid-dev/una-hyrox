@@ -1,8 +1,8 @@
 #!/bin/bash
 #
 # Capture Trail Quest's screens in the PC simulator, cut to the watch's round
-# face: a scripted walk through stage 1 (Q2, with Q3's story pages), with a
-# fixed seed so the same spirits turn up each time.
+# face: a scripted walk through stage 1 (Q2, with Q3's story pages) and the start
+# of stage 2 (Q4), with a fixed seed so the same spirits turn up each time.
 #
 # Xvfb for a display, xdotool for the buttons (keys 1-4 are L1, L2, R1, R2),
 # ImageMagick for the frames and the round mask. Build the simulator first.
@@ -54,7 +54,22 @@ last()   { grep -a 'step:' "$LOG" | tail -1; }
 await()  { local n=$1; for _ in $(seq 1 75); do [ "$(steps)" -gt "$n" ] && return 0; sleep 0.2; done; return 1; }
 # One duel turn with the skill (R1) and a well-timed strike; waits for the
 # playback to finish (a turn's events take up to about 5 s).
-turn()   { local n; n=$(steps); key 3 1.3; key 3 0.2; await "$n"; sleep 5; }
+# A boss's tell (the GUI logs "tell:") puts a warning card up first: snap it once,
+# dismiss it, and snap the guarded hit's line during that turn's playback.
+TELLS=0; SNAPPED=""
+turn()   {
+    local n t; n=$(steps); t=$(grep -ac 'tell:' "$LOG")
+    if [ "$t" -gt "$TELLS" ]; then
+        TELLS=$t
+        if [ -z "$SNAPPED" ]; then snap q3-34a-boss-tell; fi
+        key 3 0.6
+        key 3 1.3; key 3 0.2
+        if [ -z "$SNAPPED" ]; then sleep 1.7; snap q3-34b-boss-twist; SNAPPED=1; fi
+    else
+        key 3 1.3; key 3 0.2
+    fi
+    await "$n"; sleep 5
+}
 # Fight on with the skill until the duel is over (cause 6, "duel over").
 fight()  { for _ in $(seq 1 14); do last | grep -q 'cause 6 ' && return 0; turn; done; }
 
@@ -111,7 +126,11 @@ fight
 sleep 0.5;          snap q3-35-boss-beaten
 key 3 1.2;          snap q3-36-story-beaten        # its page, then the stage clear
 key 3 1.2;          snap q3-37-stage-clear
-DISPLAY=$DISP xdotool keydown 4; sleep 0.9; snap q3-38-leaving; DISPLAY=$DISP xdotool keyup 4
+key 3 1.2;          snap q3-38-stage2-story        # on: the Switchback Climb's pages
+key 3;              snap q3-39-stage2-goal
+key 3 1.2;          snap q3-40-stage2-conditions
+key 3;              snap q3-41-stage2-map
+DISPLAY=$DISP xdotool keydown 4; sleep 0.9; snap q3-42-leaving; DISPLAY=$DISP xdotool keyup 4
 
 echo "=== steps ==="
 grep -a 'step:' "$LOG" | sed 's/^.*step: /  /'

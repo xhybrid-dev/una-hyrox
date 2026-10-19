@@ -93,6 +93,23 @@ class Canvas:
                 if dx * dx + dy * dy <= 1.0:
                     self.set(x, y, c)
 
+    def line(self, x0, y0, x1, y1, c):
+        """A one-pixel line (Bresenham): antlers, horns, thin tails."""
+        dx, dy = abs(x1 - x0), -abs(y1 - y0)
+        sx, sy = (1 if x0 < x1 else -1), (1 if y0 < y1 else -1)
+        err = dx + dy
+        while True:
+            self.set(x0, y0, c)
+            if x0 == x1 and y0 == y1:
+                return
+            e2 = 2 * err
+            if e2 >= dy:
+                err += dy
+                x0 += sx
+            if e2 <= dx:
+                err += dx
+                y0 += sy
+
     def tri(self, a, b, c3, col):
         """Filled triangle by barycentric test (integer-free, but deterministic)."""
         (x0, y0), (x1, y1), (x2, y2) = a, b, c3
@@ -253,6 +270,204 @@ def tortoise(frame):
     return c
 
 
+
+# -- stage 2: the Switchback Climb ------------------------------------------------------
+
+def fire_newt(frame):
+    """The Fire Newt: a red-orange newt, yellow-spotted; it pours hot sand into your quads."""
+    c = Canvas()
+    c.ellipse(10, 14, 7, 3, 6)                    # body
+    c.ellipse(10, 15, 6, 1, 5)                    # lighter belly
+    c.ellipse(4, 12, 3, 3, 6)                     # head
+    c.set(3, 11, 1)                               # eye
+    c.rect(17, 12, 19, 13, 6)                     # tail
+    if frame == 0:
+        c.rect(19, 10, 21, 11, 6); c.rect(21, 8, 22, 9, 5)
+    else:
+        c.rect(19, 12, 22, 13, 6); c.rect(22, 11, 23, 12, 5)
+    for x in (8, 11, 14):
+        c.set(x, 12, 15)                          # yellow spots
+    c.rect(6, 17, 7, 19, 7); c.rect(13, 17, 14, 19, 7)
+    c.rect(5, 19, 7, 19, 7); c.rect(12, 19, 14, 19, 7)   # feet
+    c.outline()
+    return c
+
+
+def gnat_swarm(frame):
+    """The Gnat Swarm: a loose cloud of biters, each a dark body with white wings."""
+    c = Canvas()
+    gnats = ((2, 4), (10, 1), (18, 4), (5, 9), (13, 8), (20, 11), (2, 15), (9, 14), (16, 16), (6, 20), (13, 21))
+    for i, (x, y) in enumerate(gnats):
+        dx = 1 if (i + frame) % 2 else 0
+        dy = 1 if (i // 3 + frame) % 2 else 0
+        x, y = x + dx, y + dy
+        c.rect(x, y, x + 2, y + 1, 10)            # the gnat
+        c.set(x, y - 1, 2); c.set(x + 2, y - 1, 2)           # wings
+        c.set(x + 3, y + 1, 13)                   # a red eye
+    c.outline()
+    return c
+
+
+def barn_owl(frame):
+    """The Barn Owl: a pale heart-shaped face, cream and brown; it asks if you are sure."""
+    c = Canvas()
+    c.ellipse(12, 15, 7, 7, 8)                    # body
+    c.ellipse(5, 15, 2, 5, 9); c.ellipse(19, 15, 2, 5, 9)   # wings
+    for x, y in ((11, 17), (13, 19), (10, 20), (14, 16)):
+        c.set(x, y, 9)                            # speckles
+    c.ellipse(9, 8, 3, 3, 2); c.ellipse(15, 8, 3, 3, 2)     # the heart-shaped face
+    c.ellipse(12, 11, 3, 2, 2)
+    if frame == 0:
+        c.ellipse(9, 8, 1, 1, 1); c.ellipse(15, 8, 1, 1, 1)  # big dark eyes
+    else:
+        c.rect(8, 8, 10, 8, 1); c.rect(14, 8, 16, 8, 1)      # a blink
+    c.rect(12, 9, 12, 11, 15)                     # beak
+    c.rect(9, 22, 10, 22, 5); c.rect(14, 22, 15, 22, 5)      # feet
+    c.outline()
+    return c
+
+
+def pygmy_shrew(frame):
+    """The Pygmy Shrew: tiny, pointed, never still; not an injury yet."""
+    c = Canvas()
+    c.ellipse(13, 15, 7, 5, 9)                    # body
+    c.ellipse(13, 17, 5, 2, 8)                    # belly
+    c.ellipse(6, 14, 3, 3, 9)                     # head
+    c.tri((0, 15), (4, 12), (4, 17), 9)           # the long snout
+    c.set(0, 15, 10)                              # nose
+    c.set(5, 13, 1)                               # eye
+    c.ellipse(8, 10, 1, 1, 10)                    # ear
+    c.rect(20, 15, 22, 15, 8); c.rect(22, 13, 22, 14, 8)     # tail
+    c.rect(8, 19, 9, 21, 10); c.rect(16, 19, 17, 21, 10)     # legs
+    c.outline()
+    return c.shifted(0, 1) if frame else c
+
+
+def great_stag(frame):
+    """The Great Stag (boss): a brown stag, antlers up; the hill that never ends."""
+    c = Canvas(BOSS_SIZE)
+    dy = 1 if frame else 0
+    c.ellipse(19, 20, 9, 5, 9)                    # body
+    c.ellipse(14, 21, 3, 3, 8)                    # pale chest
+    c.rect(9, 10 + dy, 13, 18, 9)                 # neck
+    c.ellipse(6, 9 + dy, 4, 3, 9)                 # head
+    c.rect(1, 9 + dy, 3, 11 + dy, 9)              # muzzle
+    c.set(1, 10 + dy, 10)                         # nose
+    c.set(6, 8 + dy, 1)                           # eye
+    c.rect(10, 6 + dy, 11, 7 + dy, 10)            # ear
+    for x0, y0, x1, y1 in ((8, 6, 13, 1), (9, 5, 7, 2), (11, 4, 11, 1), (12, 3, 16, 3), (6, 6, 3, 2), (5, 5, 2, 5)):
+        c.line(x0, y0 + dy, x1, y1 + dy, 8)       # the antlers
+    c.rect(28, 16, 30, 17, 8)                     # tail
+    for x in (11, 15, 22, 25):
+        c.rect(x, 25, x + 1, 29, 9 if x in (11, 22) else 10)   # legs
+        c.rect(x - 1, 30, x + 2, 31, 4)           # hooves
+    c.outline()
+    return c
+
+
+# -- stage 3: the Scree Fields ----------------------------------------------------------
+
+def rock_goat(frame):
+    """The Rock Goat: a white mountain goat, horns swept back; loose rock is easy."""
+    c = Canvas()
+    c.ellipse(13, 14, 7, 4, 2)                    # body
+    c.ellipse(5, 10, 3, 3, 2)                     # head
+    c.rect(2, 11, 3, 12, 2)                       # muzzle
+    c.set(2, 12, 4)                               # nose
+    c.set(4, 9, 1)                                # eye
+    c.rect(4, 13, 4, 15, 8)                       # beard
+    for x0, y0, x1, y1 in ((5, 7, 6, 4), (6, 4, 9, 3), (9, 3, 10, 5)):
+        c.line(x0, y0, x1, y1, 4)                 # the horns
+    c.rect(7, 8, 8, 9, 3)                         # ear
+    c.rect(20, 11, 21, 12, 2)                     # tail
+    legs = (7, 11, 15, 18) if frame == 0 else (8, 10, 16, 17)
+    for x in legs:
+        c.rect(x, 18, x + 1, 21, 3)
+        c.rect(x, 22, x + 1, 22, 4)               # hooves
+    c.outline()
+    return c
+
+
+def mist_wisp(frame):
+    """The Mist Wisp: a ghost of pale mist with two eyes and no solid outline."""
+    c = Canvas()
+    c.ellipse(12, 9, 7, 6, 3)                     # the cloud
+    c.ellipse(11, 8, 6, 5, 2)                     # its pale heart
+    c.ellipse(13, 15, 5, 3, 3); c.ellipse(12, 14, 4, 2, 2)   # the body trailing down
+    tail = ((11, 19, 3), (13, 21, 2)) if frame == 0 else ((13, 19, 3), (11, 21, 2))
+    for x, y, r in tail:
+        c.ellipse(x, y, r, 2, 3); c.ellipse(x, y - 1, r - 1, 1, 2)
+    side = ((3, 11), (20, 13)) if frame == 0 else ((4, 13), (19, 11))
+    for x, y in side:
+        c.ellipse(x, y, 2, 2, 14)                 # wisps of sky blue at the sides
+    c.rect(9, 8, 10, 10, 1); c.rect(14, 8, 15, 10, 1)        # eyes
+    c.rect(11, 12, 12, 12, 1)                     # mouth
+    return c
+
+
+def wall_lizard(frame):
+    """The Wall Lizard: green, flat to the rock; it waits for your best stride."""
+    c = Canvas()
+    c.ellipse(11, 15, 6, 2, 12)                   # body
+    c.rect(6, 14, 16, 14, 11)                     # light stripe along the back
+    c.rect(7, 16, 15, 16, 8)                      # pale belly
+    c.ellipse(18, 14, 3, 2, 12)                   # head
+    c.rect(20, 14, 22, 15, 12)                    # snout
+    c.set(19, 13, 1)                              # eye
+    for x in (8, 11, 14):
+        c.set(x, 13, 15)                          # yellow spots
+    if frame == 0:
+        c.rect(2, 16, 5, 16, 12); c.rect(1, 17, 2, 17, 12); c.rect(0, 18, 1, 18, 12)   # tail down
+    else:
+        c.rect(2, 14, 5, 15, 12); c.rect(1, 13, 2, 13, 12); c.rect(0, 12, 1, 12, 12)   # tail up
+        c.set(23, 15, 13)                         # a flick of tongue
+    for x in (7, 9, 14, 16):
+        c.rect(x, 17, x, 19, 12)                  # legs
+    c.outline()
+    return c
+
+
+def marmot(frame):
+    """The Marmot: a round, brown rock-watcher with big front teeth."""
+    c = Canvas()
+    c.ellipse(12, 16, 6, 6, 9)                    # body
+    c.ellipse(12, 17, 3, 4, 8)                    # belly
+    c.ellipse(12, 8, 5, 4, 9)                     # head
+    c.ellipse(8, 4, 1, 1, 10); c.ellipse(16, 4, 1, 1, 10)   # ears
+    c.ellipse(12, 10, 3, 2, 8)                    # muzzle
+    c.set(10, 7, 1); c.set(14, 7, 1)              # eyes
+    c.set(12, 9, 1)                               # nose
+    c.rect(11, 11, 12, 12, 2)                     # the teeth
+    c.rect(9, 15, 10, 16, 8); c.rect(14, 15, 15, 16, 8)      # paws, held up
+    c.rect(8, 22, 10, 22, 10); c.rect(14, 22, 16, 22, 10)    # feet
+    c.outline()
+    return c.shifted(0, 1) if frame else c
+
+
+def ram_king(frame):
+    """The Ram King (boss): a grey stone ram with a great curled horn and a gold crown."""
+    c = Canvas(BOSS_SIZE)
+    dy = 1 if frame else 0
+    c.ellipse(19, 21, 9, 5, 3)                    # body
+    c.line(14, 18, 18, 22, 4); c.line(23, 17, 25, 23, 4)     # cracks in the stone
+    c.ellipse(14, 9 + dy, 4, 4, 8)                # the horn's curl
+    c.ellipse(14, 9 + dy, 2, 2, 4)
+    c.rect(9, 12 + dy, 14, 19, 3)                 # neck
+    c.ellipse(8, 14 + dy, 4, 4, 3)                # head
+    c.rect(3, 15 + dy, 5, 18 + dy, 3)             # muzzle
+    c.set(3, 16 + dy, 4)                          # nose
+    c.set(6, 13 + dy, 13)                         # a red eye
+    c.rect(6, 8 + dy, 10, 9 + dy, 15)             # the crown
+    for x in (6, 8, 10):
+        c.set(x, 7 + dy, 15)
+    c.rect(28, 17, 29, 18, 3)                     # tail
+    for x in (12, 16, 22, 26):
+        c.rect(x, 26, x + 1, 29, 4)               # legs
+        c.rect(x - 1, 30, x + 2, 31, 4)           # hooves
+    c.outline()
+    return c
+
+
 SPRITES = [
     ("runner", runner),
     ("fox", fox),
@@ -260,6 +475,18 @@ SPRITES = [
     ("beetle", beetle),
     ("crab", crab),
     ("tortoise", tortoise),
+    # stage 2
+    ("fire_newt", fire_newt),
+    ("gnat_swarm", gnat_swarm),
+    ("barn_owl", barn_owl),
+    ("pygmy_shrew", pygmy_shrew),
+    ("great_stag", great_stag),
+    # stage 3
+    ("rock_goat", rock_goat),
+    ("mist_wisp", mist_wisp),
+    ("wall_lizard", wall_lizard),
+    ("marmot", marmot),
+    ("ram_king", ram_king),
 ]
 
 
@@ -364,13 +591,16 @@ def write_sheet(sprites):
         return
     scale, pad = 6, 8
     cell = max(f[0].size for _, f in sprites)
-    cols = len(sprites) * 2
-    sheet = Image.new("RGB", (cols * (cell * scale + pad) + pad, cell * scale + 2 * pad), (0x40, 0x80, 0x40))
+    per_row = 8
+    rows = (len(sprites) + per_row - 1) // per_row
+    step = cell * scale + pad
+    sheet = Image.new("RGB", (per_row * 2 * step + pad, rows * step + pad), (0x40, 0x80, 0x40))
     px = sheet.load()
     for i, (_, frames) in enumerate(sprites):
+        row, col = divmod(i, per_row)
         for f, canvas in enumerate(frames):
-            ox = pad + (i * 2 + f) * (cell * scale + pad)
-            oy = pad + (cell - canvas.size) * scale   # standing on one line
+            ox = pad + (col * 2 + f) * step
+            oy = pad + row * step + (cell - canvas.size) * scale   # standing on one line
             for y in range(canvas.size):
                 for x in range(canvas.size):
                     idx = canvas.px[y][x]

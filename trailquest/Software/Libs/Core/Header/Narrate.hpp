@@ -181,6 +181,54 @@ inline void event(Lines& out, const DuelEvent& e, const DuelView& d)
             std::snprintf(num, sizeof(num), "+%u", static_cast<unsigned>(e.amount));
             TextFit::addLine(out, num, kNarrCols);
             break;
+        case EventKind::Charged:
+            TextFit::addLine(out, "Charge!", kNarrCols);
+            TextFit::addLine(out, "Double hit", kNarrCols);
+            break;
+        case EventKind::Braced:
+            TextFit::addLine(out, "Braced!", kNarrCols);
+            TextFit::addLine(out, "Half the hit", kNarrCols);
+            break;
+        case EventKind::Guarded:
+            TextFit::addLine(out, "Guarded!", kNarrCols);
+            TextFit::addLine(out, "Half damage", kNarrCols);
+            break;
+    }
+}
+
+/// The headline of a boss's warning (at most Layout::kCardTitleCols): what it
+/// is about to do.
+inline const char* twistTitle(SpeciesId sp, Twist kind)
+{
+    switch (sp) {
+        case Spirit::OldTortoise: return "Shell shut!";
+        case Spirit::GreatStag:   return "Head down!";
+        case Spirit::RamKing:     return "Rock guard!";
+        case Spirit::GoldenEagle: return "It dives!";
+        case Spirit::SummitWolf:  return kind == Twist::Charge ? "It lunges!" : "It circles!";
+        default:                  return kind == Twist::Charge ? "It charges!" : "It guards!";
+    }
+}
+
+/// The card before a turn on which the boss tells: the headline, what the
+/// turn will be, and what to do about it. @p kind is Duel::tell() (Charge or
+/// Guard); anything else gives an empty card.
+inline void twistTell(Lines& out, SpeciesId sp, Twist kind)
+{
+    using Layout::kCardCols;
+    out.clear();
+    if (kind == Twist::Charge) {
+        TextFit::addLine(out, twistTitle(sp, kind), Layout::kCardTitleCols);
+        TextFit::addLine(out, "A big hit is", kCardCols);
+        TextFit::addLine(out, "coming. Use", kCardCols);
+        TextFit::addLine(out, "Settle to", kCardCols);
+        TextFit::addLine(out, "brace for it.", kCardCols);
+    } else if (kind == Twist::Guard) {
+        TextFit::addLine(out, twistTitle(sp, kind), Layout::kCardTitleCols);
+        TextFit::addLine(out, "Hits do half", kCardCols);
+        TextFit::addLine(out, "damage now.", kCardCols);
+        TextFit::addLine(out, "Settle or", kCardCols);
+        TextFit::addLine(out, "Fuel instead.", kCardCols);
     }
 }
 

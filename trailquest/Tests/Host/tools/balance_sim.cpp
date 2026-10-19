@@ -77,6 +77,7 @@ DuelSetup setup(const RunState& rs, const StageDef& stage, SpeciesId sp, uint8_t
     s.speciesLevel  = level;
     s.terrain       = stage.terrain;
     s.weather       = weather;
+    s.staminaPct    = spiritPct(static_cast<uint8_t>(&stage - kStages));
     return s;
 }
 
@@ -109,7 +110,7 @@ bool fight(const RunState& rs, const StageDef& stage, SpeciesId sp, uint8_t leve
     bag[Item::Gel]   = isBoss(sp) ? 2 : 1;
     bag[Item::Water] = 1;
     while (d.outcome() == DuelOutcome::Ongoing) {
-        d.play(Sim::choose(d, bag, skill, r), r, bag);
+        d.play(Sim::choose(d, bag, skill, beatFor(static_cast<uint8_t>(&stage - kStages), 0), r), r, bag);
     }
     turns   = d.turn();
     leftPct = static_cast<uint32_t>(d.runner().stamina) * 100u / d.runner().max.stamina;

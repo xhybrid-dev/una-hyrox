@@ -174,7 +174,44 @@ TEST(Session, StageOneCanBePlayedToTheEndByCommands)
         EXPECT_TRUE(s.wantsSave());
         EXPECT_EQ(s.world().cause, ViewCause::DuelOver);
         EXPECT_TRUE(s.world().duel.boss);
-        // Q2 goes no further than the Valley Path.
+        // On to the Switchback Climb: its first place, with its own weather.
+        ASSERT_TRUE(s.advance());
+        EXPECT_EQ(s.world().cause, ViewCause::StageStarted);
+        EXPECT_EQ(s.state().stage, 1u);
+        EXPECT_EQ(s.state().node, 0u);
+        EXPECT_EQ(s.phase(), RunPhase::AtNode);
+    }
+}
+
+TEST(Session, TheFirstThreeStagesCanBePlayedToTheEndAndNoFurther)
+{
+    // A steady player: the skill when it is a partner's move, Settle when low.
+    for (uint32_t seed = 1; seed <= 6; ++seed) {
+        Session s;
+        s.begin(nullptr, 0);
+        ASSERT_TRUE(s.newGame(seed * 7919u));
+        uint32_t i = 0;
+        for (uint8_t stage = 0; stage < Session::kPlayableStages; ++stage) {
+            for (; i < 6000 && s.phase() != RunPhase::StageClear; ++i) {
+                if (s.phase() == RunPhase::InDuel) {
+                    PlayerTurn t;
+                    t.action = s.state().stamina * 100u < 40u * runnerMaxWithPartners(s.state()).stamina
+                                   ? Action::Settle
+                                   : (i % 2 == 0 ? Action::Technique : Action::Surge);
+                    t.beat = BeatResult::Good;
+                    ASSERT_TRUE(s.duelTurn(t));
+                } else {
+                    ASSERT_TRUE(step(s, i + seed)) << "seed " << seed << " stage " << int(stage) << " stuck";
+                }
+            }
+            ASSERT_EQ(s.phase(), RunPhase::StageClear) << "seed " << seed << " stage " << int(stage);
+            EXPECT_EQ(s.state().stage, stage);
+            if (stage + 1u < Session::kPlayableStages) {
+                ASSERT_TRUE(s.advance());
+                EXPECT_EQ(s.state().stage, stage + 1u);
+            }
+        }
+        // This build goes no further than its last playable stage.
         EXPECT_FALSE(s.advance());
         EXPECT_EQ(s.phase(), RunPhase::StageClear);
     }

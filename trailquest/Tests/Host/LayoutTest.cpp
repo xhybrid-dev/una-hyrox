@@ -355,6 +355,33 @@ TEST(Layout, EveryHelpPageFitsACard)
     EXPECT_EQ(none.count, 0u);
 }
 
+TEST(Layout, EveryBossWarningAndTwistEventFits)
+{
+    for (SpeciesId s = 0; s < Spirit::Count; ++s) {
+        if (!isBoss(s)) {
+            continue;
+        }
+        for (Twist k : { Twist::Charge, Twist::Guard }) {
+            Lines l;
+            Narrate::twistTell(l, s, k);
+            EXPECT_EQ(l.count, kCardLines) << speciesDef(s).name;
+            expectFits(l, kCardLines, kCardCols, speciesDef(s).name);
+        }
+    }
+    Lines none;
+    Narrate::twistTell(none, Spirit::GreatStag, Twist::None);
+    EXPECT_EQ(none.count, 0u);
+    DuelView d;
+    for (EventKind k : { EventKind::Charged, EventKind::Braced, EventKind::Guarded }) {
+        DuelEvent e;
+        e.kind = k;
+        Lines l;
+        Narrate::event(l, e, d);
+        expectFits(l, kNarrLines, kNarrCols, "twist event");
+        EXPECT_EQ(l.count, 2u);
+    }
+}
+
 TEST(Layout, EveryStoryPageFitsItsCard)
 {
     for (StoryId id : { StoryId::Opening, StoryId::StageStart, StoryId::BossAhead, StoryId::BossBeaten }) {

@@ -100,6 +100,30 @@ inline BeatConfig clampBeat(BeatConfig c)
     return c;
 }
 
+/**
+ * @brief   The beat for a stage (0-4) and a lap (0 the first crossing): stage 1
+ *          is the Q0 beat Jon found "fairly easy but good"; each later stage
+ *          sweeps 100 ms faster with a good zone 40 ms narrower, and each lap
+ *          after the first a further 100 ms faster (to 1000) and 20 ms
+ *          narrower (to 200). The perfect zone stays at its floor of two
+ *          frames (kMinPerfectMs): at 10 frames a second nothing narrower can
+ *          be told from luck, so "more accurate" means the good zone shrinks.
+ *          The target stays at three quarters of the sweep. Always in range.
+ */
+inline BeatConfig beatFor(uint8_t stage, uint8_t lap)
+{
+    const uint32_t s = stage > 4u ? 4u : stage;
+    const uint32_t l = lap > 20u ? 20u : lap;
+    BeatConfig c;
+    const uint32_t faster = 100u * s + 100u * l;
+    c.sweepMs   = faster >= 600u ? 1000u : 1600u - faster;
+    const uint32_t narrower = 40u * s + 20u * l;
+    c.goodMs    = narrower >= 200u ? 200u : 400u - narrower;
+    c.perfectMs = kMinPerfectMs;
+    c.targetMs  = c.sweepMs * 3u / 4u;
+    return clampBeat(c);
+}
+
 /// Where the needle is, in ms into the sweep: (now - start) mod sweepMs.
 inline uint32_t beatPhaseMs(const BeatConfig& c, uint32_t startMs, uint32_t nowMs)
 {

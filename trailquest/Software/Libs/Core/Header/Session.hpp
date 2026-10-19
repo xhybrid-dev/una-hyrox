@@ -28,8 +28,8 @@ namespace TrailQuest
 class Session
 {
 public:
-    /// How far this build lets you go. Q2: the Valley Path only; Q4 lifts it.
-    static constexpr uint8_t kPlayableStages = 1;
+    /// How far this build lets you go: Q4 drop 1 opens stages 1-3; the rest follow.
+    static constexpr uint8_t kPlayableStages = 3;
 
     /// Start up with a saved game (or none). @p stir is mixed into the saved
     /// chance (Run::resume), so coming back after quitting mid-duel meets a

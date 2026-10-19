@@ -257,11 +257,12 @@ creatures, moves, art or type chart (brief section 9).
   - simulator: `trailquest/Software/Apps/LVGL-GUI/simulator` (a Ninja build in
     its `build/`; run `build/bin/TrailQuestSimulator`; keys 1-4 are L1-R2);
   - screens, cut to the round face: `docs/experiments/capture_screens.sh [out-dir]`
-    (a scripted stage 1 with its story pages, every screen, into
-    `docs/screens/q3-*.png`);
-    `docs/experiments/sim_play.sh [seed]` plays stage 1 to the clear (beat off)
-    and checks the save is picked up again. Both clear the save in
-    `Software/Output`; `TRAILQUEST_SEED` fixes the simulator's seed;
+    (a scripted stage 1 with its story pages and stage 2's start, every screen,
+    into `docs/screens/q3-*.png`);
+    `docs/experiments/sim_play.sh [seed]` plays stages 1-3 to the clear (beat off)
+    and checks the save is picked up again; `capture_boss.sh [stage] [out-dir]`
+    starts just before a stage's boss and captures its warning and twist. All
+    replace the save in `Software/Output`; `TRAILQUEST_SEED` fixes the simulator's seed;
   - art: `python3 trailquest/Tools/Art/gen_art.py` (writes the sprites and a
     preview sheet); icons: `python3 trailquest/Resources/make_icons.py`.
 

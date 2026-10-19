@@ -123,12 +123,12 @@ int main(int argc, char** argv)
                     }
                 } break;
                 case RunPhase::Obstacle:
-                    run.attemptObstacle(Sim::sampleBeat(sk, r));
+                    run.attemptObstacle(Sim::sampleBeat(Sim::scaledFor(sk, beatFor(run.state().stage, run.state().lap)), r));
                     seconds += kObstacleSeconds;
                     ss.seconds += kObstacleSeconds;
                     break;
                 case RunPhase::InDuel: {
-                    const PlayerTurn t = Sim::choose(run.duel(), run.state().bag, sk, r);
+                    const PlayerTurn t = Sim::choose(run.duel(), run.state().bag, sk, beatFor(run.state().stage, run.state().lap), r);
                     run.duelTurn(t);
                     seconds += kTurnSeconds;
                     ss.seconds += kTurnSeconds;

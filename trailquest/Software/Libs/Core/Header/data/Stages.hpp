@@ -178,6 +178,17 @@ inline constexpr StageDef kStages[kStageCount] = {
       } },
 };
 
+/// How strong the stage's spirits are against the runner, per cent of their
+/// own row's stamina (Species.hpp): the needle gets sharper stage by stage
+/// (Beat.hpp, beatFor), so the later stages' spirits give a little. Tuned
+/// with Tests/Host/tools/balance_sim (docs/BALANCE.md).
+inline constexpr uint8_t kSpiritPct[kStageCount] = { 100, 94, 98, 82, 81 };
+
+inline uint8_t spiritPct(uint8_t stage)
+{
+    return kSpiritPct[stage < kStageCount ? stage : 0u];
+}
+
 /// The stage, or the first for an index out of range.
 inline const StageDef& stageDef(uint8_t stage)
 {
