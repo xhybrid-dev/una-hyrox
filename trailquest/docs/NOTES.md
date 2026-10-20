@@ -690,6 +690,70 @@ before a boss from a written save and captures its page, warning card and twist
 3. Do the new creatures read well on the watch? Any you would redraw?
 4. Is each stage's difficulty about right (you can win, you can lose)?
 
+## Handoff: where we are, and what comes next (20 October 2026)
+
+**State.** Branch `claude/x-trailquest-q0`, last commit `50c4b5a` (Q4 drop 1), CI
+run 182 green (artifact `watch-apps`, `TrailQuest_*.uapp`). Gates Q0, Q1, Q2 are
+passed. Q3 part 1 (names, story, map row, then the title/duel clarity fixes) was
+played on the watch: "working much better"; the needle is "fairly easy but good";
+battery "seems ok". **Waiting on Jon: Gate Q4a**, playing stages 1-3 on the
+watch (test steps under "Gate Q4a" above). Do not start drop 2 before his notes,
+and fix what they turn up first.
+
+**Next: Q4 drop 2** (approved plan; plan mode first, as the rules ask):
+1. Art for stages 4 and 5, seven sprites in `Tools/Art/gen_art.py`: Wind Sprite,
+   Raven, Snow Hare, Golden Eagle (boss, 32x32), Ghost Goat, Snow Fox, Summit Wolf
+   (boss). Map them in `gui/Art.hpp`; the Red Fox stands in until then. The Mist
+   Wisp is reused in stage 5. Mind the pairs that must stay distinct: Red Fox vs
+   Snow Fox, Rock Goat vs Ghost Goat (DESIGN.md).
+2. `Session::kPlayableStages = 5`. `ClearScreen::last()` and `Narrate::stageClear`
+   then stop saying "More trail coming soon" at the summit.
+3. **The summit finale**: the Finished phase gets its own screen (the wolf's
+   page is already written: `kBossBeaten[4]`; add the run's numbers: time,
+   duels won/lost, partners, level) and "Run again" calls the existing
+   `Session::advance()` -> `Run::startNextLap()` (spirits +5 levels, the needle
+   one lap sharper in `beatFor`).
+4. **Second-lap balance**: `run_sim` stops at the summit today; teach it a second
+   lap and check the targets still hold (`Tests/Host/tools`). Retune with
+   `docs/experiments/tune_balance.py` (stage softening and boss stamina) and by
+   hand for any single spirit outside 80-95 %.
+5. Route and finish tests (the graph tests already cover all five stages), a
+   `SessionTest` playing all five stages plus a lap, `sim_play.sh` for five
+   stages (it is long: about 15 minutes), captures (`capture_boss.sh 3` and `4`
+   for the Golden Eagle and the Wolf), docs, commit, push, CI.
+6. **Gate Q4b**: Jon finishes a full run on the watch.
+
+Then Q5: icons and the store package, tags `trailquest-vX.Y.Z` (the box on the
+brief's phase table); Jon uploads to the portal.
+
+**Later, if Jon wants them**: rare spirits (recoloured, hard, worth more XP);
+trail events (a short choice on some paths); pitched jingles (needs a firmware
+that plays pitch: ask Jon whether the buzzes sounded different); Daily Trail.
+
+**Working notes for the next session.**
+- Read the brief, this file's last sections (Phase Q4, Gate Q4a, this handoff),
+  `BALANCE.md` and `DESIGN.md` first. Where the brief and NOTES disagree, NOTES
+  is right.
+- Host tests: 184 pass. Re-run `balance_sim 10000` and `run_sim 4000 casual|good|menu`
+  after any number change; every row must be OK and every run must reach the
+  summit.
+- Balance levers, in order: `kSpiritPct` per stage (`data/Stages.hpp`), a boss's
+  `staminaPct`, a single spirit's `staminaPct` (`data/Species.hpp`).
+  `tune_balance.py` moves the first two.
+- Pitfalls met: `pkill -f <script>` kills your own shell (use `pkill -x
+  TrailQuestSimul` and `pkill -x Xvfb`); the simulator scripts share the save in
+  `Software/Output` and must not run at once; `sim_play.sh` now waits for the GUI
+  and fails early if the beat is on; a long foreground command times out at
+  10 minutes (run it in the background and poll the output file).
+- Never edit `assets/sprites/sprites.c` or `gui/include/gui/Sprites.hpp`: change
+  `gen_art.py` and regenerate. The palette is 16 fixed entries on the display's
+  grid; do not change them without flagging it (it recolours every sprite).
+- GUI rules that bite: anything the GUI uses from `Libs/Core` must be
+  header-only; text must be proven to fit in `LayoutTest`; one button code a
+  frame at 10 fps.
+- Commits end with the attribution lines in the session's system reminder; push
+  with `git push -u origin claude/x-trailquest-q0`; no pull request unless Jon asks.
+
 ## Open items
 
 - The scene is a few flat shapes. A tile map (the route screens) is not tested
