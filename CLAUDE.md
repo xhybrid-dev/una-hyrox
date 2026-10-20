@@ -292,3 +292,31 @@ nothing syncs. It is independent of the other apps.
     and white, cards, banner): `UNA_SDK=... python3 docs/experiments/store_images.py docs/store`.
   - a local watch compile check needs Race's `syscall_stubs.c` built with
     `-mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb`, and `pyelftools`.
+
+## X Sauna (`x-sauna/`)
+A tenth app: a sauna and cold-plunge tracker. Start a session as Sauna → Cold plunge
+or Just sauna, press a lap button to swap phase, and record time, heart rate and
+temperature (plus HR recovery and an optional Rest phase). Based on a workout, so
+it becomes an activity with a FIT file. It is independent of the other apps.
+- **Docs:** findings, decisions and phases (SA0-SA4): `x-sauna/docs/NOTES.md`.
+  Read it at the start of each Sauna phase, and work only on that phase.
+- **Rules:** the same standing rules as Race apply. Also: the watch's temperature
+  sensor (`AMBIENT_TEMPERATURE`) has never been read on a watch, so its unit,
+  whether it is air or skin, and how it behaves in heat are unknown until Gate SA0.
+  Never advise wearing the watch in a sauna or in water until Jon has confirmed
+  UNA's published limits allow it.
+- **Layout:** as Knitting: the pure core `Software/Libs/Core` (header-only where the
+  GUI uses it), the service and messages `Software/Libs/App`, the GUI
+  `Software/Apps/LVGL-GUI`, the watch build `Software/Apps/Sauna-CMake`.
+- **Watch builds come from CI**, as for the others. Tags `sauna-vX.Y.Z`. Development
+  APP_ID `400AE282F6C2C161` (md5 of `XSauna`); the portal issues the real one at SA4.
+- **Commands:**
+  - host tests: `cmake -S x-sauna/Tests/Host -B x-sauna/build-tests && cmake --build x-sauna/build-tests && x-sauna/build-tests/x-sauna-host-tests`;
+  - simulator: `x-sauna/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its
+    `build/`; run `build/bin/XSaunaSimulator`; keys 1-4 are L1, L2, R1, R2). It has no
+    temperature sensor, so the service makes a reading up and the screen says so;
+  - the probe in the simulator, with screenshots and a check of its log:
+    `docs/experiments/capture_screens.sh [out-dir]` (about 90 seconds, into
+    `docs/screens/`; needs Xvfb, xdotool and ImageMagick);
+  - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"),
+    using `x-sauna/Software/Apps/Sauna-CMake`; icons: `python3 x-sauna/Resources/make_icons.py`.

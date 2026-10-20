@@ -92,6 +92,9 @@ jobs:
           build trailquest/Software/Apps/TrailQuest-CMake trailquest
           # Knitting: a knitting row and set counter -- see knitting/docs/NOTES.md.
           build knitting/Software/Apps/Knitting-CMake knitting
+          # X Sauna: a sauna and cold-plunge tracker; at Gate SA0 the heat probe
+          # -- see x-sauna/docs/NOTES.md.
+          build x-sauna/Software/Apps/Sauna-CMake sauna
 
       - name: Collect
         run: |
@@ -110,6 +113,7 @@ jobs:
           cp x-weighin/Output/Glance/*.uapp watch-apps/
           cp trailquest/Output/*.uapp watch-apps/
           cp knitting/Output/*.uapp watch-apps/
+          cp x-sauna/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -313,3 +317,10 @@ jobs:
           cmake -S knitting/Tests/Host -B ci-build/knitting-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/knitting-tests -j"$(nproc)"
           ctest --test-dir ci-build/knitting-tests --output-on-failure
+      - name: X Sauna host tests
+        # The pure probe core (fixed-point text, sensor statistics, the CSV).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S x-sauna/Tests/Host -B ci-build/x-sauna-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/x-sauna-tests -j"$(nproc)"
+          ctest --test-dir ci-build/x-sauna-tests --output-on-failure

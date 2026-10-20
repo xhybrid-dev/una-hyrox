@@ -75,3 +75,8 @@ knitting/build-tests/
 knitting/Output/
 knitting/Software/Output/
 knitting/Software/Apps/LVGL-GUI/simulator/build/
+x-sauna/build/
+x-sauna/build-tests/
+x-sauna/Output/
+x-sauna/Software/Output/
+x-sauna/Software/Apps/LVGL-GUI/simulator/build/
