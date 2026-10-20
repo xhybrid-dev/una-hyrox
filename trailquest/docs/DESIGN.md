@@ -35,10 +35,14 @@ written.
 
 ## Voice
 
-- British English. Short lines. Dry, a little cheeky, never cruel.
-- **Funny start, serious summit.** Stages 1-2 joke about what runners put up
-  with (stitches, bonking, doubt). By stage 4 the jokes thin out; stage 5 is
-  quiet, and the humour, when it comes, is gentle.
+- British English. Short lines. Plain and true to running, never cruel. Jon
+  (20 October 2026): no gags that mean nothing ("your calves have notes");
+  every line is real running sense, and where it can be it is advice that works
+  in the game too: low on energy, take a Gel before the wall; cramp (Slow), a
+  Salt tab; drained, Water; the scree, short steps and poles; wind, a low stride;
+  doubt, steady breathing (Settle).
+- **Light start, serious summit.** Stages 1-2 are plain and brisk (stitches,
+  bonking, cramp). By stage 4 the tone is exposed and watchful; stage 5 is quiet.
 - Creatures are named for what they look like: a colour or a word, and the
   animal (Red Fox, Brown Bear, Old Tortoise). The pain they are is in their
   lines and their moves: the fox gives you a stitch, the bear is the bonk at
@@ -97,49 +101,49 @@ Grit beats Pace). "Night" spirits appear only at dawn, dusk or night.
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Red Fox | fox | Pace | Finds the gap under your ribs and moves in. | Side stitch (drains), Pounce |
-| Brown Bear | bear | Grit | Sits on you at mile 20. Does not apologise. | Hit the wall (slows), Lumber |
-| Ruby Beetle | beetle | Form | Small. Patient. Lives in your left sock. | Rub raw (drains), Nip |
-| Sand Crab | crab | Form | Walks sideways into every seam you own. | Side scuttle (slows), Pinch |
-| **Old Tortoise** (boss) | giant tortoise | Grit | Guards the valley's end. Has never once hurried. | Moss slam, Shell snap |
+| Red Fox | fox | Pace | A side stitch: sharp pain under the ribs. | Side stitch (drains), Pounce |
+| Brown Bear | bear | Grit | The bonk. Fuel runs out and the legs go. | Hit the wall (slows), Lumber |
+| Ruby Beetle | beetle | Form | A hot spot in your sock, rubbing raw. | Rub raw (drains), Nip |
+| Sand Crab | crab | Form | Grit in your shoe, chafing every step. | Side scuttle (slows), Pinch |
+| **Old Tortoise** (boss) | giant tortoise | Grit | Late fatigue. Slow, steady, heavy. | Moss slam, Shell snap |
 
 **Stage 2, Switchback Climb** (stamina matters)
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Fire Newt | red newt | Grit | Pours hot sand into your quads on every bend. | Burn (slows), Tail flick |
-| Gnat Swarm | gnat swarm | Pace | Bites the calf you were relying on. | Seize (slows), Swarm (drains) |
-| Barn Owl (night) | owl | Grit | Asks if you are sure about this, very loudly. | Wheeze (rattles), Hoot |
-| Pygmy Shrew | shrew | Form | Not an injury yet. Keeps you guessing. | Nag (rattles), Scurry |
-| **The Great Stag** (boss) | great stag | Pace | Runs up the hill that never ends. | Antler rush, Long climb (drains) |
+| Fire Newt | red newt | Grit | Burning quads from the climb. Walk the steeps. | Burn (slows), Tail flick |
+| Gnat Swarm | gnat swarm | Pace | Calf cramp. Salt and a shorter stride. | Seize (slows), Swarm (drains) |
+| Barn Owl (night) | owl | Grit | Doubt in the dark. Slow your breathing. | Wheeze (rattles), Hoot |
+| Pygmy Shrew | shrew | Form | A niggle: small aches that wreck your focus. | Nag (rattles), Scurry |
+| **The Great Stag** (boss) | great stag | Pace | The long climb, taken too fast. | Antler rush, Long climb (drains) |
 
 **Stage 3, Scree Fields** (technical; footing matters)
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Rock Goat | mountain goat | Pace | Makes loose rock look easy, on purpose. | Leap, Rockslide |
-| Mist Wisp | mist | Grit | Speaks in your own voice. Knows your splits. | Second-guess (rattles), Fog (slows) |
-| Wall Lizard | lizard | Form | Waits on the wet slab for your best stride. | Skid, Trip (slows) |
-| Marmot | marmot | Form | Knows exactly which stone will roll. | Ankle snap (slows), Burrow |
-| **The Ram King** (boss) | stone ram | Form | The mountain, deciding if you may pass. | Shale crash, Landslide (slows) |
+| Rock Goat | mountain goat | Pace | Loose rock punishes a long stride. | Leap, Rockslide |
+| Mist Wisp | mist | Grit | Self-doubt in the mist. Stay on pace. | Second-guess (rattles), Fog (slows) |
+| Wall Lizard | lizard | Form | Wet rock. One bad step and you slip. | Skid, Trip (slows) |
+| Marmot | marmot | Form | Rolling stones. Watch your footing. | Ankle snap (slows), Burrow |
+| **The Ram King** (boss) | stone ram | Form | Loose scree. Short steps. | Shale crash, Landslide (slows) |
 
 **Stage 4, Ridge Line** (exposed; the jokes thin out)
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Wind Sprite | wind spirit | Pace | Leans on you from the side, for hours. | Gust (slows), Headwind |
-| Raven | raven | Grit | Circles where the ground falls away. | Spiral (rattles), Peck |
-| Snow Hare (night) | snow hare | Form | The cold you stop feeling. That's the danger. | Chill (drains), Bound |
-| **The Golden Eagle** (boss) | eagle | Pace | Owns the drop on either side. | Stoop, Updraught (rattles) |
+| Wind Sprite | wind spirit | Pace | A headwind that costs you speed for hours. | Gust (slows), Headwind |
+| Raven | raven | Grit | Doubt on the edge. Watch the path, not the drop. | Spiral (rattles), Peck |
+| Snow Hare (night) | snow hare | Form | Cold numbs you. Keep moving and keep eating. | Chill (drains), Bound |
+| **The Golden Eagle** (boss) | eagle | Pace | The exposed edge. Stay steady. | Stoop, Updraught (rattles) |
 
 **Stage 5, The Summit** (quiet and serious)
 
 | Spirit | Looks like | Affinity | Its line | Moves |
 |---|---|---|---|---|
-| Ghost Goat | ghost goat | Grit | Takes a little of every breath. | Gasp (drains), Fade (slows) |
-| Snow Fox | snow fox | Pace | Quick, white, and already at your fingers. | Frost bite (slows), Flurry |
+| Ghost Goat | ghost goat | Grit | Thin air. Every breath gives less. | Gasp (drains), Fade (slows) |
+| Snow Fox | snow fox | Pace | Cold hands. Keep them moving. | Frost bite (slows), Flurry |
 | Mist Wisp, again | mist | Grit | The same spirit as on the scree, higher up; a second line is for the dialogue (Q4). | as on the scree |
-| **The Summit Wolf** (boss) | wolf | Grit | Has followed you since the valley. | Howl (rattles), Long chase (drains) |
+| **The Summit Wolf** (boss) | wolf | Grit | Kept pace since the valley. | Howl (rattles), Long chase (drains) |
 
 ## The summit finale (Q4)
 

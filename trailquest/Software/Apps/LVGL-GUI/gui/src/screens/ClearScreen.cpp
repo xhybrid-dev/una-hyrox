@@ -80,7 +80,7 @@ void ClearScreen::onWorld()
         return;
     }
     if (w.cause == ViewCause::StageStarted) {
-        StoryScreen::play(StoryPlan::of(StoryId::StageStart, w.state.stage));
+        StoryScreen::play(StoryPlan::of(StoryId::StageStart, w.state.stage, w.state.lap));
         return;
     }
     ScreenManager::instance().goTo(ScreenManager::screenFor(w));

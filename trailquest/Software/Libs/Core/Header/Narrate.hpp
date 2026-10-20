@@ -226,8 +226,8 @@ inline void twistTell(Lines& out, SpeciesId sp, Twist kind)
         TextFit::addLine(out, "brace for it.", kCardCols);
     } else if (kind == Twist::Guard) {
         TextFit::addLine(out, twistTitle(sp, kind), Layout::kCardTitleCols);
-        TextFit::addLine(out, "Hits do half", kCardCols);
-        TextFit::addLine(out, "damage now.", kCardCols);
+        TextFit::addLine(out, "Your hits do", kCardCols);
+        TextFit::addLine(out, "half damage.", kCardCols);
         TextFit::addLine(out, "Settle or", kCardCols);
         TextFit::addLine(out, "Fuel instead.", kCardCols);
     }
@@ -377,10 +377,11 @@ inline void offer(Lines& out, SpeciesId sp, bool leaving)
 
 /// How many pages of "your moves" help there are: the four moves, and (while
 /// the timing beat is on) the needle.
-constexpr uint8_t kHelpPages = 3;
+constexpr uint8_t kHelpPages = 4;
 
 /// The pages the duel's help card shows, as card lines (a title of 12, then
-/// four of 13). @p page past the end gives an empty card.
+/// four of 13). The needle is the last page: it is left out with the beat off.
+/// @p page past the end gives an empty card.
 inline void helpPage(Lines& out, uint8_t page)
 {
     using Layout::kCardCols;
@@ -389,19 +390,26 @@ inline void helpPage(Lines& out, uint8_t page)
     switch (page) {
         case 0:
             TextFit::addLine(out, "L1 and L2", kCardTitleCols);
-            TextFit::addLine(out, "Surge: a hard", kCardCols);
-            TextFit::addLine(out, "hit, costs", kCardCols);
-            TextFit::addLine(out, "stamina.", kCardCols);
+            TextFit::addLine(out, "Surge: push", kCardCols);
+            TextFit::addLine(out, "hard, costs", kCardCols);
             TextFit::addLine(out, "Settle: rest", kCardCols);
+            TextFit::addLine(out, "and recover.", kCardCols);
             break;
         case 1:
-            TextFit::addLine(out, "R1 and R2", kCardTitleCols);
-            TextFit::addLine(out, "Skill: your", kCardCols);
+            TextFit::addLine(out, "R1: Skill", kCardTitleCols);
+            TextFit::addLine(out, "Your best", kCardCols);
             TextFit::addLine(out, "partner's", kCardCols);
-            TextFit::addLine(out, "move.", kCardCols);
-            TextFit::addLine(out, "Fuel: an item", kCardCols);
+            TextFit::addLine(out, "move, else", kCardCols);
+            TextFit::addLine(out, "Trail craft.", kCardCols);
             break;
         case 2:
+            TextFit::addLine(out, "R2: Fuel", kCardTitleCols);
+            TextFit::addLine(out, "Gel: energy.", kCardCols);
+            TextFit::addLine(out, "Water: drain.", kCardCols);
+            TextFit::addLine(out, "Salt tab:", kCardCols);
+            TextFit::addLine(out, "cramp (slow).", kCardCols);
+            break;
+        case 3:
             TextFit::addLine(out, "The needle", kCardTitleCols);
             TextFit::addLine(out, "Choose, then", kCardCols);
             TextFit::addLine(out, "tap as the", kCardCols);

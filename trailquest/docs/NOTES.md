@@ -732,6 +732,36 @@ instruction. (The session's branch is `claude/hybridx-race-workspace-setup-kppnm
 - Captures: `docs/screens/q4-eagle-*`, `q4-wolf-*` (page, choose, tell, twist) and
   `q4-finale-*`. `sim_play.sh` (R1 only, beat off) cleared all five stages in 621 presses (9 losses, level 17 at the summit) and the save was picked up at the summit.
 
+### Story and text rewrite (20 October 2026)
+
+An independent read of the text found a thin arc and some wrong or vague help.
+Jon: no gags that mean nothing ("your calves have notes"); put real running into
+the journey (low on energy, take a Gel; cramp, a Salt tab; the climb, fuel
+before it). Done (`Story.hpp`, `Species.hpp`, `Narrate.hpp`; `DESIGN.md` has the
+voice rule and the new roster lines):
+
+- **Opening** is now eight pages and teaches the game with real advice: pace
+  yourself; spirits are trail troubles (stitch, bonk, cramp); the needle; the
+  wheel; ENERGY (a Gel before the wall); CRAMP (a Salt tab; Water for drain);
+  the pack; the map (huts restore, it saves itself).
+- **Every stage's pages** say what the ground asks of a runner and hint at what
+  the boss does and what helps (Gel before the Stag, poles on the scree, a low
+  stride in wind, eat and drink in the cold); the boss-ahead page gives the
+  tactic (Settle to brace, the Ram King's guard halves your hits).
+- **The grey shape** is seeded: glimpsed after the Stag, Ram King and Eagle, then
+  waiting at the top (the wolf page and its arrival page agree: it kept pace).
+- **Spirit lines** are the trouble each one stands for (the Red Fox a side stitch,
+  the Brown Bear the bonk, the Ruby Beetle a hot spot, the Gnat Swarm calf cramp,
+  the Mist Wisp self-doubt, the Wind Sprite a headwind, ...).
+- **Help cards** now four: L1/L2, R1 (the partner's move, else Trail craft: the
+  old card named a partner you do not have in the first duel), R2 (Gel energy,
+  Water drain, Salt tab cramp), the needle. The Guard tell says "Your hits do
+  half damage".
+- **Lap 2** opens with its own first pages ("NEXT LAP"), then the Tortoise.
+  `story()` and `StoryPlan` take the lap.
+- Not changed: the finale card (stats) and the join offer's wording. Tests: 184
+  pass; the fit test now covers lap 1's pages too.
+
 **Gate Q4b: what Jon must test** (the CI build, `watch-apps`): finish a full run.
 
 1. Do stage 4 and 5's spirits read well on the watch? Snow Fox against Red Fox,

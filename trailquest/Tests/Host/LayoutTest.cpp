@@ -389,8 +389,8 @@ TEST(Layout, EveryBossWarningAndTwistEventFits)
 TEST(Layout, EveryStoryPageFitsItsCard)
 {
     for (StoryId id : { StoryId::Opening, StoryId::StageStart, StoryId::BossAhead, StoryId::BossBeaten }) {
-        for (uint8_t st = 0; st < kStageCount; ++st) {
-            const Story s = story(id, st);
+        for (uint8_t st = 0; st < kStageCount * 2u; ++st) {
+            const Story s = story(id, st % kStageCount, st / kStageCount);   // lap 1 as well
             ASSERT_GT(s.count, 0u);
             for (uint8_t i = 0; i < s.count; ++i) {
                 const StoryPage& p = s.pages[i];
@@ -463,6 +463,13 @@ TEST(Story, APlanPlaysItsStoriesInARow)
         EXPECT_EQ(kBossAhead[st].who, kStages[st].boss) << int(st);
         EXPECT_EQ(kBossBeaten[st].who, kStages[st].boss) << int(st);
     }
+
+    // From the second lap the valley's start is the lap's own, still ending on its boss.
+    const StoryPlan again = StoryPlan::of(StoryId::StageStart, 0, 1);
+    ASSERT_EQ(again.pageCount(), kStageStartPages);
+    EXPECT_EQ(again.page(0), &kLapStart[0]);
+    EXPECT_EQ(kLapStart[1].who, kStages[0].boss);
+    EXPECT_EQ(StoryPlan::of(StoryId::StageStart, 1, 1).page(0), &kStageStart[1][0]);
 
     // Out of range: the first stage, never past the tables; an empty plan is empty.
     EXPECT_EQ(StoryPlan::of(StoryId::BossBeaten, 200).page(0), &kBossBeaten[0]);
