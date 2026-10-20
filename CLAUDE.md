@@ -255,7 +255,7 @@ creatures, moves, art or type chart (brief section 9).
   - screens, cut to the round face: `docs/experiments/capture_screens.sh [out-dir]`
     (a scripted stage 1 with its story pages and stage 2's start, every screen,
     into `docs/screens/q3-*.png`);
-    `docs/experiments/sim_play.sh [seed]` plays stages 1-3 to the clear (beat off)
+    `docs/experiments/tune_balance.py` retunes the stage softening and boss stamina; `docs/experiments/sim_play.sh [seed]` plays stages 1-3 to the clear (beat off)
     and checks the save is picked up again; `capture_boss.sh [stage] [out-dir]`
     starts just before a stage's boss and captures its warning and twist. All
     replace the save in `Software/Output`; `TRAILQUEST_SEED` fixes the simulator's seed;

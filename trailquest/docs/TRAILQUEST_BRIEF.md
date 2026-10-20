@@ -217,7 +217,7 @@ or decide. Build the watch target and the simulator after every change.
 | **Q1: core** | World graph, duel engine, stats, items, save; host tests and the balance simulator | **Gate Q1:** duels are deterministic and balanced on paper (win-rate targets agreed with Jon) |
 | **Q2: one stage** | Stage 1 playable end to end: map, route choice, 4 creatures, one boss, huts, save (and, since Jon tests on the watch, the save and haptics on the watch) | **Gate Q2:** Jon plays stage 1 on the watch (the CI build) and it is fun for 10 minutes |
 | **Q3: service and watch** | Sound (pitched jingles, if the firmware plays them), the beat tuned from real strikes, what the Q2 test turns up | **Gate Q3:** stage 1 plays well on a real watch; battery over a 30-minute session recorded |
-| **Q4: the rest** | Stages 2 to 5, the remaining creatures, items, levelling, second lap | **Gate Q4:** a full run can be finished; no dead ends found by the route tests |
+| **Q4: the rest** (drop 1 built: stages 2-3, boss twists, a sharper needle; drop 2 next: stages 4-5, the summit finale, the second lap) | Stages 2 to 5, the remaining creatures, items, levelling, second lap | **Gate Q4:** a full run can be finished; no dead ends found by the route tests |
 | **Q5: release** | Icons, store package, tags `trailquest-vX.Y.Z` | **Gate Q5:** Jon uploads to the portal |
 
 A realistic size: Q0 to Q2 is the risky part and tells us whether the idea is
