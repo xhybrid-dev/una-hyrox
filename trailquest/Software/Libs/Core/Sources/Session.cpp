@@ -136,7 +136,7 @@ bool Session::advance()
         return refuse();
     }
     mShowDuel = false;
-    if (mRun.phase() == RunPhase::StageClear && mRun.state().stage + 1u < kPlayableStages) {
+    if (mRun.phase() == RunPhase::StageClear) {   // at the summit this ends the lap: Finished
         mRun.nextStage();
     } else if (mRun.phase() == RunPhase::Finished) {
         mRun.startNextLap();

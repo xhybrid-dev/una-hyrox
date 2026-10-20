@@ -24,7 +24,7 @@ namespace TrailQuest
 {
 
 /// Each lap round the Ridge puts the spirits this many levels higher.
-constexpr uint8_t kLapLevelStep = 5;
+constexpr uint8_t kLapLevelStep = 10;
 
 /// A boss is this many levels above its stage's band.
 constexpr uint8_t kBossLevelAbove = 1;

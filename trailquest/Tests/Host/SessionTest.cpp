@@ -183,7 +183,7 @@ TEST(Session, StageOneCanBePlayedToTheEndByCommands)
     }
 }
 
-TEST(Session, TheFirstThreeStagesCanBePlayedToTheEndAndNoFurther)
+TEST(Session, AllFiveStagesCanBePlayedToTheSummitAndOnToASecondLap)
 {
     // A steady player: the skill when it is a partner's move, Settle when low.
     for (uint32_t seed = 1; seed <= 6; ++seed) {
@@ -192,7 +192,7 @@ TEST(Session, TheFirstThreeStagesCanBePlayedToTheEndAndNoFurther)
         ASSERT_TRUE(s.newGame(seed * 7919u));
         uint32_t i = 0;
         for (uint8_t stage = 0; stage < Session::kPlayableStages; ++stage) {
-            for (; i < 6000 && s.phase() != RunPhase::StageClear; ++i) {
+            for (; i < 12000 && s.phase() != RunPhase::StageClear; ++i) {
                 if (s.phase() == RunPhase::InDuel) {
                     PlayerTurn t;
                     t.action = s.state().stamina * 100u < 40u * runnerMaxWithPartners(s.state()).stamina
@@ -206,14 +206,21 @@ TEST(Session, TheFirstThreeStagesCanBePlayedToTheEndAndNoFurther)
             }
             ASSERT_EQ(s.phase(), RunPhase::StageClear) << "seed " << seed << " stage " << int(stage);
             EXPECT_EQ(s.state().stage, stage);
+            ASSERT_TRUE(s.advance());
             if (stage + 1u < Session::kPlayableStages) {
-                ASSERT_TRUE(s.advance());
                 EXPECT_EQ(s.state().stage, stage + 1u);
             }
         }
-        // This build goes no further than its last playable stage.
-        EXPECT_FALSE(s.advance());
-        EXPECT_EQ(s.phase(), RunPhase::StageClear);
+        // The summit's clear card leads to the finale; "Run again" starts lap 2.
+        EXPECT_EQ(s.phase(), RunPhase::Finished);
+        EXPECT_EQ(s.state().lap, 0u);
+        ASSERT_TRUE(s.advance());
+        EXPECT_EQ(s.state().lap, 1u);
+        EXPECT_EQ(s.state().stage, 0u);
+        EXPECT_EQ(s.phase(), RunPhase::AtNode);
+        EXPECT_EQ(s.world().cause, ViewCause::StageStarted);
+        EXPECT_LT(beatFor(0, 0).sweepMs, 1600u + 1u);
+        EXPECT_LT(beatFor(0, 1).sweepMs, beatFor(0, 0).sweepMs);
     }
 }
 

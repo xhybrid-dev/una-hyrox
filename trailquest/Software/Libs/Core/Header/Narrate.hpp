@@ -52,9 +52,10 @@ constexpr const char* kNew    = "New";
 constexpr const char* kTiming = "Timing";   // title, L2: the timing beat on or off
 constexpr const char* kOk     = "OK";
 constexpr const char* kSkip   = "Skip";
+constexpr const char* kAgain  = "Again";    // the summit, R1: another lap
 
 inline constexpr const char* kTopLeft[]     = { kSurge, kNext, kNew, kSkip };       // L1
-inline constexpr const char* kTopRight[]    = { kSkill, kUse, kGo, kYes, kPlay, kOk };  // R1
+inline constexpr const char* kTopRight[]    = { kSkill, kUse, kGo, kYes, kPlay, kOk, kAgain };  // R1
 inline constexpr const char* kBottomLeft[]  = { kSettle, kBack, kNo, kPack, kTiming };   // L2
 inline constexpr const char* kBottomRight[] = { kFuel, kBack };                        // R2
 inline constexpr const char* kMapLeft[]     = { kPath };                               // L1 on the map
@@ -443,22 +444,35 @@ inline const char* leadsTo(const WorldView& w, uint8_t exit)
     }
 }
 
-/// The card when a stage's boss is beaten. @p last is true when this build
-/// goes no further (the playable stages end here).
-inline void stageClear(Lines& out, const WorldView& w, bool last)
+/// The card when a stage's boss is beaten (not the last: see finale).
+inline void stageClear(Lines& out, const WorldView& w)
 {
     using Layout::kCardCols;
     out.clear();
     char line[24];
     TextFit::wrap(out, stageDef(w.state.stage).name, Layout::kCardTitleCols, 2);
     TextFit::addLine(out, "cleared!", kCardCols);
-    if (last) {
-        TextFit::addLine(out, "More trail", kCardCols);
-        TextFit::addLine(out, "coming soon", kCardCols);
-    } else {
-        std::snprintf(line, sizeof(line), "Won %u", static_cast<unsigned>(w.state.duelsWon));
-        TextFit::addLine(out, line, kCardCols);
-    }
+    std::snprintf(line, sizeof(line), "Won %u", static_cast<unsigned>(w.state.duelsWon));
+    TextFit::addLine(out, line, kCardCols);
+}
+
+/// The card at the summit: the run's numbers. R1 starts the next lap.
+inline void finale(Lines& out, const WorldView& w)
+{
+    using Layout::kCardCols;
+    out.clear();
+    char line[24];
+    const RunState& s = w.state;
+    std::snprintf(line, sizeof(line), "Lap %u done", static_cast<unsigned>(s.lap) + 1u);
+    TextFit::addLine(out, line, kCardCols);
+    std::snprintf(line, sizeof(line), "Level %u", static_cast<unsigned>(s.level));
+    TextFit::addLine(out, line, kCardCols);
+    std::snprintf(line, sizeof(line), "Won %u", static_cast<unsigned>(s.duelsWon));
+    TextFit::addLine(out, line, kCardCols);
+    std::snprintf(line, sizeof(line), "Lost %u", static_cast<unsigned>(s.duelsLost));
+    TextFit::addLine(out, line, kCardCols);
+    std::snprintf(line, sizeof(line), "Pack of %u", static_cast<unsigned>(s.partnerCount));
+    TextFit::addLine(out, line, kCardCols);
 }
 
 } // namespace TrailQuest::Narrate

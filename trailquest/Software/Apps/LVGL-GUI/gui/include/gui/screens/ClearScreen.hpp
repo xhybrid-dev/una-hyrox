@@ -3,7 +3,8 @@
  * @file    ClearScreen.hpp
  * @brief   A stage's boss is beaten.
  *
- *   R1  on to the next stage, or (where this build ends) back to the title
+ *   R1  on to the next stage, or (at the summit) the next lap
+ *   L2  (at the summit) back to the title
  ******************************************************************************
  */
 
@@ -28,7 +29,7 @@ protected:
     void onFrame(uint32_t nowMs) override;
 
 private:
-    bool last() const;
+    bool finished() const;
 
     Sprite      mRunner;
     lv_obj_t*   mHead = nullptr;

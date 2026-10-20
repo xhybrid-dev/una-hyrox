@@ -141,6 +141,14 @@ Grit beats Pace). "Night" spirits appear only at dawn, dusk or night.
 | Mist Wisp, again | mist | Grit | The same spirit as on the scree, higher up; a second line is for the dialogue (Q4). | as on the scree |
 | **The Summit Wolf** (boss) | wolf | Grit | Has followed you since the valley. | Howl (rattles), Long chase (drains) |
 
+## The summit finale (Q4)
+
+After the Summit Wolf's page and the "WELL RUN" card, the finale: a gold "THE
+SUMMIT" headline, a card of the lap done, the runner's level, duels won and
+lost, and the pack, with "Again" (green, R1: lap 2 from the valley) and "Back"
+(white, L2: the title; the save stays here, so Play returns to the finale). It
+reuses the clear screen's runner with arms up and the Win vibro.
+
 ## Boss twists (Q4)
 
 Each boss fights its own way, with a warning first. On a turn the boss *tells*

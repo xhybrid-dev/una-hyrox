@@ -29,32 +29,38 @@ void ClearScreen::build()
     mCorners.create(mRoot);
 }
 
-bool ClearScreen::last() const
+bool ClearScreen::finished() const
 {
-    const WorldView& w = mModel.world();
-    return w.phase == RunPhase::StageClear && w.state.stage + 1u >= w.playableStages;
+    return mModel.world().phase == RunPhase::Finished;
 }
 
 void ClearScreen::onShow()
 {
     TextFit::Lines lines;
-    Narrate::stageClear(lines, mModel.world(), last());
+    if (finished()) {
+        Narrate::finale(lines, mModel.world());
+        Ui::setText(mHead, "THE SUMMIT", Ui::Ink::kGold);
+        mCorners.set(nullptr, Label::kAgain, Label::kBack, nullptr);
+        setArcs(Buttons::NONE, Buttons::WHITE, Buttons::GREEN, Buttons::RED);
+    } else {
+        Narrate::stageClear(lines, mModel.world());
+        Ui::setText(mHead, "WELL RUN", Ui::Ink::kGold);
+        mCorners.set(nullptr, Label::kGo, nullptr, nullptr);
+        setArcs(Buttons::NONE, Buttons::NONE, Buttons::GREEN, Buttons::RED);
+    }
     mCard.show(lines);
-    Ui::setText(mHead, "WELL RUN", Ui::Ink::kGold);
-    mCorners.set(nullptr, last() ? Label::kOk : Label::kGo, nullptr, nullptr);
-    setArcs(Buttons::NONE, Buttons::NONE, Buttons::GREEN, Buttons::RED);
     mModel.playFx(FxId::Win);
 }
 
 void ClearScreen::onKey(uint8_t code)
 {
-    if (code != Btn::R1 || mWaiting) {
+    if (mWaiting) {
         return;
     }
-    if (last()) {
-        ScreenManager::instance().goTo(ScreenId::Title);
-    } else {
-        mWaiting = true;
+    if (code == Btn::L2 && finished()) {
+        ScreenManager::instance().goTo(ScreenId::Title);   // the save stays at the summit
+    } else if (code == Btn::R1) {
+        mWaiting = true;   // the next stage, or (at the summit) the next lap
         mModel.advance();
     }
 }
@@ -69,6 +75,10 @@ void ClearScreen::onWorld()
         return;   // try again with R1
     }
     const WorldView& w = mModel.world();
+    if (w.phase == RunPhase::Finished) {
+        onShow();   // the summit's clear card led on to the finale
+        return;
+    }
     if (w.cause == ViewCause::StageStarted) {
         StoryScreen::play(StoryPlan::of(StoryId::StageStart, w.state.stage));
         return;

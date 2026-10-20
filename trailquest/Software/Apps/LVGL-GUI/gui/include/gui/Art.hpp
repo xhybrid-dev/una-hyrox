@@ -3,9 +3,8 @@
  * @file    Art.hpp
  * @brief   Which sprite shows which spirit, and the scene's colours.
  *
- * The Valley Path's five (Q2) and the Switchback Climb's and Scree Fields'
- * ten (Q4); a spirit without its own art yet (stages 4 and 5) shows as the Red
- * Fox, which only a test build can reach.
+ * Every spirit has its own art (stage 1 in Q2, stages 2-5 in Q4); an id out
+ * of range shows as the Red Fox.
  ******************************************************************************
  */
 
@@ -40,6 +39,13 @@ inline uint8_t spriteFor(TrailQuest::SpeciesId sp)
         case Spirit::WallLizard:  return TRAILQUEST_SPRITE_WALL_LIZARD;
         case Spirit::Marmot:      return TRAILQUEST_SPRITE_MARMOT;
         case Spirit::RamKing:     return TRAILQUEST_SPRITE_RAM_KING;
+        case Spirit::WindSprite:  return TRAILQUEST_SPRITE_WIND_SPRITE;
+        case Spirit::Raven:       return TRAILQUEST_SPRITE_RAVEN;
+        case Spirit::SnowHare:    return TRAILQUEST_SPRITE_SNOW_HARE;
+        case Spirit::GoldenEagle: return TRAILQUEST_SPRITE_GOLDEN_EAGLE;
+        case Spirit::GhostGoat:   return TRAILQUEST_SPRITE_GHOST_GOAT;
+        case Spirit::SnowFox:     return TRAILQUEST_SPRITE_SNOW_FOX;
+        case Spirit::SummitWolf:  return TRAILQUEST_SPRITE_SUMMIT_WOLF;
         default:                  return TRAILQUEST_SPRITE_FOX;
     }
 }

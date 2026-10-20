@@ -468,6 +468,143 @@ def ram_king(frame):
     return c
 
 
+# -- stage 4: the Ridge Line ------------------------------------------------------------
+
+def wind_sprite(frame):
+    """The Wind Sprite: a pale swirl of air with a grim face; it leans on you."""
+    c = Canvas()
+    c.ellipse(12, 9, 7, 6, 14)                    # the head of the gust
+    c.ellipse(12, 8, 5, 4, 2)                     # its pale heart
+    sw = 0 if frame == 0 else 1
+    c.rect(2 + sw, 15, 20 + sw, 16, 14)           # trailing streaks
+    c.rect(5 - sw, 18, 19 - sw, 19, 2)
+    c.rect(1 + sw, 21, 14 + sw, 21, 14)
+    c.rect(9, 7, 10, 9, 1); c.rect(14, 7, 15, 9, 1)   # eyes
+    c.rect(10, 12, 14, 12, 1)                     # a flat mouth
+    c.outline()
+    return c
+
+
+def raven(frame):
+    """The Raven: black, wings wide over the drop, a yellow eye."""
+    c = Canvas()
+    c.ellipse(12, 13, 4, 5, 4)                    # body
+    c.ellipse(12, 7, 3, 3, 4)                     # head
+    c.tri((15, 7), (21, 8), (15, 10), 15)         # beak
+    c.set(13, 6, 15)                              # eye
+    if frame == 0:
+        c.tri((9, 11), (0, 5), (9, 16), 4)        # wings up
+        c.tri((15, 11), (23, 5), (15, 16), 4)
+    else:
+        c.tri((9, 11), (0, 15), (9, 17), 4)       # wings down
+        c.tri((15, 11), (23, 15), (15, 17), 4)
+    c.rect(10, 18, 14, 21, 4)                     # tail
+    c.rect(11, 18, 12, 19, 3)                     # grey breast
+    c.outline()
+    return c
+
+
+def snow_hare(frame):
+    """The Snow Hare: white, long ears, still as the cold; blue-grey shading."""
+    c = Canvas()
+    c.ellipse(11, 16, 7, 5, 2)                    # body
+    c.ellipse(11, 18, 4, 2, 14)                   # cold shadow underneath
+    c.ellipse(17, 11, 3, 3, 2)                    # head
+    ear = 0 if frame == 0 else 1
+    c.rect(16, 1 + ear, 17, 8, 2); c.rect(19, 2, 20, 8 + ear, 2)   # ears
+    c.set(16, 2 + ear, 3); c.set(19, 3, 3)
+    c.set(18, 10, 1)                              # eye
+    c.set(20, 12, 13)                             # nose
+    c.ellipse(5, 17, 2, 2, 2)                     # tail
+    c.rect(8, 20, 12, 21, 2); c.rect(14, 20, 16, 21, 2)   # feet
+    c.outline()
+    return c
+
+
+def golden_eagle(frame):
+    """The Golden Eagle (boss): wings spread over the drop, a hooked beak."""
+    c = Canvas(BOSS_SIZE)
+    up = 0 if frame == 0 else 3
+    c.ellipse(16, 17, 4, 7, 7)                    # body
+    c.ellipse(16, 18, 2, 5, 5)                    # golden breast
+    c.ellipse(16, 8, 4, 4, 8)                     # white-gold head
+    c.tri((19, 8), (26, 11), (19, 12), 15)        # hooked beak
+    c.set(26, 12, 1)
+    c.set(17, 7, 13)                              # a red eye
+    c.tri((12, 12), (0, 4 + up), (12, 22), 7)     # left wing
+    c.tri((20, 12), (31, 4 + up), (20, 22), 7)    # right wing
+    c.line(2, 6 + up, 11, 14, 5); c.line(29, 6 + up, 21, 14, 5)   # feather lines
+    c.rect(14, 24, 18, 30, 6)                     # tail
+    c.rect(13, 24, 14, 26, 15); c.rect(18, 24, 19, 26, 15)        # talons
+    c.outline()
+    return c
+
+
+# -- stage 5: the Summit ----------------------------------------------------------------
+
+def ghost_goat(frame):
+    """The Ghost Goat: a pale grey-blue goat, hollow eyes, curled horns; no feet."""
+    c = Canvas()
+    c.ellipse(13, 12, 6, 5, 14)                   # body, sky-blue ghost
+    c.ellipse(13, 11, 4, 3, 2)                    # pale heart
+    c.ellipse(6, 8, 3, 3, 14)                     # head
+    c.rect(2, 9, 4, 11, 14)                       # long face
+    c.rect(5, 7, 6, 9, 1); c.rect(3, 7, 3, 8, 1)  # hollow eyes
+    c.ellipse(9, 3, 2, 2, 2); c.ellipse(5, 3, 1, 1, 2)    # curled horns
+    c.rect(3, 12, 3, 15, 2)                       # thin beard
+    drift = 0 if frame == 0 else 1
+    for x, y in ((9, 17), (13, 19), (17, 17), (11, 21)):
+        c.ellipse(x, y + drift, 2, 2, 14)         # the body fades into wisps
+    c.ellipse(11, 20 + drift, 1, 1, 2)
+    c.outline()
+    return c
+
+
+def snow_fox(frame):
+    """The Snow Fox: white and sleek, low and long, a brush tail and ice-blue ears."""
+    c = Canvas()
+    c.ellipse(11, 15, 8, 4, 2)                    # long white body
+    c.ellipse(11, 17, 5, 2, 14)                   # ice-blue underside
+    c.ellipse(19, 11, 3, 3, 2)                    # head turned up
+    c.tri((17, 9), (18, 2), (20, 9), 14)          # ears, blue
+    c.tri((20, 9), (22, 3), (23, 10), 14)
+    c.rect(21, 12, 23, 13, 2)                     # snout
+    c.set(23, 13, 1); c.set(20, 10, 1)            # nose, eye
+    sw = 0 if frame == 0 else 1
+    c.ellipse(3, 11 - sw, 3, 3, 2)                # the tail, held high
+    c.rect(1, 8 - sw, 2, 9 - sw, 14)
+    for x in (6, 9, 14, 16):
+        c.rect(x, 18, x, 21, 3)
+    c.outline()
+    return c
+
+
+def summit_wolf(frame):
+    """The Summit Wolf (boss): a huge grey wolf, white ruff, red eyes, mid-howl."""
+    c = Canvas(BOSS_SIZE)
+    dy = 1 if frame else 0
+    c.ellipse(19, 21, 10, 5, 3)                   # body
+    c.ellipse(19, 23, 6, 2, 2)                    # pale belly
+    c.rect(8, 11 + dy, 14, 20, 3)                 # neck
+    c.ellipse(10, 17, 5, 4, 2)                    # white ruff
+    c.ellipse(8, 9 + dy, 4, 4, 3)                 # head
+    c.rect(2, 9 + dy, 5, 11 + dy, 3)              # snout
+    c.rect(3, 11 + dy, 5, 11 + dy, 2)             # open jaw
+    c.set(2, 9 + dy, 1)                           # nose
+    c.set(7, 8 + dy, 13); c.set(8, 8 + dy, 13)    # red eyes
+    c.tri((9, 6 + dy), (11, 2 + dy), (13, 7 + dy), 4)  # ears, short and laid back
+    c.tri((6, 6 + dy), (6, 2 + dy), (9, 6 + dy), 4)
+    c.rect(1, 12 + dy, 4, 13 + dy, 3)              # a heavier jaw
+    c.set(2, 13 + dy, 2); c.set(4, 13 + dy, 2)    # fangs
+    c.ellipse(28, 17, 3, 6, 3)                    # a bushy tail
+    c.ellipse(28, 13, 2, 2, 2)
+    for x in (13, 17, 23, 27):
+        c.rect(x, 25, x + 1, 29, 4)
+        c.rect(x - 1, 30, x + 2, 31, 3)
+    c.outline()
+    return c
+
+
 SPRITES = [
     ("runner", runner),
     ("fox", fox),
@@ -487,6 +624,15 @@ SPRITES = [
     ("wall_lizard", wall_lizard),
     ("marmot", marmot),
     ("ram_king", ram_king),
+    # stage 4
+    ("wind_sprite", wind_sprite),
+    ("raven", raven),
+    ("snow_hare", snow_hare),
+    ("golden_eagle", golden_eagle),
+    # stage 5
+    ("ghost_goat", ghost_goat),
+    ("snow_fox", snow_fox),
+    ("summit_wolf", summit_wolf),
 ]
 
 

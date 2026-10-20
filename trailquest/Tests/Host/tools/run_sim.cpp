@@ -3,7 +3,11 @@
 // the XP curve (the level at each boss against the stage's par), how often a
 // runner loses, the trail clock, and how long a stage takes to play.
 //
-//   run_sim [runs] [casual|good|menu] [--md out.md]
+//   run_sim [runs] [casual|good|menu] [--laps N] [--md out.md]
+//
+// --laps N plays N crossings of the Ridge (default 1): at the summit the
+// runner starts the next lap (spirits five levels up, the needle sharper) and
+// the report has one table a lap.
 //
 // The player: random route choices at forks; accepts every
 // spirit's offer, letting the partner from the oldest stage go when the pack
@@ -30,7 +34,8 @@ constexpr uint32_t kTurnSeconds     = 5;
 constexpr uint32_t kTravelSeconds   = 6;
 constexpr uint32_t kObstacleSeconds = 6;
 constexpr uint32_t kOfferSeconds    = 4;
-constexpr uint32_t kStepLimit       = 5000;
+constexpr uint32_t kStepLimit       = 5000;   // a lap
+constexpr uint32_t kMaxLaps         = 4;
 
 struct StageStats {
     uint32_t reached     = 0;   // runs that reached its boss
@@ -70,9 +75,13 @@ int main(int argc, char** argv)
     uint32_t    runs  = 1000;
     int         skill = 0;
     const char* md    = nullptr;
+    uint32_t    laps  = 1;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--md") == 0 && i + 1 < argc) {
             md = argv[++i];
+        } else if (std::strcmp(argv[i], "--laps") == 0 && i + 1 < argc) {
+            laps = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
+            laps = laps < 1 ? 1 : (laps > kMaxLaps ? kMaxLaps : laps);
         } else if (std::strcmp(argv[i], "good") == 0) {
             skill = 1;
         } else if (std::strcmp(argv[i], "menu") == 0) {
@@ -88,7 +97,7 @@ int main(int argc, char** argv)
     }
     const Sim::Skill& sk = Sim::kSkills[skill];
 
-    StageStats st[kStageCount];
+    StageStats st[kMaxLaps][kStageCount];
     uint32_t   finished = 0, totalSeconds = 0, partnersAtEnd = 0, levelAtEnd = 0;
 
     for (uint32_t run_i = 0; run_i < runs; ++run_i) {
@@ -96,12 +105,13 @@ int main(int argc, char** argv)
         run.newGame(0xC0FFEEu + run_i);
         Rng      r(0xD1CEu + run_i);
         uint32_t seconds = 0;
-        bool     atBossFirst[kStageCount] = {};
-        uint32_t bossTriesThisStage[kStageCount] = {};
+        bool     atBossFirst[kMaxLaps][kStageCount] = {};
+        uint32_t bossTriesThisStage[kMaxLaps][kStageCount] = {};
 
-        for (uint32_t step = 0; step < kStepLimit; ++step) {
+        for (uint32_t step = 0; step < kStepLimit * laps; ++step) {
             const uint8_t stage = run.state().stage;
-            StageStats&   ss    = st[stage];
+            const uint8_t lap   = run.state().lap < kMaxLaps ? run.state().lap : kMaxLaps - 1u;
+            StageStats&   ss    = st[lap][stage];
             bool done = false;
             switch (run.phase()) {
                 case RunPhase::AtNode: {
@@ -111,9 +121,9 @@ int main(int argc, char** argv)
                     ss.seconds += kTravelSeconds;
                     if (a.what == Arrival::Boss) {
                         ++ss.bossTries;
-                        ++bossTriesThisStage[stage];
-                        if (!atBossFirst[stage]) {
-                            atBossFirst[stage] = true;
+                        ++bossTriesThisStage[lap][stage];
+                        if (!atBossFirst[lap][stage]) {
+                            atBossFirst[lap][stage] = true;
                             ++ss.reached;
                             const uint8_t lv = run.state().level;
                             ss.levelSum += lv;
@@ -145,7 +155,7 @@ int main(int argc, char** argv)
                         }
                         if (!boss) {
                             (won ? ss.regularWon : ss.regularLost) += 1u;
-                        } else if (won && bossTriesThisStage[stage] == 1u) {
+                        } else if (won && bossTriesThisStage[lap][stage] == 1u) {
                             ++ss.bossFirstWins;
                         }
                     }
@@ -164,7 +174,11 @@ int main(int argc, char** argv)
                     run.nextStage();
                 } break;
                 case RunPhase::Finished:
-                    done = true;
+                    if (run.state().lap + 1u < laps) {
+                        run.startNextLap();
+                    } else {
+                        done = true;
+                    }
                     break;
             }
             if (run.wantsSave()) {
@@ -180,31 +194,43 @@ int main(int argc, char** argv)
         totalSeconds += seconds;
     }
 
-    char out[4096];
+    char out[12288];
     int  len = std::snprintf(out, sizeof(out),
-        "%u runs, %s skill: %u reached the summit (%u %%), level %u.%u at the end, %u.%u partners.\n"
-        "Play time for the whole Ridge: %u min on average.\n\n"
-        "| Stage | Par at the boss | Level at the boss (mean, range) | Duels won / lost | Regular duels won | Boss attempts | Boss first time | In the dark / wind | Play time |\n"
-        "|---|---|---|---|---|---|---|---|---|\n",
-        runs, sk.name, finished, finished * 100u / runs,
+        "%u runs, %s skill: %u reached the %s (%u %%), level %u.%u at the end, %u.%u partners.\n"
+        "Play time for %s: %u min on average.\n\n",
+        runs, sk.name, finished, laps > 1 ? "end of the last lap" : "summit", finished * 100u / runs,
         finished ? levelAtEnd / finished : 0u, finished ? (levelAtEnd * 10u / finished) % 10u : 0u,
         finished ? partnersAtEnd / finished : 0u, finished ? (partnersAtEnd * 10u / finished) % 10u : 0u,
-        totalSeconds / runs / 60u);
-    for (uint8_t i = 0; i < kStageCount && len > 0 && static_cast<size_t>(len) < sizeof(out); ++i) {
-        const StageStats& s = st[i];
-        const uint32_t reached = s.reached ? s.reached : 1u;
-        const uint32_t regular = s.regularWon + s.regularLost ? s.regularWon + s.regularLost : 1u;
-        const uint32_t duels   = s.duels ? s.duels : 1u;
-        len += std::snprintf(out + len, sizeof(out) - static_cast<size_t>(len),
-            "| %u %s | %u | %u.%u (%u-%u) | %u.%u / %u.%u | %u %% | %u.%u | %u %% | %u %% / %u %% | %u min |\n",
-            i + 1u, kStages[i].name, kStages[i].parLevel + 1u,
-            s.levelSum / reached, (s.levelSum * 10u / reached) % 10u, s.levelMin == 255 ? 0u : s.levelMin, s.levelMax,
-            s.duelsWon / runs, (s.duelsWon * 10u / runs) % 10u, s.duelsLost / runs, (s.duelsLost * 10u / runs) % 10u,
-            s.regularWon * 100u / regular,
-            s.bossTries / reached, (s.bossTries * 10u / reached) % 10u,
-            s.bossFirstWins * 100u / reached,
-            s.darkDuels * 100u / duels, s.windDuels * 100u / duels,
-            s.seconds / runs / 60u);
+        laps > 1 ? "all the laps" : "the whole Ridge", totalSeconds / runs / 60u);
+    for (uint32_t lap = 0; lap < laps; ++lap) {
+        if (laps > 1 && len > 0 && static_cast<size_t>(len) < sizeof(out)) {
+            len += std::snprintf(out + len, sizeof(out) - static_cast<size_t>(len), "**Lap %u**\n\n", lap + 1u);
+        }
+        if (len > 0 && static_cast<size_t>(len) < sizeof(out)) {
+            len += std::snprintf(out + len, sizeof(out) - static_cast<size_t>(len),
+                "| Stage | Par at the boss | Level at the boss (mean, range) | Duels won / lost | Regular duels won | Boss attempts | Boss first time | In the dark / wind | Play time |\n"
+                "|---|---|---|---|---|---|---|---|---|\n");
+        }
+        for (uint8_t i = 0; i < kStageCount && len > 0 && static_cast<size_t>(len) < sizeof(out); ++i) {
+            const StageStats& s = st[lap][i];
+            const uint32_t reached = s.reached ? s.reached : 1u;
+            const uint32_t regular = s.regularWon + s.regularLost ? s.regularWon + s.regularLost : 1u;
+            const uint32_t duels   = s.duels ? s.duels : 1u;
+            const uint32_t par     = kStages[i].parLevel + 1u + kLapLevelStep * lap;
+            len += std::snprintf(out + len, sizeof(out) - static_cast<size_t>(len),
+                "| %u %s | %u | %u.%u (%u-%u) | %u.%u / %u.%u | %u %% | %u.%u | %u %% | %u %% / %u %% | %u min |\n",
+                i + 1u, kStages[i].name, par,
+                s.levelSum / reached, (s.levelSum * 10u / reached) % 10u, s.levelMin == 255 ? 0u : s.levelMin, s.levelMax,
+                s.duelsWon / runs, (s.duelsWon * 10u / runs) % 10u, s.duelsLost / runs, (s.duelsLost * 10u / runs) % 10u,
+                s.regularWon * 100u / regular,
+                s.bossTries / reached, (s.bossTries * 10u / reached) % 10u,
+                s.bossFirstWins * 100u / reached,
+                s.darkDuels * 100u / duels, s.windDuels * 100u / duels,
+                s.seconds / runs / 60u);
+        }
+        if (len > 0 && static_cast<size_t>(len) < sizeof(out)) {
+            len += std::snprintf(out + len, sizeof(out) - static_cast<size_t>(len), "\n");
+        }
     }
     std::fputs(out, stdout);
     if (md != nullptr) {

@@ -315,11 +315,15 @@ TEST(Layout, EveryDuelEndObstacleOfferAndStageCardFits)
         WorldView w = worldAt(st, 8);
         w.state.duelsWon  = 65535;
         w.state.duelsLost = 65535;
-        for (bool last : { false, true }) {
-            Lines l;
-            Narrate::stageClear(l, w, last);
-            expectFits(l, kCardLines, kCardCols, kStages[st].name);
-        }
+        Lines l;
+        Narrate::stageClear(l, w);
+        expectFits(l, kCardLines, kCardCols, kStages[st].name);
+        w.state.lap     = 255;
+        w.state.level   = 255;
+        w.state.minutes = 65535;
+        w.state.partnerCount = 3;
+        Narrate::finale(l, w);
+        expectFits(l, kCardLines, kCardCols, "finale");
     }
     WorldView won = worldAt(0, 1);
     won.duel.outcome      = DuelOutcome::Won;

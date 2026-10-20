@@ -47,7 +47,7 @@ two. All rows are inside the targets today.
 | The needle | stage 1: sweep 1600 ms, good zone 400, perfect 200; each stage 100 ms faster and the good zone 40 narrower (stage 5: 1200 / 240); each lap a further 100 / 20, to 1000 / 200. Perfect stays two frames (the 10 fps floor) | `Beat.hpp` (`beatFor`) |
 | Stage softening | the spirits of stage 2-5 have 94, 98, 82 and 81 % of their row's stamina, set against the sharper needle | `data/Stages.hpp` (`kSpiritPct`) |
 | Duel cap | 12 turns, then the larger share of stamina wins (the spirit on a tie) | `Duel.hpp` |
-| Spirits' levels | the stage's band: Valley 1-2, Climb 4-5, Scree 7-9, Ridge 10-12, Summit 13-15; a boss one above the band; +5 a lap | `data/Stages.hpp`, `Encounter.hpp` |
+| Spirits' levels | the stage's band: Valley 1-2, Climb 4-5, Scree 7-9, Ridge 10-12, Summit 13-15; a boss one above the band; +10 a lap (held to level 20) | `data/Stages.hpp`, `Encounter.hpp` |
 | Between duels | each stretch of trail gives back 25 % stamina; a hut fills it; so does arriving at a boss | `Run.cpp` |
 | A loss | back to the last hut: -30 trail minutes, -1 item, full stamina, partners kept | `Run.cpp` |
 | Items | Gel +15; Water +8 and clears Drain; Salt tab +4 and clears Slow; Poles +2 Form for the duel; Headtorch (no dark penalty); a bag of 6 | `data/Items.hpp` |
@@ -245,6 +245,40 @@ Every row is inside the targets again, and every run in every profile reaches
 the summit. Menu-only play, which never reads a tell, wins 69 % against the Great
 Stag (65-85 % is the target): the twists are meant to be read.
 
+## The second lap (Q4 drop 2, 20 October 2026)
+
+`run_sim [runs] [casual|good|menu] --laps 2` carries on after the summit with
+`Run::startNextLap()`: spirits ten levels up (`kLapLevelStep`, held to level 20),
+the needle one lap sharper (a 1500 ms sweep at stage 1 down to 1100 ms at the summit),
+the runner's level, pack and bag kept, the clock on to the next morning.
+
+**Why ten.** At the first try, five (the old step) made lap 2 a walk-over: the
+runner arrives at level 17-20, so the valley's spirits at levels 6-7 were won
+100 % of the time, and so were most others. Ten, with spirits and the runner
+both held at level 20, makes lap 2 a victory lap in stages 1-2 that builds to a
+real fight from stage 4: the summit is as hard as in lap 1, with a sharper
+needle. Thirteen only made stage 3 too hard without helping stages 1-2, because
+a runner at level 17 is simply far above a valley spirit. The runner does not
+lose levels, so a harder start would need a different design (lap spirits
+relative to the runner's level, or a level cap on lap 2); that is for Jon.
+
+Casual, 4,000 games (every run of every profile finishes both laps):
+
+| Stage | Par at the boss | Level at the boss (mean, range) | Duels won / lost | Regular duels won | Boss attempts | Boss first time | In the dark / wind | Play time |
+|---|---|---|---|---|---|---|---|---|
+| 1 Valley Path | 12 | 17.9 (15-20) | 3.1 / 0.0 | 100 % | 1.0 | 100 % | 0 % / 0 % | 1 min |
+| 2 Switchback Climb | 15 | 19.7 (18-20) | 3.1 / 0.0 | 99 % | 1.0 | 99 % | 0 % / 0 % | 1 min |
+| 3 Scree Fields | 19 | 19.9 (19-20) | 3.3 / 0.2 | 96 % | 1.1 | 89 % | 0 % / 0 % | 1 min |
+| 4 Ridge Line | 22 | 20.0 (20-20) | 3.4 / 0.8 | 75 % | 1.0 | 93 % | 0 % / 48 % | 2 min |
+| 5 The Summit | 25 | 20.0 (20-20) | 3.9 / 1.7 | 67 % | 1.2 | 79 % | 3 % / 0 % | 3 min |
+
+For good and menu-only play lap 2 has the same shape and is easier: at the
+summit regular spirits are won 78 % (good) and 89 % (menu) and the Summit Wolf
+96 % and 92 % at the first try. Against the targets (regular spirits 80-95 %, bosses 65-85 %), lap 2 is above them
+in stages 1-3 (a victory lap, on purpose) and, for a casual player, a little under
+the regular target at the Ridge (76 %) and the summit (66 %); bosses are 79-93 %
+at the first try.
+
 ## What the simulators do not know
 
 - **Real presses.** The beat profiles are guesses. Q3 logs real Perfect, Good
@@ -253,8 +287,8 @@ Stag (65-85 % is the target): the twists are meant to be read.
   offer. A thoughtful player (picking routes for terrain, keeping one partner of
   each affinity) will do better; that is the point of the choices.
 - **Reading time.** Play time counts screens, not the lines a player reads.
-- **Laps.** A second lap adds five levels to every spirit; `run_sim` stops at
-  the summit, so the second lap is untested for balance (Q4).
+- **Laps beyond the second.** `run_sim --laps 3` finishes every run, but only
+  lap 2 is tuned and reported (below).
 
 ## For Gate Q1
 
