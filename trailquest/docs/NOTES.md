@@ -730,7 +730,7 @@ instruction. (The session's branch is `claude/hybridx-race-workspace-setup-kppnm
 - Simulator and watch target build (watch: compile check, `.uapp` 251,336 B, no
   warnings from our code; the SDK's own warnings are as before).
 - Captures: `docs/screens/q4-eagle-*`, `q4-wolf-*` (page, choose, tell, twist) and
-  `q4-finale-*`. `sim_play.sh` result: see below.
+  `q4-finale-*`. `sim_play.sh` (R1 only, beat off) cleared all five stages in 621 presses (9 losses, level 17 at the summit) and the save was picked up at the summit.
 
 **Gate Q4b: what Jon must test** (the CI build, `watch-apps`): finish a full run.
 
