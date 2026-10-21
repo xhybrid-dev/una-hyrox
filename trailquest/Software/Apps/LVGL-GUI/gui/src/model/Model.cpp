@@ -79,9 +79,9 @@ void Model::obstacleTry(TrailQuest::BeatResult beat)
     SDK::send_msg<CustomMessage::ObstacleTry>(mKernel, next(), beat);
 }
 
-void Model::duelTurn(TrailQuest::Action action, TrailQuest::ItemId item, TrailQuest::BeatResult beat)
+void Model::duelTurn(TrailQuest::Action action, TrailQuest::ItemId item, TrailQuest::BeatResult beat, uint8_t skill)
 {
-    SDK::send_msg<CustomMessage::DuelTurn>(mKernel, next(), action, item, beat);
+    SDK::send_msg<CustomMessage::DuelTurn>(mKernel, next(), action, item, beat, skill);
 }
 
 void Model::join(bool accept, uint8_t slot)

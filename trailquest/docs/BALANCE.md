@@ -76,6 +76,10 @@ player at the summit lands about 19 % perfect and 42 % good-or-better. The
 player also answers a boss's tell (Settles) 50 % of the time when casual, always
 when good, never menu-only.
 
+The simulated player always plays the best Skill pick (the one the duel opens on), so
+choosing from the pack (21 October) changes nothing here: a human can do the same
+or pick an effect move instead.
+
 So the menu-only mode (no beat) plays like a casual player who uses the beat,
 which is the intent: the beat rewards practice, and leaving it off costs nothing
 against a casual player. The profiles are guesses; Q3 measures real presses on

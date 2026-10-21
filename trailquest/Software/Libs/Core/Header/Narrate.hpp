@@ -397,10 +397,10 @@ inline void helpPage(Lines& out, uint8_t page)
             break;
         case 1:
             TextFit::addLine(out, "R1: Skill", kCardTitleCols);
-            TextFit::addLine(out, "Your best", kCardCols);
-            TextFit::addLine(out, "partner's", kCardCols);
-            TextFit::addLine(out, "move, else", kCardCols);
-            TextFit::addLine(out, "Trail craft.", kCardCols);
+            TextFit::addLine(out, "Pick a pack", kCardCols);
+            TextFit::addLine(out, "creature's", kCardCols);
+            TextFit::addLine(out, "move: L1 next", kCardCols);
+            TextFit::addLine(out, "R1 uses it.", kCardCols);
             break;
         case 2:
             TextFit::addLine(out, "R2: Fuel", kCardTitleCols);
@@ -419,6 +419,27 @@ inline void helpPage(Lines& out, uint8_t page)
         default:
             break;
     }
+}
+
+/// R1's pick list, one choice as a card: whose move it is (a title of 12), the
+/// move, its type and what it would do now, what else it does, and which
+/// choice of how many. @p who is the creature's name (the runner's own Trail
+/// craft when null).
+inline void skillCard(Lines& out, const char* who, MoveId m, Affinity type, uint16_t damage, uint8_t index, uint8_t count)
+{
+    using Layout::kCardCols;
+    using Layout::kCardTitleCols;
+    out.clear();
+    char line[24];
+    TextFit::addLine(out, who != nullptr ? who : "On your own", kCardTitleCols);
+    TextFit::addLine(out, moveDef(m).name, kCardCols);
+    std::snprintf(line, sizeof(line), "%s hits %u", affinityName(type), static_cast<unsigned>(damage));
+    TextFit::addLine(out, line, kCardCols);
+    const Effect e = moveDef(m).effect;
+    TextFit::addLine(out, e == Effect::Drain ? "May drain" : (e == Effect::Slow ? "May slow" : (e == Effect::Rattle ? "May rattle" : "No effect")),
+                     kCardCols);
+    std::snprintf(line, sizeof(line), "%u of %u", static_cast<unsigned>(index) + 1u, static_cast<unsigned>(count));
+    TextFit::addLine(out, line, kCardCols);
 }
 
 /// A story page's body, as the story card's lines (its headline is the

@@ -53,7 +53,7 @@ inline constexpr StoryPage kOpening[] = {
     { "THE WHEEL", "Pace beats\nForm beats\nGrit beats\nPace.", Spirit::SandCrab },
     { "ENERGY",    "Running low? Take a Gel before you hit the wall.", kNone },
     { "CRAMP",     "Cramp slows you: take a Salt tab. Drained: Water.", kNone },
-    { "YOUR PACK", "Beat a spirit and it may join you, lending its move.", Spirit::RubyBeetle },
+    { "YOUR PACK", "A beaten spirit may join. You pick whose move to use.", Spirit::RubyBeetle },
     { "THE MAP",   "Pick a route at each fork. Huts restore you. Auto-saves.", kNone },
 };
 

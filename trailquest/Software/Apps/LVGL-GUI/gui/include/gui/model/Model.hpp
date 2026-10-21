@@ -56,7 +56,8 @@ public:
     void newGame();
     void travel(uint8_t exitIndex);
     void obstacleTry(TrailQuest::BeatResult beat);
-    void duelTurn(TrailQuest::Action action, TrailQuest::ItemId item, TrailQuest::BeatResult beat);
+    void duelTurn(TrailQuest::Action action, TrailQuest::ItemId item, TrailQuest::BeatResult beat,
+                  uint8_t skill = TrailQuest::kNone);
     void join(bool accept, uint8_t slot);
     void advance();
     void setBeat(bool on);

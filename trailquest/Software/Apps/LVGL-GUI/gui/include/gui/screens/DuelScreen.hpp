@@ -47,7 +47,7 @@ protected:
     bool rawKeys() const override { return mMode == Mode::Beat; }
 
 private:
-    enum class Mode : uint8_t { Intro, Help, Tell, Choose, Fuel, Beat, Waiting, Playback, End };
+    enum class Mode : uint8_t { Intro, Help, Tell, Choose, Fuel, Skill, Beat, Waiting, Playback, End };
 
     void setMode(Mode m);
     void choose(TrailQuest::Action a);
@@ -58,6 +58,7 @@ private:
     void say(const TrailQuest::TextFit::Lines& lines, uint32_t color);
     bool nextFuel(uint8_t from);
     void showFuel();
+    void showSkill();
     void showHelp(uint8_t page);
     void toChoose();
     uint8_t helpPages() const;
@@ -81,6 +82,8 @@ private:
     Mode               mMode      = Mode::Intro;
     TrailQuest::Action mAction    = TrailQuest::Action::Surge;
     TrailQuest::ItemId mFuelItem  = TrailQuest::kNone;
+    uint8_t            mSkill     = 0;     ///< The choice shown in the pick list (DuelView::skill).
+    uint8_t            mSkillSent = TrailQuest::kNone;   ///< The choice this turn plays.
     uint16_t           mShownRunner = 0;   ///< The numbers on screen, moved by the playback.
     uint16_t           mShownSpirit = 0;
     uint8_t            mRunnerFx  = 0;     ///< The effects on screen, likewise.

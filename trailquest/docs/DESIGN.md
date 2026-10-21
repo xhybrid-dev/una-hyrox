@@ -145,6 +145,14 @@ Grit beats Pace). "Night" spirits appear only at dawn, dusk or night.
 | Mist Wisp, again | mist | Grit | The same spirit as on the scree, higher up; a second line is for the dialogue (Q4). | as on the scree |
 | **The Summit Wolf** (boss) | wolf | Grit | Kept pace since the valley. | Howl (rattles), Long chase (drains) |
 
+## Skill: choosing from the pack (Q4)
+
+R1 "Skill" opens a list when the pack is not empty: one card per choice, in green,
+with the creature (or "On your own" for Trail craft), the move, its type and the
+damage it would do now, what else it does, and "n of N". L1 next, R1 use, L2 or
+R2 back; it opens on the best pick. The pack's creatures are the choices, so what
+you keep (and its type against the spirit's place on the wheel) is the strategy.
+
 ## The summit finale (Q4)
 
 After the Summit Wolf's page and the "WELL RUN" card, the finale: a gold "THE

@@ -53,6 +53,9 @@ namespace TrailQuest
 
 constexpr uint8_t kMaxTurns = 12;
 
+/// Choices for R1 (Skill): Trail craft and up to three partners' moves.
+constexpr uint8_t kMaxSkills = 4;
+
 /// Hit chance, per cent.
 constexpr int32_t kHitBase       = 90;
 constexpr int32_t kHitPerPace    = 2;
@@ -100,7 +103,9 @@ struct DuelSetup {
     uint8_t   runnerLevel   = 1;
     Stats     runnerMax;              ///< With partners' bonuses.
     uint16_t  runnerStamina = 0;      ///< Carried in from the trail.
-    MoveId    technique     = Move::TrailCraft;
+    MoveId    technique     = Move::TrailCraft;   ///< R1's default pick (the best one).
+    MoveId    skills[kMaxSkills] = { Move::TrailCraft, kNone, kNone, kNone };   ///< What R1 can play: Trail craft, then each partner's.
+    uint8_t   skillCount    = 1;
     SpeciesId species       = Spirit::RedFox;
     uint8_t   speciesLevel  = 1;
     Terrain   terrain       = Terrain::Path;
@@ -113,6 +118,7 @@ struct DuelSetup {
 struct PlayerTurn {
     Action     action = Action::Surge;
     ItemId     item   = kNone;              ///< For Fuel.
+    uint8_t    skill  = kNone;              ///< For Technique: an index into DuelSetup::skills (kNone, or one out of range: the default).
     BeatResult beat   = BeatResult::Good;   ///< Menu-only play counts as Good.
 };
 
@@ -183,6 +189,9 @@ public:
     /// Damage a runner's action would do now, if it lands, with @p beat: no
     /// chance involved. For hints and the balance simulator's player.
     uint16_t estimate(Action a, BeatResult beat = BeatResult::Good) const;
+
+    /// The same for R1's choice number @p i (0 when there is none).
+    uint16_t estimateSkill(uint8_t i, BeatResult beat = BeatResult::Good) const;
 
     /// The per cent chance that @p by's move lands now.
     uint8_t chanceToLand(Side by) const { return hitChance(by); }

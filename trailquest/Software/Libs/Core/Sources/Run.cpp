@@ -253,6 +253,11 @@ void Run::startDuel(SpeciesId sp, uint8_t level)
     s.dark          = dark();
     s.staminaPct    = spiritPct(mState.stage);
     s.technique     = bestTechnique(s);
+    s.skills[0]     = Move::TrailCraft;
+    s.skillCount    = 1;
+    for (uint8_t i = 0; i < mState.partnerCount && i < kMaxPartners && s.skillCount < kMaxSkills; ++i) {
+        s.skills[s.skillCount++] = signatureMove(mState.partners[i]);
+    }
     mDuel.start(s);
     mState.spiritsMet |= speciesBit(sp);
     mLastDuel = DuelResult{};

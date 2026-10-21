@@ -285,3 +285,48 @@ TEST(Session, AnOfferIsAnsweredOnceAndAFullPackNamesWhoLeaves)
     EXPECT_EQ(s.state().offer, kNone);
     EXPECT_FALSE(s.join(false));       // already answered
 }
+
+TEST(Session, TheDuelViewListsTheSkillsAndATurnCanPickOne)
+{
+    // A runner with a three-creature pack meets a spirit: R1's choices are in the view.
+    RunState st;
+    st.rng          = 123;
+    st.level        = 6;
+    st.stamina      = runnerStats(6).stamina + 3;
+    st.partners[0]  = Spirit::BrownBear;
+    st.partners[1]  = Spirit::RedFox;
+    st.partners[2]  = Spirit::RubyBeetle;
+    st.partnerCount = 3;
+    st.stage        = 0;
+    st.node         = 0;
+    st.hutNode      = 0;
+    st.minutes      = 9 * 60;
+    st.bag[Item::Gel] = 2;
+    Session s;
+    s.begin(&st, 0);
+    ASSERT_TRUE(s.travel(0));
+    ASSERT_EQ(s.phase(), RunPhase::InDuel);
+    DuelView v = s.duel();
+    ASSERT_EQ(v.skillCount, 4u);
+    EXPECT_EQ(v.skill[0], Move::TrailCraft);
+    EXPECT_EQ(v.skill[1], signatureMove(Spirit::BrownBear));
+    EXPECT_EQ(v.skill[3], signatureMove(Spirit::RubyBeetle));
+    ASSERT_LT(v.skillBest, v.skillCount);
+    EXPECT_EQ(v.skill[v.skillBest], v.technique);
+    for (uint8_t i = 0; i < v.skillCount; ++i) {
+        EXPECT_GT(v.skillDmg[i], 0u) << int(i);
+    }
+    PlayerTurn t;
+    t.action = Action::Technique;
+    t.skill  = 3;
+    ASSERT_TRUE(s.duelTurn(t));
+    bool beetle = false;
+    for (uint8_t i = 0; i < s.duel().log.count; ++i) {
+        const DuelEvent& e = s.duel().log.events[i];
+        if (e.actor == Side::Runner && (e.kind == EventKind::Hit || e.kind == EventKind::Missed)) {
+            EXPECT_EQ(e.move, signatureMove(Spirit::RubyBeetle));
+            beetle = true;
+        }
+    }
+    EXPECT_TRUE(beetle);
+}

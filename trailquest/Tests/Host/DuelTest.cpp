@@ -611,3 +611,59 @@ TEST(Twist, AGuardHalvesTheRunnersHitOnItsTurnOnly)
     }
     EXPECT_GT(guarded, 10);
 }
+
+TEST(Duel, SkillPlaysTheChosenMoveAndAnythingElseThePlainDefault)
+{
+    DuelSetup s = setupFor(Spirit::BrownBear, 1, 1);
+    s.skillCount = 3;
+    s.skills[0]  = Move::TrailCraft;
+    s.skills[1]  = Move::Pounce;
+    s.skills[2]  = Move::HitTheWall;
+    s.technique  = Move::TrailCraft;
+    uint8_t bag[Item::Count] = {};
+    const struct { uint8_t pick; MoveId expect; } cases[] = {
+        { 1, Move::Pounce }, { 2, Move::HitTheWall }, { 0, Move::TrailCraft },
+        { kNone, Move::TrailCraft }, { 3, Move::TrailCraft }, { 200, Move::TrailCraft },
+    };
+    for (const auto& c : cases) {
+        Duel d;
+        d.start(s);
+        Rng r(5);
+        PlayerTurn t;
+        t.action = Action::Technique;
+        t.skill  = c.pick;
+        const TurnLog log = d.play(t, r, bag);
+        ASSERT_GT(log.count, 0u);
+        bool played = false;
+        for (uint8_t i = 0; i < log.count; ++i) {
+            if (log.events[i].actor == Side::Runner && (log.events[i].kind == EventKind::Hit || log.events[i].kind == EventKind::Missed)) {
+                EXPECT_EQ(log.events[i].move, c.expect) << int(c.pick);
+                played = true;
+            }
+        }
+        EXPECT_TRUE(played) << int(c.pick);
+    }
+}
+
+TEST(Duel, EachSkillsEstimateIsWhatItWouldDo)
+{
+    DuelSetup s = setupFor(Spirit::RedFox, 4, 5);
+    s.skillCount = 3;
+    s.skills[0]  = Move::TrailCraft;
+    s.skills[1]  = Move::HitTheWall;
+    s.skills[2]  = Move::Pounce;
+    for (uint8_t i = 0; i < 3; ++i) {
+        DuelSetup one = s;
+        one.technique = s.skills[i];
+        Duel a;
+        a.start(one);
+        Duel b;
+        b.start(s);
+        EXPECT_EQ(b.estimateSkill(i), a.estimate(Action::Technique)) << int(i);
+        EXPECT_GT(b.estimateSkill(i), 0u);
+    }
+    Duel d;
+    d.start(s);
+    EXPECT_EQ(d.estimateSkill(3), 0u);
+    EXPECT_EQ(d.estimateSkill(kNone), 0u);
+}

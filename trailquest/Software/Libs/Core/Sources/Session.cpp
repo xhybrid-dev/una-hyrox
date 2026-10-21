@@ -188,6 +188,14 @@ DuelView Session::duel() const
     v.estimate[0]  = d.estimate(Action::Surge);
     v.estimate[1]  = d.estimate(Action::Settle);
     v.estimate[2]  = d.estimate(Action::Technique);
+    v.skillCount   = d.setup().skillCount < kMaxSkills ? d.setup().skillCount : kMaxSkills;
+    for (uint8_t i = 0; i < v.skillCount; ++i) {
+        v.skill[i]    = d.setup().skills[i];
+        v.skillDmg[i] = d.estimateSkill(i);
+        if (v.skill[i] == d.setup().technique && v.skill[v.skillBest] != d.setup().technique) {
+            v.skillBest = i;   // the first with the default's move
+        }
+    }
     v.runner       = fighterView(d.runner());
     v.spirit       = fighterView(d.spirit());
     v.log          = mLog;

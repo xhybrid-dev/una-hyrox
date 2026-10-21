@@ -140,13 +140,15 @@ struct DuelTurn : public Command {
     uint8_t action;   ///< TrailQuest::Action.
     uint8_t item;     ///< For Fuel: the item (TrailQuest::ItemId).
     uint8_t beat;     ///< TrailQuest::BeatResult.
+    uint8_t skill;    ///< For Technique: which of R1's choices (DuelView::skill), or kNone.
 
-    DuelTurn() : Command(DUEL_TURN), action(0), item(TrailQuest::kNone), beat(1) {}
-    DuelTurn(uint16_t s, TrailQuest::Action a, TrailQuest::ItemId i, TrailQuest::BeatResult b)
+    DuelTurn() : Command(DUEL_TURN), action(0), item(TrailQuest::kNone), beat(1), skill(TrailQuest::kNone) {}
+    DuelTurn(uint16_t s, TrailQuest::Action a, TrailQuest::ItemId i, TrailQuest::BeatResult b, uint8_t sk)
         : Command(DUEL_TURN, s)
         , action(static_cast<uint8_t>(a))
         , item(i)
         , beat(static_cast<uint8_t>(b))
+        , skill(sk)
     {}
 };
 

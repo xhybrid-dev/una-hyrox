@@ -563,3 +563,27 @@ TEST(Run, PerfectBeatsAreCounted)
     run.duelTurn(t);
     EXPECT_EQ(run.state().perfects, 1u);
 }
+
+TEST(Run, TheSkillListIsTrailCraftThenEachPartnersMove)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 0, 5);
+    s.partners[0]  = Spirit::BrownBear;
+    s.partners[1]  = Spirit::RedFox;
+    s.partners[2]  = Spirit::RubyBeetle;
+    s.partnerCount = 3;
+    run.resume(s);
+    ASSERT_EQ(run.travel(0).what, Arrival::Duel);
+    const DuelSetup& d = run.duel().setup();
+    ASSERT_EQ(d.skillCount, 4u);
+    EXPECT_EQ(d.skills[0], Move::TrailCraft);
+    for (uint8_t i = 0; i < 3; ++i) {
+        EXPECT_EQ(d.skills[i + 1u], signatureMove(s.partners[i]));
+    }
+
+    TrailQuest::Run alone;
+    alone.resume(standingAt(0, 0, 5));
+    ASSERT_EQ(alone.travel(0).what, Arrival::Duel);
+    EXPECT_EQ(alone.duel().setup().skillCount, 1u);
+    EXPECT_EQ(alone.duel().setup().skills[0], Move::TrailCraft);
+}

@@ -485,3 +485,23 @@ TEST(Layout, TheMapsStaminaBarIsOnTheFace)
     }
     EXPECT_TRUE(clearOfArcs(70, kMapBarRow, 170, kMapBarRow + 6));
 }
+
+TEST(Layout, EverySkillCardFitsWhoeverIsInThePack)
+{
+    for (SpeciesId sp = 0; sp < Spirit::Count; ++sp) {
+        if (isBoss(sp)) {
+            continue;   // bosses never join
+        }
+        const SpeciesDef& d = speciesDef(sp);
+        for (Affinity a : { Affinity::Pace, Affinity::Form, Affinity::Grit }) {
+            Lines l;
+            Narrate::skillCard(l, d.name, signatureMove(sp), a, 999, 2, 4);
+            expectFits(l, kCardLines, kCardCols, d.name);
+        }
+    }
+    for (MoveId m = 0; m < Move::Count; ++m) {
+        Lines l;
+        Narrate::skillCard(l, nullptr, m, Affinity::Grit, 999, 0, 4);
+        expectFits(l, kCardLines, kCardCols, moveDef(m).name);
+    }
+}

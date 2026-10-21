@@ -76,6 +76,10 @@ struct DuelView {
     uint8_t     chanceSpirit = 0;
     uint8_t     tell         = 0;   ///< Twist: what the coming turn is (0: nothing special).
     uint16_t    estimate[3]  = {};  ///< Damage now with a Good beat: Surge, Settle, Technique.
+    uint8_t     skillCount   = 1;   ///< R1's choices: Trail craft, then each partner's move (the partner is state.partners[i - 1]).
+    uint8_t     skillBest    = 0;   ///< The one R1 plays by default.
+    MoveId      skill[4]     = {};
+    uint16_t    skillDmg[4]  = {};  ///< Damage now with a Good beat, as estimate[].
     FighterView runner;
     FighterView spirit;
     TurnLog     log;                ///< The last turn played (empty at the start).

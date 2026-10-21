@@ -179,7 +179,7 @@ void DuelScreen::setMode(Mode m)
 {
     mMode = m;
     mBeat.setHidden(m != Mode::Beat);
-    if (m != Mode::Intro && m != Mode::End && m != Mode::Help && m != Mode::Tell) {
+    if (m != Mode::Intro && m != Mode::End && m != Mode::Help && m != Mode::Tell && m != Mode::Skill) {
         mCard.hide();
     }
     const DuelView& d = mModel.duel();
@@ -214,6 +214,12 @@ void DuelScreen::setMode(Mode m)
             mCorners.set(Label::kNext, Label::kUse, Label::kBack, Label::kBack);
             setArcs(Buttons::AMBER, Buttons::WHITE, Buttons::GREEN, Buttons::RED);
             showFuel();
+            break;
+        case Mode::Skill:
+            say(none, Ui::Ink::kText);
+            mCorners.set(Label::kNext, Label::kUse, Label::kBack, Label::kBack);
+            setArcs(Buttons::AMBER, Buttons::WHITE, Buttons::GREEN, Buttons::RED);
+            showSkill();
             break;
         case Mode::Beat: {
             TextFit::Lines prompt;
@@ -268,6 +274,20 @@ void DuelScreen::showFuel()
     say(lines, Ui::Ink::kText);
 }
 
+void DuelScreen::showSkill()
+{
+    const DuelView& d = mModel.duel();
+    const uint8_t   i = mSkill < d.skillCount ? mSkill : 0u;
+    // Choice 0 is Trail craft; choice i is the pack's creature i - 1 (its own move).
+    const RunState& s = mModel.world().state;
+    const char* who   = i > 0 && i - 1u < s.partnerCount ? speciesDef(s.partners[i - 1u]).name : nullptr;
+    const MoveId m    = d.skill[i];
+    const Affinity t  = m == Move::TrailCraft ? favouredBy(static_cast<Terrain>(d.terrain)) : moveDef(m).affinity;
+    TextFit::Lines lines;
+    Narrate::skillCard(lines, who, m, t, d.skillDmg[i], i, d.skillCount);
+    mCard.show(lines, Ui::Ink::kGreen);
+}
+
 void DuelScreen::choose(Action a)
 {
     mAction = a;
@@ -294,7 +314,8 @@ void DuelScreen::send(BeatResult beat)
         }
     }
     setMode(Mode::Waiting);
-    mModel.duelTurn(mAction, mAction == Action::Fuel ? mFuelItem : kNone, beat);
+    mModel.duelTurn(mAction, mAction == Action::Fuel ? mFuelItem : kNone, beat,
+                    mAction == Action::Technique ? mSkillSent : static_cast<uint8_t>(kNone));
 }
 
 void DuelScreen::onKey(uint8_t code)
@@ -330,7 +351,14 @@ void DuelScreen::onKey(uint8_t code)
             } else if (code == Btn::L2) {
                 choose(Action::Settle);
             } else if (code == Btn::R1) {
-                choose(Action::Technique);
+                const DuelView& d = mModel.duel();
+                if (d.skillCount > 1) {
+                    mSkill = d.skillBest;   // start on the best pick
+                    setMode(Mode::Skill);
+                } else {
+                    mSkillSent = kNone;     // no pack: Trail craft, at once
+                    choose(Action::Technique);
+                }
             } else if (code == Btn::R2) {
                 if (nextFuel(0)) {
                     setMode(Mode::Fuel);
@@ -348,6 +376,18 @@ void DuelScreen::onKey(uint8_t code)
                 showFuel();
             } else if (code == Btn::R1 && mFuelItem != kNone) {
                 choose(Action::Fuel);
+            } else if (code == Btn::L2 || code == Btn::R2) {
+                setMode(Mode::Choose);
+            }
+            break;
+        case Mode::Skill:
+            if (code == Btn::L1) {
+                const uint8_t n = mModel.duel().skillCount;
+                mSkill = static_cast<uint8_t>(n > 0 ? (mSkill + 1u) % n : 0u);
+                showSkill();
+            } else if (code == Btn::R1) {
+                mSkillSent = mSkill;
+                choose(Action::Technique);
             } else if (code == Btn::L2 || code == Btn::R2) {
                 setMode(Mode::Choose);
             }

@@ -212,6 +212,15 @@ uint16_t Duel::estimate(Action a, BeatResult beat) const
     return damage(Side::Runner, m, affinityFor(m), beat);
 }
 
+uint16_t Duel::estimateSkill(uint8_t i, BeatResult beat) const
+{
+    if (i >= mSetup.skillCount || i >= kMaxSkills || mSetup.skills[i] == kNone) {
+        return 0;
+    }
+    const MoveId m = mSetup.skills[i];
+    return damage(Side::Runner, m, affinityFor(m), beat);
+}
+
 void Duel::act(Side by, MoveId move, BeatResult beat, Rng& rng, TurnLog& log)
 {
     const MoveDef& md  = moveDef(move);
@@ -287,9 +296,10 @@ void Duel::runnerAct(const PlayerTurn& t, Rng& rng, uint8_t* bag, TurnLog& log)
             log.add(e);
         } break;
 
-        case Action::Technique:
-            act(Side::Runner, mSetup.technique, t.beat, rng, log);
-            break;
+        case Action::Technique: {
+            const bool chosen = t.skill < mSetup.skillCount && t.skill < kMaxSkills && mSetup.skills[t.skill] != kNone;
+            act(Side::Runner, chosen ? mSetup.skills[t.skill] : mSetup.technique, t.beat, rng, log);
+        } break;
 
         case Action::Fuel:
         default: {

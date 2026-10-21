@@ -165,6 +165,7 @@ bool Service::onCommand(const SDK::MessageBase &msg)
         turn.action = static_cast<TrailQuest::Action>(t.action);
         turn.item   = t.item;
         turn.beat   = static_cast<TrailQuest::BeatResult>(t.beat);
+        turn.skill  = t.skill;
         mSession.duelTurn(turn);
     } break;
     case JOIN: {

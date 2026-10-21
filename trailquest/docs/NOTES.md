@@ -31,6 +31,7 @@ is right. British English.
 | 18 Oct 2026 | Creatures are named for how they look, colour and animal (the Red Fox, the Old Tortoise); the runner's jokes stay in their lines and moves | Jon, at Gate Q2 |
 | 19 Oct 2026 | The needle sharpens each stage and lap (faster, a narrower good zone; perfect stays two frames); the later stages' spirits soften to match | Jon asked, Claude set the numbers |
 | 19 Oct 2026 | Q4 excitement = boss twists (a tell, then a charge or a guard); rare spirits and trail events left for later | Jon |
+| 21 Oct 2026 | R1 (Skill) opens a pick list of the pack: Trail craft or one creature's move (its signature), with damage and effect shown; one move each. Reverses Q1's "no lead partner" (the pick is per turn, in the duel, so it can be right for the spirit met) | Jon asked, Claude built |
 | 20 Oct 2026 | A second lap puts the spirits 10 levels up (was 5), held to 20; early stages are a victory lap, the summit a real fight; for Jon to react to | Claude |
 | 19 Oct 2026 | Q4 in two drops: stages 2-3 first, then 4-5, the summit finale and the second lap | Jon |
 | 18 Oct 2026 | Story at the key moments: an opening tale, each stage's start, its boss ahead and beaten; the map says where each way leads | Jon, at Gate Q2 |
@@ -761,6 +762,28 @@ voice rule and the new roster lines):
   `story()` and `StoryPlan` take the lap.
 - Not changed: the finale card (stats) and the join offer's wording. Tests: 184
   pass; the fit test now covers lap 1's pages too.
+
+### Choose whose move to use (21 October 2026)
+
+Jon, after stages 4-5 ("really good"): Skill is a pack creature's attack but not
+clear which, and he cannot choose; choosing would make the pack matter. Built:
+
+- **R1 opens a pick list** once the pack has a creature (with no pack it still plays
+  Trail craft at once). A card per choice: the creature (or "On your own"), its move,
+  its type and the damage it would do now with a Good beat, "May drain / slow /
+  rattle" or "No effect", and "2 of 4". L1 next (it starts on the best pick, so
+  R1 R1 plays the old default), R1 use (then the needle), L2 or R2 back.
+- The wheel shows in the numbers: against a Form spirit a Pace creature's move hits
+  hardest; against Pace, a Grit one. So which creatures you keep decides your options.
+- Core: `DuelSetup::skills[4]`/`skillCount`, `PlayerTurn::skill` (kNone: the default,
+  so tools and the simulated player are unchanged), `Duel::estimateSkill`,
+  `DuelView::skill/skillDmg/skillBest`, `DuelTurn::skill`. One move per creature
+  (its signature move), by Jon's choice; both of each creature's moves is a possible
+  later step.
+- Verified: host tests 189 (new: the skill list, a chosen move plays, an out-of-range
+  pick falls back, estimates match, the view, every card fits); `balance_sim` and
+  `run_sim` unchanged; simulator captures `docs/screens/q4-skill-*` (via
+  `docs/experiments/capture_skill.sh`); the watch build links (`.uapp` 252,896 B).
 
 **Gate Q4b: what Jon must test** (the CI build, `watch-apps`): finish a full run.
 
