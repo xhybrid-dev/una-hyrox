@@ -31,6 +31,7 @@ is right. British English.
 | 18 Oct 2026 | Creatures are named for how they look, colour and animal (the Red Fox, the Old Tortoise); the runner's jokes stay in their lines and moves | Jon, at Gate Q2 |
 | 19 Oct 2026 | The needle sharpens each stage and lap (faster, a narrower good zone; perfect stays two frames); the later stages' spirits soften to match | Jon asked, Claude set the numbers |
 | 19 Oct 2026 | Q4 excitement = boss twists (a tell, then a charge or a guard); rare spirits and trail events left for later | Jon |
+| 21 Oct 2026 | Fatigue carries over: trail gives back 8 % (was 25), no refill at a boss, the next stage half; the hut is a detour at the second place of every stage (the cache beside it); more Gels and drops; lap 2 spirits are relative to the runner's level with more stamina | Jon asked, Claude set the numbers |
 | 21 Oct 2026 | The needle: the target moves each strike (30-85 % of the sweep), and its speed and zone vary by Surge / Settle / Skill, boss and hazard stat; the green stays 200 ms (the two-frame floor); spirits softened again to match | Jon asked, Claude set the numbers |
 | 21 Oct 2026 | R1 (Skill) opens a pick list of the pack: Trail craft or one creature's move (its signature), with damage and effect shown; one move each. Reverses Q1's "no lead partner" (the pick is per turn, in the duel, so it can be right for the spirit met) | Jon asked, Claude built |
 | 20 Oct 2026 | A second lap puts the spirits 10 levels up (was 5), held to 20; early stages are a victory lap, the summit a real fight; for Jon to react to | Claude |
@@ -806,6 +807,22 @@ re-tuned to it (all rows inside the targets again; menu-only play is now easier 
 casual player with the needle). Host tests 193 (the new kinds, the target's range and
 spread, a moved target judged where it is drawn); `balance_sim` and `run_sim` all OK;
 simulator captures `docs/screens/q4-beat-*` (`docs/experiments/capture_beats.sh`).
+
+### Fatigue, the hut as a detour, a harder lap 2 (21 October 2026)
+
+Jon: lap 2 felt the same; health came back too fast so Fuel was rarely needed; fatigue
+should carry over, recovered by Fuel or a hut detour off the standard route. Built (details
+and numbers in `BALANCE.md`, "Fatigue carries over" and "The second lap"):
+- 8 % per stretch (was 25), no refill at a boss, half back on the next stage; huts and
+  a loss as before (a loss with no hut visited returns to the stage's start);
+- the hut and its cache are a fork: place 2 of every stage can go straight on or to the
+  hut (`data/Stages.hpp`; the map layout is unchanged);
+- 3 starting Gels, 35 % drops; the simulated player detours to a hut below 60 %;
+- lap 2: spirits relative to the runner (+1 level a lap) and +5 % stamina a lap;
+- bosses softened and `kSpiritPct` retuned for the run-level difficulty (the fresh-boss
+  target is 65-90 % now; the real target is the run's first-try rate, 50-75 % casual).
+Host tests 197 (the hut is optional, no boss refill, the small breather, a loss before
+any hut returns to the start, lap spirits relative to the runner).
 
 **Gate Q4b: what Jon must test** (the CI build, `watch-apps`): finish a full run.
 
