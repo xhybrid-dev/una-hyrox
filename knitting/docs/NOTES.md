@@ -394,3 +394,25 @@ button, in Poppins Regular 14:
   visible addition); it needs `SUBMISSION.md`'s steps again with the new tag, and
   Jon's look at the labels on the watch (are they readable at arm's length, and not too
   close to the bezel?).
+
+## Icon options (21 October 2026)
+
+Jon: the logo needs to be more unique and engaging; five options to consider.
+`Resources/icon-options/` holds them (script `make_icon_options.py`, comparison sheet
+`options-sheet.png`, and each as `option-<n>-<name>_60x60.png` and `_30x30.png`). The live
+icon (`Resources/icon_*.png`, from `make_icons.py`) is **unchanged** until one is chosen.
+
+| # | Option | Idea |
+|---|---|---|
+| 1 | Yarn and needles | Teal ball of yarn with two lime needles pushed in and a loose end: the obvious one, made bolder |
+| 2 | A knit stitch | A teal patch of white knit "V" stitches with one lime V, the stitch you are on |
+| 3 | A counter | A white ball of yarn with a lime "+1" badge: it says counting |
+| 4 | Stitches on a needle | A lime needle with three loops on it and the yarn coming in |
+| 5 | A jumper | A teal jumper with a lime knitted band and a ribbed hem |
+
+All are drawn the way the live icon is (flat colours on the display's grid, transparent
+background) and shown at 60 px, 30 px, on white, and as a single flat shape, because the
+launcher ring seems to draw icons as flat shapes (X Weigh-in's dark disc does not show
+there). In flat form 5 and 2 are the clearest silhouettes; 1 and 4 read by their needles;
+3's badge merges into the ball. Once one is chosen it becomes `make_icons.py`'s drawing, the
+icon in the store package, and the store images are regenerated.
