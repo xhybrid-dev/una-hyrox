@@ -363,3 +363,34 @@ submission to be finalised and packaged. It follows X Weigh-in's route
 
 If the portal refuses the zip, send Claude its message: it is fixed, tagged
 `knitting-v1.0.1`, and uploaded again.
+
+## Button labels (21 October 2026, after 1.0.0)
+
+Jon: label the buttons so it is clear which is knit row, new set, undo, and a full
+reset. Four small labels on the counter screen, each in the corner beside its bezel
+button, in Poppins Regular 14:
+
+| Label | Colour | Button |
+|---|---|---|
+| New set | white | L1, top left |
+| Knit row | white | R1, top right |
+| Hold: undo | amber | R1 (under "Knit row") |
+| Hold: reset | amber | L2, bottom left |
+
+- **Amber means a hold**, the colour of the hold's own prompt and progress bar, so the
+  eye connects the label to what appears while you hold.
+- **R2 is not labelled:** the bezel already says BACK.
+- **Layout:** the display is round, so the labels sit inside the chord at their height
+  (a first try put "Hold: reset" at x=44 and the watch render cut off its "H"; it is at
+  x=60 now). The numbers moved down a little (rows y 52 to 62, Set 128 to 130, bottom
+  line 170 to 167, progress bar 202 to 193) to clear the top labels.
+- **Checked with the largest numbers** (888 rows, Set 88, Total 8888), a hold in
+  progress, and the prompt "Hold to reset": nothing overlaps.
+- **Verified:** 44 host tests, `hold_check.sh`, `resume_check.sh`, the watch compile
+  check (`Knitting_0.0.0-dev.uapp`, 187,532 bytes; 184,792 before; no warnings from our
+  code; not installable), and the four store previews and all of `docs/store/`
+  regenerated with the labels. Nothing run on a watch yet.
+- **Release:** 1.0.0 is tagged. This is for the next release (1.1.0 is suggested: a
+  visible addition); it needs `SUBMISSION.md`'s steps again with the new tag, and
+  Jon's look at the labels on the watch (are they readable at arm's length, and not too
+  close to the bezel?).

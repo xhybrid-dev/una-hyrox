@@ -10,6 +10,14 @@ the prefix for the SDK's version script.
 
 ## [Unreleased]
 
+### Added
+
+- **Each button is named on the screen.** "New set" (L1) and "Knit row" (R1)
+  at the top, "Hold: undo" under "Knit row" (hold R1), and "Hold: reset" at the
+  bottom left (hold L2), so nothing has to be remembered. Taps are white, holds
+  amber, as the hold prompts are. The numbers move down a little to make room;
+  with the largest numbers (888 rows, Set 88, Total 8888) nothing overlaps.
+
 ## [1.0.0] - 2026-10-16
 
 The first store release, tagged `knitting-v1.0.0`. App ID `CDA5282FFDCE502F`,
