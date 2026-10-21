@@ -1,9 +1,10 @@
 # Trail Quest for UNA Watch: Brief and Plan
 
 **Owner:** Jon
-**Status:** Q4 drop 2 (all five stages, the summit finale, a second lap) built,
-20 October 2026, for Jon to finish a full run on the watch: Gate Q4b (NOTES,
-"Phase Q4"). Drop 1 (stages 2 and 3, boss twists, a sharper needle) was built on
+**Status:** feature-complete and prepared for release (21 October 2026): Gate Q4b played
+(stages 4-5, the moving needle), then fatigue and huts, a harder lap 2, pitched jingles and
+the Q5 package (`docs/SUBMISSION.md`). Waiting on Jon: play the final build, create the app
+on the portal, tag `trailquest-v1.0.0`, upload. Drop 1 (stages 2 and 3, boss twists, a sharper needle) was built on
 19 October. Gates Q0
 (17 October), Q1 and Q2 (18 October) passed; Q3's part 1 played well.
 Decisions taken: tone "funny start, serious summit"; full 5 stages; Daily Trail

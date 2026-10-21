@@ -838,6 +838,26 @@ good news rises and bad falls, none longer than a second (the finale 1.1 s is th
 longest), every pair distinct. Not heard on a watch yet: whether the notes read as tunes
 on the real buzzer, and whether any is too long or too shrill, are Jon's ears to judge.
 
+### Gate Q4b: result, and Phase Q5 (21 October 2026)
+
+Jon played the full game on the watch: stages 4 and 5 "good and work well"; the moving needle
+"much better, more interesting and fun to play"; the backlight behaviour ok; the buzzes
+were all one pitch. He asked to ship, with the optional extras as updates after. Since then:
+fatigue, the hut detour, a harder lap 2 and the pitched jingles were built (above), so
+**Gate Q4b is passed for the build he played, and the final build (fatigue, lap 2, jingles)
+is for him to play before the tag.**
+
+**Phase Q5 (release) is prepared:**
+- `Utilities/pack-store-zip.sh` (from Knitting's), the CI step and the `trailquest-store-zip`
+  artifact (a dry run until a `trailquest-v*` tag); the packager's dry run passes and its
+  refusal of a version that is not the tag's works (the development-ID refusal is from Knitting's script);
+- the manifest in the portal's form, six store previews (`docs/experiments/store_previews.sh`),
+  `CHANGELOG.md` (1.0.0 not yet released) and **`docs/SUBMISSION.md`**: the release day
+  step by step, the store text and the facts it rests on.
+**Jon's part:** play the final build; create the app on the portal for the App ID (Claude pastes
+it into the three places); make the tag `trailquest-v1.0.0` (a session cannot push tags);
+upload the zip.
+
 **Gate Q4b: what Jon must test** (the CI build, `watch-apps`): finish a full run.
 
 1. Do stage 4 and 5's spirits read well on the watch? Snow Fox against Red Fox,

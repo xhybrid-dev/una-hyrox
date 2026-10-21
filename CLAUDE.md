@@ -264,7 +264,12 @@ creatures, moves, art or type chart (brief section 9).
     starts just before a stage's boss and captures its warning and twist. All
     replace the save in `Software/Output`; `TRAILQUEST_SEED` fixes the simulator's seed;
   - art: `python3 trailquest/Tools/Art/gen_art.py` (writes the sprites and a
-    preview sheet); icons: `python3 trailquest/Resources/make_icons.py`.
+    preview sheet); icons: `python3 trailquest/Resources/make_icons.py`;
+  - release (Q5): the store package `trailquest/Utilities/pack-store-zip.sh` (CI artifact
+    `trailquest-store-zip`; a dry run until a `trailquest-v*` tag; the tag, the portal
+    app and the upload are Jon's), previews `docs/experiments/store_previews.sh`, other
+    captures `capture_skill.sh`, `capture_beats.sh`, `capture_finale.sh`; the steps and the
+    store text: `docs/SUBMISSION.md`; `CHANGELOG.md`.
 
 ## Knitting (`knitting/`)
 An eighth app: a knitting counter. Press a button for every row, group rows into

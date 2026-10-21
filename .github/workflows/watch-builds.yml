@@ -195,6 +195,28 @@ jobs:
           path: knitting/Output/Knitting-*.zip
           if-no-files-found: error
 
+      - name: Trail Quest store package
+        # The same as Knitting's, from trailquest/Utilities/pack-store-zip.sh: the app's
+        # .uapp, manifest, icon and previews in one zip. A dry run unless the push is a
+        # trailquest-v* tag, when the script also refuses a binary whose version is not
+        # the tag's and a package still carrying the development APP_ID. See
+        # trailquest/docs/SUBMISSION.md.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            trailquest-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#trailquest-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash trailquest/Utilities/pack-store-zip.sh $EXPECT
+
+      - name: Upload the Trail Quest store package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trailquest-store-zip
+          path: trailquest/Output/TrailQuest-*.zip
+          if-no-files-found: error
+
   host-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
