@@ -111,6 +111,11 @@ void MapScreen::showCardFor(const WorldView& w)
     }
     mCard.show(lines);
     mMode = Mode::Card;
+    if (w.arrive.what == Arrival::Hut) {
+        mModel.playFx(FxId::Hut);
+    } else if (w.arrive.what == Arrival::Found) {
+        mModel.playFx(FxId::Found);
+    }
     refresh();
 }
 

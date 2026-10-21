@@ -257,6 +257,7 @@ void Service::playFx(TrailQuest::FxId id)
         for (uint8_t i = 0; i < p.buzzerCount && n < SDK::Message::RequestBuzzerPlay::skMaxNotes; ++i, ++n) {
             buzzer->notes[n].time   = p.buzzer[i].ms;
             buzzer->notes[n].volume = p.buzzer[i].volume;
+            buzzer->notes[n].frequency = p.buzzer[i].hz;   // SDK v1.6.0; firmware 1.6+ is required
         }
         buzzer->notesCount = n;
         buzzer.send();

@@ -824,6 +824,20 @@ and numbers in `BALANCE.md`, "Fatigue carries over" and "The second lap"):
 Host tests 197 (the hut is optional, no boss refill, the small breather, a loss before
 any hut returns to the start, lap spirits relative to the runner).
 
+### Pitched jingles (21 October 2026)
+
+Jon: "the buzzes are all the same pitch, it doesn't change, only the beat and tempo;
+more jingle would be fine; firmware 1.6+ is mandatory." (He also confirmed the backlight
+behaviour is fine, closing that Gate Q0 item.) `Feedback.hpp`: each buzzer note has a
+pitch (`hz`, 500-20000, 0 for a rest; the service sets `Note.frequency`, SDK v1.6.0). The six old
+patterns are now short jingles (rising for good news, falling for bad), and seven are
+new: Boss warning (two-tone alarm, when a boss tells), Stage clear, Finale (the summit's
+card), Fuel (an item used), Found (a find or cache), Hut (arriving at one), Join (a
+spirit joins; it used Win). Host tests 200: every pitch in range and rests silent,
+good news rises and bad falls, none longer than a second (the finale 1.1 s is the
+longest), every pair distinct. Not heard on a watch yet: whether the notes read as tunes
+on the real buzzer, and whether any is too long or too shrill, are Jon's ears to judge.
+
 **Gate Q4b: what Jon must test** (the CI build, `watch-apps`): finish a full run.
 
 1. Do stage 4 and 5's spirits read well on the watch? Snow Fox against Red Fox,

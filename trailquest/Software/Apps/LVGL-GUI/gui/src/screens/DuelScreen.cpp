@@ -144,7 +144,7 @@ void DuelScreen::toChoose()
             LOG_INFO("tell: %u, turn %u\n", static_cast<unsigned>(d.tell), static_cast<unsigned>(d.turn));
             mCard.show(lines, Ui::Ink::kRed);
             setMode(Mode::Tell);
-            mModel.playFx(FxId::Miss);   // a short low buzz: look out
+            mModel.playFx(FxId::BossWarning);   // the boss tells: look out
             return;
         }
     }
@@ -478,6 +478,9 @@ void DuelScreen::showEvent(uint8_t i)
         case EventKind::Healed:
         case EventKind::UsedItem:
             mShownRunner = addTo(mShownRunner, e.amount, d.runner.max);
+            if (e.kind == EventKind::UsedItem) {
+                mModel.playFx(FxId::Fuel);
+            }
             break;
         case EventKind::Rested:
             mShownSpirit = addTo(mShownSpirit, e.amount, d.spirit.max);

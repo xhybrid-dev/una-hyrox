@@ -49,7 +49,7 @@ void ClearScreen::onShow()
         setArcs(Buttons::NONE, Buttons::NONE, Buttons::GREEN, Buttons::RED);
     }
     mCard.show(lines);
-    mModel.playFx(FxId::Win);
+    mModel.playFx(finished() ? FxId::Finale : FxId::StageClear);
 }
 
 void ClearScreen::onKey(uint8_t code)

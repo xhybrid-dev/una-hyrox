@@ -115,7 +115,7 @@ void OfferScreen::onWorld()
     }
     const WorldView& w = mModel.world();
     if (!mModel.lost() && w.cause == ViewCause::Joined) {
-        mModel.playFx(FxId::Win);
+        mModel.playFx(FxId::Join);
     }
     if (mModel.lost() || w.cause == ViewCause::Refused) {
         setMode(Mode::Offer);
