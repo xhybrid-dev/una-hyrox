@@ -9,7 +9,7 @@
   "appVersion": "0.1.0",
   "minKernelVersion": "1.4.0",
   "requiredHardware": [],
-  "description": "Count your knitting rows and sets on your wrist. Press once for every row, start the next set when you finish one, and see the rows in this set, the set you are on and your total at a glance. Hold a button to take a row back or to start again. Your count is saved on the watch, so the app opens exactly where you left off. Nothing is sent to the phone, the UNA app or Strava.",
+  "description": "Count your knitting rows and sets on your wrist. Press once for every row, start the next set when you finish one, and see the rows in this set, the set you are on and your total at a glance. Every button is named on the screen. Hold a button to take a row back or to start again. Your count is saved on the watch, so the app opens exactly where you left off. Nothing is sent to the phone, the UNA app or Strava.",
   "supportsLaps": false,
   "supportsDistance": false,
   "supportsTrack": false,

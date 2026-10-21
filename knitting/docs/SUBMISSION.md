@@ -9,18 +9,42 @@ Everything that can be done without Jon is done. What is left:
 - Jon's check of the holds on the watch (Gate K2), if not already done;
 - the release day below.
 
+## Releasing the update, 1.1.0 (21 October 2026)
+
+Knitting 1.0.0 is on the portal (App ID `CDA5282FFDCE502F`). 1.1.0 is a new **version** of
+the same app, not a new listing: the labels on the buttons, and a new icon. Nothing else in
+the app changes.
+
+1. **Merge the branch** `claude/x-rows` into the default branch, or tell Claude to.
+2. **Make the tag `knitting-v1.1.0` on GitHub** (steps at the end of this file, with
+   `1.1.0` for `1.0.0`). Claude's session cannot push tags.
+3. **Wait about five minutes** for *Watch builds* on the tag. Download
+   **knitting-store-zip** (it holds `Knitting-1.1.0.zip`) and **watch-apps**
+   (`Knitting_1.1.0.uapp`).
+4. **Install that binary by USB and check it once.** Copy `Knitting_1.1.0.uapp` into
+   `Apps/Knitting/`, **delete the old `.uapp` there**, keep `state.txt`, eject, power-cycle.
+   Look for: the four labels (are they readable, and clear of the bezel?), the **new icon in
+   the launcher** (the ball and needles should now stand out from the blue), and that your
+   count is still there.
+5. **Upload.** On the portal, Knitting's **Version** tab: **Upload New**, choose
+   `Knitting-1.1.0.zip` (the zip itself), then **Release**, then **Confirm and Publish**.
+6. **Update from the store** through the UNA app, after removing the USB copy (the `.uapp`
+   only), and check the same things.
+
+If the portal refuses the zip, send Claude its message.
+
 ## Where things stand
 
 | | |
 |---|---|
-| App | K0 (counter), the saved count, and the holds (reset, undo) are built. 44 host tests |
+| App | The counter, the saved count, the holds (reset, undo) and the button labels are built. 44 host tests |
 | App ID | **Issued by the portal (16 October 2026) and in place:** `CDA5282FFDCE502F`, in `Software/Apps/Knitting-CMake/CMakeLists.txt`, `Resources/app-manifest.json` and the simulator's `CMakeLists.txt`. It replaces the development ID `E7D056DCC90561F1`, which the packager refuses on a release |
 | Package | Built by CI on every push, in the `knitting-store-zip` artifact: `Knitting-<version>.zip`. A dry run until the commit is tagged |
 | Manifest | Checked by the packager: the activity keys the portal requires, no `previews` key (the lessons of X Weigh-in 1.0.0), no phone settings, `minKernelVersion` stamped from the SDK's ABI |
-| Icon | `Resources/icon_60x60.png` (shipped as `icon.png`), lime needles over a ball of yarn |
+| Icon | `Resources/icon_60x60.png` (shipped as `icon.png`): a white ball of yarn with black bands, lime needles crossed above it, on a black disc. Made for the launcher, which shows icons in shades of blue by brightness (NOTES, "Icon options") |
 | Previews | Four 480×480 simulator screens in `Resources/previews/`, from `docs/experiments/store_previews.sh` (a made-up project: 6 rows, Set 3, 22 in all) |
 | Store images | In `docs/store/`: the four previews, each screen on a teal and a white UNA watch (8 mock-ups), five feature cards and a banner. Made by `docs/experiments/store_images.py`; see `docs/store/README.md`. Only the previews go in the zip |
-| Version | 1.0.0, from the one tag `knitting-v1.0.0` |
+| Version | 1.0.0 released (tag `knitting-v1.0.0`); **1.1.0** is next, from the tag `knitting-v1.1.0` |
 
 ## The release day (about half an hour of Jon's time)
 

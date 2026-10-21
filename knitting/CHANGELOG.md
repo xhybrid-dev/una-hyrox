@@ -10,6 +10,12 @@ the prefix for the SDK's version script.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-21
+
+An update to the store release, tagged `knitting-v1.1.0` (same App ID,
+`CDA5282FFDCE502F`; the portal matches the new version to the app by it). The
+counter and its holds are as in 1.0.0; this adds the labels and a new icon.
+
 ### Added
 
 - **Each button is named on the screen.** "New set" (L1) and "Knit row" (R1)
@@ -17,6 +23,14 @@ the prefix for the SDK's version script.
   bottom left (hold L2), so nothing has to be remembered. Taps are white, holds
   amber, as the hold prompts are. The numbers move down a little to make room;
   with the largest numbers (888 rows, Set 88, Total 8888) nothing overlaps.
+
+### Changed
+
+- **A new icon that shows up in the launcher.** The same picture, a ball of yarn
+  with two needles crossed above it, in colours made for the watch's launcher. It
+  draws an icon in shades of blue by brightness, so the old dark grey disc, grey
+  wraps and thin lime needles faded into its blue. Now: a black disc, a white ball
+  with three black bands of yarn, thicker lime needles with a black edge.
 
 ## [1.0.0] - 2026-10-16
 
