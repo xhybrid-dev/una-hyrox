@@ -434,3 +434,18 @@ these rules: `needle-A-black-disc`, `needle-B-no-disc`, `needle-C-ringed` (black
 white rim), each as `_60x60.png` and `_30x30.png`, and `launcher-sheet.png` compares them
 with the live icon and the first drawing of option 4, in real colours and as simulated.
 The live icon is still unchanged until one is chosen.
+
+### Icon: the original ball, recoloured (21 October 2026)
+
+Jon did not want the loops or a rim: **keep the original ball, improve its colours for the
+launcher.** `Resources/icon-options/make_ball_icons.py` redraws the live icon's picture (a ball
+of yarn with two needles crossed above it) by the launcher's rules (see "Option 4, redrawn
+for the launcher" above): bright colours, no mid-tones, thick strokes, a black edge round
+every shape.
+
+Changes from the live icon: a black disc instead of dark grey (or none); the ball white with
+three black diagonal bands of yarn instead of two grey arcs (arcs looked like a face when
+tried); the needles thicker, with a black edge where they cross; the knobs larger. Three
+treatments: `ball-A-black-disc`, `ball-B-no-disc`, `ball-C-yellow-ball` (black disc, a
+yellow ball, white needles), each as `_60x60.png` and `_30x30.png`, and `ball-sheet.png`.
+Not yet chosen, so the live icon is still unchanged.
