@@ -1,0 +1,212 @@
+# X Sauna: notes
+
+An on-watch sauna and cold-plunge tracker. Start a session as **Sauna → Cold
+plunge** or **Just sauna**, press a lap button to swap phase, and record time,
+heart rate and temperature. Based on a workout: the session becomes an activity
+(a FIT file that syncs to UNA and on to Strava), not a utility. Independent of
+the other apps.
+Started from Knitting's layout (itself from the SDK's Waypoint tutorial, LVGL).
+
+## Why this app (20 October 2026)
+
+Jon's request: "a sauna tracking app, probably based on workout. Two options:
+Sauna → Cold plunge, or Just sauna. Lap buttons to swap. Time, heart rate and
+temperature recording." He asked for further ideas; of those offered he chose
+**HR recovery** and a **Rest phase**.
+
+## Decisions
+
+Planned with Jon on 20 October 2026 (plan approved for SA0 only):
+
+- **Name: X Sauna** (working name; Jon can change it, as Knitting's changed).
+  Folder `x-sauna/`, `X Sauna` on the watch (7 bytes), `XSauna` as the build and
+  file name, tags `sauna-vX.Y.Z`. The development APP_ID is the first 16 hex of
+  md5("XSauna"), `400AE282F6C2C161`, the convention Knitting and X Weigh-in
+  followed (checked: md5("XWeighIn") gives their development ID). The portal
+  issues the real one at SA4.
+- **In the first version:** the two session types and the lap swap; time, heart
+  rate and temperature recorded to a FIT file; **HR recovery** (how far heart
+  rate falls in the minute after a phase change); an optional **Rest phase**
+  (Sauna → Plunge → Rest → ...).
+- **Offered and not chosen:** target times with a buzz and a heart-rate ceiling
+  from the phone settings; a typed-in sauna temperature. The second comes back
+  at Gate 0 if the sensor turns out to be no use in the heat (below).
+- **Open for Jon:** whether the watch is rated for a sauna and for water (below).
+  Nothing in the SDK says either way.
+
+## What the platform gives us (20 October 2026)
+
+- **Heart rate:** `HEART_RATE` (bpm and a trust level) and `HEART_RATE_EX` exist.
+  HybridX Race already records HR a second into a FIT file with laps, developer
+  fields and crash recovery (`hybridx-race/Software/Libs/Header/ActivityWriter.hpp`).
+- **Temperature: the risk.** `SDK::Sensor::Type::AMBIENT_TEMPERATURE` (0x70),
+  parser `SensorDataParserTemperature.hpp`: one float, "°C (or device-specific
+  units)", `-273.15` when invalid. `Docs/SensorsLayer.md` marks it `TEMP (float
+  °C?)`. Nothing says whether it is the air around the watch or a body or board
+  reading, how quickly it responds, or where it tops out. HybridX Race's
+  `ROADMAP.md` section 2 reached the same point and never connected it. Sauna
+  air is typically 80 to 100 degrees, far beyond what a wearable is designed for.
+- **The simulator cannot supply it.** `Docs/Simulator.md` lists GPS, heart rate,
+  battery, pressure, the IMU and steps. The service makes a reading up under
+  `SIMULATOR` (`Core/Header/SimTemp.hpp`) and the screen says "made up".
+- **FIT:** `FitProfile.hpp` has no temperature field on `Record`. The public
+  profile has `Record.temperature` as field 13, `sint8`, whole degrees C (from
+  Race ROADMAP 2.2: **not yet checked by a decode round trip**, which is SA2's
+  job). No sauna sport is known; the safe default is `training`/`generic`, as
+  Race's NOTES 5.12 settled (Garmin ignored the other sub-sport candidates). Never
+  invent FIT numbers: look one up in the profile tables and decode it back.
+- **Buttons:** four. R2 is back. A long press has to be derived from press and
+  release codes (`HoldTimer.hpp` in Knitting). The GUI runs at 10 frames a second;
+  the face is round.
+- **Streak interplay:** HybridX Streak counts every activity the watch records,
+  so a sauna session will count towards the streak once it is an activity.
+- **Appending to a file that already exists works on the watch** (X Weigh-in W2),
+  which the probe's log relies on.
+
+## Phases
+
+| Phase | Work | Gate |
+|---|---|---|
+| **SA0** | Identity, scaffold, CI build, and a **probe screen** that logs temperature and heart rate once a second to a CSV | Jon runs the staged test and sends the CSV: is the sensor there, what unit, ambient or skin, how it behaves when hot, wet or cold |
+| SA1 | The pure core with an injected clock, host-tested: session model, phases, laps, HR recovery, text | Host tests pass |
+| SA2 | The service and the FIT file: HR and temperature a second, laps with developer fields, crash recovery; APP_TYPE moves to Activity | A FIT file decodes and shows in Garmin and Strava; temperature round-trips |
+| SA3 | The LVGL screens: start, live, summary | Jon uses it on the wrist in a real session |
+| SA4 | Store release: icon, package, `SUBMISSION.md`, 1.0.0 | Installed from the store |
+
+Outline of later phases (refined at each gate):
+
+- **SA1:** `SessionModel` with an injected clock and unsigned deltas for the
+  wrapping millisecond clock; modes Sauna+Plunge and Just sauna, optional Rest;
+  per-phase laps with HR average and maximum and temperature average and
+  maximum; HR recovery as the drop from the heart rate at the end of a phase to
+  the heart rate 60 s later, "no result" when HR is missing; integer formatting.
+- **SA2:** a trimmed copy of Race's `ActivityWriter` (Race's carries race-specific
+  fields; the apps stay independent). HR and temperature per record, laps with
+  developer fields for phase type, round and HR recovery. Fixed-size messages.
+- **SA3:** R1 swaps phase (the main action); L1 pause and resume; a way to
+  insert Rest; R2 exits with a hold-to-stop confirm. Final map to match Race's
+  conventions once read. Phase colours: sauna warm, plunge cool, rest neutral.
+  The summary shows rounds, time in each phase, peak temperature, peak HR and
+  best recovery.
+
+## SA0: the heat probe (20 October 2026)
+
+### Layout
+
+- `Software/Libs/Core` (pure C++, host-tested; header-only where the GUI uses it):
+  - `FixedPoint.hpp`: a float as hundredths and back to text, with no `%f`;
+  - `ProbeStats.hpp`: last, lowest, highest, count and the gaps between samples
+    (the sensor's own timestamps, unsigned differences);
+  - `ProbeSnapshot.hpp`: the readings as the screen shows them;
+  - `ProbeCsv.hpp` and `Sources/ProbeCsv.cpp`: the log's lines, and a counter
+    for the "# run" lines so each run can be numbered;
+  - `SimTemp.hpp`: the made-up temperature for the simulator.
+- `Software/Libs/App`: `Service` (sensors, log, messages) and `Commands.hpp`
+  (one Service → GUI message, two GUI → Service; the update is 96 bytes on a
+  64-bit host, less on the watch, and has a `static_assert` against the 256-byte
+  pool block).
+- `Software/Apps/LVGL-GUI`: `ProbeScreen`, the model, the simulator.
+  Fonts are Knitting's generated Poppins files, unchanged.
+- `Software/Apps/Sauna-CMake`: the watch build. `APP_TYPE` is `Utility` for now.
+- `Resources/make_icons.py`: a placeholder icon (steam over hot stones).
+- CI: `watch-builds.yml` builds it (`sauna`), collects the `.uapp`, and runs the
+  host tests.
+
+### What the probe does
+
+It connects `AMBIENT_TEMPERATURE` and `HEART_RATE` at their default period and
+latency, as the SDK's Sensors tutorial does (the point is to see what they do
+by themselves), for as long as the screen is open and for at most 45 minutes.
+Once a second it writes a row to `heat-probe.csv` in the app's folder
+(`Apps/XSauna/` over USB), in batches of five seconds, so a watch that gets too
+hot to carry on has still saved everything but the last few seconds.
+
+The log (`Core/Header/ProbeCsv.hpp` has the full column notes):
+
+```
+ms,t_s,mark,temp_x100,temp_n,temp_bad,temp_fields,temp_gap_ms,hr,trust_x100,hr_n
+# run 1 2026-10-20 19:28:21
+# sensors: temperature connect failed, heart rate no data
+1001,1,0,2200,1,0,1,0,,,0
+2003,2,0,2200,2,0,1,1002,62,300,1
+```
+
+- `temp_x100` is the sensor's number times 100, **in whatever unit the driver
+  uses**: the probe assumes nothing. Blank until a valid sample.
+- `temp_bad` counts samples the parser rejected, and `temp_fields` how many
+  fields the driver sends (the parser wants exactly one).
+- `temp_gap_ms` is the time between the last two temperature samples, from the
+  sensor's own timestamps: how often it really reports.
+- `mark` counts presses of R1: the way to say "I have just gone in".
+- Each run starts with a `# run N <local time>` line. One file holds every run.
+  Read it in a spreadsheet or pandas with comment lines skipped (`#`).
+
+Screen (simulator frame; on a watch "made up" reads "temperature sensor, raw"):
+
+![The heat probe in the simulator](screens/sa0-3-climbing.png)
+
+| Button | Action |
+|---|---|
+| R1 | Put a marker in the log (a short buzz) |
+| L1 | Start the lowest and highest readings again |
+| R2 | Exit |
+
+Colours: the big temperature is white while it is being read, amber while
+waiting for the first sample and red if the sensor is not offered; the heart
+rate is green once samples arrive. "NO LOG" in red means a write to the file
+failed.
+
+### SA0 verified (20 October 2026)
+
+- **Host tests:** 41 pass, no warnings (`FixedPointTest`, `ProbeStatsTest`,
+  `ProbeCsvTest`, `SimTempTest`): rounding and saturation, text at every buffer
+  size with a guard byte, the wrapping clock, run counting at every chunk size.
+- **Simulator** (`docs/experiments/capture_screens.sh`, about 90 seconds):
+  - a log with a header, a run line, a sensors note, a row a second, the two
+    markers in the `mark` column (first at 11 s) and a closing note;
+  - the sensors note says "temperature connect failed" in the simulator, as it
+    has no temperature sensor, and the screen shows the made-up curve in blue;
+  - R2 exits and takes the service with it.
+- **Watch target, local compile check:** Ubuntu's `arm-none-eabi-gcc` with Race's
+  syscall stubs (recipe in Trail Quest's NOTES, "Toolchain notes"), both
+  processes link, `XSauna_0.0.0-dev.uapp` is 194,728 bytes, no warnings from our
+  code. **Not installable**; the watch copy comes from CI.
+- **Not verified:** nothing has run on a watch. CI has not run on this branch.
+  Whether `AMBIENT_TEMPERATURE` can be connected on the watch at all (the
+  simulator says nothing about that). That is what Gate 0 is for.
+
+## Gate SA0: what Jon tests on the watch
+
+Do these in order and stop at the first surprise. Steps 1 and 2 need nothing
+special; steps 4 and 5 put the watch in the heat and in water, **so do them only
+if UNA's published limits for this watch allow it**. The SDK documents neither,
+and I cannot tell you.
+
+1. **Install.**
+   - On GitHub, Actions, take the newest green **Watch builds** run on the branch
+     `claude/x-sauna-sa0` and download **watch-apps**.
+   - Over USB, create `Apps/XSauna/` on the watch and copy `XSauna_*.uapp` into it.
+   - Eject safely, then power-cycle the watch (as for the other apps).
+2. **On a table, indoors, ten minutes.** Open X Sauna, leave it, note the room
+   temperature from a thermometer you trust.
+   - Is the big number a plausible room temperature? About 20 to 25 means
+     degrees C; about 295 would be kelvin; about 70 would be Fahrenheit.
+   - Is "no temperature sensor" shown? Then say so and stop: that is an answer.
+3. **On the wrist, indoors, ten minutes.** Press R1 as you put it on. Does the
+   number climb towards body temperature (30 or more, a skin or board
+   reading) or stay near the room's (an ambient one)? Does heart rate show, and
+   what does "trust" say?
+4. **Optional, the sauna (only if rated for it).** Lowest bench, ten minutes at
+   most. R1 when you go in and when you come out. Watch whether the number keeps
+   rising or stops at a ceiling, and how long it takes to settle.
+5. **Optional, a cold plunge (only if rated for water).** R1 in and out. Heart
+   rate in cold water is a separate question from temperature: does it hold?
+6. **Send me `Apps/XSauna/heat-probe.csv`**, and what each marker meant.
+
+What the answers decide:
+- **A real air temperature that reads true in the heat:** record it as it is.
+- **A body or board temperature, or one that tops out low:** record it labelled
+  "watch temp", or drop it.
+- **No use at sauna heat:** the typed-in sauna temperature comes back as a
+  question for you.
+- **No sensor:** the same, and temperature in the FIT file goes.
