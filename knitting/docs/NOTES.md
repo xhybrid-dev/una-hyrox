@@ -449,3 +449,13 @@ tried); the needles thicker, with a black edge where they cross; the knobs large
 treatments: `ball-A-black-disc`, `ball-B-no-disc`, `ball-C-yellow-ball` (black disc, a
 yellow ball, white needles), each as `_60x60.png` and `_30x30.png`, and `ball-sheet.png`.
 Not yet chosen, so the live icon is still unchanged.
+
+### Icon A is now the live icon; 1.1.0 prepared (21 October 2026)
+
+Jon chose **A (black disc)**. `Resources/make_icons.py` now draws it (self-contained; the
+output is byte-for-byte `icon-options/ball-A-black-disc_*.png`), so `icon_60x60.png` and
+`icon_30x30.png` are the new icon and go in the next package. `icon-options/` stays as the
+record of what was considered. The release is **1.1.0** (the labels and the icon; the counter
+and holds are unchanged since 1.0.0): `CHANGELOG.md`, `docs/SUBMISSION.md` ("Releasing the
+update") and the manifest's description (adds that every button is named on the screen) are
+written for it. Tag `knitting-v1.1.0` is Jon's to make.
