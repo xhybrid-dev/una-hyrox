@@ -23,10 +23,19 @@ namespace Color = SDK::GUI::Color;
 namespace
 {
 constexpr int32_t kBarX = 60;
-constexpr int32_t kBarY = 202;
+constexpr int32_t kBarY = 193;
 constexpr int32_t kBarW = 120;
 constexpr int32_t kBarH = 6;
 constexpr uint32_t kTickMs = 40;
+
+// The button labels' boxes (x, y, width), in 240x240 display coordinates.
+constexpr int32_t kLabelLeftX   = 44;
+constexpr int32_t kLabelRightX  = 106;
+constexpr int32_t kLabelW       = 90;
+constexpr int32_t kLabelTopY    = 30;
+constexpr int32_t kLabelStep    = 16;
+constexpr int32_t kLabelBottomY = 203;
+constexpr int32_t kLabelBottomX = 60;      // the display is round: further left is cut off
 } // namespace
 
 MainScreen::MainScreen(Model& model)
@@ -36,10 +45,22 @@ MainScreen::MainScreen(Model& model)
     Draw::applyScreen(mRoot);
     lv_obj_add_event_cb(mRoot, &MainScreen::keyEventCb, LV_EVENT_KEY, this);
 
-    // Centred rows, clear of the bezel button hints at the corners.
-    mRows   = Draw::label(mRoot, &poppins_light_60, "0", 20, 52, 200);
-    mSet    = Draw::label(mRoot, &poppins_semibold_25, "Set 1", 20, 128, 200);
-    mStatus = Draw::label(mRoot, &poppins_regular_18, "Total 0", 20, 170, 200,
+    // What each button does, in the corner beside its bezel button: white for a
+    // tap, amber for a hold (the colour of the hold's own prompt and bar).
+    // L1 and R1 are the top corners, L2 the bottom left.
+    Draw::label(mRoot, &poppins_regular_14, "New set", kLabelLeftX, kLabelTopY, kLabelW,
+                LV_TEXT_ALIGN_LEFT, Color::WHITE);
+    Draw::label(mRoot, &poppins_regular_14, "Knit row", kLabelRightX, kLabelTopY, kLabelW,
+                LV_TEXT_ALIGN_RIGHT, Color::WHITE);
+    Draw::label(mRoot, &poppins_regular_14, "Hold: undo", kLabelRightX, kLabelTopY + kLabelStep, kLabelW,
+                LV_TEXT_ALIGN_RIGHT, Color::YELLOW_DARK);
+    Draw::label(mRoot, &poppins_regular_14, "Hold: reset", kLabelBottomX, kLabelBottomY, kLabelW,
+                LV_TEXT_ALIGN_LEFT, Color::YELLOW_DARK);
+
+    // The numbers, centred and clear of the labels.
+    mRows   = Draw::label(mRoot, &poppins_light_60, "0", 20, 62, 200);
+    mSet    = Draw::label(mRoot, &poppins_semibold_25, "Set 1", 20, 130, 200);
+    mStatus = Draw::label(mRoot, &poppins_regular_18, "Total 0", 20, 167, 200,
                           LV_TEXT_ALIGN_CENTER, Color::GRAY);
 
     // The progress of a hold, under the bottom line. Hidden until one starts.
