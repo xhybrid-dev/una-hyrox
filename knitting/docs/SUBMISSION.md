@@ -68,6 +68,8 @@ Count your knitting rows and sets on your watch, one press per row.
 >   and your total show beneath.
 > - Finished a set? One press starts the next, and the rows begin again from
 >   zero. "8 rows, four times" is just eight presses, a press, and again.
+> - Every button is named on the screen, so there is nothing to remember: knit
+>   row, new set, and the two holds.
 > - Pressed too often? Hold the row button for a moment to take the last row
 >   back.
 > - Want to start again? Hold the reset button. It needs a hold, so a stray tap
@@ -82,6 +84,7 @@ Count your knitting rows and sets on your watch, one press per row.
 > Made by HybridX.
 
 **Facts checked against the code:**
+- The four labels (New set, Knit row, Hold: undo, Hold: reset): `MainScreen.cpp`.
 - A row counts on a press of R1 (a slow press too): `HoldTimer`, `MainScreen`.
 - The next set starts on L1, and only if the current set has a row, so a double
   press does not leave an empty set: `RowCounter::nextSet`.
