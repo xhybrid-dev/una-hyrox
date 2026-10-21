@@ -21,9 +21,16 @@ bool isOut(SpeciesId id, TimeOfDay tod)
     return (speciesDef(id).flags & kSpeciesNight) == 0 || tod != TimeOfDay::Day;
 }
 
-uint8_t lapped(uint32_t level, uint8_t lap)
+uint8_t lapped(const StageDef& stage, uint32_t level, uint8_t lap, uint8_t runnerLevel)
 {
-    const uint32_t v = level + static_cast<uint32_t>(kLapLevelStep) * lap;
+    uint32_t v = level + static_cast<uint32_t>(kLapLevelStep) * lap;
+    if (lap > 0 && runnerLevel != kNone) {
+        // As far above par as this level is in its band, from where the runner is now.
+        const int32_t above = static_cast<int32_t>(level) - static_cast<int32_t>(stage.parLevel);
+        int32_t rel = static_cast<int32_t>(runnerLevel) + above + static_cast<int32_t>(kLapRelativeLevels) * lap;
+        rel = rel < 1 ? 1 : rel;
+        v = v > static_cast<uint32_t>(rel) ? v : static_cast<uint32_t>(rel);
+    }
     return clampLevel(static_cast<uint8_t>(v > kMaxLevel ? kMaxLevel : v));
 }
 } // namespace
@@ -51,16 +58,22 @@ SpeciesId pickSpecies(const StageDef& stage, TimeOfDay tod, Rng& rng)
     return n == 0 ? static_cast<SpeciesId>(Spirit::RedFox) : out[rng.below(n)];
 }
 
-uint8_t pickLevel(const StageDef& stage, uint8_t lap, Rng& rng)
+uint8_t pickLevel(const StageDef& stage, uint8_t lap, Rng& rng, uint8_t runnerLevel)
 {
     const uint8_t lo = stage.levelMin;
     const uint8_t hi = stage.levelMax >= lo ? stage.levelMax : lo;
-    return lapped(lo + rng.below(static_cast<uint32_t>(hi - lo) + 1u), lap);
+    return lapped(stage, lo + rng.below(static_cast<uint32_t>(hi - lo) + 1u), lap, runnerLevel);
 }
 
-uint8_t bossLevel(const StageDef& stage, uint8_t lap)
+uint8_t bossLevel(const StageDef& stage, uint8_t lap, uint8_t runnerLevel)
 {
-    return lapped(static_cast<uint32_t>(stage.levelMax) + kBossLevelAbove, lap);
+    return lapped(stage, static_cast<uint32_t>(stage.levelMax) + kBossLevelAbove, lap, runnerLevel);
+}
+
+uint8_t lapSpiritPct(uint8_t stage, uint8_t lap)
+{
+    const uint32_t pct = static_cast<uint32_t>(spiritPct(stage)) + static_cast<uint32_t>(kLapStaminaPct) * (lap > 20u ? 20u : lap);
+    return static_cast<uint8_t>(pct > 200u ? 200u : pct);
 }
 
 ItemId pickFind(Rng& rng)

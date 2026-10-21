@@ -61,13 +61,20 @@ void Run::rest(RunPhase phase)
     mWantsSave = true;
 }
 
-void Run::startStage(uint8_t st)
+void Run::startStage(uint8_t st, bool fullRest)
 {
     mState.stage   = st < kStageCount ? st : 0u;
     mState.node    = 0;
     mState.hutNode = 0;
     mState.weather = static_cast<uint8_t>(stage().weather[mRng.below(2)]);
-    mState.stamina = runnerMaxWithPartners(mState).stamina;
+    const uint16_t max = runnerMaxWithPartners(mState).stamina;
+    if (fullRest) {
+        mState.stamina = max;   // a new game, or the morning of a new lap
+    } else {
+        // On to the next stage: half of what is missing comes back on the way up.
+        const uint16_t have = mState.stamina < max ? mState.stamina : max;
+        mState.stamina = static_cast<uint16_t>(have + (max - have) * kStageRestPct / 100u);
+    }
     rest(RunPhase::AtNode);
     syncRng();
 }
@@ -158,7 +165,7 @@ ArriveResult Run::travel(uint8_t exitIndex)
 
         case NodeKind::Encounter: {
             const SpeciesId sp    = pickSpecies(stage(), timeOfDay(), mRng);
-            const uint8_t   level = pickLevel(stage(), mState.lap, mRng);
+            const uint8_t   level = pickLevel(stage(), mState.lap, mRng, mState.level);
             startDuel(sp, level);
             r.what = Arrival::Duel;
         } break;
@@ -186,9 +193,8 @@ ArriveResult Run::travel(uint8_t exitIndex)
             break;
 
         case NodeKind::Boss:
-            // The runner gathers themself at the foot of it: full stamina.
-            mState.stamina = runnerMaxWithPartners(mState).stamina;
-            startDuel(stage().boss, bossLevel(stage(), mState.lap));
+            // No breather at the foot of it: the hut is how a runner prepares.
+            startDuel(stage().boss, bossLevel(stage(), mState.lap, mState.level));
             r.what = Arrival::Boss;
             break;
 
@@ -251,7 +257,7 @@ void Run::startDuel(SpeciesId sp, uint8_t level)
     s.weather       = mState.weather < static_cast<uint8_t>(Weather::Count) ? static_cast<Weather>(mState.weather)
                                                                            : Weather::Clear;
     s.dark          = dark();
-    s.staminaPct    = spiritPct(mState.stage);
+    s.staminaPct    = lapSpiritPct(mState.stage, mState.lap);
     s.technique     = bestTechnique(s);
     s.skills[0]     = Move::TrailCraft;
     s.skillCount    = 1;
@@ -381,7 +387,7 @@ void Run::nextStage()
         rest(RunPhase::Finished);
         return;
     }
-    startStage(static_cast<uint8_t>(mState.stage + 1u));
+    startStage(static_cast<uint8_t>(mState.stage + 1u), false);
 }
 
 void Run::startNextLap()

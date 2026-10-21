@@ -77,3 +77,27 @@ TEST(Encounter, FindsAreMostlyGels)
     EXPECT_EQ(counts[Item::Headtorch], 0);
     EXPECT_EQ(counts[Item::Poles], 0);
 }
+
+TEST(Encounter, FromTheSecondLapSpiritsAreAtLeastAsHighAsTheRunnerWouldBeAtParPlusALap)
+{
+    for (const StageDef& s : kStages) {
+        Rng r(11);
+        for (int i = 0; i < 200; ++i) {
+            const uint8_t l0 = pickLevel(s, 0, r, 20);   // lap 0 ignores the runner's level
+            EXPECT_GE(l0, s.levelMin);
+            EXPECT_LE(l0, s.levelMax);
+            // A level-20 runner on lap 1: the early stages are no longer a walk-over.
+            const uint8_t l1 = pickLevel(s, 1, r, 20);
+            EXPECT_GE(l1, 19u) << s.name;
+            EXPECT_LE(l1, kMaxLevel);
+        }
+        EXPECT_GE(bossLevel(s, 1, 20), 20u) << s.name;
+        // A weak runner is not made harder than the lap's own rise (+10 levels, held to 20).
+        Rng q(3);
+        const uint8_t weak = pickLevel(s, 1, q, 1);
+        EXPECT_GE(weak, std::min<uint32_t>(s.levelMin + kLapLevelStep, kMaxLevel)) << s.name;
+    }
+    EXPECT_EQ(lapSpiritPct(0, 0), spiritPct(0));
+    EXPECT_EQ(lapSpiritPct(2, 1), spiritPct(2) + kLapStaminaPct);
+    EXPECT_LE(lapSpiritPct(4, 200), 200u);
+}

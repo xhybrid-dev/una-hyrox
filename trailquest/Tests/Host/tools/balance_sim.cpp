@@ -13,8 +13,9 @@
 // reports how often a run is). The player: Tests/Host/tools/Policy.hpp.
 //
 // Targets (proposed at Gate Q1, docs/BALANCE.md): a regular spirit at par,
-// casual skill, 80-95 % won in 3-6 turns on average; a boss, met fresh, 65-85 %
-// (a real arrival is tired: run_sim shows about half beaten first time).
+// casual skill, 80-95 % won in 3-6 turns on average; a boss, met fresh, 65-90 %
+// (a real arrival is tired, since fatigue carries over: run_sim shows about half beaten
+// first time, which is the target there: 50-75 % for a casual player).
 
 #include <cstdio>
 #include <cstdlib>
@@ -122,7 +123,7 @@ const char* flag(const Row& row, uint32_t n)
     const uint32_t pct   = row.won[0] * 100u / n;
     const uint32_t turnsX10 = row.turns[0] * 10u / n;
     if (isBoss(row.sp)) {
-        return (pct < 65 || pct > 85) ? "OFF" : "ok";
+        return (pct < 65 || pct > 90) ? "OFF" : "ok";
     }
     if (pct < 80 || pct > 95) {
         return "OFF";

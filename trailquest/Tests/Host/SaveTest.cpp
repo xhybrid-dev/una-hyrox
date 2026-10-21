@@ -130,7 +130,7 @@ TEST(Save, TheFileIsReadableText)
     run.newGame(3);
     const std::string text = encoded(run.state());
     EXPECT_EQ(text.rfind("tq=1\n", 0), 0u);
-    EXPECT_NE(text.find("\nbag=2,1,0,0,0\n"), std::string::npos);
+    EXPECT_NE(text.find("\nbag=3,1,0,0,0\n"), std::string::npos);
     EXPECT_NE(text.find("\nstage=0\n"), std::string::npos);
 }
 

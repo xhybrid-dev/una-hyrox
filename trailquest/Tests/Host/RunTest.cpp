@@ -423,10 +423,13 @@ TEST(Run, BeatingABossClearsTheStageAndTheNextBegins)
     EXPECT_FALSE(run.lastDuel().joinOffered);
     EXPECT_EQ(run.phase(), RunPhase::StageClear);
     EXPECT_TRUE(run.wantsSave());
+    const uint16_t left = run.state().stamina;
+    const uint16_t full = runnerStats(20).stamina;
     run.nextStage();
     EXPECT_EQ(run.state().stage, 1u);
     EXPECT_EQ(run.state().node, 0u);
-    EXPECT_EQ(run.state().stamina, runnerStats(20).stamina);
+    // On to the next stage: half of what was missing comes back (a new game or lap: all).
+    EXPECT_EQ(run.state().stamina, left + (full - left) * kStageRestPct / 100u);
     EXPECT_EQ(run.phase(), RunPhase::AtNode);
 }
 
@@ -586,4 +589,88 @@ TEST(Run, TheSkillListIsTrailCraftThenEachPartnersMove)
     ASSERT_EQ(alone.travel(0).what, Arrival::Duel);
     EXPECT_EQ(alone.duel().setup().skillCount, 1u);
     EXPECT_EQ(alone.duel().setup().skills[0], Move::TrailCraft);
+}
+
+TEST(Run, FatigueCarriesOnAndOnlyFuelOrTheHutGivesItBack)
+{
+    // A stretch of trail is a breather and no more.
+    TrailQuest::Run run;
+    RunState s = standingAt(1, 0, 10);
+    s.stamina  = 30;
+    run.resume(s);
+    const uint16_t max = runnerMaxWithPartners(run.state()).stamina;
+    run.travel(0);   // the first bend (a duel): the walk gave back its small share
+    EXPECT_EQ(run.duel().setup().runnerStamina, 30u + max * kTravelRecoverPct / 100u);
+    EXPECT_LT(run.duel().setup().runnerStamina, max / 2u);
+
+    // Nor is there a refill at the foot of a boss.
+    TrailQuest::Run boss;
+    RunState b = standingAt(0, 6, 5);
+    b.stamina  = 20;
+    boss.resume(b);
+    ASSERT_EQ(boss.travel(0).what, Arrival::Boss);
+    EXPECT_EQ(boss.duel().setup().runnerStamina, 20u + runnerMaxWithPartners(boss.state()).stamina * kTravelRecoverPct / 100u);
+
+    // The hut fills it.
+    TrailQuest::Run hut;
+    RunState h = standingAt(0, 2, 5);
+    h.stamina  = 10;
+    hut.resume(h);
+    ASSERT_EQ(hut.travel(0).what, Arrival::Hut);
+    EXPECT_EQ(hut.state().stamina, runnerMaxWithPartners(hut.state()).stamina);
+}
+
+TEST(Run, TheHutIsADetourNotOnTheOnlyWay)
+{
+    // In every stage there is a way from the start to the boss that never stops at the hut,
+    // and the hut can be reached from a fork on the way (a detour that costs trail time).
+    for (const StageDef& st : kStages) {
+        std::set<uint8_t> reach = { 0 };
+        for (uint8_t n = 0; n < st.nodeCount; ++n) {
+            if (st.nodes[n].kind == NodeKind::Hut) {
+                continue;
+            }
+            if (reach.count(n) == 0) {
+                continue;
+            }
+            for (uint8_t e = 0; e < st.nodes[n].exitCount; ++e) {
+                if (st.nodes[st.nodes[n].exits[e].to].kind != NodeKind::Hut) {
+                    reach.insert(st.nodes[n].exits[e].to);
+                }
+            }
+        }
+        bool bossReached = false;
+        for (uint8_t n : reach) {
+            bossReached = bossReached || st.nodes[n].kind == NodeKind::Boss;
+        }
+        EXPECT_TRUE(bossReached) << st.name << ": the boss is reachable without the hut";
+        // A fork where the hut is one of two ways.
+        bool fork = false;
+        for (uint8_t n = 0; n < st.nodeCount; ++n) {
+            bool hut = false, other = false;
+            for (uint8_t e = 0; e < st.nodes[n].exitCount; ++e) {
+                (st.nodes[st.nodes[n].exits[e].to].kind == NodeKind::Hut ? hut : other) = true;
+            }
+            fork = fork || (hut && other);
+        }
+        EXPECT_TRUE(fork) << st.name;
+    }
+}
+
+TEST(Run, ALossBeforeAnyHutSendsTheRunnerBackToTheStagesStart)
+{
+    TrailQuest::Run run;
+    RunState s = standingAt(0, 6, 1);
+    s.stamina  = 1;
+    s.hutNode  = 0;   // never reached the hut
+    run.resume(s);
+    ASSERT_EQ(run.travel(0).what, Arrival::Boss);
+    for (int i = 0; i < 40 && run.phase() == RunPhase::InDuel; ++i) {
+        PlayerTurn t;
+        t.action = Action::Settle;
+        t.beat   = BeatResult::Miss;
+        run.duelTurn(t);
+    }
+    ASSERT_EQ(run.phase(), RunPhase::AtNode);
+    EXPECT_EQ(run.state().node, 0u);
 }

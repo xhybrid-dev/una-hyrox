@@ -26,6 +26,13 @@ namespace TrailQuest
 /// Each lap round the Ridge puts the spirits this many levels higher.
 constexpr uint8_t kLapLevelStep = 10;
 
+/// From the second lap a spirit is also at least as high as the runner would be
+/// at this stage's par, plus this many levels a lap, so the early stages are a fight
+/// again (the runner arrives at 17-20, far above their bands), and its stamina is
+/// this many per cent more a lap, which still counts where levels are held to 20.
+constexpr uint8_t kLapRelativeLevels = 1;
+constexpr uint8_t kLapStaminaPct     = 5;
+
 /// A boss is this many levels above its stage's band.
 constexpr uint8_t kBossLevelAbove = 1;
 
@@ -59,11 +66,17 @@ inline uint8_t obstacleChance(const ObstacleDef& ob, uint8_t stat, BeatResult be
 /// noon), any of the pool.
 SpeciesId pickSpecies(const StageDef& stage, TimeOfDay tod, Rng& rng);
 
-/// A level in @p stage's band, raised for the lap, held to the maximum.
-uint8_t pickLevel(const StageDef& stage, uint8_t lap, Rng& rng);
+/// A level in @p stage's band, raised for the lap, held to the maximum. From lap 1
+/// on, @p runnerLevel (when not kNone) sets a floor: where the band sits above the
+/// stage's par, the runner's level plus that, plus kLapRelativeLevels a lap.
+uint8_t pickLevel(const StageDef& stage, uint8_t lap, Rng& rng, uint8_t runnerLevel = kNone);
 
-/// The stage boss's level for @p lap.
-uint8_t bossLevel(const StageDef& stage, uint8_t lap);
+/// The stage boss's level for @p lap, with the same floor.
+uint8_t bossLevel(const StageDef& stage, uint8_t lap, uint8_t runnerLevel = kNone);
+
+/// The spirits' stamina for @p stage on @p lap, per cent of their row's: the stage's
+/// softening, then kLapStaminaPct more for each lap (never over 200).
+uint8_t lapSpiritPct(uint8_t stage, uint8_t lap);
 
 /// A random consumable found on the trail: Gel half the time, Water three in
 /// ten, a salt tab the rest.

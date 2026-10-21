@@ -36,6 +36,7 @@ constexpr uint32_t kObstacleSeconds = 6;
 constexpr uint32_t kOfferSeconds    = 4;
 constexpr uint32_t kStepLimit       = 5000;   // a lap
 constexpr uint32_t kMaxLaps         = 4;
+constexpr uint32_t kHutBelowPct     = 60;   // the simulated player detours to a hut below this share of stamina
 
 struct StageStats {
     uint32_t reached     = 0;   // runs that reached its boss
@@ -68,6 +69,28 @@ uint8_t oldestPartner(const RunState& s)
     return slot;
 }
 
+/// Which way at a fork: the hut when the runner is worn out (under kHutBelowPct of full
+/// stamina) and one is offered, otherwise a way that is not the hut, chosen at random. A
+/// player who walks past the hut while fresh and detours when tired.
+uint8_t chooseExit(const TrailQuest::Run& run, Rng& r)
+{
+    const NodeDef& here = run.node();
+    const RunState& s   = run.state();
+    uint8_t hut = kNone, others[kMaxExits], n = 0;
+    for (uint8_t e = 0; e < here.exitCount && e < kMaxExits; ++e) {
+        if (stageDef(s.stage).nodes[here.exits[e].to].kind == NodeKind::Hut) {
+            hut = e;
+        } else {
+            others[n++] = e;
+        }
+    }
+    const bool worn = static_cast<uint32_t>(s.stamina) * 100u < kHutBelowPct * runnerMaxWithPartners(s).stamina;
+    if (hut != kNone && (worn || n == 0)) {
+        return hut;
+    }
+    return n > 0 ? others[r.below(n)] : static_cast<uint8_t>(r.below(here.exitCount));
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -98,7 +121,7 @@ int main(int argc, char** argv)
     const Sim::Skill& sk = Sim::kSkills[skill];
 
     StageStats st[kMaxLaps][kStageCount];
-    uint32_t   finished = 0, totalSeconds = 0, partnersAtEnd = 0, levelAtEnd = 0;
+    uint32_t   finished = 0, totalSeconds = 0, partnersAtEnd = 0, levelAtEnd = 0, fuels = 0, huts = 0;
 
     for (uint32_t run_i = 0; run_i < runs; ++run_i) {
         TrailQuest::Run run;
@@ -116,7 +139,8 @@ int main(int argc, char** argv)
             switch (run.phase()) {
                 case RunPhase::AtNode: {
                     const uint8_t exits = run.node().exitCount;
-                    const ArriveResult a = run.travel(static_cast<uint8_t>(r.below(exits)));
+                    const ArriveResult a = run.travel(chooseExit(run, r));
+                    huts += a.what == Arrival::Hut ? 1u : 0u;
                     seconds += kTravelSeconds;
                     ss.seconds += kTravelSeconds;
                     if (a.what == Arrival::Boss) {
@@ -145,6 +169,7 @@ int main(int argc, char** argv)
                 case RunPhase::InDuel: {
                     const PlayerTurn t = Sim::choose(run.duel(), run.state().bag, sk, run.state().stage, run.state().lap, r);
                     run.duelTurn(t);
+                    fuels += t.action == Action::Fuel ? 1u : 0u;
                     seconds += kTurnSeconds;
                     ss.seconds += kTurnSeconds;
                     if (run.phase() != RunPhase::InDuel) {
@@ -202,11 +227,12 @@ int main(int argc, char** argv)
     char out[12288];
     int  len = std::snprintf(out, sizeof(out),
         "%u runs, %s skill: %u reached the %s (%u %%), level %u.%u at the end, %u.%u partners.\n"
-        "Play time for %s: %u min on average.\n\n",
+        "Play time for %s: %u min on average. Fuel used %u.%u a run, huts visited %u.%u.\n\n",
         runs, sk.name, finished, laps > 1 ? "end of the last lap" : "summit", finished * 100u / runs,
         finished ? levelAtEnd / finished : 0u, finished ? (levelAtEnd * 10u / finished) % 10u : 0u,
         finished ? partnersAtEnd / finished : 0u, finished ? (partnersAtEnd * 10u / finished) % 10u : 0u,
-        laps > 1 ? "all the laps" : "the whole Ridge", totalSeconds / runs / 60u);
+        laps > 1 ? "all the laps" : "the whole Ridge", totalSeconds / runs / 60u,
+        fuels / runs, (fuels * 10u / runs) % 10u, huts / runs, (huts * 10u / runs) % 10u);
     for (uint32_t lap = 0; lap < laps; ++lap) {
         if (laps > 1 && len > 0 && static_cast<size_t>(len) < sizeof(out)) {
             len += std::snprintf(out + len, sizeof(out) - static_cast<size_t>(len), "**Lap %u**\n\n", lap + 1u);

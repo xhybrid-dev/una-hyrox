@@ -115,7 +115,7 @@ inline constexpr StageDef kStages[kStageCount] = {
       { Spirit::RedFox, Spirit::BrownBear, Spirit::RubyBeetle, Spirit::SandCrab }, 4, Spirit::OldTortoise,
       9, {
         { "Trailhead",         NodeKind::Start,     0, 2, { { 1, 20, "Woods path" }, { 2, 15, "The stream" } } },
-        { "Birch wood",        NodeKind::Encounter, 0, 1, { { 3, 25, "To the hut" } } },
+        { "Birch wood",        NodeKind::Encounter, 0, 2, { { 3, 25, "To the hut" }, { 4, 20, "Straight" } } },
         { "Stepping stones",   NodeKind::Obstacle,  Obstacle::SteppingStones, 2, { { 3, 15, "The bank" }, { 4, 10, "The meadow" } } },
         { "Valley hut",        NodeKind::Hut,       0, 2, { { 5, 20, "Old track" }, { 4, 15, "The meadow" } } },
         { "Long meadow",       NodeKind::Encounter, 0, 1, { { 6, 20, "Field edge" } } },
@@ -128,7 +128,7 @@ inline constexpr StageDef kStages[kStageCount] = {
       { Spirit::FireNewt, Spirit::GnatSwarm, Spirit::BarnOwl, Spirit::PygmyShrew }, 4, Spirit::GreatStag,
       9, {
         { "Forest gate",       NodeKind::Start,     0, 2, { { 1, 30, "Zig-zags" }, { 2, 20, "Climb up" } } },
-        { "First bend",        NodeKind::Encounter, 0, 1, { { 3, 30, "Zig-zag on" } } },
+        { "First bend",        NodeKind::Encounter, 0, 2, { { 3, 30, "To the hut" }, { 4, 25, "Climb on" } } },
         { "The scramble",      NodeKind::Obstacle,  Obstacle::SwitchbackScramble, 2, { { 3, 20, "The path" }, { 4, 15, "Push on" } } },
         { "Halfway hut",       NodeKind::Hut,       0, 2, { { 5, 25, "Forest way" }, { 4, 20, "Steep bit" } } },
         { "Clearing",          NodeKind::Encounter, 0, 1, { { 6, 25, "The trees" } } },
@@ -141,7 +141,7 @@ inline constexpr StageDef kStages[kStageCount] = {
       { Spirit::RockGoat, Spirit::MistWisp, Spirit::WallLizard, Spirit::Marmot }, 4, Spirit::RamKing,
       9, {
         { "Scree foot",        NodeKind::Start,     0, 2, { { 1, 30, "The cairns" }, { 2, 20, "Across" } } },
-        { "Cairn line",        NodeKind::Encounter, 0, 1, { { 3, 30, "The bothy" } } },
+        { "Cairn line",        NodeKind::Encounter, 0, 2, { { 3, 30, "The bothy" }, { 4, 25, "Skip it" } } },
         { "Scree slide",       NodeKind::Obstacle,  Obstacle::ScreeSlide, 2, { { 3, 20, "The bothy" }, { 4, 15, "Keep going" } } },
         { "Scree bothy",       NodeKind::Hut,       0, 2, { { 5, 25, "Sheep path" }, { 4, 25, "Boulders" } } },
         { "Boulder maze",      NodeKind::Encounter, 0, 1, { { 6, 25, "The gully" } } },
@@ -154,7 +154,7 @@ inline constexpr StageDef kStages[kStageCount] = {
       { Spirit::WindSprite, Spirit::Raven, Spirit::SnowHare, kNone }, 3, Spirit::GoldenEagle,
       9, {
         { "Ridge foot",        NodeKind::Start,     0, 2, { { 1, 30, "Broad back" }, { 2, 20, "The crest" } } },
-        { "Broad back",        NodeKind::Encounter, 0, 1, { { 3, 30, "The refuge" } } },
+        { "Broad back",        NodeKind::Encounter, 0, 2, { { 3, 30, "The refuge" }, { 4, 25, "Press on" } } },
         { "Cornice",           NodeKind::Obstacle,  Obstacle::Cornice, 2, { { 3, 20, "The refuge" }, { 4, 15, "The crest" } } },
         { "Ridge refuge",      NodeKind::Hut,       0, 2, { { 5, 25, "Rescue box" }, { 4, 20, "The crest" } } },
         { "False summit",      NodeKind::Encounter, 0, 1, { { 6, 25, "Onwards" } } },
@@ -167,7 +167,7 @@ inline constexpr StageDef kStages[kStageCount] = {
       { Spirit::GhostGoat, Spirit::SnowFox, Spirit::MistWisp, kNone }, 3, Spirit::SummitWolf,
       9, {
         { "Snow line",         NodeKind::Start,     0, 2, { { 1, 30, "Zig-zags" }, { 2, 20, "Direct" } } },
-        { "Snowfield",         NodeKind::Encounter, 0, 1, { { 3, 30, "To the hut" } } },
+        { "Snowfield",         NodeKind::Encounter, 0, 2, { { 3, 30, "To the hut" }, { 4, 25, "Press on" } } },
         { "Icy slab",          NodeKind::Obstacle,  Obstacle::IcySlab, 2, { { 3, 20, "To the hut" }, { 4, 15, "Climb up" } } },
         { "Summit hut",        NodeKind::Hut,       0, 2, { { 5, 25, "Last cairn" }, { 4, 20, "The slope" } } },
         { "The final slope",   NodeKind::Encounter, 0, 1, { { 6, 25, "Onwards" } } },
@@ -182,7 +182,7 @@ inline constexpr StageDef kStages[kStageCount] = {
 /// own row's stamina (Species.hpp): the needle gets sharper stage by stage
 /// (Beat.hpp, beatFor), so the later stages' spirits give a little. Tuned
 /// with Tests/Host/tools/balance_sim (docs/BALANCE.md).
-inline constexpr uint8_t kSpiritPct[kStageCount] = { 100, 89, 93, 75, 77 };
+inline constexpr uint8_t kSpiritPct[kStageCount] = { 100, 89, 89, 75, 74 };
 
 inline uint8_t spiritPct(uint8_t stage)
 {

@@ -85,7 +85,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Sand Crab", "crab", "Grit in your shoe, chafing every step.",
       1, Affinity::Form, 100, -1, 0, 0, { Move::SidewaysScuttle, Move::Pinch }, 50, 0 },
     { "Old Tortoise", "giant tortoise", "Late fatigue. Slow, steady, heavy.",
-      1, Affinity::Grit, 102, -3, 0, 1, { Move::MossSlam, Move::ShellSnap }, 60, kSpeciesBoss, Twist::Guard, 4 },
+      1, Affinity::Grit, 92, -3, 0, 1, { Move::MossSlam, Move::ShellSnap }, 60, kSpeciesBoss, Twist::Guard, 4 },
 
     // Stage 2: Switchback Climb. Stamina matters.
     { "Fire Newt", "red newt", "Burning quads from the climb. Walk the steeps.",
@@ -97,7 +97,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Pygmy Shrew", "shrew", "A niggle: small aches that wreck your focus.",
       2, Affinity::Form, 125, 1, 1, 0, { Move::Nag, Move::Scurry }, 50, 0 },
     { "The Great Stag", "great stag", "The long climb, taken too fast.",
-      2, Affinity::Pace, 108, 0, 0, 1, { Move::AntlerCharge, Move::LongClimb }, 55, kSpeciesBoss, Twist::Charge, 3 },
+      2, Affinity::Pace, 97, 0, 0, 1, { Move::AntlerCharge, Move::LongClimb }, 55, kSpeciesBoss, Twist::Charge, 3 },
 
     // Stage 3: Scree Fields. Technical; footing matters.
     { "Rock Goat", "mountain goat", "Loose rock punishes a long stride.",
@@ -109,7 +109,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Marmot", "marmot", "Rolling stones. Watch your footing.",
       3, Affinity::Form, 125, 0, 1, 0, { Move::AnkleSnap, Move::Burrow }, 50, 0 },
     { "The Ram King", "stone ram", "Loose scree. Short steps.",
-      3, Affinity::Form, 97, -2, 2, 0, { Move::ShaleCrash, Move::Landslide }, 55, kSpeciesBoss, Twist::Guard, 3 },
+      3, Affinity::Form, 76, -2, 2, 0, { Move::ShaleCrash, Move::Landslide }, 55, kSpeciesBoss, Twist::Guard, 3 },
 
     // Stage 4: Ridge Line. Exposed; the jokes thin out.
     { "Wind Sprite", "wind spirit", "A headwind that costs you speed for hours.",
@@ -119,7 +119,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Snow Hare", "snow hare", "Cold numbs you. Keep moving and keep eating.",
       4, Affinity::Form, 135, 1, 1, 0, { Move::Chill, Move::Bound }, 50, kSpeciesNight },
     { "The Golden Eagle", "eagle", "The exposed edge. Stay steady.",
-      4, Affinity::Pace, 83, 0, 0, 0, { Move::Stoop, Move::Updraught }, 55, kSpeciesBoss, Twist::Charge, 3 },
+      4, Affinity::Pace, 75, 0, 0, 0, { Move::Stoop, Move::Updraught }, 55, kSpeciesBoss, Twist::Charge, 3 },
 
     // Stage 5: The Summit. Quiet and serious.
     { "Ghost Goat", "ghost goat", "Thin air. Every breath gives less.",
@@ -127,7 +127,7 @@ inline constexpr SpeciesDef kSpecies[Spirit::Count] = {
     { "Snow Fox", "snow fox", "Cold hands. Keep them moving.",
       5, Affinity::Pace, 115, 1, 1, 0, { Move::FrostBite, Move::Flurry }, 50, 0 },
     { "The Summit Wolf", "wolf", "Kept pace since the valley.",
-      5, Affinity::Grit, 84, 0, 0, 1, { Move::Howl, Move::LongChase }, 50, kSpeciesBoss, Twist::Alternate, 3 },
+      5, Affinity::Grit, 71, 0, 0, 1, { Move::Howl, Move::LongChase }, 50, kSpeciesBoss, Twist::Alternate, 3 },
 };
 
 /// The spirit, or the Red Fox for an id out of range (no MMU: never read past the table).

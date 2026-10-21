@@ -16,7 +16,7 @@
  *   Finished   the summit: start the next lap, harder
  *
  * Each stretch of trail gives back kTravelRecoverPct of the runner's stamina,
- * and the runner faces a boss at full stamina (a breather at the foot of it).
+ * and the runner faces a boss with what is left (no breather at the foot of it).
  *
  * Rules (Jon's, 17 October 2026): a lost duel sends the runner back to the
  * last hut of the stage (or its start), costing kLossMinutes and one item,
@@ -46,15 +46,19 @@ namespace TrailQuest
 /// What a lost duel costs in trail time.
 constexpr uint16_t kLossMinutes = 30;
 
-/// Stamina recovered on each stretch of trail, per cent of the runner's full:
-/// a runner gets some back on the easy bits.
-constexpr uint8_t kTravelRecoverPct = 25;
+/// Stamina recovered on each stretch of trail, per cent of the runner's full: a
+/// breather and no more, so a fight's fatigue carries on to the next and the
+/// way back is a Fuel (a Gel, Water, a Salt tab) or the hut (Jon, 21 October).
+constexpr uint8_t kTravelRecoverPct = 8;
+
+/// Moving on to the next stage gives back this per cent of what is missing.
+constexpr uint8_t kStageRestPct = 50;
 
 /// Chance of an item after a won duel, per cent.
-constexpr uint8_t kDropChance = 25;
+constexpr uint8_t kDropChance = 35;
 
 /// What a new game starts with.
-constexpr uint8_t kStartGels  = 2;
+constexpr uint8_t kStartGels  = 3;
 constexpr uint8_t kStartWater = 1;
 
 enum class RunPhase : uint8_t {
@@ -153,7 +157,7 @@ public:
     void saved() { mWantsSave = false; }
 
 private:
-    void startStage(uint8_t stage);
+    void startStage(uint8_t stage, bool fullRest = true);
     void rest(RunPhase phase);
     void startDuel(SpeciesId sp, uint8_t level);
     MoveId bestTechnique(const DuelSetup& base) const;
