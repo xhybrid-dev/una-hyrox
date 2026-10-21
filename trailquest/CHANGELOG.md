@@ -28,4 +28,5 @@ The first store release (see `docs/SUBMISSION.md`). App ID `AB98F6B289B6738E`, i
 - **A story** at the key moments, in plain running terms, and help cards that teach the moves.
 - **The summit's finale and a harder second lap.**
 - **Jingles** on the buzzer's pitch (firmware 1.6 or newer).
+- **The icon**: the runner meets the Red Fox.
 - **Saving after every step**, with a backup copy; nothing leaves the watch.

@@ -15,7 +15,7 @@ Everything that can be done without Jon is done. What is left is Jon's, below.
 | App ID | **Issued by the portal (21 October 2026) and in place:** `AB98F6B289B6738E`, in `Software/Apps/TrailQuest-CMake/CMakeLists.txt`, `Resources/app-manifest.json` and the simulator's `CMakeLists.txt`. It replaces the development ID `B5FA567FFD85BA6D`, which the packager refuses on a release |
 | Package | Built by CI on every push, in the `trailquest-store-zip` artifact: `TrailQuest-<version>.zip`. A dry run until the commit is tagged |
 | Manifest | Checked by the packager: the activity keys the portal requires, no `previews` key (the lessons of X Weigh-in 1.0.0), no phone settings, `minKernelVersion` stamped from the SDK's ABI |
-| Icon | `Resources/icon_60x60.png` (shipped as `icon.png`) |
+| Icon | `Resources/icon_60x60.png` (shipped as `icon.png`): the runner meets the Red Fox, option 2 "The duel" of five (chosen by Jon, 21 October 2026; the others are in `docs/icons/`). Drawn by `Resources/make_icons.py` |
 | Previews | Six 480x480 simulator screens in `Resources/previews/`, from `docs/experiments/store_previews.sh` (title, map, duel, pick list, needle, finale) |
 | Version | 1.0.0, from the one tag `trailquest-v1.0.0` |
 | Firmware | Needs firmware 1.6 or newer for the pitched jingles (Jon: mandatory for everyone). The manifest's `minKernelVersion` is stamped from the SDK by the packager |
