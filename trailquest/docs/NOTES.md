@@ -858,6 +858,14 @@ is for him to play before the tag.**
 **Jon's part:** play the final build; make the tag `trailquest-v1.0.0` (a session cannot push tags);
 upload the zip.
 
+### The launcher icon (21 October 2026)
+
+Jon asked for a more unique, engaging logo. Five options were drawn from the game's own sprites
+(`Resources/make_icon_options.py`, a comparison sheet in `docs/icons/`): dawn on the ridge, the duel,
+the wolf and moon, the needle, the trail map. **Jon chose 2, "The duel"** (the runner facing the Red Fox
+under a clash star): it is now `Resources/icon_60x60.png` / `icon_30x30.png`, drawn by
+`make_icons.py`, and is the `icon.png` in the store package (checked byte for byte).
+
 **Gate Q4b: what Jon must test** (the CI build, `watch-apps`): finish a full run.
 
 1. Do stage 4 and 5's spirits read well on the watch? Snow Fox against Red Fox,
