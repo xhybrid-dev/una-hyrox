@@ -416,3 +416,21 @@ launcher ring seems to draw icons as flat shapes (X Weigh-in's dark disc does no
 there). In flat form 5 and 2 are the clearest silhouettes; 1 and 4 read by their needles;
 3's badge merges into the ball. Once one is chosen it becomes `make_icons.py`'s drawing, the
 icon in the store package, and the store images are regenerated.
+
+### Icon option 4, redrawn for the launcher (21 October 2026)
+
+Jon liked option 4 (stitches on a needle) but his photo of the launcher showed the live icon
+displaying badly. **What the photo shows:** the launcher draws an icon in shades of blue by
+brightness, over its own blue. A transparent pixel is that blue, a dark one a darker blue, a
+bright one a lighter blue. The live icon's dark grey disc and teal ball land on almost the
+same blue as the background, and its thin lime needles cross the ball and are lost. (A
+rough simulation of that rule, in `make_needle_icons.py`, reproduces the photo's look of the
+live icon, which is why it can be trusted for comparing, not for exact colours.)
+
+**So an icon for the launcher needs:** bright shapes (white, lime, yellow), strokes of at
+least 4 units (2 px at 30 px), no mid-tones (teal, grey), a black base or no base, and a
+black edge round every shape so overlaps separate. Three treatments of option 4 follow
+these rules: `needle-A-black-disc`, `needle-B-no-disc`, `needle-C-ringed` (black disc with a
+white rim), each as `_60x60.png` and `_30x30.png`, and `launcher-sheet.png` compares them
+with the live icon and the first drawing of option 4, in real colours and as simulated.
+The live icon is still unchanged until one is chosen.
