@@ -204,17 +204,27 @@ void BeatBar::create(lv_obj_t* parent, int32_t x, int32_t y, int32_t w, const Be
     constexpr int32_t kH = 12;
     mCfg = clampBeat(cfg);
     mX = x;
+    mY = y;
     mW = w;
-    auto zone = [&](uint32_t widthMs, uint32_t color) {
+    mObjs[0] = Draw::box(parent, x, y, w, kH, 0x404040);
+    mObjs[1] = Draw::box(parent, x, y, 1, kH, 0xC08000);
+    mObjs[2] = Draw::box(parent, x, y, 1, kH, 0x00C000);
+    mObjs[3] = Draw::box(parent, x, y - 3, 3, kH + 6, 0xC0C0C0);
+    reconfigure(mCfg);
+}
+
+void BeatBar::reconfigure(const BeatConfig& cfg)
+{
+    mCfg = clampBeat(cfg);
+    auto place = [&](lv_obj_t* box, uint32_t widthMs) {
         const uint32_t half = (widthMs + 1u) / 2u;
         const int32_t  x0   = mX + static_cast<int32_t>(beatToTrack(mCfg, mCfg.targetMs - half, static_cast<uint32_t>(mW)));
         const int32_t  x1   = mX + static_cast<int32_t>(beatToTrack(mCfg, mCfg.targetMs + half, static_cast<uint32_t>(mW)));
-        return Draw::box(parent, x0, y, x1 - x0, kH, color);
+        lv_obj_set_x(box, x0);
+        lv_obj_set_width(box, x1 - x0);
     };
-    mObjs[0] = Draw::box(parent, x, y, w, kH, 0x404040);
-    mObjs[1] = zone(mCfg.goodMs, 0xC08000);
-    mObjs[2] = zone(mCfg.perfectMs, 0x00C000);
-    mObjs[3] = Draw::box(parent, x, y - 3, 3, kH + 6, 0xC0C0C0);
+    place(mObjs[1], mCfg.goodMs);
+    place(mObjs[2], mCfg.perfectMs);
 }
 
 void BeatBar::start(uint32_t nowMs)

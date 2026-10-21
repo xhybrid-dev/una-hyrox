@@ -31,6 +31,7 @@ is right. British English.
 | 18 Oct 2026 | Creatures are named for how they look, colour and animal (the Red Fox, the Old Tortoise); the runner's jokes stay in their lines and moves | Jon, at Gate Q2 |
 | 19 Oct 2026 | The needle sharpens each stage and lap (faster, a narrower good zone; perfect stays two frames); the later stages' spirits soften to match | Jon asked, Claude set the numbers |
 | 19 Oct 2026 | Q4 excitement = boss twists (a tell, then a charge or a guard); rare spirits and trail events left for later | Jon |
+| 21 Oct 2026 | The needle: the target moves each strike (30-85 % of the sweep), and its speed and zone vary by Surge / Settle / Skill, boss and hazard stat; the green stays 200 ms (the two-frame floor); spirits softened again to match | Jon asked, Claude set the numbers |
 | 21 Oct 2026 | R1 (Skill) opens a pick list of the pack: Trail craft or one creature's move (its signature), with damage and effect shown; one move each. Reverses Q1's "no lead partner" (the pick is per turn, in the duel, so it can be right for the spirit met) | Jon asked, Claude built |
 | 20 Oct 2026 | A second lap puts the spirits 10 levels up (was 5), held to 20; early stages are a victory lap, the summit a real fight; for Jon to react to | Claude |
 | 19 Oct 2026 | Q4 in two drops: stages 2-3 first, then 4-5, the summit finale and the second lap | Jon |
@@ -784,6 +785,27 @@ clear which, and he cannot choose; choosing would make the pack matter. Built:
   pick falls back, estimates match, the view, every card fits); `balance_sim` and
   `run_sim` unchanged; simulator captures `docs/screens/q4-skill-*` (via
   `docs/experiments/capture_skill.sh`); the watch build links (`.uapp` 252,896 B).
+
+### A harder, more varied needle (21 October 2026)
+
+Jon: the green is "fairly consistent and easy" (the target was fixed at 3/4 of every
+sweep, so the rhythm could be learned), and the timing should vary by challenge. The
+perfect zone is already at its two-frame floor, so "harder" means a target that moves
+and a faster needle with a smaller orange zone, not a thinner green. Built (`Beat.hpp`,
+header-only; `BeatBar::reconfigure`; the duel and obstacle screens; details in
+`BALANCE.md`, "The moving needle"):
+
+- the target is somewhere new on every strike (30-85 % of the sweep, from the GUI's tick,
+  not the game's Rng, so saves and replays are unaffected);
+- the needle's shape by what it is for: Surge faster and tighter, Settle slower and
+  wider, Skill the stage's own, a boss tighter, hazards by stat;
+- the ladder by stage and lap is unchanged.
+
+The simulated player's cost for the moving target is an assumption; the spirits were
+re-tuned to it (all rows inside the targets again; menu-only play is now easier than a
+casual player with the needle). Host tests 193 (the new kinds, the target's range and
+spread, a moved target judged where it is drawn); `balance_sim` and `run_sim` all OK;
+simulator captures `docs/screens/q4-beat-*` (`docs/experiments/capture_beats.sh`).
 
 **Gate Q4b: what Jon must test** (the CI build, `watch-apps`): finish a full run.
 

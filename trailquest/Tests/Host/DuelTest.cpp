@@ -379,7 +379,7 @@ TEST(Duel, ABossRestsOnceWhenLow)
     int rested = 0;
     for (uint32_t seed = 1; seed <= 50; ++seed) {
         Duel d;
-        d.start(setupFor(Spirit::OldTortoise, 2, 6));   // a strong runner
+        d.start(setupFor(Spirit::OldTortoise, 2, 5));   // a strong runner
         Rng r(seed);
         uint8_t bag[Item::Count] = {};
         int rests = 0;

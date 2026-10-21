@@ -37,6 +37,13 @@ constexpr int kSkillCount = 3;
 /// perfects in proportion to its sweep (a press is as late or early in ms, but
 /// harder to place), and a narrower good zone costs good-or-better in
 /// proportion to its width. Menu-only play (no beat) is unchanged.
+///
+/// The target now moves from strike to strike (beatWithTarget), which costs a
+/// player the rhythm they would otherwise learn. The cost is an assumption, not
+/// a measurement: perfects x kMovingPerfectPct and good-or-better x kMovingGoodPct.
+constexpr uint32_t kMovingPerfectPct = 80;
+constexpr uint32_t kMovingGoodPct    = 92;
+
 inline Skill scaledFor(const Skill& s, const BeatConfig& beat)
 {
     if (s.perfect == 0 && s.good == 100) {
@@ -44,8 +51,8 @@ inline Skill scaledFor(const Skill& s, const BeatConfig& beat)
     }
     const BeatConfig base = beatFor(0, 0);
     Skill out = s;
-    const uint32_t perfect  = static_cast<uint32_t>(s.perfect) * beat.sweepMs / base.sweepMs;
-    uint32_t       goodPlus = static_cast<uint32_t>(s.perfect + s.good) * beat.goodMs / base.goodMs;
+    const uint32_t perfect  = static_cast<uint32_t>(s.perfect) * beat.sweepMs / base.sweepMs * kMovingPerfectPct / 100u;
+    uint32_t       goodPlus = static_cast<uint32_t>(s.perfect + s.good) * beat.goodMs / base.goodMs * kMovingGoodPct / 100u;
     goodPlus = goodPlus < perfect ? perfect : goodPlus;
     out.perfect = static_cast<uint8_t>(perfect > 100u ? 100u : perfect);
     out.good    = static_cast<uint8_t>((goodPlus > 100u ? 100u : goodPlus) - out.perfect);
@@ -61,10 +68,9 @@ inline BeatResult sampleBeat(const Skill& s, Rng& r)
 /// Fuel when under 35 % with a gel (or water, when drained); otherwise the
 /// move worth most: its damage, less Surge's cost, plus Settle's recovery;
 /// no Surge when it would leave the runner nearly spent.
-inline PlayerTurn choose(const Duel& d, const uint8_t* bag, const Skill& skill, const BeatConfig& beat, Rng& r)
+inline PlayerTurn chooseAction(const Duel& d, const uint8_t* bag, const Skill& skill, Rng& r)
 {
     PlayerTurn t;
-    t.beat = sampleBeat(scaledFor(skill, beat), r);
     const Fighter& me = d.runner();
     if (static_cast<uint32_t>(me.stamina) * 100u < 35u * me.max.stamina) {
         if (me.effect == Effect::Drain && bag[Item::Water] > 0) {
@@ -104,6 +110,23 @@ inline PlayerTurn choose(const Duel& d, const uint8_t* bag, const Skill& skill, 
             best     = value;
             t.action = a;
         }
+    }
+    return t;
+}
+
+/// The kind of beat an action gets (what DuelScreen::choose uses).
+inline BeatKind kindOf(Action a)
+{
+    return a == Action::Surge ? BeatKind::Surge : (a == Action::Settle ? BeatKind::Settle : BeatKind::Skill);
+}
+
+/// The turn: the action as above, and the beat the player lands on that action's
+/// needle for this stage and lap (a boss's is tighter).
+inline PlayerTurn choose(const Duel& d, const uint8_t* bag, const Skill& skill, uint8_t stage, uint8_t lap, Rng& r)
+{
+    PlayerTurn t = chooseAction(d, bag, skill, r);
+    if (t.action != Action::Fuel) {
+        t.beat = sampleBeat(scaledFor(skill, beatFor(stage, lap, kindOf(t.action), isBoss(d.setup().species))), r);
     }
     return t;
 }

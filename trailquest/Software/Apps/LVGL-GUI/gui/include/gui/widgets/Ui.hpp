@@ -116,6 +116,9 @@ public:
     /// @p cfg is the beat for this stage (TrailQuest::beatFor): what is drawn
     /// is what judge() judges.
     void create(lv_obj_t* parent, int32_t x, int32_t y, int32_t w, const TrailQuest::BeatConfig& cfg);
+    /// A new shape for the next strike (its zones move and resize; draw and
+    /// judge still agree). Call before start().
+    void reconfigure(const TrailQuest::BeatConfig& cfg);
     /// Start sweeping from @p nowMs (lv_tick_get()).
     void start(uint32_t nowMs);
     /// Move the needle to @p nowMs. Call once a frame.
@@ -132,6 +135,7 @@ private:
     lv_obj_t* mObjs[4] = {};   ///< track, good, perfect, needle
     int32_t   mX = 0;
     int32_t   mW = 0;
+    int32_t   mY        = 0;
     uint32_t  mStartMs  = 0;
     uint32_t  mNeedleMs = 0;
 };

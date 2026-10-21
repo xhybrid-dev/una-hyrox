@@ -182,7 +182,7 @@ inline constexpr StageDef kStages[kStageCount] = {
 /// own row's stamina (Species.hpp): the needle gets sharper stage by stage
 /// (Beat.hpp, beatFor), so the later stages' spirits give a little. Tuned
 /// with Tests/Host/tools/balance_sim (docs/BALANCE.md).
-inline constexpr uint8_t kSpiritPct[kStageCount] = { 100, 94, 98, 82, 81 };
+inline constexpr uint8_t kSpiritPct[kStageCount] = { 100, 89, 93, 75, 77 };
 
 inline uint8_t spiritPct(uint8_t stage)
 {

@@ -108,6 +108,11 @@ void ObstacleScreen::onKey(uint8_t code)
         case Mode::Intro:
             if (code == Btn::R1) {
                 if (mModel.beatOn()) {
+                    const WorldView& w = mModel.world();
+                    const Affinity   check = obstacleDef(nodeDef(w.state.stage, w.state.node).param).check;
+                    const BeatKind   kind  = check == Affinity::Pace ? BeatKind::HazardPace
+                                           : (check == Affinity::Grit ? BeatKind::HazardGrit : BeatKind::HazardForm);
+                    mBeat.reconfigure(beatWithTarget(beatFor(w.state.stage, w.state.lap, kind), lv_tick_get()));
                     mBeat.start(lv_tick_get());
                     setMode(Mode::Beat);
                 } else {

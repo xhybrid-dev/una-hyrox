@@ -189,6 +189,11 @@ zone stays 200 ms: that is two frames at the watch's 10 frames a second, and
 anything narrower cannot be told from luck. The later stages' spirits give a
 little in return (`kSpiritPct`), so the game stays winnable (`BALANCE.md`).
 
+Each strike also has its own shape (21 October): the target sits somewhere new
+(30-85 % of the sweep) so there is no rhythm to learn; Surge is faster and tighter,
+Settle slower and wider, a partner's move the stage's own; a boss's fight is a little
+tighter; hazards by their stat (a leap fast, a scramble tight, footing slow and wide).
+
 A beaten regular spirit offers to join; up to three run with you. Each lends +1
 to its affinity's stat, and its own-affinity move becomes R1's Technique when it
 is the best partner for the spirit in front of you. Bosses never join.

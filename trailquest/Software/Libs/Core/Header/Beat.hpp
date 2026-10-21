@@ -100,27 +100,84 @@ inline BeatConfig clampBeat(BeatConfig c)
     return c;
 }
 
+/// What the beat is for: each kind sweeps and tightens differently, so no two
+/// challenges feel alike (Jon, 21 October 2026).
+enum class BeatKind : uint8_t {
+    Plain = 0,    ///< The stage's own beat.
+    Surge,        ///< A hard push: faster and tighter, the risky move.
+    Settle,       ///< Steady breathing: slower and wider.
+    Skill,        ///< A partner's move: the stage's own beat.
+    HazardPace,   ///< A leap: fast.
+    HazardGrit,   ///< A scramble: tight.
+    HazardForm,   ///< Footing: slow and wide.
+};
+
 /**
- * @brief   The beat for a stage (0-4) and a lap (0 the first crossing): stage 1
- *          is the Q0 beat Jon found "fairly easy but good"; each later stage
- *          sweeps 100 ms faster with a good zone 40 ms narrower, and each lap
- *          after the first a further 100 ms faster (to 1000) and 20 ms
- *          narrower (to 200). The perfect zone stays at its floor of two
- *          frames (kMinPerfectMs): at 10 frames a second nothing narrower can
- *          be told from luck, so "more accurate" means the good zone shrinks.
- *          The target stays at three quarters of the sweep. Always in range.
+ * @brief   The beat for a stage (0-4), a lap (0 the first crossing), what it is
+ *          for and whether a boss is on the other side. The stage ladder:
+ *          stage 1 is the Q0 beat Jon found "fairly easy but good"; each later
+ *          stage sweeps 100 ms faster with a good zone 40 ms narrower, and each
+ *          lap after the first a further 100 ms faster (to 1000) and 20 ms
+ *          narrower (to 200). Then the kind moves it (sweep / good zone, ms):
+ *          Surge -150 / -50, Settle +150 / +60, a leap -150 / -30, a scramble
+ *          0 / -60, footing +150 / +40, and a boss a further -100 / -30. The
+ *          perfect zone stays at its floor of two frames (kMinPerfectMs): at 10
+ *          frames a second nothing narrower can be told from luck, so a harder
+ *          beat means a faster needle and a smaller good zone (and, from
+ *          beatWithTarget(), a target that moves). The target starts at three
+ *          quarters of the sweep. Always in range.
  */
-inline BeatConfig beatFor(uint8_t stage, uint8_t lap)
+inline BeatConfig beatFor(uint8_t stage, uint8_t lap, BeatKind kind = BeatKind::Plain, bool boss = false)
 {
     const uint32_t s = stage > 4u ? 4u : stage;
     const uint32_t l = lap > 20u ? 20u : lap;
-    BeatConfig c;
     const uint32_t faster = 100u * s + 100u * l;
-    c.sweepMs   = faster >= 600u ? 1000u : 1600u - faster;
     const uint32_t narrower = 40u * s + 20u * l;
-    c.goodMs    = narrower >= 200u ? 200u : 400u - narrower;
+    int32_t sweep = faster >= 600u ? 1000 : 1600 - static_cast<int32_t>(faster);
+    int32_t good  = narrower >= 200u ? 200 : 400 - static_cast<int32_t>(narrower);
+    switch (kind) {
+        case BeatKind::Surge:      sweep -= 150; good -= 50; break;
+        case BeatKind::Settle:     sweep += 150; good += 60; break;
+        case BeatKind::HazardPace: sweep -= 150; good -= 30; break;
+        case BeatKind::HazardGrit: good -= 60; break;
+        case BeatKind::HazardForm: sweep += 150; good += 40; break;
+        case BeatKind::Plain:
+        case BeatKind::Skill:
+        default: break;
+    }
+    if (boss) {
+        sweep -= 100;
+        good  -= 30;
+    }
+    BeatConfig c;
+    c.sweepMs   = static_cast<uint32_t>(sweep < static_cast<int32_t>(kMinSweepMs) ? static_cast<int32_t>(kMinSweepMs) : sweep);
+    c.goodMs    = static_cast<uint32_t>(good < static_cast<int32_t>(kMinPerfectMs) ? static_cast<int32_t>(kMinPerfectMs) : good);
     c.perfectMs = kMinPerfectMs;
     c.targetMs  = c.sweepMs * 3u / 4u;
+    return clampBeat(c);
+}
+
+/// The target's range, per cent of the sweep: far enough in to see the needle
+/// coming, and not at the very end.
+constexpr uint32_t kTargetMinPct = 30;
+constexpr uint32_t kTargetMaxPct = 85;
+
+/**
+ * @brief   @p c with its target moved to somewhere in [kTargetMinPct,
+ *          kTargetMaxPct] of the sweep, chosen from @p seed (the GUI passes its
+ *          tick, so a strike is never the same twice and there is no rhythm to
+ *          learn). Pure and deterministic; the zones stay on the track.
+ */
+inline BeatConfig beatWithTarget(BeatConfig c, uint32_t seed)
+{
+    c = clampBeat(c);
+    uint32_t h = seed * 2654435761u;   // Knuth's multiplicative hash, then fold the high bits down
+    h ^= h >> 15;
+    h *= 2246822519u;
+    h ^= h >> 13;
+    const uint32_t lo = c.sweepMs * kTargetMinPct / 100u;
+    const uint32_t hi = c.sweepMs * kTargetMaxPct / 100u;
+    c.targetMs = lo + h % (hi - lo + 1u);
     return clampBeat(c);
 }
 

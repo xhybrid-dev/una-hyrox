@@ -238,3 +238,88 @@ TEST(Beat, TheLadderMatchesTheDesignAndHasAFloor)
     EXPECT_EQ(beatFor(4, 20).goodMs, 200u);
     EXPECT_EQ(beatFor(200, 255).sweepMs, 1000u);
 }
+
+TEST(Beat, EveryKindStageLapAndBossIsInRangeAndKeepsItsFloors)
+{
+    const BeatKind kinds[] = { BeatKind::Plain, BeatKind::Surge, BeatKind::Settle, BeatKind::Skill,
+                               BeatKind::HazardPace, BeatKind::HazardGrit, BeatKind::HazardForm };
+    for (BeatKind k : kinds) {
+        for (bool boss : { false, true }) {
+            for (uint8_t lap = 0; lap < 5; ++lap) {
+                for (uint8_t stage = 0; stage < 5; ++stage) {
+                    const BeatConfig c = beatFor(stage, lap, k, boss);
+                    const BeatConfig m = clampBeat(c);
+                    EXPECT_EQ(c.sweepMs, m.sweepMs);
+                    EXPECT_EQ(c.goodMs, m.goodMs);
+                    EXPECT_EQ(c.targetMs, m.targetMs);
+                    EXPECT_GE(c.sweepMs, kMinSweepMs);
+                    EXPECT_EQ(c.perfectMs, kMinPerfectMs);
+                    EXPECT_GE(c.goodMs, c.perfectMs);
+                }
+            }
+        }
+    }
+}
+
+TEST(Beat, TheKindsDifferInTheDirectionTheyShould)
+{
+    for (uint8_t stage = 0; stage < 5; ++stage) {
+        const BeatConfig plain  = beatFor(stage, 0);
+        const BeatConfig surge  = beatFor(stage, 0, BeatKind::Surge);
+        const BeatConfig settle = beatFor(stage, 0, BeatKind::Settle);
+        EXPECT_LT(surge.sweepMs, plain.sweepMs) << int(stage);
+        EXPECT_LT(surge.goodMs, plain.goodMs) << int(stage);
+        EXPECT_GT(settle.sweepMs, plain.sweepMs) << int(stage);
+        EXPECT_GT(settle.goodMs, plain.goodMs) << int(stage);
+        EXPECT_EQ(beatFor(stage, 0, BeatKind::Skill).sweepMs, plain.sweepMs);
+        EXPECT_LT(beatFor(stage, 0, BeatKind::Plain, true).sweepMs, plain.sweepMs);
+        EXPECT_LT(beatFor(stage, 0, BeatKind::Plain, true).goodMs, plain.goodMs);
+        // Hazards by stat: leaps fast, scrambles tight, footing slow and wide.
+        EXPECT_LT(beatFor(stage, 0, BeatKind::HazardPace).sweepMs, plain.sweepMs);
+        EXPECT_EQ(beatFor(stage, 0, BeatKind::HazardGrit).sweepMs, plain.sweepMs);
+        EXPECT_LT(beatFor(stage, 0, BeatKind::HazardGrit).goodMs, plain.goodMs);
+        EXPECT_GT(beatFor(stage, 0, BeatKind::HazardForm).sweepMs, plain.sweepMs);
+        EXPECT_GT(beatFor(stage, 0, BeatKind::HazardForm).goodMs, plain.goodMs);
+    }
+    // The stage ladder holds within a kind: later stages are no easier.
+    for (uint8_t stage = 1; stage < 5; ++stage) {
+        EXPECT_LE(beatFor(stage, 0, BeatKind::Surge).sweepMs, beatFor(stage - 1, 0, BeatKind::Surge).sweepMs);
+        EXPECT_LE(beatFor(stage, 0, BeatKind::Settle).goodMs, beatFor(stage - 1, 0, BeatKind::Settle).goodMs);
+    }
+    EXPECT_EQ(beatFor(0, 0, BeatKind::Surge).sweepMs, 1450u);   // 1600 - 150
+    EXPECT_EQ(beatFor(0, 0, BeatKind::Settle).goodMs, 460u);    // 400 + 60
+    EXPECT_EQ(beatFor(4, 20, BeatKind::Surge, true).sweepMs, kMinSweepMs);   // 1000 - 250 held at the floor
+}
+
+TEST(Beat, TheTargetMovesFromStrikeToStrikeAndStaysOnTheTrack)
+{
+    const BeatConfig base = beatFor(2, 1, BeatKind::Surge, true);
+    EXPECT_EQ(beatWithTarget(base, 12345u).targetMs, beatWithTarget(base, 12345u).targetMs);   // deterministic
+    uint32_t lo = 0xFFFFFFFFu, hi = 0;
+    uint32_t distinct = 0, last = 0;
+    for (uint32_t seed = 0; seed < 5000; ++seed) {
+        const BeatConfig c = beatWithTarget(base, seed * 100u + 7u);
+        const BeatConfig m = clampBeat(c);
+        EXPECT_EQ(c.targetMs, m.targetMs);   // the whole good zone is on the track
+        EXPECT_GE(c.targetMs, base.sweepMs * kTargetMinPct / 100u);
+        EXPECT_LE(c.targetMs, base.sweepMs * kTargetMaxPct / 100u + c.goodMs);
+        EXPECT_EQ(c.sweepMs, base.sweepMs);
+        EXPECT_EQ(c.goodMs, base.goodMs);
+        EXPECT_EQ(c.perfectMs, base.perfectMs);
+        lo = c.targetMs < lo ? c.targetMs : lo;
+        hi = c.targetMs > hi ? c.targetMs : hi;
+        distinct += c.targetMs != last ? 1u : 0u;
+        last = c.targetMs;
+    }
+    EXPECT_LT(lo, base.sweepMs * 40u / 100u);   // it reaches the early end...
+    EXPECT_GT(hi, base.sweepMs * 75u / 100u);   // ...and the late end
+    EXPECT_GT(distinct, 4000u);                 // and rarely repeats
+}
+
+TEST(Beat, AMovedTargetIsJudgedWhereItIsDrawn)
+{
+    const BeatConfig c = beatWithTarget(beatFor(0, 0), 4242u);
+    EXPECT_EQ(judgeBeat(c, 1000, 1000 + c.targetMs).result, BeatResult::Perfect);
+    EXPECT_EQ(judgeBeat(c, 1000, 1000 + c.targetMs + c.perfectMs).result, BeatResult::Good);
+    EXPECT_EQ(judgeBeat(c, 1000, 1000 + c.targetMs + c.goodMs).result, BeatResult::Miss);
+}

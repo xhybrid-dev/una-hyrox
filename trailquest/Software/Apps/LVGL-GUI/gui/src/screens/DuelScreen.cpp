@@ -292,6 +292,11 @@ void DuelScreen::choose(Action a)
 {
     mAction = a;
     if (mModel.beatOn() && a != Action::Fuel) {
+        // Each strike gets its own shape: by the move, the stage, the lap and a boss,
+        // with the target somewhere new (Beat.hpp).
+        const WorldView& w = mModel.world();
+        const BeatKind kind = a == Action::Surge ? BeatKind::Surge : (a == Action::Settle ? BeatKind::Settle : BeatKind::Skill);
+        mBeat.reconfigure(beatWithTarget(beatFor(w.state.stage, w.state.lap, kind, isBoss(mModel.duel().species)), lv_tick_get()));
         mBeat.start(lv_tick_get());
         setMode(Mode::Beat);
     } else {
