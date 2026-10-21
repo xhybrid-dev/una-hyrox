@@ -12,7 +12,7 @@ Everything that can be done without Jon is done. What is left is Jon's, below.
 | | |
 |---|---|
 | App | The whole Ridge: five stages, the pack with a pick list (R1), the moving timing needle, fatigue that carries over (Fuel and huts), a harder second lap, pitched jingles. 200 host tests |
-| App ID | The **development** ID `B5FA567FFD85BA6D` (md5 of `TrailQuest`), in `Software/Apps/TrailQuest-CMake/CMakeLists.txt`, `Resources/app-manifest.json` and the simulator's `CMakeLists.txt`. The portal issues the real one when the app is created (step 1 below); the packager **refuses a release carrying the development ID** |
+| App ID | **Issued by the portal (21 October 2026) and in place:** `AB98F6B289B6738E`, in `Software/Apps/TrailQuest-CMake/CMakeLists.txt`, `Resources/app-manifest.json` and the simulator's `CMakeLists.txt`. It replaces the development ID `B5FA567FFD85BA6D`, which the packager refuses on a release |
 | Package | Built by CI on every push, in the `trailquest-store-zip` artifact: `TrailQuest-<version>.zip`. A dry run until the commit is tagged |
 | Manifest | Checked by the packager: the activity keys the portal requires, no `previews` key (the lessons of X Weigh-in 1.0.0), no phone settings, `minKernelVersion` stamped from the SDK's ABI |
 | Icon | `Resources/icon_60x60.png` (shipped as `icon.png`) |
@@ -20,16 +20,13 @@ Everything that can be done without Jon is done. What is left is Jon's, below.
 | Version | 1.0.0, from the one tag `trailquest-v1.0.0` |
 | Firmware | Needs firmware 1.6 or newer for the pitched jingles (Jon: mandatory for everyone). The manifest's `minKernelVersion` is stamped from the SDK by the packager |
 
-## The release day (about forty minutes of Jon's time)
+## The release day (about thirty minutes of Jon's time)
 
 0. **Before anything: play the current build** (CI's `watch-apps`, `TrailQuest_*.uapp`) for a
    full run and a second lap: the fatigue and hut changes, the pick list, the moving needle
    and the jingles were all tuned by simulator, not on a watch. If anything feels wrong, say so
    and do not release; the numbers to adjust are in `BALANCE.md`.
-1. **Create the app on the portal** (apps.unawatch.com) as a new app named **Trail Quest**,
-   type Utility. It issues an **App ID**. Give it to Claude, who pastes it into the three
-   places (CMake, manifest, simulator) and pushes, or paste it yourself and re-run CMake.
-   The packager refuses a release with the development ID or with the three differing.
+1. **The app is created on the portal** and its App ID is in place (see above). Nothing to do.
 2. **Merge the branch** into the default branch, or tell Claude to.
 3. **Make the tag `trailquest-v1.0.0` on GitHub** (steps at the end). A tag push is
    outward-facing and Claude's session cannot push tags, so this is Jon's.

@@ -854,8 +854,8 @@ is for him to play before the tag.**
 - the manifest in the portal's form, six store previews (`docs/experiments/store_previews.sh`),
   `CHANGELOG.md` (1.0.0 not yet released) and **`docs/SUBMISSION.md`**: the release day
   step by step, the store text and the facts it rests on.
-**Jon's part:** play the final build; create the app on the portal for the App ID (Claude pastes
-it into the three places); make the tag `trailquest-v1.0.0` (a session cannot push tags);
+**App ID:** Jon created the app on the portal and gave the ID `AB98F6B289B6738E`, now in the three places (it replaces the development ID `B5FA567FFD85BA6D`).
+**Jon's part:** play the final build; make the tag `trailquest-v1.0.0` (a session cannot push tags);
 upload the zip.
 
 **Gate Q4b: what Jon must test** (the CI build, `watch-apps`): finish a full run.

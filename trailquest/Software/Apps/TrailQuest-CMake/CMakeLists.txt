@@ -14,7 +14,7 @@ set(APP_USER_NAME "Trail Quest")      # 11 bytes; app_merging.py truncates at 15
 set(APP_FILE_NAME "TrailQuest")
 set(APP_TYPE "Utility")
 set(DEV_ID "HybridX")
-set(APP_ID "B5FA567FFD85BA6D")          # first 16 hex of md5("TrailQuest"); development ID
+set(APP_ID "AB98F6B289B6738E")          # issued by the UNA portal (21 October 2026); the development ID was B5FA567FFD85BA6D
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")

@@ -12,8 +12,7 @@ the prefix for the SDK's version script.
 
 ## [1.0.0] - not yet released
 
-The first store release (see `docs/SUBMISSION.md`). The App ID is still the development ID until
-the portal issues one.
+The first store release (see `docs/SUBMISSION.md`). App ID `AB98F6B289B6738E`, issued by the UNA portal.
 
 ### Added
 

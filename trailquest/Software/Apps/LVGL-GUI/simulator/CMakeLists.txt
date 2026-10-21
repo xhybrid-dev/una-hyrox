@@ -57,7 +57,7 @@ target_include_directories(TrailQuestSimulator PRIVATE
 target_compile_definitions(TrailQuestSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
-    APP_ID="B5FA567FFD85BA6D"
+    APP_ID="AB98F6B289B6738E"
     APP_NAME="TrailQuest"
     DEV_ID="HybridX Simulator"
     BUILD_VERSION="0.1.0-sim"
