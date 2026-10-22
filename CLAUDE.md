@@ -298,7 +298,8 @@ A tenth app: a sauna and cold-plunge tracker. Start a session as Sauna → Cold 
 or Just sauna (which alternates Sauna and Rest), press a lap button to swap phase, and
 record time, heart rate and the watch's temperature (plus HR recovery and an optional
 Rest phase). It is an activity with a FIT file (SA2 onwards). It is independent of the
-other apps. The SA0 probe build lives on branch `claude/x-sauna-sa0`.
+other apps. The SA0 probe build lives on branch `claude/x-sauna-sa0`; the SA2 service
+and file on `claude/x-sauna-sa2`; the SA3 screens on `claude/x-sauna-sa3`.
 - **Docs:** findings, decisions and phases (SA0-SA4): `x-sauna/docs/NOTES.md`.
   Read it at the start of each Sauna phase, and work only on that phase.
 - **Rules:** the same standing rules as Race apply. Also: the watch's temperature
@@ -308,7 +309,9 @@ other apps. The SA0 probe build lives on branch `claude/x-sauna-sa0`.
   UNA's published limits allow it.
 - **Layout:** as Knitting: the pure core `Software/Libs/Core` (header-only where the
   GUI uses it), the service and messages `Software/Libs/App`, the GUI
-  `Software/Apps/LVGL-GUI`, the watch build `Software/Apps/Sauna-CMake`. The FIT writer
+  `Software/Apps/LVGL-GUI` (screens ported from Race's: R2 laps, R1 opens the action
+  menu, L1/L2 turn the faces; a screen builds only what is on show, because the LVGL
+  pool is 36 KB; NOTES "The LVGL pool"), the watch build `Software/Apps/Sauna-CMake`. The FIT writer
   (`Software/Libs/App/.../ActivityWriter`) is a trimmed copy of Race's; the temperature
   goes in a developer field, never the standard one (it is not the air temperature).
 - **Watch builds come from CI**, as for the others. Tags `sauna-vX.Y.Z`. Development
@@ -318,9 +321,14 @@ other apps. The SA0 probe build lives on branch `claude/x-sauna-sa0`.
   - simulator: `x-sauna/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its
     `build/`; run `build/bin/XSaunaSimulator`; keys 1-4 are L1, L2, R1, R2). It has no
     temperature sensor, so the service makes a reading up and the screen says so;
-  - a whole session in the simulator, with screenshots, then the file it writes
-    decoded: `docs/experiments/capture_screens.sh [out-dir]` (about 50 seconds, into
-    `docs/screens/`; needs Xvfb, xdotool, ImageMagick and `pip install fitdecode`);
+  - every screen in the simulator, by key presses (a whole session, then a
+    discarded one), with screenshots, then the file it writes decoded:
+    `docs/experiments/capture_screens.sh [out-dir]` (about 100 seconds, into
+    `docs/screens/sa3-*.png`; needs Xvfb, xdotool, ImageMagick and `pip install
+    fitdecode`);
+  - the text-fit audit (worst-case text on every screen, measured with LVGL, clear
+    of the bezel arcs): `docs/experiments/audit.sh` (about 10 seconds; run it after
+    any change to a screen's text or layout);
   - the FIT file from the real writer in four scenarios, decoded by fitdecode:
     `docs/experiments/fit_check.sh [work-dir]`;
   - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"),

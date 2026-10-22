@@ -77,7 +77,7 @@ Planned with Jon on 20 October 2026 (plan approved for SA0 only):
 | **SA0** | Identity, scaffold, CI build, and a **probe screen** that logs temperature and heart rate once a second to a CSV | Jon runs the staged test and sends the CSV: is the sensor there, what unit, ambient or skin, how it behaves when hot, wet or cold |
 | SA1 | The pure core with an injected clock, host-tested: session model, phases, laps, HR recovery, heat hint, text. **Done (22 October 2026)** | Host tests pass; Just-sauna rule settled |
 | SA2 | The service and the FIT file: HR and temperature a second, laps with developer fields, crash recovery; APP_TYPE moves to Activity. **Done (22 October 2026)**, on branch `claude/x-sauna-sa2` | A FIT file decodes (done here); the UNA app, Garmin and Strava take it (Jon) |
-| SA3 | The LVGL screens: start, live, summary | Jon uses it on the wrist in a real session |
+| SA3 | The LVGL screens: start, live, summary. **Done (22 October 2026)**, on branch `claude/x-sauna-sa3` | Jon uses it on the wrist in a real session |
 | SA4 | Store release: icon, package, `SUBMISSION.md`, 1.0.0 | Installed from the store |
 
 Outline of later phases (refined at each gate):
@@ -341,15 +341,8 @@ on the SA0 branch); the FIT file is the data log.
 
 ### The interim screen
 
-`SessionScreen`: text only, four views, and **SA3 replaces it with the real
-design**. Menu (R1 Sauna + plunge, L1 Just sauna, L2 Rest on or off); live (the
-phase, the lap's time, heart rate, total time and round, the previous lap's
-recovery; R1 next phase, L1 pause or resume, **hold R2** to stop); the stop
-question (R1 save, L1 discard, R2 back); the summary (rounds, time in each phase,
-heart rate, best recovery). The temperature is not shown. "NO LOG" appears in red
-if a write to the file fails.
-
-![Menu, sauna, plunge](screens/sa2-3-sauna.png)
+`SessionScreen` was text only, four views, and **SA3 replaced it** (see SA3
+below). Its button map (R1 next phase, hold R2 to stop) is gone.
 
 ### SA2 verified (22 October 2026)
 
@@ -461,6 +454,157 @@ there. The profile has no sauna sport, and a value is not guessed.
 3. ~~Decide the sport label~~ **Settled (Jon, 22 October 2026): Training / Generic stays.**
    The UNA app and Strava offer no better activity type for a sauna.
 4. The sauna and plunge probe results are still wanted for the heat hint.
+
+## SA3: the real screens (22 October 2026)
+
+The interim text screen is replaced by screens built the way HybridX Race's are
+(its `Screen`, `ScreenManager`, `Theme` and widgets, and the SDK's `Buttons`,
+`Title`, `WheelMenu`, `TimerRing` and `Battery`), so the two apps feel alike.
+Branch `claude/x-sauna-sa3`, cut from `claude/x-sauna-sa2`.
+
+### Buttons (Jon's choices, 23 October 2026)
+
+| | Menus | Live screen |
+|---|---|---|
+| **R2** | back / exit the app | **lap: swap phase** (amber arc) |
+| **R1** | select | **opens the action menu** |
+| **L1 / L2** | up / down | **previous / next face** |
+
+Nothing destructive is on L1, L2 or R2. **End session** and **Discard** are in the
+action menu and need **R1 held 1.5 s** (the ring fills, the centre counts 3, 2, 1;
+a release or a suspend cancels). Ending **saves**.
+
+### The screens
+
+![Main menu](screens/sa3-06-main-start-rest.png)
+![Live: sauna](screens/sa3-07-live-sauna.png)
+![Live: plunge, with the recovery countdown](screens/sa3-11-live-plunge.png)
+
+- **Main** (wheel menu): Start (its hint says what will run), Mode (Sauna + plunge
+  or Just sauna), Rest (On or Off; greyed and "Always on" for Just sauna). Exits
+  the app after 30 s idle. If a session is already running (the screen was closed
+  and reopened) it goes straight to the live screen.
+- **Live**, inside a **ring in the phase's colour** (sauna warm, plunge cool, rest
+  green, paused grey). Three faces, L1 and L2 turn through them:
+  - **Main:** the phase, the **lap time** large, "Round N, total mm:ss", heart
+    rate, and the recovery line. Paused: the lap time goes grey, "Paused" in amber
+    replaces the round line, and the R2 arc goes out (nothing to lap).
+  - **Totals:** time so far in each phase the mode uses, and the total.
+  - **Clock:** the time of day, the battery, and the phase with its lap time.
+  - A red "File error" replaces the round line if a write to the activity file fails.
+- **Lap toast** (about 2 s after R2, over any face): the new phase in its colour,
+  and the one just finished with its time and average heart rate. Any click
+  dismisses it, and R2 still works through it. **A 3 s lockout** stops a double
+  tap with a wet finger skipping a phase (`Core/Header/LapLockout.hpp`; the figure
+  is an assumption, adjustable).
+- **Action menu** (R1): Resume, Pause (Resume timer when paused), End session,
+  Discard. **It always opens on Resume**, so what R1 then does is the same every
+  time. The session keeps running while it is open; it closes itself after 10 s
+  and never exits the app.
+- **Result:** "Saving" until the service says, then Saved ("It will sync to the UNA
+  app"), Not saved (the file could not be written; red) or Discarded. About 2 s,
+  then the summary, or the main menu after a discard. Keys do nothing here: the R1
+  that held the confirm must not skip it.
+- **Summary** (L1 / L2 turn pages round, R2 back to the menu; exits the app on
+  idle): the overview (total time, rounds and laps, best recovery), time in each
+  phase, heart rate (average, highest, best recovery), then the **laps, three to a
+  page** (phase and round, time, average heart rate, recovery), asked of the
+  service a page at a time because the GUI keeps none of them.
+
+![Summary overview](screens/sa3-22-summary-overview.png)
+![Laps](screens/sa3-25-summary-laps-1.png)
+
+### Decisions made while building it (for Jon to overrule)
+
+- **The recovery line is about the sauna.** The plan said "after each phase". But
+  a heart-rate fall after a plunge or a rest is not what anyone asks, and it
+  showed "recovery 0:54" at the start of the second sauna, which was confusing.
+  So the line shows the **latest Sauna lap's recovery, while the session is out
+  of the heat**: "recovery 0:42" counting the minute down, then "-23 bpm" (it
+  fell) or "+4 bpm" (it rose), "recovery --" with no result; and nothing while in
+  the sauna. Every lap still carries its recovery in the file and the summary.
+- **Laps are three to a screen, not four:** two lines each ("Sauna 1   12:34" and
+  "avg 112   recovery -23") do not fit four on a round face.
+- **Mixed-case phase names** ("Plunge"), not capitals: narrower, so they clear the
+  arcs at the top of the face.
+- **The lap time drops to the 40 px face after an hour** (the 60 px digits would
+  not fit "1:02:05" in the circle).
+- **Still assumptions:** the 3 s lockout, the 2 s toast, the 10 s action-menu
+  timeout, the 30 s menu idle exit and the 5 s backlight. All are constants.
+- **Not in SA3** (offered, not asked for): remembering the last Mode and Rest
+  choice, a "last session" screen, the heat hint in the UI, targets and alarms.
+
+### Feedback
+
+Haptics as Race's phase buzzes: the sauna one strong pulse, the plunge two, the
+rest one sharp tick. The backlight comes on for 5 s on a wrist raise
+(`WRIST_MOTION`, connected while the screen is up) and on each lap. A raise is
+checked in the simulator with the 5 key.
+
+### What the service and the messages gained
+
+`SessionSnapshot` now carries the time in each phase, the recovery's seconds left
+and result, the hour and minute and the battery. New messages: `SESSION_LAP_EVENT`
+(the phase just finished, for the toast), `SESSION_LAPS_REQUEST` and
+`SESSION_LAPS_PAGE` (the summary's laps), and `activeMs` in `SESSION_SAVED`; all
+fixed-size and `static_assert`ed under the 256-byte pool block. The service keeps
+the stopped session until the next start so the summary can ask for its laps.
+
+### The LVGL pool
+
+Race's NOTES 5.6 found the 36 KB LVGL pool peaking at 91 % because a screen change
+holds the old screen and the new one together. The SDK's wheel menu alone is about
+17 KB, so a first version of the live screen (all three faces and the toast built
+at once, 17 KB) peaked at **about 90 %**, the same risk. The live screen now builds
+**only the face on show** and the toast only while it shows, and the summary only
+its current page. **The pool peak is now 59 %** (Live is 7.5 KB, the summary
+7.3 KB). This is checked in the simulator, which has the same pool size and LVGL;
+the watch is not checked.
+
+### SA3 verified (22 October 2026)
+
+- **Host tests:** 115 pass, no warnings (`LapLockout` and the new text writers are
+  new in this phase).
+- **Text-fit audit** (`docs/experiments/audit.sh`, about 10 s): the simulator hands
+  every screen its worst case (99:59:59, 65535 bpm, a recovery of +32768, the
+  widest phase name, 255 rounds, a paused 10 h lap, a file error) and checks every
+  label of ours with LVGL's own measure: inside its box, and clear of the bezel arcs
+  (radius 109). 13 cases, **0 problems**. (It found two on the way: the totals rows
+  and the summary's best-recovery line, both fixed.) The SDK's own widgets (the
+  wheel menu and the title) are not covered; they were checked by eye.
+- **Every screen, walked by key presses** (`docs/experiments/capture_screens.sh`,
+  about 100 s, 30 frames in `docs/screens/sa3-*.png`): the menu and its choices, a
+  Sauna + plunge + rest session start, the three faces, three laps and their
+  toasts, the action menu, a pause and resume, End by a held R1 (a frame mid-hold),
+  Saved, the summary pages, then a second session discarded. The wrist raise
+  lights the backlight.
+- **The file** from that session decodes with fitdecode and passes the same checks
+  (four laps, phases 0, 1, 2, 0, rounds 1, 1, 1, 2, one pause as a gap).
+- **Watch target, local compile check:** both processes link, `XSauna_0.0.0-dev.uapp`
+  309,732 bytes (the fonts added about 46 KB), no warnings from our code.
+  **Not installable**; CI makes the installable one.
+- **Not verified:** anything on a watch. How it reads at arm's length in steam and
+  glare, whether the ring helps, whether R2 and R1 fall where the hand expects,
+  the backlight on a real wrist raise, the buzz patterns by feel, and the LVGL pool
+  on the watch. The recovery countdown shows in the walk ("recovery 0:57" after the
+  first lap), but the simulator's laps are seconds long, so a full minute and the
+  "-23 bpm" result were not seen on screen: the host tests cover those numbers.
+
+### For Jon at Gate SA3
+
+1. **Install the build from the `claude/x-sauna-sa3` CI run.** It replaces the SA2
+   build (same app).
+2. **A real session**, ideally in the room first: Start, a few laps with R2, turn the
+   faces with L1 and L2, open the menu with R1, pause and resume, end by holding R1,
+   look at the summary.
+3. **Judge:** is the lap time readable at arm's length; does the colour ring help
+   or distract; are R2 (lap) and R1 (menu) where the hand expects; does the screen
+   light when you raise the wrist; are the buzzes distinguishable; is 3 s the right
+   lockout; is the recovery line (after leaving the sauna only) what you wanted?
+4. The sauna and plunge probe results are still wanted for the heat hint.
+5. Then **SA4**: the store release (the icon, the portal's app ID, `SUBMISSION.md`).
+   Also to decide there: how the branches (`sa0` probe, `sa2`, `sa3`) merge. No
+   pull request has been opened.
 
 ## Gate SA0: what Jon tests on the watch
 

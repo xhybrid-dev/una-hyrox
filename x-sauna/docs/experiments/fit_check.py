@@ -10,7 +10,8 @@ watch temperature developer field on every record; laps that chain and sum to
 the session; phase, round and recovery developer fields; session sport and
 profile name; and for `crash`, that the records survive with no laps.
 `sim` is a file from the PC simulator (random heart rate, made-up temperature,
-sauna + plunge + rest, one pause): structure is checked, exact numbers are not.
+sauna + plunge + rest + a second sauna, one pause): structure is checked, exact
+numbers are not.
 Exit status 1 if any check fails.
 """
 import sys
@@ -105,7 +106,7 @@ if scenario == "crash":
 # --- laps
 laps = by.get("lap", [])
 sess = by["session"][0]
-want_laps = {"sauna": 3, "sim": 3}.get(scenario, 4)
+want_laps = {"sauna": 3}.get(scenario, 4)
 check(len(laps) == want_laps, f"{want_laps} laps (got {len(laps)})")
 check([l.get("message_index") for l in laps] == list(range(len(laps))), "lap message_index 0..n-1")
 check(all(l.get("lap_trigger") == "manual" for l in laps), "every lap trigger is manual")
@@ -118,10 +119,10 @@ check(chain, "each lap starts where the last ended")
 check(sum(l["total_elapsed_time"] for l in laps) == sess["total_elapsed_time"], "laps' elapsed sum to the session's")
 check(sum(l["total_timer_time"] for l in laps) == sess["total_timer_time"], "laps' timer time sums to the session's")
 phases = [l.get("phase") for l in laps]
-want = {"sauna": [0, 2, 0], "sim": [0, 1, 2]}.get(scenario, [0, 1, 2, 0])
+want = {"sauna": [0, 2, 0]}.get(scenario, [0, 1, 2, 0])
 check(phases == want, f"lap phases {phases} == {want}")
 rounds = [l.get("round") for l in laps]
-want_r = {"sauna": [1, 1, 2], "sim": [1, 1, 1]}.get(scenario, [1, 1, 1, 2])
+want_r = {"sauna": [1, 1, 2]}.get(scenario, [1, 1, 1, 2])
 check(rounds == want_r, f"lap rounds {rounds} == {want_r}")
 rec = [l.get("hr_recovery_bpm") for l in laps]
 print("  info lap hr_recovery_bpm:", rec)

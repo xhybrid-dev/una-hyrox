@@ -1,30 +1,31 @@
 /**
  ******************************************************************************
  * @file    GuiApp.cpp
- * @brief   X Sauna GUI entry: builds the model and shows the session screen.
+ * @brief   X Sauna GUI entry: builds the model and shows the first screen.
  *
  * una_lvgl_app_init() is the hook the SDK's LVGL entry point calls once LVGL
- * and the display are up. It owns the model and the screen for the life of
- * the process.
+ * and the display are up. Objects are constructed here, not as globals, so
+ * nothing touches the kernel before main() has bound it.
  ******************************************************************************
  */
 
 #include <new>
 
 #include "gui/Assets.hpp"
+#include "gui/AuditDriver.hpp"
 #include "gui/model/Model.hpp"
-#include "gui/screens/SessionScreen.hpp"
-
-#include "SDK/GUI/LVGL/Draw.hpp"
+#include "gui/screens/ScreenManager.hpp"
+#include "gui/theme/Theme.hpp"
 
 namespace
 {
-alignas(Model)       uint8_t sModelStorage[sizeof(Model)];
-alignas(SessionScreen) uint8_t sScreenStorage[sizeof(SessionScreen)];
+alignas(Model) uint8_t sModelStorage[sizeof(Model)];
+Model* sModel = nullptr;
 } // namespace
 
 /// LVGL's default font: one of the app's own, so the built-in font stays out
-/// of the link.
+/// of the link. Every label sets its font explicitly; this backs widgets made
+/// without one.
 extern "C" const lv_font_t* una_lvgl_default_font(void)
 {
     return &poppins_regular_18;
@@ -32,8 +33,8 @@ extern "C" const lv_font_t* una_lvgl_default_font(void)
 
 extern "C" void una_lvgl_app_init(void)
 {
-    SDK::LVGL::Draw::init();
-    Model*       model  = new (sModelStorage) Model();
-    SessionScreen* screen = new (sScreenStorage) SessionScreen(*model);
-    lv_screen_load(screen->root());
+    Theme::init();
+    sModel = new (sModelStorage) Model();
+    ScreenManager::instance().start(*sModel, ScreenId::Main);
+    AuditDriver::startIfRequested(*sModel);
 }
