@@ -56,6 +56,8 @@ private:
     static constexpr uint32_t skTempMaxAgeMs = 10000u;
     /// Heart-rate gate, as HybridX Race applies it to what goes in the file.
     static constexpr float    skHrMinValid = 20.0f;
+    /// How long a wrist raise or a lap lights the screen.
+    static constexpr uint32_t skBacklightMs = 5000u;
     static constexpr uint32_t skSamplePeriod = 1000u;
     static constexpr uint32_t skSampleLatency = 1000u;
 
@@ -78,8 +80,13 @@ private:
 
     void sendUpdate();
     void sendSaved(bool saved);
+    void sendLaps(uint8_t first);
     void notifyNewActivity();
     void buzz(uint8_t effect);
+    /// The phase just begun, felt without looking: sauna one pulse, plunge two,
+    /// rest one short (as HybridX Race's run, station and Roxzone).
+    void phaseBuzz(Sauna::Phase phase);
+    void backlightOn(uint32_t timeoutMs = skBacklightMs);
 
     SDK::Kernel &mKernel;
     ActivityWriter mWriter;
@@ -87,6 +94,8 @@ private:
 
     SDK::Sensor::Connection mHrSensor;
     SDK::Sensor::Connection mTempSensor;
+    SDK::Sensor::Connection mBatterySensor;
+    SDK::Sensor::Connection mWristSensor;   ///< While the screen is up: a wrist raise lights it
 
     bool        mGuiStarted = false;
     uint32_t    mGuiGoneAtMs = 0;
@@ -101,6 +110,7 @@ private:
     bool     mHaveHr = false;
     int32_t  mTempX100 = Sauna::kX100Invalid;
     uint32_t mTempAtMs = 0;
+    uint8_t  mBattery = Sauna::kBatteryUnknown;
 };
 
 #endif // SERVICE_HPP

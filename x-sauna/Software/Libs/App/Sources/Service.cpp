@@ -13,13 +13,16 @@
 
 #include "FixedPoint.hpp"
 #include "SessionFit.hpp"
+#include "SessionText.hpp"
 #include "SimTemp.hpp"
 
 #include "SDK/Messages/CommandMessages.hpp"
 #include "SDK/Messages/MessageGuard.hpp"
 #include "SDK/Messages/SensorLayerMessages.hpp"
+#include "SDK/SensorLayer/DataParsers/SensorDataParserBatteryLevel.hpp"
 #include "SDK/SensorLayer/DataParsers/SensorDataParserHeartRateEx.hpp"
 #include "SDK/SensorLayer/DataParsers/SensorDataParserTemperature.hpp"
+#include "SDK/SensorLayer/DataParsers/SensorDataParserWristMotion.hpp"
 #include "SDK/Tools/FirmwareVersion.hpp"
 
 #define LOG_MODULE_PRX      "Service"
@@ -40,6 +43,8 @@ Service::Service(SDK::Kernel &kernel)
     , mTimeTracker(mKernel.sys)
     , mHrSensor(SDK::Sensor::Type::HEART_RATE_EX, skSamplePeriod, skSampleLatency)
     , mTempSensor(SDK::Sensor::Type::AMBIENT_TEMPERATURE, 0, 0)
+    , mBatterySensor(SDK::Sensor::Type::BATTERY_LEVEL)
+    , mWristSensor(SDK::Sensor::Type::WRIST_MOTION)
 {
     (void)kernel;
 }
@@ -80,12 +85,17 @@ void Service::run()
                 LOG_INFO("GUI is now running\n");
                 mGuiStarted  = true;
                 mGuiGoneAtMs = 0;
+                if (!mWristSensor.isConnected()) {
+                    mWristSensor.connect();
+                }
                 sendUpdate();
                 break;
 
             case SDK::MessageType::COMMAND_APP_NOTIF_GUI_STOP:
                 LOG_INFO("GUI has stopped\n");
                 mGuiStarted = false;
+                // A screen that has gone cannot be lit by a wrist raise.
+                mWristSensor.disconnect();
                 if (!sessionActive()) {
                     // Nothing is running and nothing else will reclaim the
                     // service: leave, as Knitting does.
@@ -127,6 +137,11 @@ void Service::run()
             case CustomMessage::SESSION_STOP: {
                 auto *m = static_cast<CustomMessage::SessionStop *>(msg);
                 finish(m->save != 0, false);
+            } break;
+
+            case CustomMessage::SESSION_LAPS_REQUEST: {
+                auto *m = static_cast<CustomMessage::SessionLapsRequest *>(msg);
+                sendLaps(m->first);
             } break;
 
             default:
@@ -175,6 +190,7 @@ void Service::startSession(uint8_t mode, uint8_t rest)
     mLogOk         = true;
     mHaveHr        = false;
     mTempX100      = Sauna::kX100Invalid;
+    mBattery       = Sauna::kBatteryUnknown;
 
     connectSensors();
 
@@ -195,9 +211,24 @@ void Service::startSession(uint8_t mode, uint8_t rest)
 
 void Service::lap()
 {
-    const Sauna::LapResult r = sModel.lap(mKernel.sys.getTimeMs());
+    const uint32_t nowMs = mKernel.sys.getTimeMs();
+
+    // What is about to end, for the toast: taken before the model moves on.
+    Sauna::LapEventData ev;
+    if (sModel.lapCount() > 0) {
+        ev.finishedPhase = static_cast<uint8_t>(sModel.phase());
+        ev.finishedRound = sModel.round();
+        ev.durationMs    = sModel.lapActiveMs(nowMs);
+        ev.hrAvg         = sModel.current().hrAvg();
+    }
+
+    const Sauna::LapResult r = sModel.lap(nowMs);
     if (r == Sauna::LapResult::Ok) {
-        buzz(SDK::Message::RequestVibroPlay::STRONG_CLICK_100);
+        ev.nextPhase = static_cast<uint8_t>(sModel.phase());
+        ev.nextRound = sModel.round();
+        phaseBuzz(sModel.phase());
+        backlightOn();
+        SDK::send_msg<CustomMessage::SessionLapEvent>(mKernel, ev);
     } else if (r == Sauna::LapResult::Full) {
         LOG_WARNING("Lap refused: the session is full\n");
         buzz(SDK::Message::RequestVibroPlay::SHORT_DOUBLE_CLICK_STRONG_1_100);
@@ -327,12 +358,16 @@ void Service::connectSensors()
     if (!mTempSensor.isConnected()) {
         mTempSensor.connect();
     }
+    if (!mBatterySensor.isConnected()) {
+        mBatterySensor.connect();
+    }
 }
 
 void Service::disconnectSensors()
 {
     mHrSensor.disconnect();
     mTempSensor.disconnect();
+    mBatterySensor.disconnect();
 }
 
 void Service::onSensorData(uint16_t handle, SDK::Sensor::DataBatch &batch)
@@ -347,6 +382,17 @@ void Service::onSensorData(uint16_t handle, SDK::Sensor::DataBatch &batch)
             mHrTrust = static_cast<uint8_t>(p.getTrustLevel());
             mHrAtMs  = mKernel.sys.getTimeMs();
             mHaveHr  = true;
+        }
+    } else if (mBatterySensor.matchesDriver(handle)) {
+        SDK::SensorDataParser::BatteryLevel p(batch[0]);
+        if (p.isDataValid()) {
+            const float level = p.getCharge();
+            mBattery = level < 0.0f ? 0u : (level > 100.0f ? 100u : static_cast<uint8_t>(level + 0.5f));
+        }
+    } else if (mWristSensor.matchesDriver(handle)) {
+        SDK::SensorDataParser::WristMotion p(batch[0]);
+        if (p.isDataValid()) {
+            backlightOn();
         }
     } else if (mTempSensor.matchesDriver(handle)) {
         SDK::SensorDataParser::Temperature p(batch[0]);
@@ -396,31 +442,72 @@ void Service::sendUpdate()
     Sauna::SessionSnapshot s;
     s.state     = static_cast<uint8_t>(sModel.state());
     s.mode      = static_cast<uint8_t>(sModel.config().mode);
-    s.rest      = sModel.config().rest ? 1u : 0u;
+    s.rest      = (sModel.config().mode == Sauna::Mode::SaunaOnly || sModel.config().rest) ? 1u : 0u;
     s.logOk     = mLogOk ? 1u : 0u;
+    s.battery   = mBattery;
     if (sModel.lapCount() > 0) {
         s.phase = static_cast<uint8_t>(sModel.phase());
         s.round = sModel.round();
         s.laps  = sModel.lapCount();
-        if (sModel.lapCount() > 1) {
-            const Sauna::LapStats &prev = sModel.lapAt(static_cast<uint8_t>(sModel.lapCount() - 2));
-            s.prevRecovery = static_cast<uint8_t>(prev.recovery.state);
-            s.prevDrop     = prev.recovery.drop;
+        if (sModel.phase() != Sauna::Phase::Sauna) {
+            // Recovery is out of the heat: the latest Sauna lap's, from when it
+            // ended. It counts down the minute, then says how far the heart
+            // rate fell, and goes again when the next sauna begins.
+            for (int i = static_cast<int>(sModel.lapCount()) - 2; i >= 0; --i) {
+                const Sauna::LapStats &prev = sModel.lapAt(static_cast<uint8_t>(i));
+                if (prev.phase != Sauna::Phase::Sauna) {
+                    continue;
+                }
+                s.recoveryState = static_cast<uint8_t>(prev.recovery.state);
+                s.recoveryDrop  = prev.recovery.drop;
+                if (prev.recovery.state == Sauna::Recovery::State::Pending) {
+                    s.recoverySecLeft = Sauna::recoverySecondsLeft(prev.recovery.endMs, nowMs);
+                }
+                break;
+            }
         }
     }
     s.hr        = sessionActive() ? currentHr(nowMs) : 0;
     s.lapMs     = sModel.lapActiveMs(nowMs);
     s.activeMs  = sModel.activeMs(nowMs);
     s.elapsedMs = sModel.elapsedMs(nowMs);
+
+    const Sauna::SessionSummary sum = sModel.summary();
+    s.phaseMs[0] = sum.saunaMs;
+    s.phaseMs[1] = sum.plungeMs;
+    s.phaseMs[2] = sum.restMs;
+
+    const std::tm local = mTimeTracker.getExpectedLocalTime();
+    s.hour   = static_cast<uint8_t>(local.tm_hour < 0 ? 0 : (local.tm_hour > 23 ? 23 : local.tm_hour));
+    s.minute = static_cast<uint8_t>(local.tm_min < 0 ? 0 : (local.tm_min > 59 ? 59 : local.tm_min));
     SDK::send_msg<CustomMessage::SessionUpdate>(mKernel, s);
 }
 
 void Service::sendSaved(bool saved)
 {
     Sauna::SavedSession s;
-    s.saved   = saved ? 1u : 0u;
-    s.summary = sModel.summary();
+    s.saved    = saved ? 1u : 0u;
+    s.summary  = sModel.summary();
+    s.activeMs = sModel.activeMs(mKernel.sys.getTimeMs());
     SDK::send_msg<CustomMessage::SessionSaved>(mKernel, s);
+}
+
+void Service::sendLaps(uint8_t first)
+{
+    Sauna::LapsPageData page;
+    page.total = sModel.lapCount();
+    page.first = first < page.total ? first : 0;
+    for (uint8_t i = page.first; i < page.total && page.count < Sauna::kLapsPerPage; ++i) {
+        const Sauna::LapStats &l = sModel.lapAt(i);
+        Sauna::LapRow &row = page.rows[page.count++];
+        row.phase         = static_cast<uint8_t>(l.phase);
+        row.round         = l.round;
+        row.recoveryState = static_cast<uint8_t>(l.recovery.state);
+        row.recoveryDrop  = l.recovery.drop;
+        row.hrAvg         = l.hrAvg();
+        row.durationMs    = l.activeMs;
+    }
+    SDK::send_msg<CustomMessage::SessionLapsPage>(mKernel, page);
 }
 
 void Service::notifyNewActivity()
@@ -441,4 +528,41 @@ void Service::buzz(uint8_t effect)
     vibro->notes[0].effect = effect;
     vibro->notesCount = 1;
     vibro.send();
+}
+
+void Service::phaseBuzz(Sauna::Phase phase)
+{
+    using Effect = SDK::Message::RequestVibroPlay::Effect;
+    const Effect effect = phase == Sauna::Phase::Rest ? Effect::SHARP_TICK_1_100 : Effect::STRONG_CLICK_100;
+    const uint8_t count = phase == Sauna::Phase::Plunge ? 2u : 1u;
+
+    // N effects need 2N-1 notes (HybridX Race's playVibroPattern).
+    auto *msg = mKernel.comm.allocateMessage<SDK::Message::RequestVibroPlay>();
+    if (!msg) {
+        return;
+    }
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < count; ++i) {
+        msg->notes[n].effect = static_cast<uint8_t>(effect);
+        msg->notes[n].pause  = 0;
+        ++n;
+        if (i + 1u < count) {
+            msg->notes[n].effect = static_cast<uint8_t>(Effect::NO_EFFECT);
+            msg->notes[n].pause  = 120;
+            ++n;
+        }
+    }
+    msg->notesCount = n;
+    mKernel.comm.sendMessage(msg);
+    mKernel.comm.releaseMessage(msg);
+}
+
+void Service::backlightOn(uint32_t timeoutMs)
+{
+    auto bl = SDK::make_msg<SDK::Message::RequestBacklightSet>(mKernel);
+    if (bl) {
+        bl->brightness       = 100;
+        bl->autoOffTimeoutMs = timeoutMs;
+        bl.send();
+    }
 }

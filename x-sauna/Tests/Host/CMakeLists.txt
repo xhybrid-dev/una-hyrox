@@ -37,6 +37,7 @@ add_executable(x-sauna-host-tests
     LapTimingTest.cpp
     HoldTimerTest.cpp
     SecondGateTest.cpp
+    LapLockoutTest.cpp
     ${CORE_SOURCES}
 )
 target_include_directories(x-sauna-host-tests PRIVATE
