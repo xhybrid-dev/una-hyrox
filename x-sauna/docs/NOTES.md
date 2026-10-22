@@ -458,8 +458,8 @@ there. The profile has no sauna sport, and a value is not guessed.
    and resume once, hold R2, save. Open the UNA app: does the activity appear?
    Then upload it to Strava and Garmin if you can: how is it titled, are the laps
    and heart rate right, does "Sauna" show anywhere?
-3. **Decide the sport label** if "Training" reads badly. I will look a value up in
-   the public profile tables rather than guess.
+3. ~~Decide the sport label~~ **Settled (Jon, 22 October 2026): Training / Generic stays.**
+   The UNA app and Strava offer no better activity type for a sauna.
 4. The sauna and plunge probe results are still wanted for the heat hint.
 
 ## Gate SA0: what Jon tests on the watch
