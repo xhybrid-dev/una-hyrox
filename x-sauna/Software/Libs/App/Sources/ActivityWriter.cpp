@@ -31,10 +31,10 @@ constexpr uint8_t kLapTriggerManual = 0u;
 /// sport_profile_name: session field 110, string (public FIT profile, as Race 5.28).
 constexpr uint8_t kSportProfileNameNum = 110;
 
-/// The watch's temperature in a FIT sint16: invalid when absent or out of range.
-bool tempFits(int32_t x100)
+/// The watch's temperature is written when there is one.
+bool tempPresent(int32_t x100)
 {
-    return x100 != INT32_MIN && x100 > INT16_MIN && x100 <= INT16_MAX;
+    return x100 != INT32_MIN;
 }
 
 }  // namespace
@@ -93,7 +93,7 @@ void ActivityWriter::start(const AppInfo& info)
 
     // Developer field descriptions (label and units survive any profile). No
     // unit is claimed for the temperature: it is the sensor's own number.
-    writeFieldDescription(DF_WATCH_TEMP_X100, "watch_temp_x100", nullptr, fit::BaseType::SInt16);
+    writeFieldDescription(DF_WATCH_TEMP, "watch_temp", nullptr, fit::BaseType::Float32);
     writeFieldDescription(DF_PHASE, "phase", nullptr, fit::BaseType::UInt8);
     writeFieldDescription(DF_ROUND, "round", nullptr, fit::BaseType::UInt8);
     writeFieldDescription(DF_HR_RECOVERY, "hr_recovery_bpm", "bpm", fit::BaseType::SInt16);
@@ -109,7 +109,7 @@ void ActivityWriter::start(const AppInfo& info)
     // record: heart rate, and the watch's temperature as a developer field.
     mFit->defineMessage(L_RECORD, fit::mesgNum(fit::MesgNum::Record),
         {fit::field::Record::Timestamp, fit::field::Record::HeartRate},
-        {{DF_WATCH_TEMP_X100, 2, 0}});
+        {{DF_WATCH_TEMP, 4, 0}});
 
     // lap / session / activity
     mFit->defineMessage(L_LAP, fit::mesgNum(fit::MesgNum::Lap),
@@ -201,10 +201,12 @@ bool ActivityWriter::addRecord(const RecordData& record)
         d.u8(static_cast<uint8_t>(fit::baseTypeInvalid(fit::BaseType::UInt8)));
     }
     // Developer field, in definition order.
-    if (tempFits(record.watchTempX100)) {
-        d.i16(static_cast<int16_t>(record.watchTempX100));
+    if (tempPresent(record.watchTempX100)) {
+        // Hundredths to a decimal: 3028 is written as 30.28. Integers all the way
+        // to here; the only float is the value as the file stores it.
+        d.f32(static_cast<float>(record.watchTempX100) / 100.0f);
     } else {
-        d.invalid(fit::BaseType::SInt16);
+        d.invalid(fit::BaseType::Float32);
     }
     const bool ok = d.write();
 

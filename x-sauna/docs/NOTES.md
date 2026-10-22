@@ -321,7 +321,7 @@ on the SA0 branch); the FIT file is the data log.
 
 | Message | Standard fields | Developer fields (this app's own numbers) |
 |---|---|---|
-| record, every second | timestamp, heart_rate (invalid when none, never 0) | `watch_temp_x100` (sint16) |
+| record, every second | timestamp, heart_rate (invalid when none, never 0) | `watch_temp` (float32, a decimal such as 30.28) |
 | lap, one per phase | times, avg and max HR, lap_trigger manual | `phase` (0 sauna, 1 plunge, 2 rest), `round`, `hr_recovery_bpm` (sint16, invalid when none) |
 | session | times, num_laps, avg and max HR, sport Training (10), sub_sport Generic (0), `sport_profile_name` "Sauna" | `mode`, `rest_enabled`, `completed` |
 | event | timer start and stop, in pairs (a pause is a stop and a start) | |
@@ -329,8 +329,10 @@ on the SA0 branch); the FIT file is the data log.
 - **The temperature is a developer field, not the standard record temperature
   (field 13).** Gate SA0 found it is a lagging temperature inside the watch;
   writing it as field 13 would tell Garmin and Strava it is the air. Developer
-  fields are not shown by either, but they are in the file for us. No unit is
-  claimed (`watch_temp_x100` is the sensor's number times 100).
+  fields are not shown by Strava, but they are in the file for us, and **the UNA
+  app shows each as a card** (below). No unit is claimed: `watch_temp` is the
+  sensor's own number, written as a decimal (30.28) because the UNA app shows the
+  raw value (the first build wrote hundredths and the card read 3028).
 - **Sport: Training / Generic**, as Race settled (its NOTES 5.12). The profile has
   no sauna sport that I can source. `sport_profile_name` "Sauna" is Race 5.28's
   experiment: **whether the UNA app or Strava honours it is unknown** (a Gate
@@ -396,7 +398,7 @@ slow against the clock. Records now key on the UTC second (`Core/Header/SecondGa
 (Jon's file keeps the gaps; it was written by the build before the fix.)
 
 **The temperature**, from that one session (the watch started warm, from the wrist
-or the charger; times are minute means of `watch_temp_x100`):
+or the charger; times are minute means of `watch_temp`, times 100 in the first version's file):
 
 | When | Reading | What happened |
 |---|---|---|
@@ -415,6 +417,34 @@ not have fired indoors, where the drift reached 2.0. That is one trial with a
 contrast of 8 to 10, not a sauna: **how it behaves in heat, and in a plunge, is
 still unknown**, and the hint stays off until the probe's sauna and plunge data
 exist.
+
+### What the UNA app and Strava showed (22 October 2026)
+
+From Jon's screenshots of the same session.
+
+**The UNA app** (Activity screen): titled **"Training"**, 22 Oct 09:28, distance
+0.00 km, average pace 0'00", average HR 65, **duration 36:50** (the elapsed time),
+the heart-rate chart, HR zones (all Zone 1, "Warm Up"), and a **LAPS card with all
+three laps**: 31:48, 04:51 and 00:06 with each lap's average heart rate. Then:
+
+- **Every developer field we write appears as a card**, titled from its name: the
+  watch temperature (with max, average and a line over time), phase and round per
+  lap (as line charts, which mean little for a category), `hr_recovery_bpm` (14),
+  mode, rest enabled, completed. So Race's finding that developer fields are
+  invisible holds for Strava and Garmin but **not for the UNA app**: that is
+  where the temperature and the recovery are seen.
+- The temperature card read **3028 / 2837.8** (hundredths) and its title was
+  cut off ("Watch temp..."): fixed by writing a decimal named `watch_temp`.
+- "**Best Lap: 00:06.00**" is the UNA app picking the shortest lap; nothing to do
+  with how the lap went.
+- It shows distance and pace as zero, as for any activity without GPS.
+
+**Strava**: **"training - UNA Watch"**, a generic Workout. Elapsed time 36:48,
+average and maximum heart rate, the heart-rate chart and zones. **No developer
+fields, no laps shown, and `sport_profile_name` "Sauna" is ignored**: the title is
+the sport plus the product name, as Race's 5.28 suspected. So the activity cannot
+call itself a sauna on Strava through the file; the title can be edited by hand
+there. The profile has no sauna sport, and a value is not guessed.
 
 **Pause.** The log shows three pauses and resumes within eight seconds at
 08:31:39 to 08:31:47. L1 (pause) is easy to hit by accident; worth Jon's view for SA3.

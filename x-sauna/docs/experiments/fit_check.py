@@ -52,10 +52,10 @@ check(fid.get("product_name") == "UNA Watch", "file_id.product_name is UNA Watch
 dev = {}
 for f in by.get("field_description", []):
     dev[f.get("field_name")] = f
-expected = {"watch_temp_x100": 131, "phase": 2, "round": 2, "hr_recovery_bpm": 131,
+expected = {"watch_temp": 136, "phase": 2, "round": 2, "hr_recovery_bpm": 131,
             "mode": 2, "rest_enabled": 2, "completed": 2}
 for n, base in expected.items():
-    ok = n in dev and dev[n].get("fit_base_type_id") in (base, "sint16" if base == 131 else "uint8")
+    ok = n in dev and dev[n].get("fit_base_type_id") in (base, {136: "float32", 131: "sint16"}.get(base, "uint8"))
     check(ok, f"developer field {n} described (base type {dev.get(n, {}).get('fit_base_type_id')})")
 check(len(by.get("developer_data_id", [])) == 1, "one developer_data_id")
 
@@ -84,10 +84,10 @@ elif scenario == "sauna":
 elif scenario == "sim":
     check(len(big) == 1 and big[0] > 2, f"one gap, at the pause ({big})")
 check(all(g > 0 for g in gaps), "record timestamps strictly increase")
-temps = [r.get("watch_temp_x100") for r in recs]
-check(all(t is not None for t in temps), "every record carries watch_temp_x100")
-check(all(1200 <= t <= 8500 for t in temps if t is not None),
-      f"watch_temp_x100 within the invented SimTemp range ({min(temps)}..{max(temps)})")
+temps = [r.get("watch_temp") for r in recs]
+check(all(t is not None for t in temps), "every record carries watch_temp")
+check(all(12.0 <= t <= 85.0 for t in temps if t is not None),
+      f"watch_temp (a decimal, not hundredths) within the invented SimTemp range ({min(temps):.2f}..{max(temps):.2f})")
 hrs = [r.get("heart_rate") for r in recs]
 if scenario == "nohr":
     check(all(h is None for h in hrs), "no heart rate on any record (invalid, not zero)")

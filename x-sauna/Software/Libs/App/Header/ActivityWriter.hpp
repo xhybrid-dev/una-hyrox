@@ -10,8 +10,10 @@
  * The watch's temperature is a DEVELOPER field, not the standard record
  * temperature (field 13): Gate SA0 found it is a lagging temperature inside the
  * watch, so telling Garmin or Strava it is the air temperature would be wrong.
- * Developer fields are not shown by either, but they are readable from the file,
- * which is what tuning the heat hint needs.
+ * Strava shows no developer fields. The UNA app shows every one as a card
+ * (Jon's first session, 22 October 2026), titled from the field's name and
+ * with its raw number, so the name is plain ("watch_temp") and the value is a
+ * decimal (30.28), not hundredths.
  *
  * Laps and the session are written at stop(), not as they happen, because a
  * lap's heart-rate recovery is only known a minute after it ends. A crash
@@ -125,7 +127,7 @@ private:
 
     /// Developer field definition numbers (this app's own).
     enum DevField : uint8_t {
-        DF_WATCH_TEMP_X100 = 0,   // record, sint16
+        DF_WATCH_TEMP      = 0,   // record, float32
         DF_PHASE           = 1,   // lap, uint8: 0 sauna, 1 plunge, 2 rest
         DF_ROUND           = 2,   // lap, uint8
         DF_HR_RECOVERY     = 3,   // lap, sint16: bpm fallen a minute after the lap
