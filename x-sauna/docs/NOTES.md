@@ -376,6 +376,49 @@ if a write to the file fails.
   checks cover it. Closing the screen mid-session (above). CI has not run on this
   branch.
 
+### First session on a watch (22 October 2026)
+
+Jon ran the SA2 build indoors (about 20 degrees) for lap 1 and outside (12 to 15)
+for lap 2, and sent the `.fit` and `.json` it wrote on the watch (not committed:
+his health data; ask if you want it kept in the repo).
+
+**What worked.** The app wrote a valid activity on the watch. Decoded with
+fitdecode (CRC checked): 3 laps (sauna round 1, plunge-slot lap, sauna round 2),
+2,104 records, all seven developer fields present, session Training / Generic
+named "Sauna", `completed` 1, the `.json` sidecar beside it. Lap 1's heart-rate
+recovery was written (14 bpm). Heart rate 42 to 96 bpm, absent on 4% of seconds
+(the trust gate).
+
+**A bug it found, fixed.** About 5% of seconds were missing from the records: 2,104
+records for 2,205 s, a 2 s gap every 20 s or so. The once-a-second timer drifted
+slow against the clock. Records now key on the UTC second (`Core/Header/SecondGate.hpp`,
+6 tests); a 70 s simulator session now gives 73 records over 73 s with no gaps.
+(Jon's file keeps the gaps; it was written by the build before the fix.)
+
+**The temperature**, from that one session (the watch started warm, from the wrist
+or the charger; times are minute means of `watch_temp_x100`):
+
+| When | Reading | What happened |
+|---|---|---|
+| minute 0 (indoors) | 30.2 | |
+| minute 20 | 28.6 | a slow fall, about 0.08 a minute, **8 to 10 above the room's 20** |
+| minute 28 (indoors) | 28.2 | |
+| minute 30 to 35 (going outside) | 27.5 to 23.0 | a fall of about 1 a minute, **still falling** (about 0.2 a minute) when the session ended |
+
+So the reading answers a cold surrounding within minutes and in the right
+direction, and it lags by tens of minutes: it never reached either room
+temperature. That is consistent with Jon's Gate SA0 reading (an internal watch
+temperature) and it supports using it relative to where the session started.
+The heat hint's placeholder thresholds (3.0 below the first minute) would have said
+"cooler" about a minute **before** the lap button was pressed outside, and would
+not have fired indoors, where the drift reached 2.0. That is one trial with a
+contrast of 8 to 10, not a sauna: **how it behaves in heat, and in a plunge, is
+still unknown**, and the hint stays off until the probe's sauna and plunge data
+exist.
+
+**Pause.** The log shows three pauses and resumes within eight seconds at
+08:31:39 to 08:31:47. L1 (pause) is easy to hit by accident; worth Jon's view for SA3.
+
 ### For Jon at Gate SA2
 
 1. **Install the build from the `claude/x-sauna-sa2` CI run** (as for the probe).

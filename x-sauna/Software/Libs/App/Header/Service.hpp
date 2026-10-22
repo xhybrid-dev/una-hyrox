@@ -9,7 +9,8 @@
  * what it has (the file says so: completed = 0). A boot that finds a recording
  * interrupted finishes the file first (ActivityWriter::recoverInterrupted).
  *
- * Once a second while a session runs: one FIT record (heart rate and the
+ * Once a second (each new UTC second, not "a second since the last": see
+ * SecondGate.hpp) while a session runs: one FIT record (heart rate and the
  * watch's temperature) and one sample into the SessionModel. Laps and the
  * session are written when it ends (see ActivityWriter.hpp for why).
  *
@@ -26,6 +27,7 @@
 
 #include "ActivityWriter.hpp"
 #include "Commands.hpp"
+#include "SecondGate.hpp"
 #include "SessionModel.hpp"
 #include "SessionSnapshot.hpp"
 
@@ -91,8 +93,7 @@ private:
     bool        mFitOpen = false;
     bool        mLogOk = true;
     std::time_t mStartUtc = 0;
-    std::time_t mLastRecordUtc = 0;
-    uint32_t    mLastTickMs = 0;
+    Sauna::SecondGate mSecond;      ///< One record and one sample per UTC second
 
     float    mHrBpm = 0.0f;
     uint8_t  mHrTrust = 0;

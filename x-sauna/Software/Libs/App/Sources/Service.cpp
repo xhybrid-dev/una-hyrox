@@ -171,7 +171,7 @@ void Service::startSession(uint8_t mode, uint8_t rest)
     cfg.rest = rest != 0;
 
     mStartUtc      = mTimeTracker.getExpectedUTC();
-    mLastRecordUtc = 0;
+    mSecond.reset();
     mLogOk         = true;
     mHaveHr        = false;
     mTempX100      = Sauna::kX100Invalid;
@@ -189,7 +189,6 @@ void Service::startSession(uint8_t mode, uint8_t rest)
 
     const uint32_t nowMs = mKernel.sys.getTimeMs();
     sModel.start(nowMs, cfg);
-    mLastTickMs = nowMs;
     LOG_INFO("Session started: mode %u, rest %u\n", static_cast<unsigned>(mode), static_cast<unsigned>(rest));
     sendUpdate();
 }
@@ -287,27 +286,25 @@ void Service::tick()
     if (!sessionActive()) {
         return;
     }
-    // Unsigned subtraction stays right across the millisecond clock's wrap.
-    const uint32_t nowMs = mKernel.sys.getTimeMs();
-    if (nowMs - mLastTickMs < 1000u) {
+    // Each new UTC second, however the 200 ms polling falls: a timer of "a
+    // second since the last" drifted slow and dropped about one second in
+    // twenty from the file (Jon's first session).
+    const std::time_t utc = mTimeTracker.getExpectedUTC();
+    if (!mSecond.take(static_cast<int64_t>(utc))) {
         return;
     }
-    mLastTickMs = nowMs;
+    const uint32_t nowMs = mKernel.sys.getTimeMs();
 
     const uint16_t hr   = currentHr(nowMs);
     const int32_t  temp = currentTemp(nowMs);
 
     if (sModel.state() == Sauna::RunState::Running) {
-        const std::time_t utc = mTimeTracker.getExpectedUTC();
-        if (utc > mLastRecordUtc) {          // one record per second, never two alike
-            ActivityWriter::RecordData rec {};
-            rec.timestamp     = utc;
-            rec.heartRate     = static_cast<uint8_t>(hr > 255u ? 255u : hr);
-            rec.watchTempX100 = temp;
-            if (!mWriter.addRecord(rec)) {
-                mLogOk = false;
-            }
-            mLastRecordUtc = utc;
+        ActivityWriter::RecordData rec {};
+        rec.timestamp     = utc;
+        rec.heartRate     = static_cast<uint8_t>(hr > 255u ? 255u : hr);
+        rec.watchTempX100 = temp;
+        if (!mWriter.addRecord(rec)) {
+            mLogOk = false;
         }
         sModel.addSample(nowMs, hr, temp);
     } else {
