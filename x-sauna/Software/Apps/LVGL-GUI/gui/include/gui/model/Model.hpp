@@ -3,10 +3,10 @@
  * @file    Model.hpp
  * @brief   GUI-side state of X Sauna and its link to the service.
  *
- * The service owns the probe and sends its readings once a second
- * (Commands.hpp). The model keeps the latest copy so a screen can draw on
- * first show, and forwards each new one to the listener. Button actions are
- * requests to the service; the screen only ever shows what it last said.
+ * The service owns the session and sends it once a second and on every change
+ * (Commands.hpp). The model keeps the latest copy so a screen can draw on first
+ * show, and forwards each new one to the listener. Button actions are requests
+ * to the service; the screen only ever shows what it last said.
  ******************************************************************************
  */
 
@@ -33,19 +33,19 @@ public:
     /// Exit the application: the kernel stops both processes.
     void exitApp();
 
-    /// R1: put a marker in the log.
-    void mark();
-    /// L1: start the lowest and highest readings again.
-    void clearRange();
+    void startSession(uint8_t mode, uint8_t rest);
+    void lap();
+    void pause();
+    void resume();
+    void stop(bool save);
 
-    /// The last readings from the service, so a screen can draw on first show.
-    const Sauna::ProbeSnapshot& snapshot() const { return mSnapshot; }
+    const Sauna::SessionSnapshot& snapshot() const { return mSnapshot; }
 
 protected:
     ModelListener*     modelListener;   ///< The screen on display
     const SDK::Kernel& mKernel;         ///< The GUI process's kernel interface
 
-    Sauna::ProbeSnapshot mSnapshot {};
+    Sauna::SessionSnapshot mSnapshot {};
 
     // IGuiLifeCycleCallback
     void onStart() override;

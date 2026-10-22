@@ -1,14 +1,21 @@
 /**
  ******************************************************************************
  * @file    Service.hpp
- * @brief   X Sauna background logic. At Gate 0 this is the heat probe: it
- *          connects the temperature and heart-rate sensors, keeps what they
- *          do, writes it to a CSV once a second and tells the GUI.
+ * @brief   X Sauna background logic: runs a sauna session and records it.
  *
- * Sensors run only while the screen is open, and stop after kWindowS so a
- * probe left on a bench cannot run a battery flat. The CSV is appended in
- * batches (kFlushEveryS), because a watch that gets too hot may switch off:
- * the log should hold everything up to the last few seconds.
+ * The session lives here, not in the screen, so it survives the screen going
+ * away: if the GUI closes mid-session the service keeps recording for
+ * kGuiGoneGraceMs, then saves and exits; if the kernel stops the app it saves
+ * what it has (the file says so: completed = 0). A boot that finds a recording
+ * interrupted finishes the file first (ActivityWriter::recoverInterrupted).
+ *
+ * Once a second (each new UTC second, not "a second since the last": see
+ * SecondGate.hpp) while a session runs: one FIT record (heart rate and the
+ * watch's temperature) and one sample into the SessionModel. Laps and the
+ * session are written when it ends (see ActivityWriter.hpp for why).
+ *
+ * The heat hint (HeatHint.hpp) is not used here: its thresholds are untuned,
+ * so the temperature is only recorded.
  ******************************************************************************
  */
 
@@ -16,13 +23,16 @@
 #define SERVICE_HPP
 
 #include <cstdint>
+#include <ctime>
 
+#include "ActivityWriter.hpp"
 #include "Commands.hpp"
-#include "ProbeCsv.hpp"
-#include "ProbeSnapshot.hpp"
-#include "ProbeStats.hpp"
+#include "SecondGate.hpp"
+#include "SessionModel.hpp"
+#include "SessionSnapshot.hpp"
 
 #include "SDK/Kernel/KernelProviderService.hpp"
+#include "SDK/Metrics/MonotonicTime.hpp"
 #include "SDK/SensorLayer/SensorConnection.hpp"
 #include "SDK/SensorLayer/SensorDataBatch.hpp"
 
@@ -35,60 +45,62 @@ public:
 
     void run();
 
-    /// The log, in the app's folder on the watch.
-    static constexpr const char *kLogFile = "heat-probe.csv";
-
-    /// How long the sensors run before the probe stops itself, in seconds.
-    static constexpr uint32_t kWindowS = 45u * 60u;
-    /// How often the buffered rows are written to the file, in seconds.
-    static constexpr uint32_t kFlushEveryS = 5u;
+    /// If the screen is gone this long with a session running, save and exit.
+    static constexpr uint32_t kGuiGoneGraceMs = 5u * 60u * 1000u;
 
 private:
     static constexpr uint32_t skWaitMs = 200u;           ///< Longest wait for a message
-    static constexpr uint32_t skNoGuiGraceMs = 10000u;   ///< Exit if no screen opens
+    static constexpr uint32_t skNoGuiGraceMs = 10000u;   ///< Exit if no screen ever opens
+    /// A heart rate or temperature older than this is not "now".
+    static constexpr uint32_t skHrMaxAgeMs = 5000u;
+    static constexpr uint32_t skTempMaxAgeMs = 10000u;
+    /// Heart-rate gate, as HybridX Race applies it to what goes in the file.
+    static constexpr float    skHrMinValid = 20.0f;
+    static constexpr uint32_t skSamplePeriod = 1000u;
+    static constexpr uint32_t skSampleLatency = 1000u;
 
-    void startSensors();
-    void stopSensors(const char *why);
+    bool sessionActive() const;
+
+    void startSession(uint8_t mode, uint8_t rest);
+    void lap();
+    void pause();
+    void resume();
+    /// End the session. @p bank: the app is being stopped, not the person ending it.
+    void finish(bool save, bool bank);
+
     void tick();
+    void connectSensors();
+    void disconnectSensors();
     void onSensorData(uint16_t handle, SDK::Sensor::DataBatch &batch);
-    void onTemperature(SDK::Sensor::DataBatch &batch);
-    void onHeartRate(SDK::Sensor::DataBatch &batch);
+
+    uint16_t currentHr(uint32_t nowMs) const;
+    int32_t  currentTemp(uint32_t nowMs) const;
 
     void sendUpdate();
-    Sauna::ProbeSnapshot snapshot() const;
-
-    // The log
-    void openLog();
-    void queue(const char *text, size_t len);
-    void note(const char *text);
-    void flushLog();
-    bool appendToFile(const char *text, size_t len);
-
+    void sendSaved(bool saved);
+    void notifyNewActivity();
     void buzz(uint8_t effect);
 
     SDK::Kernel &mKernel;
+    ActivityWriter mWriter;
+    SDK::Metric::MonotonicTime<SDK::Interface::ISystem> mTimeTracker;
 
-    SDK::Sensor::Connection mTemp;
-    SDK::Sensor::Connection mHr;
+    SDK::Sensor::Connection mHrSensor;
+    SDK::Sensor::Connection mTempSensor;
 
-    bool     mGuiStarted = false;
-    bool     mSensing = false;
-    bool     mFinished = false;
-    bool     mSimulated = false;
-    uint32_t mStartMs = 0;
-    uint32_t mElapsedS = 0;
-    uint32_t mLastFlushS = 0;
+    bool        mGuiStarted = false;
+    uint32_t    mGuiGoneAtMs = 0;
+    bool        mFitOpen = false;
+    bool        mLogOk = true;
+    std::time_t mStartUtc = 0;
+    Sauna::SecondGate mSecond;      ///< One record and one sample per UTC second
 
-    Sauna::Sense       mTempSense = Sauna::Sense::NotStarted;
-    Sauna::Sense       mHrSense = Sauna::Sense::NotStarted;
-    Sauna::StreamStats mTempStats;
-    Sauna::StreamStats mHrStats;
-    uint32_t           mTempBad = 0;
-    uint16_t           mTempFields = 0;
-    int32_t            mTrustX100 = Sauna::kX100Invalid;
-    uint16_t           mMarks = 0;
-    uint16_t           mRun = 0;
-    Sauna::LogState    mLog = Sauna::LogState::Off;
+    float    mHrBpm = 0.0f;
+    uint8_t  mHrTrust = 0;
+    uint32_t mHrAtMs = 0;
+    bool     mHaveHr = false;
+    int32_t  mTempX100 = Sauna::kX100Invalid;
+    uint32_t mTempAtMs = 0;
 };
 
 #endif // SERVICE_HPP

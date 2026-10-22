@@ -23,15 +23,20 @@ include("${UNA_SDK_ROOT}/Tests/Host/cmake/FetchGoogleTest.cmake")
 
 set(CORE_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Core")
 
-set(CORE_SOURCES
-    "${CORE_LIBS}/Sources/ProbeCsv.cpp"
-)
+# Core is header-only so far: the GUI process links none of the library sources.
+set(CORE_SOURCES)
 
 add_executable(x-sauna-host-tests
     FixedPointTest.cpp
-    ProbeStatsTest.cpp
-    ProbeCsvTest.cpp
     SimTempTest.cpp
+    HrRecoveryTest.cpp
+    HeatHintTest.cpp
+    SessionModelTest.cpp
+    SessionTextTest.cpp
+    SessionFitTest.cpp
+    LapTimingTest.cpp
+    HoldTimerTest.cpp
+    SecondGateTest.cpp
     ${CORE_SOURCES}
 )
 target_include_directories(x-sauna-host-tests PRIVATE
