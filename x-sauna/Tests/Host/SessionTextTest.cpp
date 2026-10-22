@@ -110,3 +110,63 @@ TEST(SessionText, ZeroCapacityAndNullWriteNothing)
     EXPECT_EQ(formatRecovery(nullptr, 8, Recovery()), 0u);
     EXPECT_EQ(c, 'x');
 }
+
+TEST(SessionText, RecoveryLine)
+{
+    auto r = [](Recovery::State s, uint8_t left, int16_t drop) {
+        return text([&](char *o, size_t n) { formatRecoveryLine(o, n, s, left, drop); });
+    };
+    EXPECT_EQ(r(Recovery::State::Pending, 42, 0), "recovery 0:42");
+    EXPECT_EQ(r(Recovery::State::Pending, 60, 0), "recovery 1:00");
+    EXPECT_EQ(r(Recovery::State::Pending, 5, 0), "recovery 0:05");
+    EXPECT_EQ(r(Recovery::State::Done, 0, 23), "-23 bpm");
+    EXPECT_EQ(r(Recovery::State::Done, 0, -4), "+4 bpm");
+    EXPECT_EQ(r(Recovery::State::Done, 0, 0), "0 bpm");
+    EXPECT_EQ(r(Recovery::State::Done, 0, INT16_MIN), "+32768 bpm");
+    EXPECT_EQ(r(Recovery::State::NoResult, 0, 0), "recovery --");
+    EXPECT_EQ(r(Recovery::State::None, 0, 0), "");
+}
+
+TEST(SessionText, HourMinuteAndPercent)
+{
+    char b[16];
+    formatHourMinute(b, sizeof(b), 9, 5);
+    EXPECT_STREQ(b, "09:05");
+    formatHourMinute(b, sizeof(b), 23, 59);
+    EXPECT_STREQ(b, "23:59");
+    formatPercent(b, sizeof(b), 87, 255);
+    EXPECT_STREQ(b, "87%");
+    formatPercent(b, sizeof(b), 255, 255);
+    EXPECT_STREQ(b, "--%");
+    formatPercent(b, sizeof(b), 101, 255);
+    EXPECT_STREQ(b, "--%");
+    formatPercent(b, sizeof(b), 100, 255);
+    EXPECT_STREQ(b, "100%");
+}
+
+TEST(SessionText, RecoverySecondsLeftCountsDownFromSixty)
+{
+    EXPECT_EQ(recoverySecondsLeft(1000, 1000), 60);
+    EXPECT_EQ(recoverySecondsLeft(1000, 1999), 60);
+    EXPECT_EQ(recoverySecondsLeft(1000, 2000), 59);
+    EXPECT_EQ(recoverySecondsLeft(1000, 31000), 30);
+    EXPECT_EQ(recoverySecondsLeft(1000, 60999), 1);
+    EXPECT_EQ(recoverySecondsLeft(1000, 61000), 0);
+    EXPECT_EQ(recoverySecondsLeft(1000, 999999), 0);
+    // Across the 32-bit wrap.
+    const uint32_t end = 0xFFFFFFFFu - 10000u;
+    EXPECT_EQ(recoverySecondsLeft(end, end + 25000u), 35);
+}
+
+TEST(SessionText, RecoveryLineNeverPastTheBuffer)
+{
+    for (size_t cap = 1; cap <= 14; ++cap) {
+        char region[40];
+        std::memset(region, 'G', sizeof(region));
+        formatRecoveryLine(region, cap, Recovery::State::Done, 0, INT16_MIN);
+        for (size_t i = cap; i < sizeof(region); ++i) {
+            ASSERT_EQ(region[i], 'G') << "cap " << cap;
+        }
+        ASSERT_LT(std::strlen(region), cap);
+    }
+}

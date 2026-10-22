@@ -113,6 +113,65 @@ inline size_t formatRelTemp(char *out, size_t cap, int32_t deltaX100)
     return detail::copyOut(out, cap, tmp);
 }
 
+/// The recovery line under the heart rate. While waiting: "recovery 0:42" (the
+/// minute counting down); once known: "-23 bpm" (it fell) or "+4 bpm" (it rose);
+/// with no result "recovery --"; before any lap has ended, nothing.
+inline size_t formatRecoveryLine(char *out, size_t cap, Recovery::State state, uint8_t secLeft,
+                                 int16_t drop)
+{
+    char tmp[28];
+    switch (state) {
+    case Recovery::State::Pending:
+        std::snprintf(tmp, sizeof(tmp), "recovery %u:%02u", static_cast<unsigned>(secLeft / 60u),
+                      static_cast<unsigned>(secLeft % 60u));
+        break;
+    case Recovery::State::Done:
+        if (drop > 0) {
+            std::snprintf(tmp, sizeof(tmp), "-%d bpm", static_cast<int>(drop));
+        } else if (drop < 0) {
+            std::snprintf(tmp, sizeof(tmp), "+%d bpm", -static_cast<int>(drop));
+        } else {
+            std::snprintf(tmp, sizeof(tmp), "0 bpm");
+        }
+        break;
+    case Recovery::State::NoResult:
+        std::snprintf(tmp, sizeof(tmp), "recovery --");
+        break;
+    default:
+        tmp[0] = '\0';
+        break;
+    }
+    return detail::copyOut(out, cap, tmp);
+}
+
+/// Time of day, "09:28". Values past 23 and 59 are shown as they are, not wrapped.
+inline size_t formatHourMinute(char *out, size_t cap, uint8_t hour, uint8_t minute)
+{
+    char tmp[12];
+    std::snprintf(tmp, sizeof(tmp), "%02u:%02u", static_cast<unsigned>(hour), static_cast<unsigned>(minute));
+    return detail::copyOut(out, cap, tmp);
+}
+
+/// A battery level as "87%", or "--%" when it is not known.
+inline size_t formatPercent(char *out, size_t cap, uint8_t percent, uint8_t unknown)
+{
+    char tmp[8];
+    if (percent == unknown || percent > 100u) {
+        std::snprintf(tmp, sizeof(tmp), "--%%");
+    } else {
+        std::snprintf(tmp, sizeof(tmp), "%u%%", static_cast<unsigned>(percent));
+    }
+    return detail::copyOut(out, cap, tmp);
+}
+
+/// Seconds left in a recovery minute from when the lap ended: 60 down to 0.
+inline uint8_t recoverySecondsLeft(uint32_t endMs, uint32_t nowMs)
+{
+    const uint32_t elapsedS = (nowMs - endMs) / 1000u;
+    const uint32_t delayS   = kRecoveryDelayMs / 1000u;
+    return elapsedS >= delayS ? 0u : static_cast<uint8_t>(delayS - elapsedS);
+}
+
 } // namespace Sauna
 
 #endif // SAUNA_SESSION_TEXT_HPP

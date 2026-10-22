@@ -1,21 +1,23 @@
 #!/bin/bash
 #
-# Run a whole sauna session in the PC simulator by key presses, capture each
-# view, and decode the activity file it writes.
+# Walk every screen of X Sauna in the PC simulator by key presses, capture
+# each, and decode the activity file the session writes.
 #
 # Xvfb for a display, xdotool for the buttons (keys 1-4 are L1, L2, R1, R2),
 # ImageMagick's import for frames, fitdecode (pip) for the file. Build the
 # simulator first.
 #
-# The run: the menu; Rest on (L2); start Sauna + plunge (R1); about 6 s of
-# sauna; R1 (plunge); R1 (rest); pause (L1) and resume; hold R2 (the stop
-# question); save (R1); the summary; exit (R2). The simulator has no
-# temperature sensor, so the service makes one up (Core/Header/SimTemp.hpp), and
-# its heart rate is random. Then the file is decoded: sauna, plunge and rest
-# laps, the pause as a gap, the developer fields, the .json sidecar.
+# Session 1: the main menu and its Mode and Rest choices (Just sauna locks
+# Rest); start Sauna + plunge with Rest; the three faces; laps, with the lap
+# toast; the action menu, a pause and a resume; End session by holding R1
+# (a frame mid-hold); Saved; the summary pages; back to the menu.
+# Session 2: Discard by holding R1; Discarded; the menu; exit on R2.
+# The simulator has no temperature sensor, so the service makes one up
+# (Core/Header/SimTemp.hpp), and its heart rate is random. Then the file the
+# first session wrote is decoded.
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./capture_screens.sh [out-dir]
-#   out-dir defaults to docs/screens (files sa2-*.png). Takes about 50 seconds.
+#   out-dir defaults to docs/screens (files sa3-*.png). Takes about 90 seconds.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
@@ -41,36 +43,70 @@ sleep 4
 WID=$(DISPLAY=$DISP xdotool search --name 'X Sauna' | tail -1)
 [ -n "$WID" ] || { echo "FATAL: no simulator window" >&2; exit 1; }
 
-key()  { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-0.5}"; }
-snap() { DISPLAY=$DISP timeout 10 import -window "$WID" "$OUT/$1.png" 2>/dev/null; echo "  $1"; }
-hold() { DISPLAY=$DISP xdotool keydown "$1"; sleep "$2"; DISPLAY=$DISP xdotool keyup "$1"; sleep 0.6; }
+key()  { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-1.0}"; }   # 1 s: a wheel slide takes 0.4 s, and Xvfb is slow
+snap() { DISPLAY=$DISP timeout 10 import -window "$WID" "$OUT/sa3-$1.png" 2>/dev/null; echo "  $1"; }
+down() { DISPLAY=$DISP xdotool keydown "$1"; }
+up()   { DISPLAY=$DISP xdotool keyup "$1"; sleep 0.6; }
 
-snap sa2-1-menu
-key 2; snap sa2-2-menu-rest-on
-key 3 1.5                       # start: Sauna + plunge, with rest
-sleep 5
-snap sa2-3-sauna
-key 3 1; sleep 3                # plunge
-snap sa2-4-plunge
-key 3 1; sleep 2                # rest
-key 1 1; sleep 3                # pause
-snap sa2-5-paused
-key 1 1; sleep 3                # resume
-hold 4 0.4                      # a tap on R2 only hints
-snap sa2-6-hint
-hold 4 1.7                      # hold R2: the stop question
-snap sa2-7-confirm
-key 3 2                         # save
-snap sa2-8-done
+# -- Session 1 ---------------------------------------------------------------
+snap 01-main-start
+key 2; snap 02-main-mode
+key 3; snap 03-main-just-sauna          # R1 on Mode: Just sauna
+key 2; snap 04-main-rest-locked         # Rest is always on, greyed
+key 1; key 3                            # back to Mode, back to Sauna + plunge
+key 2; key 3; snap 05-main-rest-on      # Rest on
+key 1; key 1; snap 06-main-start-rest   # Start row, hint with rest
+key 3 1.5                               # start
+sleep 4
+snap 07-live-sauna
+BEFORE=$(grep -c "Backlight::on" "$LOG")
+DISPLAY=$DISP xdotool key 5; sleep 0.8       # the simulator's wrist raise
+AFTER=$(grep -c "Backlight::on" "$LOG")
+[ "$AFTER" -gt "$BEFORE" ] && echo "  ok   a wrist raise lights the backlight" || echo "  FAIL a wrist raise did not light the backlight"
+key 2; snap 08-live-totals
+key 2; snap 09-live-clock
+key 2; sleep 0.3                        # round to the main face
+key 4 0.7; snap 10-lap-toast-plunge     # R2: lap
+sleep 3; snap 11-live-plunge
+key 4 0.7; snap 12-lap-toast-rest
+sleep 3.5
+key 4 0.7; snap 13-lap-toast-sauna2
+sleep 6; snap 14-live-sauna2            # recovery counting down
+key 3 1; snap 15-action-resume
+key 2; snap 16-action-pause
+key 3 1.5                               # pause
+snap 17-action-resume-timer
+key 4 1; snap 18-live-paused
+key 3 1; key 2; key 3 1.5               # menu (opens on Resume), Pause row: resume
+key 4 1
+key 3 1; key 2; key 2; snap 19-action-end
+down 3; sleep 0.8; snap 20-hold-mid; sleep 1.0; up 3
+sleep 0.4; snap 21-saved
+sleep 2.6; snap 22-summary-overview
+key 2; snap 23-summary-time
+key 2; snap 24-summary-heart
+key 2 1; snap 25-summary-laps-1
+key 2 1; snap 26-summary-laps-2
+key 4 1; snap 27-main-after
+
+# -- Session 2: discard ---------------------------------------------------------
+key 3 1.5
+sleep 3
+key 3 1; key 2; key 2; key 2; snap 28-action-discard
+down 3; sleep 2.0; up 3
+sleep 0.4; snap 29-discarded
+sleep 2.6; snap 30-main-after-discard
 key 4 3
 
 kill -0 $SIMPID 2>/dev/null && echo "simulator still running after R2" || echo "simulator exited on R2"
-grep -E "Session (started|saved)|Recovered|Failed|NO LOG" "$LOG" | head
+grep -E "Session (started|saved|discarded)|Recovered|Failed|NO LOG|ERROR" "$LOG" | head -20
 
-FIT=$(find "$FS/Activity" -name '*.fit' | head -1)
-[ -n "$FIT" ] || { echo "FATAL: no .fit under $FS/Activity" >&2; exit 1; }
+FITS=$(find "$FS/Activity" -name '*.fit')
+[ -n "$FITS" ] || { echo "FATAL: no .fit under $FS/Activity" >&2; exit 1; }
+[ "$(echo "$FITS" | wc -l)" -eq 1 ] || { echo "FAIL: expected one .fit (the discarded session writes none)" >&2; echo "$FITS" >&2; }
+FIT=$(echo "$FITS" | head -1)
 echo "activity: $FIT ($(wc -c < "$FIT") bytes)"
 SIDE="${FIT%.fit}.json"
 [ -f "$SIDE" ] && echo "sidecar: $(cat "$SIDE")" || echo "FAIL: no .json sidecar"
-cp "$FIT" "$OUT/sa2-session.fit"
+cp "$FIT" "$OUT/sa3-session.fit"
 python3 -I "$HERE/fit_check.py" "$FIT" sim
