@@ -295,9 +295,10 @@ nothing syncs. It is independent of the other apps.
 
 ## X Sauna (`x-sauna/`)
 A tenth app: a sauna and cold-plunge tracker. Start a session as Sauna → Cold plunge
-or Just sauna, press a lap button to swap phase, and record time, heart rate and
-temperature (plus HR recovery and an optional Rest phase). Based on a workout, so
-it becomes an activity with a FIT file. It is independent of the other apps.
+or Just sauna (which alternates Sauna and Rest), press a lap button to swap phase, and
+record time, heart rate and the watch's temperature (plus HR recovery and an optional
+Rest phase). It is an activity with a FIT file (SA2 onwards). It is independent of the
+other apps. The SA0 probe build lives on branch `claude/x-sauna-sa0`.
 - **Docs:** findings, decisions and phases (SA0-SA4): `x-sauna/docs/NOTES.md`.
   Read it at the start of each Sauna phase, and work only on that phase.
 - **Rules:** the same standing rules as Race apply. Also: the watch's temperature
@@ -307,7 +308,9 @@ it becomes an activity with a FIT file. It is independent of the other apps.
   UNA's published limits allow it.
 - **Layout:** as Knitting: the pure core `Software/Libs/Core` (header-only where the
   GUI uses it), the service and messages `Software/Libs/App`, the GUI
-  `Software/Apps/LVGL-GUI`, the watch build `Software/Apps/Sauna-CMake`.
+  `Software/Apps/LVGL-GUI`, the watch build `Software/Apps/Sauna-CMake`. The FIT writer
+  (`Software/Libs/App/.../ActivityWriter`) is a trimmed copy of Race's; the temperature
+  goes in a developer field, never the standard one (it is not the air temperature).
 - **Watch builds come from CI**, as for the others. Tags `sauna-vX.Y.Z`. Development
   APP_ID `400AE282F6C2C161` (md5 of `XSauna`); the portal issues the real one at SA4.
 - **Commands:**
@@ -315,8 +318,10 @@ it becomes an activity with a FIT file. It is independent of the other apps.
   - simulator: `x-sauna/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its
     `build/`; run `build/bin/XSaunaSimulator`; keys 1-4 are L1, L2, R1, R2). It has no
     temperature sensor, so the service makes a reading up and the screen says so;
-  - the probe in the simulator, with screenshots and a check of its log:
-    `docs/experiments/capture_screens.sh [out-dir]` (about 90 seconds, into
-    `docs/screens/`; needs Xvfb, xdotool and ImageMagick);
+  - a whole session in the simulator, with screenshots, then the file it writes
+    decoded: `docs/experiments/capture_screens.sh [out-dir]` (about 50 seconds, into
+    `docs/screens/`; needs Xvfb, xdotool, ImageMagick and `pip install fitdecode`);
+  - the FIT file from the real writer in four scenarios, decoded by fitdecode:
+    `docs/experiments/fit_check.sh [work-dir]`;
   - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"),
     using `x-sauna/Software/Apps/Sauna-CMake`; icons: `python3 x-sauna/Resources/make_icons.py`.

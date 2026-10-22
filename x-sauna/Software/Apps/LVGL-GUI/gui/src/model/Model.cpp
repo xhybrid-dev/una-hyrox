@@ -26,7 +26,7 @@ Model::Model()
 
 #if defined(SIMULATOR)
     LOG_INFO("Application is running through simulator!\n");
-    LOG_INFO("Keys: 1 = L1 (clear range), 3 = R1 (mark), 4 = R2 (exit), Esc = close\n");
+    LOG_INFO("Keys: 1 = L1, 2 = L2, 3 = R1, 4 = R2 (hold to stop a session), Esc = close\n");
 #endif
 }
 
@@ -38,14 +38,29 @@ void Model::exitApp()
     mKernel.sys.exit();
 }
 
-void Model::mark()
+void Model::startSession(uint8_t mode, uint8_t rest)
 {
-    SDK::send_msg<CustomMessage::ProbeMark>(mKernel);
+    SDK::send_msg<CustomMessage::SessionStart>(mKernel, mode, rest);
 }
 
-void Model::clearRange()
+void Model::lap()
 {
-    SDK::send_msg<CustomMessage::ProbeClearRange>(mKernel);
+    SDK::send_msg<CustomMessage::SessionLap>(mKernel);
+}
+
+void Model::pause()
+{
+    SDK::send_msg<CustomMessage::SessionPause>(mKernel);
+}
+
+void Model::resume()
+{
+    SDK::send_msg<CustomMessage::SessionResume>(mKernel);
+}
+
+void Model::stop(bool save)
+{
+    SDK::send_msg<CustomMessage::SessionStop>(mKernel, static_cast<uint8_t>(save ? 1u : 0u));
 }
 
 void Model::onStart()
@@ -61,6 +76,11 @@ void Model::onResume()
 void Model::onSuspend()
 {
     LOG_INFO("called\n");
+    // A hold cannot complete while the GUI is away: the release would never
+    // reach the screen.
+    if (modelListener) {
+        modelListener->onSuspend();
+    }
 }
 
 void Model::onStop()
@@ -72,11 +92,18 @@ void Model::onStop()
 bool Model::customMessageHandler(SDK::MessageBase* msg)
 {
     switch (msg->getType()) {
-        case CustomMessage::PROBE_UPDATE: {
-            auto* m = static_cast<CustomMessage::ProbeUpdate*>(msg);
+        case CustomMessage::SESSION_UPDATE: {
+            auto* m = static_cast<CustomMessage::SessionUpdate*>(msg);
             mSnapshot = m->snapshot;
             if (modelListener) {
-                modelListener->onProbeUpdate(mSnapshot);
+                modelListener->onSessionUpdate(mSnapshot);
+            }
+        } break;
+
+        case CustomMessage::SESSION_SAVED: {
+            auto* m = static_cast<CustomMessage::SessionSaved*>(msg);
+            if (modelListener) {
+                modelListener->onSessionSaved(m->saved);
             }
         } break;
 

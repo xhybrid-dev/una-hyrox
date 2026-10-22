@@ -12,7 +12,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
 set(APP_NAME "XSauna")
 set(APP_USER_NAME "X Sauna")              # 7 bytes; app_merging.py truncates at 15
 set(APP_FILE_NAME "XSauna")
-set(APP_TYPE "Utility")                   # SA2 moves to Activity (Examples/Apps/Workout)
+set(APP_TYPE "Activity")                  # as HybridX Race and the SDK's Workout
 set(DEV_ID "HybridX")
 set(APP_ID "400AE282F6C2C161")          # development ID: first 16 hex of md5("XSauna"); the portal's replaces it at SA4
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")

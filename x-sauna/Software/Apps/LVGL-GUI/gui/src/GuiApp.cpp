@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    GuiApp.cpp
- * @brief   X Sauna GUI entry: builds the model and shows the probe screen.
+ * @brief   X Sauna GUI entry: builds the model and shows the session screen.
  *
  * una_lvgl_app_init() is the hook the SDK's LVGL entry point calls once LVGL
  * and the display are up. It owns the model and the screen for the life of
@@ -13,14 +13,14 @@
 
 #include "gui/Assets.hpp"
 #include "gui/model/Model.hpp"
-#include "gui/screens/ProbeScreen.hpp"
+#include "gui/screens/SessionScreen.hpp"
 
 #include "SDK/GUI/LVGL/Draw.hpp"
 
 namespace
 {
 alignas(Model)       uint8_t sModelStorage[sizeof(Model)];
-alignas(ProbeScreen) uint8_t sScreenStorage[sizeof(ProbeScreen)];
+alignas(SessionScreen) uint8_t sScreenStorage[sizeof(SessionScreen)];
 } // namespace
 
 /// LVGL's default font: one of the app's own, so the built-in font stays out
@@ -34,6 +34,6 @@ extern "C" void una_lvgl_app_init(void)
 {
     SDK::LVGL::Draw::init();
     Model*       model  = new (sModelStorage) Model();
-    ProbeScreen* screen = new (sScreenStorage) ProbeScreen(*model);
+    SessionScreen* screen = new (sScreenStorage) SessionScreen(*model);
     lv_screen_load(screen->root());
 }

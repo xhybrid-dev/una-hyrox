@@ -68,6 +68,7 @@ struct LapStats {
     Phase    phase = Phase::Sauna;
     uint8_t  round = 1;
     uint32_t activeMs = 0;
+    uint32_t pausedMs = 0;      ///< Wall time spent paused inside this lap
 
     uint32_t hrSum = 0;
     uint32_t hrCount = 0;
@@ -126,6 +127,7 @@ public:
         mStartMs  = nowMs;
         mLastMs   = nowMs;
         mStopMs   = 0;
+        mPausedAt = 0;
         mActiveMs = 0;
         mHaveHr   = false;
         mLastHr   = 0;
@@ -165,7 +167,8 @@ public:
             return false;
         }
         advance(nowMs);
-        mState = RunState::Paused;
+        mState    = RunState::Paused;
+        mPausedAt = nowMs;
         return true;
     }
 
@@ -174,6 +177,8 @@ public:
         if (mState != RunState::Paused) {
             return false;
         }
+        LapStats &cur = mLaps[mLapCount - 1];
+        cur.pausedMs  = sat(cur.pausedMs, nowMs - mPausedAt);
         mLastMs = nowMs;
         mState  = RunState::Running;
         return true;
@@ -187,6 +192,9 @@ public:
         }
         if (mState == RunState::Running) {
             advance(nowMs);
+        } else {
+            LapStats &cur = mLaps[mLapCount - 1];     // stopped while paused
+            cur.pausedMs  = sat(cur.pausedMs, nowMs - mPausedAt);
         }
         for (uint8_t i = 0; i < mLapCount; ++i) {
             mLaps[i].recovery.giveUp();
@@ -349,6 +357,7 @@ private:
     uint32_t      mStartMs = 0;
     uint32_t      mLastMs = 0;
     uint32_t      mStopMs = 0;
+    uint32_t      mPausedAt = 0;
     uint32_t      mActiveMs = 0;
 
     bool          mHaveHr = false;

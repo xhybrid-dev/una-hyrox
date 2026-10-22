@@ -76,7 +76,7 @@ Planned with Jon on 20 October 2026 (plan approved for SA0 only):
 |---|---|---|
 | **SA0** | Identity, scaffold, CI build, and a **probe screen** that logs temperature and heart rate once a second to a CSV | Jon runs the staged test and sends the CSV: is the sensor there, what unit, ambient or skin, how it behaves when hot, wet or cold |
 | SA1 | The pure core with an injected clock, host-tested: session model, phases, laps, HR recovery, heat hint, text. **Done (22 October 2026)** | Host tests pass; Just-sauna rule settled |
-| SA2 | The service and the FIT file: HR and temperature a second, laps with developer fields, crash recovery; APP_TYPE moves to Activity | A FIT file decodes and shows in Garmin and Strava; temperature round-trips |
+| SA2 | The service and the FIT file: HR and temperature a second, laps with developer fields, crash recovery; APP_TYPE moves to Activity. **Done (22 October 2026)**, on branch `claude/x-sauna-sa2` | A FIT file decodes (done here); the UNA app, Garmin and Strava take it (Jon) |
 | SA3 | The LVGL screens: start, live, summary | Jon uses it on the wrist in a real session |
 | SA4 | Store release: icon, package, `SUBMISSION.md`, 1.0.0 | Installed from the store |
 
@@ -97,6 +97,11 @@ Outline of later phases (refined at each gate):
   best recovery.
 
 ## SA0: the heat probe (20 October 2026)
+
+> **Superseded by SA2 on the `claude/x-sauna-sa2` branch**, which replaces the
+> probe with the real service. The probe build stays on `claude/x-sauna-sa0`
+> (Jon is testing it in a real sauna). This section and the next two describe it.
+
 
 ### Layout
 
@@ -202,8 +207,9 @@ yet: that is SA2 and SA3. The probe app is unchanged.
     building a second copy.
   - HR average is over valid samples only (0 means "no reading", never a zero in
     the mean). Lap statistics count only while running.
-  - Heart-rate trust is **not** used: its scale is unknown (the simulator reports
-    3.0 and 0), so no rule is built on it. The probe's CSV has the real values.
+  - The model itself does not use heart-rate trust. (SA2 applies HybridX Race's
+    gate to what reaches it: `HEART_RATE_EX`, a real bpm above 20 with a trust
+    level of 1 to 3, and not older than 5 s.)
 - **`HrRecovery.hpp`**: the heart rate when a phase ended minus the heart rate
   from 60 s later (the first valid sample in the next 5 s). A phase's end rate
   must be under 5 s old. Several can be pending at once (a 30 s plunge ends
@@ -277,6 +283,111 @@ What I will look at: how far and how fast the reading moves in each phase, how
 it differs between sauna, plunge and rest, how long it lags, whether the hint's
 verdicts line up with what you pressed, and whether HR holds in the heat and the
 cold. From that I set the thresholds, or recommend dropping the hint.
+
+## SA2: the service and the FIT file (22 October 2026)
+
+Branch `claude/x-sauna-sa2`, cut from the SA0 branch so the probe build Jon is
+testing stays as it is. The service now runs a real session and writes an
+activity file. The probe's CSV code and screen are gone (they stay in git history
+on the SA0 branch); the FIT file is the data log.
+
+### What it does
+
+- **Service** (`Software/Libs/App`): owns the `SessionModel` (static storage, about
+  4 KB) and the sensors: `HEART_RATE_EX` gated as HybridX Race gates what goes in
+  its file, and `AMBIENT_TEMPERATURE`. Once a second while running it writes a
+  FIT record and feeds the model. Messages from the screen: start (mode, rest),
+  lap, pause, resume, stop (save or discard). To the screen: the session once a
+  second and on every change, and a summary when it ends. All fixed size, with
+  `static_assert`s against the 256-byte pool block.
+- **If the screen goes away mid-session** the service keeps recording, and saves
+  and exits if the screen stays away for 5 minutes (`kGuiGoneGraceMs`, Race's
+  figure). If the kernel stops the app it saves what it has with `completed = 0`.
+  A boot that finds an interrupted recording finishes the file first.
+  **Not verified in the simulator**, which cannot close the screen without ending
+  the whole process; the logic is Race's, proven on a watch there.
+- **`ActivityWriter`**: a trimmed copy of Race's (same layout, crash marker, flush
+  every 30 s, `Activity/YYYYMM/activity_<time>.fit`, a `.json` sidecar with
+  `activity_type` "sauna", `CommandAppNewActivity` to register it). Laps and the
+  session are written **at stop**, because a lap's HR recovery is known only a
+  minute after it ends. So a crash recovers the per-second records, **not the
+  laps or the session**. Accepted.
+- **Pure core** (`Core/Header`): `SessionFit.hpp` turns the finished model into the
+  lap and session values; `LapTiming.hpp` (Race's) makes laps chain and add up
+  exactly; per-lap paused time is now kept by `SessionModel`; `HoldTimer.hpp`
+  (Knitting's) times the R2 hold.
+
+### What is in the file
+
+| Message | Standard fields | Developer fields (this app's own numbers) |
+|---|---|---|
+| record, every second | timestamp, heart_rate (invalid when none, never 0) | `watch_temp_x100` (sint16) |
+| lap, one per phase | times, avg and max HR, lap_trigger manual | `phase` (0 sauna, 1 plunge, 2 rest), `round`, `hr_recovery_bpm` (sint16, invalid when none) |
+| session | times, num_laps, avg and max HR, sport Training (10), sub_sport Generic (0), `sport_profile_name` "Sauna" | `mode`, `rest_enabled`, `completed` |
+| event | timer start and stop, in pairs (a pause is a stop and a start) | |
+
+- **The temperature is a developer field, not the standard record temperature
+  (field 13).** Gate SA0 found it is a lagging temperature inside the watch;
+  writing it as field 13 would tell Garmin and Strava it is the air. Developer
+  fields are not shown by either, but they are in the file for us. No unit is
+  claimed (`watch_temp_x100` is the sensor's number times 100).
+- **Sport: Training / Generic**, as Race settled (its NOTES 5.12). The profile has
+  no sauna sport that I can source. `sport_profile_name` "Sauna" is Race 5.28's
+  experiment: **whether the UNA app or Strava honours it is unknown** (a Gate
+  question for Jon).
+- Heart-rate recovery (SA1) is written per lap.
+
+### The interim screen
+
+`SessionScreen`: text only, four views, and **SA3 replaces it with the real
+design**. Menu (R1 Sauna + plunge, L1 Just sauna, L2 Rest on or off); live (the
+phase, the lap's time, heart rate, total time and round, the previous lap's
+recovery; R1 next phase, L1 pause or resume, **hold R2** to stop); the stop
+question (R1 save, L1 discard, R2 back); the summary (rounds, time in each phase,
+heart rate, best recovery). The temperature is not shown. "NO LOG" appears in red
+if a write to the file fails.
+
+![Menu, sauna, plunge](screens/sa2-3-sauna.png)
+
+### SA2 verified (22 October 2026)
+
+- **Host tests:** 99 pass, no warnings (new: lap timing, per-lap paused time, the
+  FIT mapping, the hold timer).
+- **The file, decoded by an independent reader** (`docs/experiments/fit_check.sh`:
+  builds `Tests/Host/tools/make_fit.cpp`, which writes sessions through the app's
+  own `ActivityWriter` and `SessionModel`, then `fitdecode` checks each). Four
+  scenarios, all passing: a full session with a pause; Just sauna; a session with
+  no heart rate (invalid, not zero); and a crash, where the records survive a
+  recovery and no laps or session exist. Checked: header and CRC, identity,
+  developer fields declared and typed, timer events in pairs, a record a second
+  with a gap only at the pause, the temperature on every record, laps that chain
+  and sum to the session, phase, round and recovery values, the session's sport and
+  name.
+- **A whole session in the simulator** (`docs/experiments/capture_screens.sh`, about
+  50 s): keys drive menu, start, two laps, a pause, the R2 hold, save; a real
+  `.fit` and `.json` land in `Software/Output/Activity/`, and the same decoder
+  passes on it. R2 exits.
+- **Watch target, local compile check:** both processes link, `XSauna_0.0.0-dev.uapp`
+  263,600 bytes, no warnings from our code. **Not installable**; CI makes the
+  installable one.
+- **Not verified:** anything on a watch. Whether the UNA app registers the file and
+  shows it, and what Garmin and Strava make of it. The 60 s HR-recovery wait is not
+  exercised in the simulator (its session is 25 s); the host tests and the file
+  checks cover it. Closing the screen mid-session (above). CI has not run on this
+  branch.
+
+### For Jon at Gate SA2
+
+1. **Install the build from the `claude/x-sauna-sa2` CI run** (as for the probe).
+   Note it **replaces the probe**: to keep testing the probe, use the SA0 branch's
+   build instead (same app name and folder, so copying one into `Apps/XSauna/` replaces the other).
+2. **A dry session in the room** with Sauna + plunge: press R1 a few times, pause
+   and resume once, hold R2, save. Open the UNA app: does the activity appear?
+   Then upload it to Strava and Garmin if you can: how is it titled, are the laps
+   and heart rate right, does "Sauna" show anywhere?
+3. **Decide the sport label** if "Training" reads badly. I will look a value up in
+   the public profile tables rather than guess.
+4. The sauna and plunge probe results are still wanted for the heat hint.
 
 ## Gate SA0: what Jon tests on the watch
 
