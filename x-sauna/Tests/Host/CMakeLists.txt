@@ -32,6 +32,10 @@ add_executable(x-sauna-host-tests
     ProbeStatsTest.cpp
     ProbeCsvTest.cpp
     SimTempTest.cpp
+    HrRecoveryTest.cpp
+    HeatHintTest.cpp
+    SessionModelTest.cpp
+    SessionTextTest.cpp
     ${CORE_SOURCES}
 )
 target_include_directories(x-sauna-host-tests PRIVATE

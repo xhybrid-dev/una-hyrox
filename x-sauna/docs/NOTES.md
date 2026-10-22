@@ -31,6 +31,13 @@ Planned with Jon on 20 October 2026 (plan approved for SA0 only):
 - **Offered and not chosen:** target times with a buzz and a heart-rate ceiling
   from the phone settings; a typed-in sauna temperature. The second comes back
   at Gate 0 if the sensor turns out to be no use in the heat (below).
+- **Gate SA0 result (Jon, 21 October 2026, after asking UNA and testing):** the
+  temperature reads **well above room temperature but below body temperature**:
+  a temperature inside the watch, with a long lag, not the air. **Decision: use
+  it only as a rough guide** to sauna versus ambient versus cold plunge, never
+  as a monitored temperature. Nothing in the app presents it as degrees. The
+  test was room and wrist only; there is **no sauna or plunge data yet**, so no
+  threshold is set from evidence (see SA1).
 - **Open for Jon:** whether the watch is rated for a sauna and for water (below).
   Nothing in the SDK says either way.
 
@@ -68,7 +75,7 @@ Planned with Jon on 20 October 2026 (plan approved for SA0 only):
 | Phase | Work | Gate |
 |---|---|---|
 | **SA0** | Identity, scaffold, CI build, and a **probe screen** that logs temperature and heart rate once a second to a CSV | Jon runs the staged test and sends the CSV: is the sensor there, what unit, ambient or skin, how it behaves when hot, wet or cold |
-| SA1 | The pure core with an injected clock, host-tested: session model, phases, laps, HR recovery, text | Host tests pass |
+| SA1 | The pure core with an injected clock, host-tested: session model, phases, laps, HR recovery, heat hint, text. **Done (22 October 2026)** | Host tests pass; Jon confirms the Just-sauna lap rule |
 | SA2 | The service and the FIT file: HR and temperature a second, laps with developer fields, crash recovery; APP_TYPE moves to Activity | A FIT file decodes and shows in Garmin and Strava; temperature round-trips |
 | SA3 | The LVGL screens: start, live, summary | Jon uses it on the wrist in a real session |
 | SA4 | Store release: icon, package, `SUBMISSION.md`, 1.0.0 | Installed from the store |
@@ -174,6 +181,63 @@ failed.
 - **Not verified:** nothing has run on a watch. CI has not run on this branch.
   Whether `AMBIENT_TEMPERATURE` can be connected on the watch at all (the
   simulator says nothing about that). That is what Gate 0 is for.
+
+## SA1: the session core (22 October 2026)
+
+Pure C++ in `Software/Libs/Core/Header`, header-only (the GUI will use it), no
+heap, integer text, the clock passed in. Nothing in the service or GUI uses it
+yet: that is SA2 and SA3. The probe app is unchanged.
+
+- **`SessionModel.hpp`**: a session as laps. `start / lap / pause / resume / stop`,
+  `addSample(nowMs, hr, tempX100)` once a second, `summary()`.
+  - Phase order on a lap press: Sauna + Plunge: Sauna → Plunge → (Rest) → Sauna;
+    Just sauna with Rest: Sauna ↔ Rest; **Just sauna without Rest: a lap starts
+    the next sauna round** (my assumption, for Jon to confirm). The round counts
+    Sauna phases.
+  - Active time excludes pauses; elapsed is wall time and freezes at the stop.
+    Differences are unsigned, tested across the 32-bit wrap.
+  - 64 laps at most: the next press returns `LapResult::Full` and changes
+    nothing. The model is about 4 KB (3.7 KB on the watch's CPU), so the service
+    must keep it in static storage; `start()` resets in place rather than
+    building a second copy.
+  - HR average is over valid samples only (0 means "no reading", never a zero in
+    the mean). Lap statistics count only while running.
+  - Heart-rate trust is **not** used: its scale is unknown (the simulator reports
+    3.0 and 0), so no rule is built on it. The probe's CSV has the real values.
+- **`HrRecovery.hpp`**: the heart rate when a phase ended minus the heart rate
+  from 60 s later (the first valid sample in the next 5 s). A phase's end rate
+  must be under 5 s old. Several can be pending at once (a 30 s plunge ends
+  before the sauna's minute is up). No result when HR is missing, late, or the
+  session stops first. Positive means it fell.
+- **`HeatHint.hpp`**: cooler / similar / warmer than the session's first minute,
+  and rising / steady / falling over about a minute, from a smoothed reading,
+  with hysteresis. **Off by default and every threshold is an untuned
+  placeholder**: there is no sauna or plunge reading to set them from. It only
+  suggests; the lap button is the only thing that changes phase. The tests use
+  invented curves to check the logic and say nothing about the real sensor.
+- **`SessionText.hpp`**: `mm:ss` / `h:mm:ss`, bpm, recovery as the heart rate's
+  change (`-23`, `+4`, `..` waiting, `--` none), and the temperature change as
+  a signed one-decimal number. Buffer-safe, tested at every size with a guard byte.
+
+### SA1 verified (22 October 2026)
+
+- **Host tests:** 94 pass, no warnings (53 new: model, recovery, hint, text).
+  Two test bugs were found on the way and fixed: a wrong expected value, and a
+  loop that was not wrap-safe, which had left a clock-wrap case feeding no
+  samples. The wrap cases now run for real.
+- **Simulator and watch target:** both still build, unchanged. The new headers
+  also compile for Cortex-M33 (`arm-none-eabi-g++ -Wall -Wextra -Wpedantic`).
+- **Not verified:** nothing here has run on a watch or met real data. The hint's
+  usefulness is unknown until sauna and plunge logs exist.
+
+### For Jon at Gate SA1
+
+- **Confirm the Just-sauna rule:** without Rest, does a lap press mean "next
+  round"? (Or should Just sauna be Sauna ↔ Rest only, or have no laps?)
+- **Sauna and plunge logs.** When convenient, and only if UNA's limits allow it,
+  run the probe through a real sauna and plunge and send `heat-probe.csv` with
+  the markers. That sets the hint's thresholds, and says whether the hint is
+  worth showing at all. SA2 does not need it.
 
 ## Gate SA0: what Jon tests on the watch
 
