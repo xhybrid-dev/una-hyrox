@@ -7,8 +7,8 @@
  *
  * The phase order on a lap press:
  *   - Sauna + Plunge:  Sauna -> Plunge -> (Rest) -> Sauna -> ...
- *   - Just sauna, Rest on:  Sauna <-> Rest
- *   - Just sauna, Rest off: Sauna -> Sauna, a new round each press
+ *   - Just sauna:      Sauna <-> Rest, always (Jon, 22 October 2026: for those
+ *                      without a plunge; SessionConfig::rest is ignored)
  * The round number counts the Sauna phases (the first is round 1).
  *
  * Time. The clock is the kernel's wrapping 32-bit millisecond count: every
@@ -59,7 +59,7 @@ inline const char *phaseName(Phase p)
 
 struct SessionConfig {
     Mode           mode = Mode::SaunaPlunge;
-    bool           rest = false;     ///< Include a Rest phase
+    bool           rest = false;     ///< Sauna + Plunge only: include a Rest phase
     HeatHintConfig hint;             ///< Off by default
 };
 
@@ -338,10 +338,7 @@ private:
             case Phase::Rest:   return Phase::Sauna;
             }
         } else {
-            switch (from) {
-            case Phase::Sauna:  return mCfg.rest ? Phase::Rest : Phase::Sauna;
-            default:            return Phase::Sauna;
-            }
+            return from == Phase::Sauna ? Phase::Rest : Phase::Sauna;
         }
         return Phase::Sauna;
     }

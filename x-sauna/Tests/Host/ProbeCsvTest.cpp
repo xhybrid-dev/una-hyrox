@@ -18,21 +18,21 @@ namespace {
 
 std::string row(const CsvRow &r)
 {
-    char buf[160];
+    char buf[200];
     EXPECT_GT(formatCsvRow(buf, sizeof(buf), r), 0u);
     return buf;
 }
 
 } // namespace
 
-TEST(ProbeCsv, HeaderNamesElevenColumns)
+TEST(ProbeCsv, HeaderNamesFifteenColumns)
 {
     char buf[160];
     const size_t n = formatCsvHeader(buf, sizeof(buf));
     ASSERT_GT(n, 0u);
     const std::string h = buf;
     EXPECT_EQ(h.back(), '\n');
-    EXPECT_EQ(std::count(h.begin(), h.end(), ','), 10);
+    EXPECT_EQ(std::count(h.begin(), h.end(), ','), 14);
     EXPECT_EQ(h.rfind("ms,t_s,mark,", 0), 0u);
 }
 
@@ -41,7 +41,7 @@ TEST(ProbeCsv, RowBeforeAnySampleHasBlankReadings)
     CsvRow r;
     r.tMs = 1000;
     r.tS = 1;
-    EXPECT_EQ(row(r), "1000,1,0,,0,0,0,0,,,0\n");
+    EXPECT_EQ(row(r), "1000,1,0,,0,0,0,0,,,0,0,,0,0\n");
 }
 
 TEST(ProbeCsv, RowWithSamples)
@@ -58,7 +58,11 @@ TEST(ProbeCsv, RowWithSamples)
     r.hrN = 59;
     r.hr = 132;
     r.trustX100 = 100;
-    EXPECT_EQ(row(r), "61250,61,2,8512,61,1,1,1000,132,100,59\n");
+    r.phase = 2;
+    r.hintDeltaX100 = -350;
+    r.hintLevel = 1;
+    r.hintTrend = 1;
+    EXPECT_EQ(row(r), "61250,61,2,8512,61,1,1,1000,132,100,59,2,-350,1,1\n");
 }
 
 TEST(ProbeCsv, NegativeTemperatureIsWrittenWithItsSign)
@@ -66,7 +70,18 @@ TEST(ProbeCsv, NegativeTemperatureIsWrittenWithItsSign)
     CsvRow r;
     r.tempX100 = -1250;
     r.tempN = 3;
-    EXPECT_EQ(row(r), "0,0,0,-1250,3,0,0,0,,,0\n");
+    EXPECT_EQ(row(r), "0,0,0,-1250,3,0,0,0,,,0,0,,0,0\n");
+}
+
+TEST(ProbeCsv, HintDeltaIsBlankUntilTheHintHasALevel)
+{
+    CsvRow r;
+    r.hintDeltaX100 = 120;
+    r.hintLevel = 0;
+    EXPECT_EQ(row(r), "0,0,0,,0,0,0,0,,,0,0,,0,0\n");
+    r.hintLevel = 2;
+    r.hintTrend = 3;
+    EXPECT_EQ(row(r), "0,0,0,,0,0,0,0,,,0,0,120,2,3\n");
 }
 
 TEST(ProbeCsv, ZeroHeartRateIsBlankUntilASampleArrives)
@@ -74,10 +89,10 @@ TEST(ProbeCsv, ZeroHeartRateIsBlankUntilASampleArrives)
     CsvRow r;
     r.hr = 0;
     r.hrN = 0;
-    EXPECT_EQ(row(r), "0,0,0,,0,0,0,0,,,0\n");
+    EXPECT_EQ(row(r), "0,0,0,,0,0,0,0,,,0,0,,0,0\n");
     r.hrN = 1;                         // a sample that really read 0 (watch off the wrist)
     r.trustX100 = 0;
-    EXPECT_EQ(row(r), "0,0,0,,0,0,0,0,0,0,1\n");
+    EXPECT_EQ(row(r), "0,0,0,,0,0,0,0,0,0,1,0,,0,0\n");
 }
 
 TEST(ProbeCsv, RowEndsAtItsNewlineWithNothingAfter)
@@ -98,7 +113,7 @@ TEST(ProbeCsv, ATooSmallBufferGivesNothing)
     CsvRow r;
     r.tMs = 123456;
     r.tempX100 = 8512;
-    for (size_t cap = 1; cap < 20; ++cap) {
+    for (size_t cap = 1; cap < 20; ++cap) {   // the shortest row is longer than that
         char buf[32];
         std::memset(buf, 'G', sizeof(buf));
         EXPECT_EQ(formatCsvRow(buf, cap, r), 0u) << "cap " << cap;

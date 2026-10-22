@@ -5,7 +5,10 @@
  *          reading (big), its range and how often it reports; the heart rate
  *          with its trust; and the run's time, markers and log state.
  *
- *          R1 puts a marker in the log ("I have just gone in").
+ *          R1 moves to the next phase (ambient at the start, then sauna,
+ *          plunge, rest, sauna ...) and the log records it. The title is the
+ *          phase; under the big number the heat hint says how the reading
+ *          compares with the first minute (a rough guide, not a measurement).
  *          L1 starts the lowest and highest readings again.
  *          R2 exits.
  *

@@ -46,6 +46,15 @@ void clockStamp(char *out, size_t cap)
                   local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
 }
 
+/// The probe judges the hint, so it runs with the hint switched on and every
+/// threshold at its untuned placeholder (HeatHint.hpp).
+Sauna::HeatHintConfig probeHintConfig()
+{
+    Sauna::HeatHintConfig config;
+    config.enabled = true;
+    return config;
+}
+
 uint16_t bpmFromX100(int32_t x100)
 {
     if (x100 == Sauna::kX100Invalid || x100 <= 0) {
@@ -109,9 +118,11 @@ void Service::run()
                     if (mMarks < UINT16_MAX) {
                         ++mMarks;
                     }
+                    mPhase = Sauna::nextProbePhase(mPhase);
                     buzz(SDK::Message::RequestVibroPlay::STRONG_CLICK_100);
-                    LOG_INFO("mark %u at t=%lu s\n", static_cast<unsigned>(mMarks),
-                             static_cast<unsigned long>(mElapsedS));
+                    std::snprintf(sLine, sizeof(sLine), "phase %s at t=%lu s", Sauna::probePhaseName(mPhase),
+                                  static_cast<unsigned long>(mElapsedS));
+                    note(sLine);
                     sendUpdate();
                 }
                 break;
@@ -159,6 +170,8 @@ void Service::startSensors()
     mTempFields  = 0;
     mTrustX100   = Sauna::kX100Invalid;
     mMarks       = 0;
+    mPhase       = Sauna::ProbePhase::Ambient;
+    mHint        = Sauna::HeatHint(probeHintConfig());
     sCsvLen      = 0;
 
     openLog();
@@ -212,6 +225,10 @@ void Service::tick()
     }
 #endif
 
+    if (mTempStats.has()) {
+        mHint.add(nowMs, mTempStats.last());
+    }
+
     Sauna::CsvRow row;
     row.tMs        = nowMs - mStartMs;
     row.tS         = elapsed;
@@ -224,6 +241,10 @@ void Service::tick()
     row.hrN        = mHrStats.count();
     row.hr         = bpmFromX100(mHrStats.last());
     row.trustX100  = mTrustX100;
+    row.phase         = static_cast<uint8_t>(mPhase);
+    row.hintDeltaX100 = mHint.deltaX100();
+    row.hintLevel     = static_cast<uint8_t>(mHint.level());
+    row.hintTrend     = static_cast<uint8_t>(mHint.trend());
     const size_t len = Sauna::formatCsvRow(sLine, sizeof(sLine), row);
     queue(sLine, len);
 
@@ -314,7 +335,12 @@ Sauna::ProbeSnapshot Service::snapshot() const
     s.hrSense      = static_cast<uint8_t>(mHrSense);
     s.log          = static_cast<uint8_t>(mLog);
     s.flags        = static_cast<uint8_t>((mSimulated ? Sauna::kFlagSimulated : 0u) |
-                                          (mFinished ? Sauna::kFlagFinished : 0u));
+                                          (mFinished ? Sauna::kFlagFinished : 0u) |
+                                          (mHint.baselineReady() ? Sauna::kFlagHintReady : 0u));
+    s.phase          = static_cast<uint8_t>(mPhase);
+    s.hintDeltaX100  = mHint.deltaX100();
+    s.hintLevel      = static_cast<uint8_t>(mHint.level());
+    s.hintTrend      = static_cast<uint8_t>(mHint.trend());
     return s;
 }
 
@@ -353,17 +379,16 @@ void Service::openLog()
     }
     mRun = static_cast<uint16_t>(runs.runs() + 1u);
 
-    if (!existed) {
-        const size_t len = Sauna::formatCsvHeader(sLine, sizeof(sLine));
-        queue(sLine, len);
-    }
-
     // 80 bytes, not the 20 the text needs: the compiler must be able to see
     // that even six full-width ints fit, or it warns (-Wformat-truncation).
     char stamp[80];
     clockStamp(stamp, sizeof(stamp));
     const size_t len = Sauna::formatRunLine(sLine, sizeof(sLine), mRun, stamp);
     queue(sLine, len);
+    // The columns at the start of every run, not only a new file: they grew
+    // between versions, so a file that spans two must say which is which.
+    const size_t headerLen = Sauna::formatCsvHeader(sLine, sizeof(sLine));
+    queue(sLine, headerLen);
     LOG_INFO("run %u, log %s\n", static_cast<unsigned>(mRun), existed ? "exists" : "is new");
 }
 

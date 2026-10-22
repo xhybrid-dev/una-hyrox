@@ -12,7 +12,7 @@
  * Columns:
  *   ms          milliseconds since the sensors started
  *   t_s         the same in whole seconds
- *   mark        presses of R1 so far (a way to mark "entered the sauna")
+ *   mark        presses of R1 so far (each one moves to the next phase)
  *   temp_x100   temperature sensor reading, hundredths of its own unit;
  *               blank until a valid sample has arrived
  *   temp_n      valid temperature samples so far
@@ -23,6 +23,11 @@
  *   hr          heart rate, bpm; blank until a sample has arrived
  *   trust_x100  the heart rate's trust level, hundredths; blank likewise
  *   hr_n        heart-rate samples so far
+ *   phase       what R1 has said: 0 ambient (the start), 1 sauna, 2 plunge, 3 rest
+ *   hint_delta_x100  the heat hint's smoothed reading minus the first minute's
+ *               mean, hundredths; blank until that minute is in
+ *   hint_level  0 unknown, 1 cooler, 2 similar, 3 warmer
+ *   hint_trend  0 unknown, 1 falling, 2 steady, 3 rising
  ******************************************************************************
  */
 
@@ -48,6 +53,10 @@ struct CsvRow {
     uint32_t hrN = 0;
     uint16_t hr = 0;
     int32_t  trustX100 = kX100Invalid;
+    uint8_t  phase = 0;
+    int32_t  hintDeltaX100 = 0;
+    uint8_t  hintLevel = 0;     ///< 0 (unknown) leaves the delta blank
+    uint8_t  hintTrend = 0;
 };
 
 /// The column names, ending in a newline. 0 if @p cap is too small.

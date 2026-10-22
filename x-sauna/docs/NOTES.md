@@ -75,7 +75,7 @@ Planned with Jon on 20 October 2026 (plan approved for SA0 only):
 | Phase | Work | Gate |
 |---|---|---|
 | **SA0** | Identity, scaffold, CI build, and a **probe screen** that logs temperature and heart rate once a second to a CSV | Jon runs the staged test and sends the CSV: is the sensor there, what unit, ambient or skin, how it behaves when hot, wet or cold |
-| SA1 | The pure core with an injected clock, host-tested: session model, phases, laps, HR recovery, heat hint, text. **Done (22 October 2026)** | Host tests pass; Jon confirms the Just-sauna lap rule |
+| SA1 | The pure core with an injected clock, host-tested: session model, phases, laps, HR recovery, heat hint, text. **Done (22 October 2026)** | Host tests pass; Just-sauna rule settled |
 | SA2 | The service and the FIT file: HR and temperature a second, laps with developer fields, crash recovery; APP_TYPE moves to Activity | A FIT file decodes and shows in Garmin and Strava; temperature round-trips |
 | SA3 | The LVGL screens: start, live, summary | Jon uses it on the wrist in a real session |
 | SA4 | Store release: icon, package, `SUBMISSION.md`, 1.0.0 | Installed from the store |
@@ -154,7 +154,7 @@ Screen (simulator frame; on a watch "made up" reads "temperature sensor, raw"):
 
 | Button | Action |
 |---|---|
-| R1 | Put a marker in the log (a short buzz) |
+| R1 | Next phase, recorded in the log (a short buzz); see "The probe, second version" |
 | L1 | Start the lowest and highest readings again |
 | R2 | Exit |
 
@@ -191,8 +191,8 @@ yet: that is SA2 and SA3. The probe app is unchanged.
 - **`SessionModel.hpp`**: a session as laps. `start / lap / pause / resume / stop`,
   `addSample(nowMs, hr, tempX100)` once a second, `summary()`.
   - Phase order on a lap press: Sauna + Plunge: Sauna → Plunge → (Rest) → Sauna;
-    Just sauna with Rest: Sauna ↔ Rest; **Just sauna without Rest: a lap starts
-    the next sauna round** (my assumption, for Jon to confirm). The round counts
+    **Just sauna: Sauna ↔ Rest, always** (Jon, 22 October 2026: for those
+    without a plunge; the Rest setting is ignored in that mode). The round counts
     Sauna phases.
   - Active time excludes pauses; elapsed is wall time and freezes at the stop.
     Differences are unsigned, tested across the 32-bit wrap.
@@ -232,12 +232,51 @@ yet: that is SA2 and SA3. The probe app is unchanged.
 
 ### For Jon at Gate SA1
 
-- **Confirm the Just-sauna rule:** without Rest, does a lap press mean "next
-  round"? (Or should Just sauna be Sauna ↔ Rest only, or have no laps?)
+- ~~Confirm the Just-sauna rule~~ Settled (22 October 2026): Sauna ↔ Rest.
 - **Sauna and plunge logs.** When convenient, and only if UNA's limits allow it,
   run the probe through a real sauna and plunge and send `heat-probe.csv` with
   the markers. That sets the hint's thresholds, and says whether the hint is
   worth showing at all. SA2 does not need it.
+
+## The probe, second version: judging the heat hint (22 October 2026)
+
+Jon asked to set up sauna and plunge monitoring "to see how it performs". The
+probe now doubles as the test rig for the heat hint (SA1), still with no claim
+that the number is a temperature.
+
+- **R1 steps a phase** (the screen's title; the log's `phase` column): AMBIENT at
+  the start, then SAUNA, PLUNGE, REST, SAUNA ... Press it as you do each thing.
+  It buzzes. (The probe cannot tell where you are; what you pressed is the
+  reference the hint is judged against.)
+- **The hint runs live** with its untuned placeholder thresholds, and under the
+  big number says how the reading compares with the first minute ("+5.9 warmer,
+  rising"). **Start the probe in the room you will treat as ambient and give it
+  a full minute before the first R1**: that minute is the baseline.
+- **New log columns:** `phase`, `hint_delta_x100`, `hint_level`, `hint_trend`
+  (full notes in `Core/Header/ProbeCsv.hpp`). The column header is now written at
+  the start of every run, after its `# run` line, because the columns grew: a
+  `heat-probe.csv` left over from the first version has the old shape above the
+  new runs. Delete or rename the old file first if that is untidy.
+- The status line says `lap`, not `mark`; the log's `mark` column counts R1
+  presses, as before.
+- Verified in the simulator (capture script) and by 94 host tests, including the
+  CSV's new columns. The simulator's temperature is made up, so what the hint
+  says there tells you nothing about the sensor.
+
+### What Jon runs (only if UNA's limits allow sauna and water)
+
+1. Install the new CI build as before (branch `claude/x-sauna-sa0`).
+2. Open X Sauna in the room, and leave it for a full minute.
+3. R1 as you enter the sauna (SAUNA). R1 as you leave it for the plunge (PLUNGE),
+   R1 when you get out (REST), and R1 again for the next sauna round.
+   Several rounds are better than one.
+4. R2 to finish, then send `Apps/XSauna/heat-probe.csv`, and anything odd you
+   noticed (the watch getting hot, the screen, how it felt).
+
+What I will look at: how far and how fast the reading moves in each phase, how
+it differs between sauna, plunge and rest, how long it lags, whether the hint's
+verdicts line up with what you pressed, and whether HR holds in the heat and the
+cold. From that I set the thresholds, or recommend dropping the hint.
 
 ## Gate SA0: what Jon tests on the watch
 

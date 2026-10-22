@@ -67,27 +67,21 @@ TEST(SessionModel, SaunaPlungeWithRestInsertsRest)
     EXPECT_EQ(m.round(), 2);
 }
 
-TEST(SessionModel, JustSaunaWithRestSwapsSaunaAndRest)
+TEST(SessionModel, JustSaunaAlternatesSaunaAndRestWhateverTheRestSetting)
 {
-    SessionModel m;
-    m.start(0, cfg(Mode::SaunaOnly, true));
-    m.lap(1000);
-    EXPECT_EQ(m.phase(), Phase::Rest);
-    m.lap(2000);
-    EXPECT_EQ(m.phase(), Phase::Sauna);
-    EXPECT_EQ(m.round(), 2);
-}
-
-TEST(SessionModel, JustSaunaWithoutRestStartsANewRoundEachPress)
-{
-    SessionModel m;
-    m.start(0, cfg(Mode::SaunaOnly, false));
-    m.lap(1000);
-    EXPECT_EQ(m.phase(), Phase::Sauna);
-    EXPECT_EQ(m.round(), 2);
-    m.lap(2000);
-    EXPECT_EQ(m.round(), 3);
-    EXPECT_EQ(m.lapCount(), 3);
+    for (bool rest : {true, false}) {
+        SessionModel m;
+        m.start(0, cfg(Mode::SaunaOnly, rest));
+        m.lap(1000);
+        EXPECT_EQ(m.phase(), Phase::Rest) << rest;
+        EXPECT_EQ(m.round(), 1) << rest;
+        m.lap(2000);
+        EXPECT_EQ(m.phase(), Phase::Sauna) << rest;
+        EXPECT_EQ(m.round(), 2) << rest;
+        m.lap(3000);
+        EXPECT_EQ(m.phase(), Phase::Rest) << rest;
+        EXPECT_EQ(m.lapCount(), 4) << rest;
+    }
 }
 
 TEST(SessionModel, ActiveTimeExcludesPausesAndElapsedDoesNot)

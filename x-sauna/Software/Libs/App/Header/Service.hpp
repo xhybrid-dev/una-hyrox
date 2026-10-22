@@ -5,6 +5,11 @@
  *          connects the temperature and heart-rate sensors, keeps what they
  *          do, writes it to a CSV once a second and tells the GUI.
  *
+ * R1 steps a phase label (ambient at the start, then sauna, plunge, rest) into
+ * the log, and the heat hint (HeatHint.hpp, untuned placeholder thresholds) runs
+ * live on the temperature, so its verdicts can be compared with what was
+ * pressed. Nothing here is a verdict on the sensor: the log is the evidence.
+ *
  * Sensors run only while the screen is open, and stop after kWindowS so a
  * probe left on a bench cannot run a battery flat. The CSV is appended in
  * batches (kFlushEveryS), because a watch that gets too hot may switch off:
@@ -18,6 +23,7 @@
 #include <cstdint>
 
 #include "Commands.hpp"
+#include "HeatHint.hpp"
 #include "ProbeCsv.hpp"
 #include "ProbeSnapshot.hpp"
 #include "ProbeStats.hpp"
@@ -86,6 +92,8 @@ private:
     uint32_t           mTempBad = 0;
     uint16_t           mTempFields = 0;
     int32_t            mTrustX100 = Sauna::kX100Invalid;
+    Sauna::HeatHint    mHint;                ///< Run live, so it can be judged
+    Sauna::ProbePhase  mPhase = Sauna::ProbePhase::Ambient;
     uint16_t           mMarks = 0;
     uint16_t           mRun = 0;
     Sauna::LogState    mLog = Sauna::LogState::Off;

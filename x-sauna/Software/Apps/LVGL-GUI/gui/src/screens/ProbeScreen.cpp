@@ -14,7 +14,9 @@
 #include "SDK/GUI/LVGL/Draw.hpp"
 
 #include "FixedPoint.hpp"
+#include "HeatHint.hpp"
 #include "ProbeStats.hpp"
+#include "SessionText.hpp"
 
 #include "gui/Assets.hpp"
 
@@ -53,7 +55,7 @@ ProbeScreen::ProbeScreen(Model& model)
     lv_obj_add_event_cb(mRoot, &ProbeScreen::keyEventCb, LV_EVENT_KEY, this);
 
     // Centred, clear of the bezel button hints at the corners.
-    mTitle   = Draw::label(mRoot, &poppins_semibold_20, "HEAT PROBE", 40, 20, 160,
+    mTitle   = Draw::label(mRoot, &poppins_semibold_20, "AMBIENT", 40, 20, 160,
                            LV_TEXT_ALIGN_CENTER, Color::YELLOW_DARK);
     mTemp    = Draw::label(mRoot, &poppins_light_60, "--", 20, 44, 200);
     mCaption = Draw::label(mRoot, &poppins_regular_14, "temperature sensor, raw", 20, 108, 200,
@@ -132,7 +134,18 @@ void ProbeScreen::show(const Sauna::ProbeSnapshot& s)
     lv_label_set_text(mTemp, text);
     lv_obj_set_style_text_color(mTemp, Draw::rgb(tempColor(s)), LV_PART_MAIN);
 
-    if (s.flags & Sauna::kFlagSimulated) {
+    if (s.flags & Sauna::kFlagHintReady) {
+        // The hint, relative to the first minute: "+3.2 warmer, rising".
+        using Level = Sauna::HeatHint::Level;
+        using Trend = Sauna::HeatHint::Trend;
+        const Level level = static_cast<Level>(s.hintLevel);
+        const Trend trend = static_cast<Trend>(s.hintTrend);
+        Sauna::formatRelTemp(a, sizeof(a), s.hintDeltaX100);
+        std::snprintf(text, sizeof(text), "%s %s%s", a,
+                      level == Level::Warmer ? "warmer" : (level == Level::Cooler ? "cooler" : "similar"),
+                      trend == Trend::Rising ? ", rising" : (trend == Trend::Falling ? ", falling" : ""));
+        lv_label_set_text(mCaption, text);
+    } else if (s.flags & Sauna::kFlagSimulated) {
         lv_label_set_text(mCaption, "made up (simulator)");
     } else if (static_cast<Sauna::Sense>(s.tempSense) == Sauna::Sense::ConnectFailed) {
         lv_label_set_text(mCaption, "no temperature sensor");
@@ -177,15 +190,24 @@ void ProbeScreen::show(const Sauna::ProbeSnapshot& s)
         case Sauna::LogState::Failed: log = "NO LOG"; break;
         default:                      break;
     }
-    std::snprintf(text, sizeof(text), "%02lu:%02lu  mark %u  %s",
+    std::snprintf(text, sizeof(text), "%02lu:%02lu  lap %u  %s",
                   static_cast<unsigned long>(s.elapsedS / 60u), static_cast<unsigned long>(s.elapsedS % 60u),
                   static_cast<unsigned>(s.marks), log);
     lv_label_set_text(mStatus, text);
 
     // The sensors stop after 45 minutes; the title says so.
     const bool finished = (s.flags & Sauna::kFlagFinished) != 0;
-    lv_label_set_text(mTitle, finished ? "PROBE DONE" : "HEAT PROBE");
-    lv_obj_set_style_text_color(mTitle, Draw::rgb(finished ? Color::GREEN : Color::YELLOW_DARK), LV_PART_MAIN);
+    // While running the title is the phase R1 last chose.
+    const Sauna::ProbePhase phase = static_cast<Sauna::ProbePhase>(s.phase);
+    uint32_t phaseColor = Color::GRAY;
+    switch (phase) {
+        case Sauna::ProbePhase::Sauna:  phaseColor = Color::ORANGE_DARK; break;
+        case Sauna::ProbePhase::Plunge: phaseColor = Color::SKY; break;
+        case Sauna::ProbePhase::Rest:   phaseColor = Color::GREEN; break;
+        default:                        break;
+    }
+    lv_label_set_text(mTitle, finished ? "PROBE DONE" : Sauna::probePhaseName(phase));
+    lv_obj_set_style_text_color(mTitle, Draw::rgb(finished ? Color::GREEN : phaseColor), LV_PART_MAIN);
     lv_obj_set_style_text_color(
         mStatus, Draw::rgb(static_cast<Sauna::LogState>(s.log) == Sauna::LogState::Failed ? Color::RED : Color::GRAY),
         LV_PART_MAIN);

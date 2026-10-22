@@ -24,6 +24,33 @@ enum class LogState : uint8_t {
     Failed,     ///< A write failed
 };
 
+/// Where the person says they are, set by R1. The probe cannot tell, so the
+/// log records what was pressed: that is what the hint is judged against.
+enum class ProbePhase : uint8_t { Ambient = 0, Sauna, Plunge, Rest };
+
+inline const char *probePhaseName(ProbePhase p)
+{
+    switch (p) {
+    case ProbePhase::Ambient: return "AMBIENT";
+    case ProbePhase::Sauna:   return "SAUNA";
+    case ProbePhase::Plunge:  return "PLUNGE";
+    case ProbePhase::Rest:    return "REST";
+    }
+    return "?";
+}
+
+/// R1 steps Ambient (the start) -> Sauna -> Plunge -> Rest -> Sauna -> ...
+inline ProbePhase nextProbePhase(ProbePhase p)
+{
+    switch (p) {
+    case ProbePhase::Ambient: return ProbePhase::Sauna;
+    case ProbePhase::Sauna:   return ProbePhase::Plunge;
+    case ProbePhase::Plunge:  return ProbePhase::Rest;
+    case ProbePhase::Rest:    return ProbePhase::Sauna;
+    }
+    return ProbePhase::Ambient;
+}
+
 struct ProbeSnapshot {
     // Time
     uint32_t elapsedS = 0;          ///< Seconds since the sensors started
@@ -52,10 +79,17 @@ struct ProbeSnapshot {
     uint8_t  hrSense = 0;           ///< Sense
     uint8_t  log = 0;               ///< LogState
     uint8_t  flags = 0;             ///< kFlag* below
+
+    // The heat hint (HeatHint.hpp), run live so its behaviour can be judged
+    int32_t  hintDeltaX100 = 0;     ///< Smoothed reading minus the first minute's mean
+    uint8_t  phase = 0;             ///< ProbePhase
+    uint8_t  hintLevel = 0;         ///< HeatHint::Level
+    uint8_t  hintTrend = 0;         ///< HeatHint::Trend
 };
 
 constexpr uint8_t kFlagSimulated = 1u << 0;   ///< The temperature is made up (PC simulator only)
 constexpr uint8_t kFlagFinished  = 1u << 1;   ///< The sensors have been stopped
+constexpr uint8_t kFlagHintReady = 1u << 2;   ///< The hint's baseline (first minute) is in
 
 } // namespace Sauna
 

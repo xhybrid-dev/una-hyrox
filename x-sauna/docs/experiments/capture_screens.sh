@@ -7,10 +7,11 @@
 #
 # The simulator has no temperature sensor, so the service makes a reading up
 # (Core/Header/SimTemp.hpp: a room for 30 s, a climb to 85 over 5 minutes).
-# The run: the start screen; two markers (R1) at about 10 s; a frame during
-# the climb at about 75 s; clear the range (L1); exit (R2). Then the log is
-# checked: a header, a run line, a sensors note, rows once a second, the two
-# markers in the mark column, and a closing note.
+# The run: the start screen (phase AMBIENT); R1 twice at about 10 s (SAUNA, then
+# PLUNGE); a frame during the climb at about 75 s, by when the heat hint's first
+# minute is in; clear the range (L1); exit (R2). Then the log is checked: a run
+# line, the column header, notes for the sensors and each phase, rows once a
+# second with the phase and hint columns, and a closing note.
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./capture_screens.sh [out-dir]
 #   out-dir defaults to docs/screens (files sa0-*.png). Takes about 90 seconds.
@@ -45,8 +46,8 @@ snap() { DISPLAY=$DISP timeout 10 import -window "$WID" "$OUT/$1.png" 2>/dev/nul
 
 snap sa0-1-start
 sleep 6
-key 3 1; key 3 1          # two markers
-snap sa0-2-two-marks
+key 3 1; key 3 1          # two phase changes
+snap sa0-2-two-laps
 sleep 62                  # into the climb
 snap sa0-3-climbing
 key 1 2                   # clear the range

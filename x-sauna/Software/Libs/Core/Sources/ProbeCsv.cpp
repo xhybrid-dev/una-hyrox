@@ -54,7 +54,7 @@ size_t formatCsvHeader(char *out, size_t cap)
     }
     size_t pos = 0;
     if (!put(out, cap, pos,
-             "ms,t_s,mark,temp_x100,temp_n,temp_bad,temp_fields,temp_gap_ms,hr,trust_x100,hr_n\n")) {
+             "ms,t_s,mark,temp_x100,temp_n,temp_bad,temp_fields,temp_gap_ms,hr,trust_x100,hr_n,phase,hint_delta_x100,hint_level,hint_trend\n")) {
         out[0] = '\0';
         return 0;
     }
@@ -85,7 +85,11 @@ size_t formatCsvRow(char *out, size_t cap, const CsvRow &row)
     ok = ok && put(out, cap, pos, kComma);
     ok = ok && putSigned(out, cap, pos, row.trustX100, row.hrN == 0 || row.trustX100 == kX100Invalid) &&
          put(out, cap, pos, kComma);
-    ok = ok && putUnsigned(out, cap, pos, row.hrN) && put(out, cap, pos, "\n");
+    ok = ok && putUnsigned(out, cap, pos, row.hrN) && put(out, cap, pos, kComma);
+    ok = ok && putUnsigned(out, cap, pos, row.phase) && put(out, cap, pos, kComma);
+    ok = ok && putSigned(out, cap, pos, row.hintDeltaX100, row.hintLevel == 0) && put(out, cap, pos, kComma);
+    ok = ok && putUnsigned(out, cap, pos, row.hintLevel) && put(out, cap, pos, kComma);
+    ok = ok && putUnsigned(out, cap, pos, row.hintTrend) && put(out, cap, pos, "\n");
 
     if (!ok) {
         out[0] = '\0';
