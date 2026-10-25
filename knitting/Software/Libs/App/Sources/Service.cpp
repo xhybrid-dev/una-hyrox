@@ -59,6 +59,7 @@ void Service::run()
 
             case SDK::MessageType::COMMAND_APP_NOTIF_GUI_RUN:
                 LOG_INFO("GUI is now running\n");
+                setCapabilities();
                 sendUpdate();
                 break;
 
@@ -117,6 +118,24 @@ void Service::saveState()
         // The screen still shows the live count; the next change tries again.
         LOG_WARNING("could not save the count\n");
     }
+}
+
+void Service::setCapabilities()
+{
+    // The message's fields all default to off, so name each one. Phone notifications and
+    // the USB charging screen are what the kernel does by default, so they stay as they
+    // were; only the music control changes. It answers a hold on L2, which is how this
+    // app resets, and on the watch it fired before the app's hold of 1.5 s was done.
+    auto *msg = mKernel.comm.allocateMessage<SDK::Message::RequestSetCapabilities>();
+    if (!msg) {
+        return;
+    }
+    msg->enPhoneNotification = true;
+    msg->enUsbChargingScreen = true;
+    msg->enMusicControl      = false;
+    mKernel.comm.sendMessage(msg);
+    mKernel.comm.releaseMessage(msg);
+    LOG_INFO("capabilities set: music control off\n");
 }
 
 void Service::buzz(uint8_t effect)
