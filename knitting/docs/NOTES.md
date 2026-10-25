@@ -485,3 +485,43 @@ log shows "capabilities set: music control off" at each start, and the watch com
 (`Knitting_0.0.0-dev.uapp`, 187,772 bytes, no warnings from our code). **Not verified:** that
 it fixes it on the watch: that is Jon's check (hold L2: the music controls should not appear,
 and the reset should complete at 1.5 s).
+
+### 1.1.1 did not fix it; 1.1.2 (25 October 2026)
+
+Jon loaded 1.1.1 and restarted the watch: **a long press on L2 still opens the music**. So
+switching the music control off from the service did not take effect, or does not cover this
+hold; nothing in the SDK says which. (The simulator cannot show either: it has no music
+control. 1.1.1 was never verified on a watch, only that the message is sent.)
+
+Jon suggested making the reset hold shorter than the kernel's. That works **only if the
+kernel's hold is longer than ours**; the SDK does not give its time (`EventButton` has a
+`LONG_PRESS` and `HOLD_1S` event, with no time for LONG_PRESS, and "a screen derives long
+press from press and release with its own timing"). Since 1.5 s lost, the kernel's is under
+1.5 s, which leaves 0.5 to 1.5 s. Three changes in 1.1.2:
+
+1. **The reset hold is 0.8 s** (`kResetHoldMs`), the same as undo. A deliberate hold, still
+   well past a tap (the slowest press counted as a tap by the kernel is 0.5 s: the
+   simulator's click limit). A stray tap cannot reset. It would not beat a kernel hold
+   shorter than 0.8 s.
+2. **The music control is also switched off from the GUI**, in `Model`'s constructor and on
+   each resume (`Model::setCapabilities`), as the Timer, Stopwatch and Alarm examples do;
+   the service still sends it too. The examples that switch it off (Timer) do it from the GUI.
+3. **A diagnostic:** if the app is suspended while L2 (or R1) is held, `MainScreen::onSuspend`
+   asks `Model::noteHoldCut` to write `hold_diag.txt` in the app's folder: "L2 was held 612 ms
+   when the app was suspended". The kernel opening the music controls should suspend the GUI,
+   so that is the kernel's own hold time, which nothing else can tell us. (If the music
+   controls do not suspend the app, no file appears: itself an answer.)
+
+**Not verified on the watch.** What Jon does:
+1. Hold L2 for a second. Does the reset come first (the numbers go to 0 and a short double
+   buzz), with no music? If so, done.
+2. If the music still comes first: back out of it, then read `Apps/Knitting/hold_diag.txt`
+   over USB and send me its line. I set the hold below that time (if it is over about 0.5 s)
+   or give up L2 for reset (see below).
+3. **Fallbacks, if there is no gap:** (a) the reset needs a **tap on L2 then a hold or tap
+   elsewhere** (a two-step confirm: tap L2, then press R1 within 3 s), no L2 hold at all;
+   (b) the reset on a **hold of R2**, which leaves BACK on a tap: R2 may have a kernel long
+   press too (unknown), so (a) is safer.
+
+The store text's line about the music controls (added for 1.1.1) is removed until a watch
+confirms the music control really is off.

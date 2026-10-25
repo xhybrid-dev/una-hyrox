@@ -9,13 +9,14 @@ Everything that can be done without Jon is done. What is left:
 - Jon's check of the holds on the watch (Gate K2), if not already done;
 - the release day below.
 
-## Releasing 1.1.1 (25 October 2026)
+## Releasing 1.1.2 (25 October 2026)
 
-1.1.1 is 1.1.0 with one fix: the music control is switched off while the app is open, so
-holding L2 resets instead of opening the watch's music controls (NOTES, "The L2 hold and the
-music control"). The steps are those below with `1.1.1` for `1.1.0`, and the tag
-`knitting-v1.1.1`. **In step 4, hold L2:** the music controls must not appear, and the
-reset must complete at 1.5 s. The store text gains one line (below).
+1.1.1 (the music control switched off from the service) **did not stop the music controls
+opening on a hold of L2** on the watch. 1.1.2 makes the reset hold 0.8 s, switches the music
+control off from the screen as well, and leaves a note (`hold_diag.txt`) of how long a hold
+was when the kernel took it (NOTES, "1.1.1 did not fix it"). **Do not upload it before Jon has
+held L2 on the watch and the reset comes first.** The steps are those below with `1.1.2` for
+`1.1.0`, and the tag `knitting-v1.1.2`.
 
 ## Releasing the update, 1.1.0 (21 October 2026)
 
@@ -110,8 +111,6 @@ Count your knitting rows and sets on your watch, one press per row.
 >   you can feel it without looking.
 > - Your count is saved every time it changes. Close the app, or switch the
 >   watch off, and it opens exactly where you left off.
-> - While Knitting is open, holding the lower-left button resets rather than opening the
->   watch's music controls.
 > - Your count stays on the watch: nothing is sent to the phone, the UNA app or
 >   Strava, and it is not recorded as an activity.
 >

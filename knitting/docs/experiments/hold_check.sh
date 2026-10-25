@@ -12,13 +12,13 @@
 # Steps, with what must be true after each (read from state.txt):
 #   1. tap L2                      -> a hint only; nothing changes
 #   2. five taps on R1             -> 5 rows
-#   3. hold L2 0.6 s, let go       -> prompt and bar, then cancelled: still 5
+#   3. hold L2 0.4 s, let go       -> prompt and bar, then cancelled: still 5
 #   4. hold R1 1.1 s               -> undo fires at 0.8 s: 4 rows, total 4,
 #                                     and nothing more is counted on letting go
 #   5. tap R1                      -> 5 rows
 #   6. hold R1 0.65 s              -> a slow press, no click is sent: it still
 #                                     counts, on the release: 6 rows
-#   7. hold L2 1.9 s               -> reset fires at 1.5 s: 0 rows, Set 1, total 0
+#   7. hold L2 1.5 s               -> reset fires at 0.8 s: 0 rows, Set 1, total 0
 #   8. close (R2), reopen          -> still 0, Set 1
 #
 # Xvfb for a display, xdotool for the buttons, ImageMagick's import for
@@ -84,8 +84,8 @@ echo "2. five taps on R1"
 for _ in 1 2 3 4 5; do tap 3; done
 sleep 0.5; expect "five rows" "5 1 5"
 
-echo "3. hold L2 0.6 s then let go"
-down 2; sleep 0.6; snap k2-3-reset-hold-bar
+echo "3. hold L2 0.4 s then let go"
+down 2; sleep 0.4; snap k2-3-reset-hold-bar
 up 2 0.4; snap k2-3b-reset-hold-cancelled
 sleep 1.4; expect "a short L2 hold changed nothing" "5 1 5"
 
@@ -102,9 +102,9 @@ echo "6. a slow press on R1 (0.65 s, so no click is sent)"
 down 3; sleep 0.65; up 3 0.4
 sleep 0.4; expect "a slow press counts, once" "6 1 6"
 
-echo "7. hold L2 1.9 s (reset fires at 1.5 s)"
-down 2; sleep 0.7; snap k2-6-reset-mid
-sleep 1.2; snap k2-7-reset-done
+echo "7. hold L2 1.5 s (reset fires at 0.8 s)"
+down 2; sleep 0.4; snap k2-6-reset-mid
+sleep 1.1; snap k2-7-reset-done
 up 2 0.4
 sleep 0.4; expect "reset" "0 1 0"
 snap k2-8-after-reset

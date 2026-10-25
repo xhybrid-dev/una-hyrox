@@ -36,12 +36,18 @@ public:
     void countRow();
     void nextSet();
     void undoRow();
+
+    /// A hold was cut short by the kernel after @p heldMs: write it to hold_diag.txt.
+    void noteHoldCut(const char* button, uint32_t heldMs);
     void resetAll();
 
     /// The last counter from the service, so a screen can draw on first show.
     const Knitting::CounterState& counter() const { return mCounter; }
 
 protected:
+    /// Switch the kernel's music control off from this side as well (see Service).
+    void setCapabilities();
+
     ModelListener*     modelListener;   ///< The screen on display
     const SDK::Kernel& mKernel;         ///< The GUI process's kernel interface
 
