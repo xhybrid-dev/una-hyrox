@@ -275,7 +275,8 @@ creatures, moves, art or type chart (brief section 9).
 An eighth app: a knitting counter. Press a button for every row, group rows into
 sets (rows and sets, like reps and sets), and see the rows in this set (big), the
 set number and the total rows (small). Buttons: R1 counts a row (hold: undo a row),
-L1 starts the next set, L2 resets (hold 1.5 s), R2 exits. It is an activity-free utility: no GPS, no FIT files,
+L1 starts the next set, L2 resets (hold 1.5 s; the kernel's music control on an L2 hold is
+switched off while the app runs), R2 exits. It is an activity-free utility: no GPS, no FIT files,
 nothing syncs. It is independent of the other apps.
 - **Docs:** findings, decisions and phases (K0-K5): `knitting/docs/NOTES.md`.
   Read it at the start of each Knitting phase, and work only on that phase.

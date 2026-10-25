@@ -29,6 +29,11 @@ private:
     /// so a slow write never delays the number on screen.
     void saveState();
 
+    /// Tell the kernel what the watch may do while this app runs. Music control is
+    /// off, because the kernel's own hold on L2 (the music controls) would fire before
+    /// the app's hold on L2 (reset) finishes.
+    void setCapabilities();
+
     /// A short buzz, so a reset or an undo can be felt without looking.
     void buzz(uint8_t effect);
 

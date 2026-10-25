@@ -10,6 +10,18 @@ the prefix for the SDK's version script.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-25
+
+### Fixed
+
+- **Holding L2 to reset no longer opens the watch's music controls first.** The kernel
+  answers a hold on L2 with the music controls, and on the watch that fired before
+  the app's own hold of 1.5 s was done. The app now switches the music control off
+  while it is open (the SDK's `RequestSetCapabilities`, as the Timer app does), so the
+  hold reaches the app. Phone notifications and the USB charging screen are left as the
+  kernel has them. The cost: while Knitting is open, holding L2 does not open the
+  music controls.
+
 ## [1.1.0] - 2026-10-21
 
 An update to the store release, tagged `knitting-v1.1.0` (same App ID,

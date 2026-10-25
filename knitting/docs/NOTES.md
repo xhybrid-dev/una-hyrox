@@ -459,3 +459,29 @@ record of what was considered. The release is **1.1.0** (the labels and the icon
 and holds are unchanged since 1.0.0): `CHANGELOG.md`, `docs/SUBMISSION.md` ("Releasing the
 update") and the manifest's description (adds that every button is named on the screen) are
 written for it. Tag `knitting-v1.1.0` is Jon's to make.
+
+## The L2 hold and the music control (25 October 2026, 1.1.1)
+
+Jon, using 1.1.0 on the watch: "hold L2 to reset triggers the music control before the reset
+is triggered". The kernel gives a hold on L2 to the music controls by default (SDK
+`IAppCapabilities.hpp`: "Enable/disable L2 button hold response for music control when the
+APP is running. Music control enabled by default."), and its hold is shorter than our 1.5 s,
+so it won the race. The simulator has no music control, so no test could show it: the
+watch is the only place it happens.
+
+**Choice:** switch the music control off, rather than move the reset to R2. The SDK has the
+switch for exactly this (`RequestSetCapabilities.enMusicControl`; Timer sets it false), R2 is
+BACK, and the labels and store images already say L2. The service sends it when the GUI
+starts (`Service::setCapabilities`), as RunLVGL does. The message's fields default to off,
+so the other two are named: phone notifications and the USB charging screen stay on, which
+is what the kernel does by default.
+
+**The cost:** while Knitting is open, holding L2 does not open the music controls. Say so in
+the store text. If it is missed, the other way round (reset on a hold of R2) would give the
+music controls back, but then there is no way out of the app with a tap.
+
+**Verified:** 44 host tests, `hold_check.sh` and `resume_check.sh` unchanged, the simulator's
+log shows "capabilities set: music control off" at each start, and the watch compile check
+(`Knitting_0.0.0-dev.uapp`, 187,772 bytes, no warnings from our code). **Not verified:** that
+it fixes it on the watch: that is Jon's check (hold L2: the music controls should not appear,
+and the reset should complete at 1.5 s).
