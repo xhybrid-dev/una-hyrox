@@ -17,7 +17,7 @@ to open-source terms, and the HybridX Race binary is not subject to it.
 
 | Component | Version | Licence |
 |---|---|---|
-| UNA Watch SDK | `sdk-v1.6.0` (`bd04a5b8`) | **MIT** — UNA Watch Ltd. The MIT licence grants no trademark rights; see the SDK's `TRADEMARK.md` |
+| UNA Watch SDK | `sdk-v1.6.2` (`6bd43f04`) | **MIT** — UNA Watch Ltd. The MIT licence grants no trademark rights; see the SDK's `TRADEMARK.md` |
 | LVGL | v9.5.0 | **MIT** — LVGL Kft, see the SDK's `ThirdParty/lvgl/LICENCE.txt` |
 | coreJSON | as vendored by the SDK | **MIT** |
 | tinycbor | as vendored by the SDK | **MIT** — Intel Corporation |

@@ -2183,3 +2183,72 @@ New**, not a new app (SUBMISSION.md).
 **Not run on a watch:** the pace plan, the cue pitches and the new icon (5.21-5.32 say so). The
 changelog says so too. The 1.0 number is Jon's call; the first real race with the pace plan is
 the test, and a 1.0.1 follows if it finds anything.
+
+### 5.34 Pin moved to sdk-v1.6.2 (26 October 2026)
+
+`UNA_SDK_REF` is now `6bd43f041175b46536da949696ab1b2f0948da8d` (`sdk-v1.6.2`, also tagged
+`apps-v1.6.2`), up from `bd04a5b8` (`sdk-v1.6.0`); `sdk-v1.6.1` is `d71d0dc3`, between them. Jon
+asked for it on 26 October 2026, saying 1.6.2 had rolled out to all watches (his word; not
+checked here). No app code changed. Done the 5.28 way: verified in a scratch checkout of the
+tag (LVGL borrowed from the pin: the submodule commit is `85aa60d1` at both) before the pin was
+edited.
+
+**What the two releases say.** GitHub release notes headed "Una Watch 1.6.1" and "Una Watch
+1.6.2", read through a page-fetch tool that summarises (the API and the Atom feed were blocked),
+so the wording is not guaranteed verbatim:
+- 1.6.1 (22 October): the optical heart-rate sensor firmware updated; apps free their memory
+  sooner when closed.
+- 1.6.2 (26 October): large apps such as Run open reliably alongside a large watch face and
+  several background services (the face makes room and returns on Back); apps need less memory
+  to start; GPS assistance data loads even while a large app is open, so a fix comes faster.
+
+All of that is kernel and sensor firmware, and none of it is visible in the public SDK source.
+The notes do not say whether they describe firmware or the SDK: the heading says "Una Watch", the
+tag says `sdk-`, and the numbers match. They are the nearest thing to the firmware changelog that
+5.21 and 5.24 looked for.
+
+**What changed in the SDK source, 1.6.0 to 1.6.2** (63 files, +2,200 -198, mostly docs,
+templates and tests):
+- No public header changed. `KERNEL_INTERFACE_VERSION` is 3 and `abi_kernel_map.json` is
+  unchanged, so `minKernelVersion` stays 1.4.0 (5.21).
+- Simulator sources (10 files: GPS and step simulation, message dispatch, init-list and const
+  clean-ups) and `Variant/VariantConfig.cpp` (skips a `.uapp` name too long to form a path). No
+  app of ours uses the variant code.
+- Build: `cmake/una-app.cmake` and `app_merging.py` copy the `.uapp` to `OUTPUT_PATH` through a
+  new `-copy-to` option (a `*.uapp` wildcard failed on Windows), and the GUI merge keys on the
+  GUI target existing. 1.6.2 itself is two CI files: a tagged release takes its version from the
+  tag.
+- Tests and docs: the host `InMemoryFileSystem` fake now refuses what the device refuses (for
+  instance a write that would put a file over a directory), `Docs/unit-testing.md`, and
+  `Docs/shared-data.md`.
+- `Examples/Apps/Running` (RunLVGL) changed only in its TouchGFX makefile and vcxproj, so Run's
+  R6a merge is still current.
+
+**Correction to 5.22 and 5.26.** The SharedData documentation (commits `5b82605`..`ee53d24`,
+including `Docs/shared-data.md`) is *not* in the v1.6.0 tree; it first appears in 1.6.1. 5.26
+quoted it from a later commit than the pin. What it says (`:/Workouts` is read-only to apps) is
+unchanged at 1.6.2, so the conclusion stands.
+
+**Verified, 1.6.2 against the old pin** (old pin first, as the baseline; each host build was
+checked to reference the intended SDK tree):
+- Host tests, nine apps, same counts on both: Race 145, Streak 115, Trail 149, Intervals 113,
+  Run 118, Weigh-in 113, Knitting 44, Trail Quest 200, Sauna 115 (1,112 in all), all passing,
+  with identical warning counts. The SDK's own host tests (`Tests/Host`) also pass at 1.6.2.
+- Simulators, all nine built (Ninja, Debug) on both. Warnings: 45 on the old pin, 4 on 1.6.2,
+  all four in SDK files (the JSON stream reader and writer format strings, and
+  `WorkoutLibrary.cpp:184`, which 5.28 noted); none in our code. Each ran 12 s under Xvfb with no
+  crash or assert.
+- Race's pace plan (`pace_plan_capture.sh`, two races) on both: the same 14 screens, nine
+  identical and five differing by 180 to 2,100 pixels. The largest (the status face) differs
+  only in the wall-clock readout (21:18 against 21:20) and shows the same "Finish 0:00:55"; the
+  other four were not looked at by eye. The log messages match apart from LVGL pool byte counts.
+
+**Not done locally:** the watch target (no ST toolchain here; 5.20). It is the one that matters
+for this bump, because `una-app.cmake` is what the watch build runs. CI's result: (pending).
+
+**Found along the way**
+- A fresh container has neither `libsdl2-dev` nor `xdotool`; the simulators and the capture
+  scripts need both (`apt-get install`).
+- Where a simulator puts its binary differs by app: Race and Knitting use
+  `<simulator>/build/bin`, Streak uses `<build dir>/bin`. Read the app's own `CMakeLists.txt`
+  before scripting a run.

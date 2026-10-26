@@ -64,15 +64,16 @@ submodule; without `--recurse-submodules` the GUI will not build.
 
 ```bash
 git clone --recurse-submodules https://github.com/UNAWatch/una-sdk.git
-cd una-sdk && git checkout sdk-v1.6.0 && git submodule update --init --recursive
+cd una-sdk && git checkout sdk-v1.6.2 && git submodule update --init --recursive
 ```
 
-`sdk-v1.6.0` (`bd04a5b8`) is the release this app is built and
+`sdk-v1.6.2` (`6bd43f04`) is the release this app is built and
 tested against. The SDK ABI it carries is 3, which means the watch needs kernel
 firmware **1.4.0 or newer**.
 
-The pin moved from `a7a995a1` to `sdk-v1.6.0` on 14 October 2026. v1.6.0 keeps ABI 3, so
-the firmware floor is unchanged; see `hybridx-race/docs/NOTES.md`, 5.21-5.28.
+The pin moved from `a7a995a1` to `sdk-v1.6.0` on 14 October 2026, and on to `sdk-v1.6.2` on
+26 October 2026. Both keep ABI 3, so the firmware floor is unchanged; see
+`hybridx-race/docs/NOTES.md`, 5.21-5.28 and 5.34.
 
 **2. Point `UNA_SDK` at it.** Every build reads this.
 
