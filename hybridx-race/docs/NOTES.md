@@ -2244,7 +2244,22 @@ checked to reference the intended SDK tree):
   other four were not looked at by eye. The log messages match apart from LVGL pool byte counts.
 
 **Not done locally:** the watch target (no ST toolchain here; 5.20). It is the one that matters
-for this bump, because `una-app.cmake` is what the watch build runs. CI's result: (pending).
+for this bump, because `una-app.cmake` is what the watch build runs.
+
+**CI, run 223 on `6688539`: green.** Every app built with ST's toolchain on the new pin and the
+host-test job passed (2 min 35 s). The `watch-apps` job took 17 min 46 s, of which "Setup build
+tools" was 12 min 36 s: a slow apt mirror, ahead of the SDK fetch, so not the pin (the last run
+on the old pin took about 5 minutes in all); the build step itself took 3 min 37 s. Artifact
+sizes against run 220 (`ab80d07`, the last green run on the old pin): `watch-apps` 2,328,514
+bytes against 2,328,514 (a zip of all the `.uapp` files, so a total), `race-store-zip` 246,012
+against 246,014, `weighin-store-zip` 196,430 against 196,430, `knitting-store-zip` 132,844
+against 132,844, `trailquest-store-zip` 177,567 against 177,567. The same sizes fit the source
+diff: nothing a watch app compiles changed (simulator and variant sources only). The archive
+hashes differ; I did not unpack them, so per-app `.uapp` sizes and contents were not compared.
+The real `una-sdk/` checkout is now at `6bd43f04`, so new sessions follow the pin.
+
+**Still unproven:** nothing here has run on a watch. A watch build that compiles and links says
+nothing about how the apps behave on firmware 1.6.2.
 
 **Found along the way**
 - A fresh container has neither `libsdl2-dev` nor `xdotool`; the simulators and the capture
