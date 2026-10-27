@@ -174,3 +174,21 @@ TEST(HoldTimer, PendingIsTrueOnlyBetweenPressAndFiring)
     t.release(900);
     EXPECT_FALSE(t.pending());
 }
+
+TEST(HoldTimer, HeldForMsCountsFromThePressAndIsZeroWhenUp)
+{
+    HoldTimer t(800);
+    EXPECT_EQ(t.heldForMs(500), 0u);
+    t.press(1000);
+    EXPECT_EQ(t.heldForMs(1000), 0u);
+    EXPECT_EQ(t.heldForMs(1612), 612u);
+    t.release(2000);
+    EXPECT_EQ(t.heldForMs(2500), 0u);
+}
+
+TEST(HoldTimer, HeldForMsSurvivesTheClockWrapping)
+{
+    HoldTimer t(800);
+    t.press(0xFFFFFF00u);
+    EXPECT_EQ(t.heldForMs(0x100u), 0x200u);        // 512 ms, across the wrap
+}

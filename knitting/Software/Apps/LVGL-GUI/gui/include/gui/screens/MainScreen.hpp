@@ -34,8 +34,10 @@
 class MainScreen : public ModelListener
 {
 public:
-    /// How long the L2 hold takes to reset, and the R1 hold to undo a row.
-    static constexpr uint32_t kResetHoldMs = 1500;
+    /// How long the L2 hold takes to reset, and the R1 hold to undo a row. The reset is
+    /// short because the kernel answers a hold on L2 with the music controls, at a time the
+    /// SDK does not give; 1.5 s was too long and the music came first (NOTES, "The L2 hold").
+    static constexpr uint32_t kResetHoldMs = 800;
     static constexpr uint32_t kUndoHoldMs  = 800;
     /// How long a hint or a notice stays on the bottom line.
     static constexpr uint32_t kNoticeMs    = 1500;

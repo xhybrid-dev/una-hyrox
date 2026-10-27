@@ -205,10 +205,17 @@ void MainScreen::onSuspend()
 {
     // The release cannot reach this screen while the GUI is suspended, so a
     // hold left running could complete by itself on resume. Drop it.
+    const uint32_t now = lv_tick_get();
+    // If a button was down, the kernel took it (L2 opens the music controls): note how long
+    // it had been held, which is the only way to learn the kernel's own threshold.
+    if (mReset.held()) {
+        mModel.noteHoldCut("L2", mReset.heldForMs(now));
+    } else if (mUndo.held()) {
+        mModel.noteHoldCut("R1", mUndo.heldForMs(now));
+    }
     mReset.cancel();
     mUndo.cancel();
     mHasNotice = false;
-    const uint32_t now = lv_tick_get();
     refreshStatus(now);
     updateTimer(now);
 }

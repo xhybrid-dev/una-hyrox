@@ -10,6 +10,25 @@ the prefix for the SDK's version script.
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-25
+
+### Fixed
+
+- **Holding L2 to reset still opened the music controls on the watch** with 1.1.1, which
+  only switched the music control off from the app's service. Two changes, either of
+  which may be enough:
+  - **The hold is shorter: 0.8 s, not 1.5 s,** so the reset can finish before the kernel's
+    own hold on L2 opens the music controls. (It matches the undo hold on R1. A tap, even a
+    slow one, still does nothing on L2.)
+  - **The music control is switched off from the screen's side too,** when it starts and
+    each time it comes back, as the SDK's Timer and Stopwatch examples do.
+
+### Added
+
+- **A note of what the kernel does with a hold.** If the kernel takes a button while it is
+  held (the music controls on L2), the app writes how long it had been held to
+  `hold_diag.txt` in its folder. It is only for working out the kernel's own timing.
+
 ## [1.1.1] - 2026-10-25
 
 ### Fixed

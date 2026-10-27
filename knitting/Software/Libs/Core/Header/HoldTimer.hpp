@@ -116,6 +116,9 @@ public:
 
     bool held() const { return mHeld; }
 
+    /// How long the button has been down, 0 when it is not. For a diagnostic.
+    uint32_t heldForMs(uint32_t nowMs) const { return mHeld ? nowMs - mPressedAt : 0; }
+
     /// Held and not yet fired: the hold a progress bar should show.
     bool pending() const { return mHeld && !mFired; }
 

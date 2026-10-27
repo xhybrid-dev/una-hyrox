@@ -52,7 +52,7 @@ snap 2-undo
 DISPLAY=$DISP xdotool keyup 3; sleep 1.9
 
 # Hold L2 part-way and let go: nothing is reset, a hint shows.
-DISPLAY=$DISP xdotool keydown 2; sleep 0.8
+DISPLAY=$DISP xdotool keydown 2; sleep 0.4
 snap 3-reset
 DISPLAY=$DISP xdotool keyup 2; sleep 1.9
 
