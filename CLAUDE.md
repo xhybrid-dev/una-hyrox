@@ -178,6 +178,9 @@ apps.
   - cadence and step length (live Form face, summary Form face, FIT lap and session averages):
     `docs/experiments/fit_form_report.py <file.fit>` checks a saved file's averages against its own
     records (the simulator has a cadence mock, so `sim_run.sh` shows 170 spm);
+  - the run detail faces (zones, best splits, pacing and drift): `docs/experiments/fit_detail_report.py
+    <file.fit> --log <simulator log>` recomputes them from a saved file and compares (it scales the
+    integrated distance to the session total; the simulator's mock speed and distance disagree);
   - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
     log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>` (also shows
     what the raw GPS speed would have given, from the `scale` column).

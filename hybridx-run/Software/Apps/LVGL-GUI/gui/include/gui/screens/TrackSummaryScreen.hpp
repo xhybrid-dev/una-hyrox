@@ -28,6 +28,7 @@ public:
     void onKey(uint8_t code) override;
     void onActivitySummary(const ActivitySummary& summary) override;
     void onVo2Info(const CustomMessage::Vo2Info& info) override;   // HybridX Run
+    void onRunStats(const RunVo2::RunStatsResult& stats) override;  // HybridX Run: the detail faces
 
 protected:
     void build() override;
@@ -35,8 +36,10 @@ protected:
 private:
     // HybridX Run: FACE_VO2 added between heart rate and the laps, then FACE_FORM (cadence and
     // step length).
-    enum Face : uint8_t { FACE_MAP = 0, FACE_OVERVIEW, FACE_HEARTRATE, FACE_VO2, FACE_FORM, FACE_LAPS,
-                          FACE_COUNT };
+    // Then the run detail: FACE_ZONES (time in heart-rate zones), FACE_SPLITS (best splits and the
+    // halves) and FACE_PACING (grade-adjusted pace and drift).
+    enum Face : uint8_t { FACE_MAP = 0, FACE_OVERVIEW, FACE_HEARTRATE, FACE_VO2, FACE_FORM, FACE_ZONES,
+                          FACE_SPLITS, FACE_PACING, FACE_LAPS, FACE_COUNT };
 
     static constexpr uint8_t kLapPageSize = 3;   ///< rows advanced per L1/L2 press
     static constexpr uint8_t kLapVisible  = 5;   ///< rows on screen at once
@@ -48,11 +51,15 @@ private:
     void buildFace(uint8_t face);
     void destroyFace();
     void fillFace();
+    void fillDetail();   ///< HybridX Run: the zones, splits and pacing faces
     void buildFaceMap();
     void buildFaceOverview();
     void buildFaceHeartRate();
     void buildFaceVo2();
     void buildFaceForm();
+    void buildFaceZones();
+    void buildFaceSplits();
+    void buildFacePacing();
     void buildFaceLaps();
 
     void setSummary(const ActivitySummary& s);
@@ -84,6 +91,17 @@ private:
     // Form (HybridX Run)
     lv_obj_t* mFormCadence = nullptr;
     lv_obj_t* mFormStep    = nullptr;
+
+    // Run detail (HybridX Run)
+    static constexpr uint8_t kZoneRows = 5;
+    lv_obj_t* mZoneBar[kZoneRows]  = {};
+    lv_obj_t* mZoneTime[kZoneRows] = {};
+    lv_obj_t* mZoneBelow           = nullptr;
+    lv_obj_t* mBestTime[3]         = {};
+    lv_obj_t* mHalfPace[2]         = {};
+    lv_obj_t* mGapPace             = nullptr;
+    lv_obj_t* mDrift               = nullptr;
+    lv_obj_t* mDriftNote           = nullptr;
 
     // Laps
     lv_obj_t* mLapsCount = nullptr;

@@ -14,6 +14,7 @@
 #include "Settings.hpp"
 #include "Track.hpp"
 #include "ActivitySummary.hpp"
+#include "RunStats.hpp"   // HybridX Run: RunVo2::RunStatsResult (plain data)
 
 // Force 4-byte alignment for all message structures
 #pragma pack(push, 4)
@@ -44,6 +45,7 @@ namespace CustomMessage {
     // HybridX Run: our own IDs, after UNA's workout block (0x13-0x18).
     constexpr SDK::MessageType::Type VO2_UPDATE                = 0x00000019;   // HybridX Run
     constexpr SDK::MessageType::Type VO2_PROFILE_SAVE          = 0x0000001A;   // HybridX Run, GUI -> Service
+    constexpr SDK::MessageType::Type RUN_STATS_UPDATE          = 0x0000001B;   // HybridX Run: the run detail page
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -253,6 +255,19 @@ namespace CustomMessage {
             : Vo2Upd()
         {
             this->info = info;
+        }
+    };
+
+    // HybridX Run: the run detail page's numbers (zones, best splits, halves, drift). Sent when a
+    // track starts (all zero), when it is paused and when it is saved.
+    struct RunStatsUpd : public SDK::MessageBase {
+        RunVo2::RunStatsResult stats;
+        RunStatsUpd() : SDK::MessageBase(RUN_STATS_UPDATE), stats{} {}
+
+        explicit RunStatsUpd(const RunVo2::RunStatsResult& stats)
+            : RunStatsUpd()
+        {
+            this->stats = stats;
         }
     };
 
@@ -495,6 +510,7 @@ namespace CustomMessage {
     constexpr size_t kMaxMessageBytes = 256u;
     static_assert(sizeof(Vo2Upd) <= kMaxMessageBytes, "Vo2Upd exceeds the 256-byte kernel pool block");
     static_assert(sizeof(Vo2ProfileSave) <= kMaxMessageBytes, "Vo2ProfileSave exceeds the 256-byte kernel pool block");
+    static_assert(sizeof(RunStatsUpd) <= kMaxMessageBytes, "RunStatsUpd exceeds the 256-byte kernel pool block");
     // The live data goes to the GUI as a whole struct every second; the running form fields
     // (cadence, step length) were added to it (136 bytes of data, 176 with the header on the host).
     static_assert(sizeof(TrackDataUpd) <= kMaxMessageBytes, "TrackDataUpd exceeds the 256-byte kernel pool block");

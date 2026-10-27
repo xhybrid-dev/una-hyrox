@@ -66,7 +66,6 @@ void TrackScreen::build()
                   Widgets::Buttons::NONE, Widgets::Buttons::AMBER);
 
     buildFaceStatus();
-    buildFaceForm();
     buildFaceLap();
     buildFaceTotal();
     buildFaceIntervals();
@@ -138,6 +137,37 @@ void TrackScreen::buildFaceForm()
     Theme::hline(f, 35, 159, 170);
     mFormAverage = Theme::label(f, F::Regular18, Strings::kNoValue, 20, 170, 200);
     Theme::label(f, F::Italic18, "Run average", 0, 204, 240);
+}
+
+void TrackScreen::destroyFaceForm()
+{
+    if (!mFaceForm) {
+        return;
+    }
+    lv_obj_delete(mFaceForm);
+    mFaceForm = mCadenceValue = mStepValue = mFormAverage = nullptr;
+}
+
+// The Form face's values, from the live data. Does nothing while the face is not built.
+void TrackScreen::fillForm(const Track::Data& data)
+{
+    if (!mFaceForm) {
+        return;
+    }
+    char buf[16];
+    RunVo2::FormText::cadence(buf, sizeof(buf), static_cast<uint16_t>(data.cadenceSpm * 10u));
+    lv_label_set_text(mCadenceValue, buf);
+    RunVo2::FormText::stepLength(buf, sizeof(buf), data.stepLengthMm);
+    lv_label_set_text(mStepValue, buf);
+    if (data.cadenceAvgSpm == 0) {
+        lv_label_set_text(mFormAverage, Strings::kNoValue);
+    } else {
+        char c[8], s[8], form[24];
+        RunVo2::FormText::cadence(c, sizeof(c), static_cast<uint16_t>(data.cadenceAvgSpm * 10u));
+        RunVo2::FormText::stepLength(s, sizeof(s), data.stepLengthAvgMm);
+        snprintf(form, sizeof(form), "%s spm / %s m", c, s);
+        lv_label_set_text(mFormAverage, form);
+    }
 }
 
 void TrackScreen::buildFaceStatus()
@@ -269,7 +299,17 @@ void TrackScreen::showFace(uint16_t id)
     setHidden(mFaceIntervals,         id != FaceId::ID_INTERVALS);
     setHidden(mFaceTotal,             id != FaceId::ID_TRACK1);
     setHidden(mFaceLap,               id != FaceId::ID_TRACK2);
-    setHidden(mFaceForm,              id != FaceId::ID_FORM);
+    // The Form face is built only while it is shown. Built up front it took 3.4 KB of LVGL's
+    // pool for the whole run, and the screen is rebuilt after every auto-lap (the lap card
+    // fragments the pool just before), which put the pool's peak at 82%.
+    if (id == FaceId::ID_FORM) {
+        if (!mFaceForm) {
+            buildFaceForm();
+            fillForm(mModel.getTrackData());
+        }
+    } else {
+        destroyFaceForm();
+    }
     setHidden(mFaceStatus,            id != FaceId::ID_TRACK3);
     setHidden(mWorkoutGauge->root(),  id != FaceId::ID_WORKOUT_GAUGE);
     setHidden(mWorkoutStep->root(),   id != FaceId::ID_WORKOUT_STEP);
@@ -349,20 +389,7 @@ void TrackScreen::onTrackData(const Track::Data& data)
     mHrZone->setHR(data.hr < App::Display::kMinHR ? 0.0f : data.hr, mHrThresholds, mHrThresholdCount);
 
     // Form face (HybridX Run): 0 is no data, and reads "---".
-    char form[24];
-    RunVo2::FormText::cadence(buf, sizeof(buf), static_cast<uint16_t>(data.cadenceSpm * 10u));
-    lv_label_set_text(mCadenceValue, buf);
-    RunVo2::FormText::stepLength(buf, sizeof(buf), data.stepLengthMm);
-    lv_label_set_text(mStepValue, buf);
-    if (data.cadenceAvgSpm == 0) {
-        lv_label_set_text(mFormAverage, Strings::kNoValue);
-    } else {
-        char c[8], s[8];
-        RunVo2::FormText::cadence(c, sizeof(c), static_cast<uint16_t>(data.cadenceAvgSpm * 10u));
-        RunVo2::FormText::stepLength(s, sizeof(s), data.stepLengthAvgMm);
-        snprintf(form, sizeof(form), "%s spm / %s m", c, s);
-        lv_label_set_text(mFormAverage, form);
-    }
+    fillForm(data);
 
     // Workout faces: the live pace under a step with no target, the lap
     // averages on the step face.

@@ -792,3 +792,64 @@ and writes the averages to the FIT lap and session.
   notes already record optical artefacts, "cadence lock"); that Garmin Connect or Strava show
   the lap and session averages (Race's findings suggest they build their series from the
   records; the standard fields are the likeliest to be used, but that is not tested).
+
+## P2: the run detail page (27 October 2026)
+
+Second phase of the plan for cadence and step length, a run detail page and VO2max
+reliability. Everything here is computed from data the run already collects; nothing is
+persisted (the faces show the run just finished, and are gone with the app).
+
+- **`RunStats`** (`Core`, pure, host-tested; allocated on the heap when a track starts and freed
+  when it ends, about 4 KB, so it costs nothing while the app is idle). Fed once per active second by
+  `feedVo2()` with the same `Sample` the VO2max windows take, plus the distance so far. It does **not**
+  touch `Vo2Window*` (Trail byte-copies those; the CI check still passes). It keeps:
+  - **time in zones**, by the watch's own thresholds (the first five of `mHrThresholds`, read as the
+    arc on the lap face reads them: above threshold i is zone i + 1, at or below the first is "below zone 1"),
+    counting only seconds with a good heart rate by the VO2max core's own test;
+  - **best 1 km, 1 mile and 5 km**: a ring of the time each 10 m was crossed (512 entries, 2 KB),
+    each crossing placed inside its second by interpolation; the best is the shortest time between a
+    boundary and the point L metres earlier. It ends on a 10 m boundary, so it can miss the true best
+    by the pace change over under 10 m (the tests: 199.9-201.0 s for a true 200.0 s). A second in which
+    the distance moves by more than 20 m, or backwards, restarts the ring so no split spans a GPS catch-up
+    or a counter reset (earlier bests stand). Pauses are not in the ring's time;
+  - **first and second half of the run**, and **drift**, from 64 cumulative checkpoints thinned by
+    doubling the spacing, so any run length fits and a half is read by interpolation to within the spacing
+    (at most 3% of the run). Drift is aerobic decoupling (Pa:HR, as published by Friel): after the 300 s
+    warm-up, EF = level-equivalent speed (m/min) / average HR for each half, drift = (EF1 - EF2) / EF1.
+    The level speed is the run's grade-adjusted speed, summed as `WindowBuilder` does (uphill only; a host
+    test checks the two agree to 0.001 m/s on a run with invalid, dead-reckoned, slow and paused seconds).
+    It does not depend on the athlete's max HR, which is VO2max's biggest weakness.
+  - **Provisional, for Jon to tune on real runs** (`StatsConfig`): drift needs 1,800 s after the warm-up,
+    a heart rate and a moving speed for 80% of each half's seconds, and halves whose level speeds are within
+    10%; otherwise it says why ("Needs 30+ min", "No steady HR", "Pace not steady"). A checkpoint that falls
+    between two readings smooths a sharp change: drift can be about 0.2 of a percentage point off (the tests
+    show 4.6 for a true 4.8).
+- **Message**: `RunStatsUpd` (id 0x1B, plain data, a `static_assert` keeps it inside the 256-byte block),
+  sent when a track starts (all zero), when it is paused and when it is saved. The summary can be opened
+  while paused, so the faces work from the live numbers. The service logs one integers-only line,
+  "Run detail: ...", whenever it sends.
+- **Summary faces** (each built only while shown, like the others), after FORM: **ZONES** (five bars in
+  the arc's colours with a time each; "Below Z1" underneath), **BEST SPLITS** (1 km, 1 mi, 5 km, and the
+  pace of each half), **PACING** (the uphill-adjusted pace and drift, with the reason when there is none).
+  Three faces, not the plan's two: one crowded the round display. Paces follow the pace unit setting.
+- **LVGL pool: the Form face is now built only while shown** (the plan's fallback). The first measurements
+  (P1) were on a 70 s run, which never reaches the 1 km auto-lap. A run with an auto-lap shows the lap card
+  and then rebuilds the Track screen, and with the Form face built up front that rebuild took the peak to
+  **82%**. Built on demand the Track screen is back to 32.8 KB (it was 36.2 KB) and the peak after a lap
+  is 74%, 78% after the action menu opens. The older 68-71% figures were runs too short for an auto-lap;
+  78% is what a run with a lap reaches without any new face. The summary faces peak at about 12 KB while shown.
+- **`docs/experiments/fit_detail_report.py <file.fit> [--log <sim log>]`** recomputes the zones, best
+  splits and half paces from a saved file by brute force, and compares them with the service's own line.
+  In a 338 s simulator run: zones identical (17/306/4 s), best 1 km 188.1 s against 187.4 s, mile 303.3
+  against 304.9, half paces identical. **The simulator's mock GPS speed and distance disagree by about
+  25%** (its pace readout says 4:02/km where the distance counter works out to 3:12), so the checker scales
+  the file's integrated distance to the session's `total_distance` and prints the scale (1.106 here); the
+  first, unscaled comparison failed for exactly that reason, which is the simulator and not `RunStats`.
+- **Verified**: host tests 163 (32 new: zones, splits, halves, drift, grade-adjusted speed against the
+  builder, the drift text), also under ASan + UBSan. Simulator: a 200-330 s run, the faces read as
+  round-face screenshots (three right-hand labels were moved off the amber arc); a paused-and-saved run and
+  a discarded run (no `.fit`, `act_run.json` unchanged, no errors). Watch target compile check 501,968 B
+  (+5.7 KB over P1; not for a watch), glance unchanged, Trail's and the link copy checks pass.
+- **Not checked**: anything on a watch; drift on a real run (the simulator's run is two minutes of mock
+  data, so the page says "Needs 30+ min"; the drift and decoupling figures have only the unit tests
+  behind them); the real heart-rate zones' thresholds from the kernel (the tests use the defaults).

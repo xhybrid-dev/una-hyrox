@@ -39,6 +39,7 @@
 #include "SDK/Interfaces/IFileSystem.hpp"
 
 #include "FormStats.hpp"
+#include "RunStats.hpp"
 #include "Vo2History.hpp"
 #include "Vo2Log.hpp"
 #include "Vo2Profile.hpp"
@@ -134,6 +135,9 @@ private:
     bool                    mFormStepOk    = false;   ///< this tick: and a step length in the SDK's gate
     float                   mFormStepM     = 0.0f;
     RunVo2::FormStats       mForm;                    ///< the run's and the lap's averages
+    /// The run detail page's numbers (about 4 KB, so on the heap, made when a track starts and
+    /// freed when it ends). Null if there was no memory: the page then shows nothing.
+    std::unique_ptr<RunVo2::RunStats> mRunStats;
 
     // -- Outdoor stride calibration inputs (latched per stream) ---------
     struct {
@@ -295,6 +299,7 @@ private:
     void feedVo2();
     void finishVo2(std::time_t endUtc);
     void writeSharedVo2();
+    void sendRunStats();         ///< the run detail page's numbers to the GUI (start, pause, save)
     void updateForm();           ///< cadence and step length for this tick: screen, record and averages
     void writeActivityLink(const ActivityWriter::TrackData& track);   ///< the saved run, for Streak (hybridx-link)
     void sendVo2Info();

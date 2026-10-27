@@ -123,6 +123,8 @@ public:
 
     // HybridX Run: the VO2max figures (all zero until the service sends them).
     const CustomMessage::Vo2Info& getVo2Info() const { return mVo2Info; }
+    /// HybridX Run: the run detail page's numbers (all zero until the service sends them).
+    const RunVo2::RunStatsResult& getRunStats() const { return mRunStats; }
     /// The athlete's numbers set on the watch (R5): sent to the service, which
     /// saves them and answers with a fresh Vo2Info.
     void saveVo2Profile(uint16_t birthYear, uint8_t birthMonth, uint8_t maxHr, uint8_t restHr, bool tuningLog);
@@ -236,6 +238,7 @@ private:
     const ActivitySummary* mActivitySummary = nullptr;
     Track::Data            mTrackData             {};
     CustomMessage::Vo2Info mVo2Info              {};   ///< HybridX Run
+    RunVo2::RunStatsResult mRunStats             {};   ///< HybridX Run: the run detail page
 
     // Structured workouts
     const SDK::Workout::Library* mWorkoutLibrary = nullptr;

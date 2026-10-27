@@ -54,7 +54,9 @@ private:
     void buildFaceIntervals();
     void buildFaceTotal();
     void buildFaceLap();
-    void buildFaceForm();
+    void buildFaceForm();     ///< built only while it is the face on show (the pool: see showFace())
+    void destroyFaceForm();
+    void fillForm(const Track::Data& data);
     void buildFaceStatus();
     void updateMode(const Track::Data& data);
     /// The faces of the current mode, in L2 order.

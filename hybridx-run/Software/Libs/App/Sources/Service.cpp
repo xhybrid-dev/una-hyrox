@@ -891,6 +891,16 @@ void Service::startTrack(std::time_t utc)
     mFormStepOk     = false;
     mFormStepM      = 0.0f;
     mForm.reset();
+    if (!mRunStats) {
+        mRunStats.reset(new (std::nothrow) RunVo2::RunStats());
+        if (!mRunStats) {
+            LOG_WARNING("No memory for the run detail page\n");
+        }
+    }
+    if (mRunStats) {
+        mRunStats->reset(mHrThresholds, CustomMessage::kHrThresholdsCount);
+    }
+    sendRunStats();   // a new run: the page starts from nothing
 
     // Outdoor stride calibrator: reset latched inputs and load the stored LUT
     // for this session.
@@ -1309,6 +1319,7 @@ void Service::stopTrack(bool discard)
             LOG_ERROR("Can't save activity summary\n");
         }
         SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
+        sendRunStats();
 
         // Save FIT file
         ActivityWriter::TrackData fitTrack{};
@@ -1366,6 +1377,7 @@ void Service::stopTrack(bool discard)
 
     mTrackState  = Track::State::INACTIVE;
     mWorkoutMode = false;
+    mRunStats.reset();   // the last message to the GUI carried its numbers; the 4 KB goes back
     LOG_INFO("Track stopped. UTC: %u\n", static_cast<uint32_t>(mTimeCounter.getEndValue()));
     LOG_INFO("Time: %u / %u s\n", static_cast<uint32_t>(mTimeCounter.getValueActive()), static_cast<uint32_t>(mTimeCounter.getValueTotal()));
     LOG_INFO("Distance: %.3f m\n", mDistanceCounter.getValueActive());
@@ -1411,6 +1423,7 @@ void Service::pauseTrack(bool pause)
 
         buildPartialSummary();
         SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
+        sendRunStats();
     } else if (!pause && mTrackState == Track::State::PAUSED) {
         mTimeCounter.resume();
         mDistanceCounter.resume();
@@ -2156,6 +2169,29 @@ void Service::loadVo2()
              mVo2Input.watchRestHr);
 }
 
+void Service::sendRunStats()
+{
+    RunVo2::RunStatsResult stats;   // all zero when there is no run or no memory for one
+    if (mRunStats) {
+        stats = mRunStats->result();
+    }
+    SDK::send_msg<CustomMessage::RunStatsUpd>(mKernel, stats);
+    if (stats.activeSec > 0) {
+        // Integers only. docs/experiments/fit_detail_report.py --log reads this line back.
+        LOG_INFO("Run detail: %lu s; zones %lu/%lu/%lu/%lu/%lu/%lu s; best %lu/%lu/%lu ms; "
+                 "half pace %u/%u s/km; GAP %u mm/s; drift %u (%d)\n",
+                 static_cast<unsigned long>(stats.activeSec),
+                 static_cast<unsigned long>(stats.zoneSec[0]), static_cast<unsigned long>(stats.zoneSec[1]),
+                 static_cast<unsigned long>(stats.zoneSec[2]), static_cast<unsigned long>(stats.zoneSec[3]),
+                 static_cast<unsigned long>(stats.zoneSec[4]), static_cast<unsigned long>(stats.zoneSec[5]),
+                 static_cast<unsigned long>(stats.bestMs[0]), static_cast<unsigned long>(stats.bestMs[1]),
+                 static_cast<unsigned long>(stats.bestMs[2]),
+                 static_cast<unsigned>(stats.halfPace[0] * 1000.0f + 0.5f), static_cast<unsigned>(stats.halfPace[1] * 1000.0f + 0.5f),
+                 static_cast<unsigned>(stats.gapSpeedMmps), static_cast<unsigned>(stats.driftStatus),
+                 static_cast<int>(stats.driftX10));
+    }
+}
+
 void Service::updateForm()
 {
     // Unsigned delta: the ms clock wraps. The sensor stamps nothing of its own, so a stalled
@@ -2219,6 +2255,9 @@ void Service::feedVo2()
     s.hrBpm         = (hrFresh && hr > 0.0f && hr < 255.0f) ? static_cast<uint8_t>(hr + 0.5f) : 0;
     s.hrTrust       = trust;   // the raw value: the core applies RunLVGL's 1-3 test
     mVo2Run.addSecond(s);
+    if (mRunStats) {
+        mRunStats->addSecond(s, mDistanceCounter.getValueActive());   // HybridX Run: the detail page
+    }
 
     // The tuning log: one row per closed window (about once a minute).
     RunVo2::WindowLog w;

@@ -512,6 +512,11 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             modelListener->onVo2Info(mVo2Info);
         } break;
 
+        case CustomMessage::RUN_STATS_UPDATE: {   // HybridX Run
+            mRunStats = static_cast<CustomMessage::RunStatsUpd*>(message)->stats;
+            modelListener->onRunStats(mRunStats);
+        } break;
+
         case CustomMessage::WORKOUT_LIST: {
             LOG_DEBUG("WORKOUT_LIST\n");
             auto* msg       = static_cast<CustomMessage::WorkoutList*>(message);

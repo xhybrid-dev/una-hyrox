@@ -51,6 +51,7 @@ public:
     virtual void onActivitySummary(const ActivitySummary& summary) { (void)summary; }
     virtual void onAccessoryStatus(uint8_t state, const char* name) { (void)state; (void)name; }
     virtual void onVo2Info(const CustomMessage::Vo2Info& info) { (void)info; }   ///< HybridX Run
+    virtual void onRunStats(const RunVo2::RunStatsResult& stats) { (void)stats; }   ///< HybridX Run: the detail page
     virtual void onWorkoutList() {}
     virtual void onWorkoutDetails() {}
     virtual void onWorkoutData(const Model::WorkoutFace& face) { (void)face; }

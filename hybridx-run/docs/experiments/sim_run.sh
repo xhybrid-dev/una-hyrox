@@ -79,6 +79,9 @@ key 2; snap 06-overview
 key 2; snap 07-heart-rate
 key 2; snap 08-vo2max
 key 2; snap 09-form                       # the run's average cadence and step length
+key 2; snap 10-zones                      # time in the watch's heart-rate zones
+key 2; snap 11-splits                     # best 1 km / 1 mi / 5 km, and the two halves
+key 2; snap 12-pacing                     # uphill-adjusted pace and drift (a long steady run only)
 
 echo "--- LVGL pool (every screen switch; the summary builds one face at a time)"
 grep -E "LVGL pool" "$LOG" | sed 's/^ *//' | sort -t'(' -k2 | awk '{print}' | tail -n 14
