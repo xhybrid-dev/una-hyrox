@@ -6,8 +6,15 @@ or workout app can join later without touching Streak.
 
 **Status.** Phases 1 (the format, the shared code and its host tests), 2 (Run
 writes its summary), 3 (Streak reads the summaries, in the app and the glance) and
-4 for Race (Race writes its summary) are built and checked in the simulator. Nothing has run on a watch yet: that is
-Jon's test, below.
+4 for Race and Trail (each writes its summary) are built and checked in the simulator,
+together as well as one at a time ("Family check"). Nothing has run on a watch yet: that
+is Jon's test, below.
+
+**Who is in the family.** Writers: HybridX Run (`act_run.json`), HybridX Race
+(`act_race.json`), HybridX Trail (`act_trail.json`). Reader: HybridX Streak (the app and
+its glance). Not in it: X Sauna (Jon, 27 October 2026: its sessions stay out of the
+shared data and the streak count), and the apps that record no activity (X Weigh-in,
+Knitting, Trail Quest).
 
 ## Why it exists
 
@@ -113,7 +120,40 @@ cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-
 | 1 | The format, `hybridx-link`, host tests, copy check, CI | Done. Jon to review the format. |
 | 2 | Run writes its summary | Done (simulator-checked; see Run NOTES, "Activity link") |
 | 3 | Streak reads the summaries (app and glance) | Built (simulator-checked; see Streak NOTES, "Activity link"). Jon's watch test next. |
-| 4 | Race, Trail, then the bike and workout apps, one at a time | Race done (simulator-checked; see Race NOTES, "Amendment — Race tells Streak"). Trail, bike and workout later. |
+| 4 | Race, Trail, then the bike and workout apps, one at a time | Race and Trail done (simulator-checked; Race NOTES "Amendment — Race tells Streak", Trail NOTES "Activity link"), and the family check passes. Bike and workout later. |
+
+## Family check (the simulator)
+
+`hybridx-link/docs/experiments/family_check.sh [out-dir]` puts the whole family on one
+pretend watch:
+- Run, Race and Trail each record and save an activity in their own simulator, at the
+  same time, each from its own app folder;
+- all three share **one** `SharedData` folder (each app's `../SharedData` is a symlink
+  to it, as on a watch every app's is the same folder);
+- then Streak opens twice, from its own folder in the same tree.
+
+It checks, with the apps' real writers and Streak's real reader:
+1. each app left one entry, under its own name and sport;
+2. each entry has its `.fit` session's start and timer time;
+3. Streak's first open finds all three (`Summaries: 3 files, 3 entries, 3 new`);
+4. its saved state counts each once (Run, Hybrid, Run);
+5. the second open finds nothing new and still holds three.
+
+It also reports whether Trail left minutes for Run's VO2max (for information: the
+simulator's heart rate is not steady running, so there are usually none).
+
+- **Quick mode** (the default, about 3 minutes): about 80 s each, with Streak's
+  minimum set to 0 minutes so the short sessions count.
+- **`LONG=1`** (about 14 minutes): 11 minutes each, with Streak's default 10-minute
+  minimum.
+- `SHOTS=<dir>` saves Streak's screen after each open.
+
+It needs the four simulators built, Xvfb, xdotool and fitdecode. It prints a PASS/FAIL
+table and exits non-zero on any FAIL. Run it after any change to a writer, the
+library or Streak's reader. It runs by hand, not in CI: CI has no simulators.
+
+Last run (27 October 2026), quick mode: every check passed. Streak showed 3 of its 7
+dots after the first open, and the same after the second. `LONG=1`: running.
 
 ## Checks on the watch (the phase 3 gate: Jon's test)
 
@@ -131,6 +171,9 @@ Streak's glance if you use it), then:
    UTC, `1500` is UTC+1.
 5. Record another Run and discard it. The file must not change.
 6. If you have the glance, check it shows the new count after step 3.
+7. Then the same with Trail (and Race if you have it): record and save a Trail run, open
+   Streak, and look for "+1 Run" and `act_trail.json`. All the apps' sessions should be
+   listed, each once.
 
 Tell me what the file holds and what Streak showed, whichever way it went.
 

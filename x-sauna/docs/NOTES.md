@@ -65,8 +65,13 @@ Planned with Jon on 20 October 2026 (plan approved for SA0 only):
 - **Buttons:** four. R2 is back. A long press has to be derived from press and
   release codes (`HoldTimer.hpp` in Knitting). The GUI runs at 10 frames a second;
   the face is round.
-- **Streak interplay:** HybridX Streak counts every activity the watch records,
-  so a sauna session will count towards the streak once it is an activity.
+- **Streak interplay:** ~~HybridX Streak counts every activity the watch records,
+  so a sauna session will count towards the streak once it is an activity.~~
+  **Not so (27 October 2026).** On a watch, Streak cannot read other apps' `Activity/`
+  folders. It sees only the apps that write a HybridX activity-link summary
+  (`hybridx-link/docs/ACTIVITY_LINK.md`). Jon decided that X Sauna stays out of the
+  shared data and the streak count, so a sauna session does not count, and Sauna
+  writes no link file.
 - **Appending to a file that already exists works on the watch** (X Weigh-in W2),
   which the probe's log relies on.
 

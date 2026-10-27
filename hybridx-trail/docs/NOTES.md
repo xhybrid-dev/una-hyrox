@@ -702,3 +702,54 @@ Run's NOTES (L1, L2, L4).
   the 8 KB buffer at save).
 - Not done: Trail's pace readout still uses the receiver's raw speed (as
   before); moving Trail onto UNA's newer base is a separate, larger job.
+
+## Activity link: Trail tells Streak about each saved run (27 October 2026)
+
+Phase 4 (Trail) of the HybridX activity link (`hybridx-link/docs/ACTIVITY_LINK.md`).
+When a run is saved, Trail adds it to `../SharedData/HybridX/act_trail.json`, the file
+HybridX Streak reads. On a watch, Streak cannot read other apps' `Activity/` folders
+(Streak NOTES, Gate 0), so until now a Trail run never counted towards the streak.
+Trail is the file's only writer. Nothing about the run, its laps, its `.fit` or the
+`trail_vo2_*` files for Run changes. The slot (`act_trail.json`) was reserved in phase 1,
+so the Streak already built reads it: no Streak change is needed.
+
+- **Where**: `Service::writeActivityLink`, called in `stopTrack` right after
+  `notifyNewActivity()`, inside `if (mActivityWriter.stop(fitTrack))`. So it runs only
+  for a run whose `.fit` closed properly. A discarded run, an empty one, and one
+  recovered after a crash (`recoverInterrupted`) write nothing, as in Run and Race.
+- **The entry**: the start is the new `mStartUtc`, set in `startTrack` (the start the
+  `.fit` is named from), so Streak counts a run once however it finds it. The zone is
+  the offset of `mTimeTracker.getLocalTime(mStartUtc)` from UTC. The duration is active
+  time, the distance is the active distance, the heart rate is the run's average and
+  maximum, and the sport is Run (1), which Streak reads as its Run kind (the FIT sport is
+  running). Trail runs and Run runs both count as Run in Streak; its list shows which
+  app each came from.
+- **The file**: Run's writer with Trail's slot and name. The old file is read with
+  Trail's `SafeFile` copy (the primary if it decodes, else its backup), `append` keeps the
+  newest 16, and `SafeFile::write` saves it. The two buffers come from the heap. A failure
+  is a warning and never affects the save.
+- **Code**: `Software/Libs/Link/` is a byte-identical copy of `hybridx-link`'s library
+  (change that, then `hybridx-link/Utilities/check-link-copies.sh --sync`; CI checks it).
+  `libs.cmake` adds it to the service. Like Run and Race, Trail's own host tests do not
+  compile it: `hybridx-link`'s tests cover the library.
+- **`sim_run.sh`**: `DISCARD=1` discards the activity instead of saving it.
+
+### Activity link verified
+- Host tests: Trail 149 (unchanged), Link 29, Streak 136 (2 new: Trail's real bytes,
+  and Run, Race and Trail's real bytes on one watch, found once each), Streak also under
+  ASan + UBSan.
+- Simulator, `sim-wrong-turn.gpx`:
+  - run 1 (71 s) wrote `[1793135061,1440,71,362,145,159,1]`: the same start second as
+    the `.fit`'s name (21:04:21 UTC), and its session's timer time (71 s) and distance
+    (361.85 m);
+  - run 2 added a second entry, oldest first;
+  - a run discarded from the action menu (`DISCARD=1`) wrote no `.fit` and left the file
+    byte for byte as it was.
+  The average heart rate is 145 in the summary and 144 in the FIT: the summary rounds
+  the average and the FIT truncates it. Run's summary does the same.
+- **The family check** (`hybridx-link/docs/experiments/family_check.sh`): Run, Race and
+  Trail recorded at once into one shared folder, then Streak opened twice. All checks
+  passed (ACTIVITY_LINK.md, "Family check").
+- Watch target compile check (not for a watch; CI builds the real one): 455,260 B, no
+  new warnings. The simulator builds.
+- Not checked: anything on a watch.

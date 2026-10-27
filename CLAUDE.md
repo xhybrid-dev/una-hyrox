@@ -79,7 +79,8 @@ How our activity apps tell Streak what you did on a real watch, where Streak can
 read other apps' `Activity/` folders (Streak NOTES, Gate 0). Each app leaves its last
 16 activities in its own `../SharedData/HybridX/act_<slot>.json`; Streak reads them.
 It is not an app. It counts our own apps only, not UNA's built-in ones. Writers so far:
-Run (`act_run.json`) and Race (`act_race.json`); the reader is Streak. Each writer is
+Run (`act_run.json`), Race (`act_race.json`) and Trail (`act_trail.json`); the reader is
+Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
 `Service::writeActivityLink` in its own `Service.cpp`, called once the `.fit` has closed.
 - **Docs:** the format, the rules and how to add an app: `hybridx-link/docs/ACTIVITY_LINK.md`.
   Read it at the start of each link phase (phases 1-4 in its table).
@@ -89,7 +90,12 @@ Run (`act_run.json`) and Race (`act_race.json`); the reader is Streak. Each writ
   byte-identical copy in its own `Software/Libs/Link`; `Utilities/check-link-copies.sh`
   checks it (`--sync` copies the original over), and CI runs it. Change the original,
   never a copy.
-- **Commands:** host tests: `cmake -S hybridx-link/Tests/Host -B hybridx-link/build-tests && cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-host-tests`.
+- **Commands:**
+  - host tests: `cmake -S hybridx-link/Tests/Host -B hybridx-link/build-tests && cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-host-tests`;
+  - the family check (Run, Race and Trail save into one shared folder, then Streak opens
+    twice and must count each once): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
+    (about 3 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
+    needs the four simulators built).
 
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You
@@ -109,6 +115,11 @@ independent of Race and Streak.
   the phone over the watch's BLE File Transfer Service for release (NOTES,
   "Phone delivery over BLE"). The Android sender is `Tools/RouteSender`
   (plain Java, no Gradle; its README has the test plan).
+- **Activity link:** on each saved run, `Service::writeActivityLink` adds the run to
+  `../SharedData/HybridX/act_trail.json` for Streak (Trail NOTES "Activity link").
+  `Software/Libs/Link` is a **copy** of `hybridx-link`'s code (edit the original, then
+  `hybridx-link/Utilities/check-link-copies.sh --sync`). `docs/experiments/sim_run.sh`
+  takes `DISCARD=1`.
 - **Run link:** Trail leaves its runs' steady minutes in the shared folder for
   HybridX Run's VO2max (NOTES "Run link"; plan in `hybridx-run/docs/VO2_LINK_PLAN.md`).
   `Software/Libs/Vo2Link` holds **copies of Run's window code** (edit Run's, then

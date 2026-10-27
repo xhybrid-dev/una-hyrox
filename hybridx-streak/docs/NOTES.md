@@ -948,7 +948,12 @@ app leaves its last 16 activities in its own `../SharedData/HybridX/act_<slot>.j
 Streak reads them on open and credits them like any other activity. Run writes
 its file already (Run NOTES, "Activity link"), and so does Race (27 October 2026,
 Race NOTES, "Amendment — Race tells Streak"; its bytes are a host-test fixture
-here). Trail, and the bike and workout apps to come, are later phases.
+here), and so does Trail (27 October 2026, Trail NOTES, "Activity link"; also a
+fixture, and a test with all three apps' real bytes on one watch). No Streak code
+changed for Trail: its slot was read from the start. The bike and workout apps to
+come are later phases. `hybridx-link/docs/experiments/family_check.sh` runs Run,
+Race and Trail into one shared folder and then this app, and checks each is counted
+once (ACTIVITY_LINK.md, "Family check").
 
 - **`LinkReader`** (`Core`): opens each of the fixed names in
   `HybridXLink::kSlotPaths` (run, race, trail, ride, workout; the last two are

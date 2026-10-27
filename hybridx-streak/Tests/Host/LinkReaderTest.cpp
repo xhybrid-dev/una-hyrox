@@ -421,3 +421,53 @@ TEST(LinkReaderWithModel, ARaceTheRealAppWroteIsFoundAsHybrid)
     EXPECT_LT(found[0].localStart, found[1].localStart);
 }
 
+
+TEST(LinkReaderWithModel, ATrailRunTheRealAppWroteIsFoundAsRun)
+{
+    // The bytes the Trail app's writer made in the simulator (hybridx-trail NOTES, "Activity link").
+    Watch w;
+    w.fs.addFile(std::string(kShared) + "act_trail.json",
+                 R"({"v":1,"app":"HybridXTrail","a":[[1793135061,1440,71,362,145,159,1],[1793135165,1440,41,221,140,159,1]]})");
+    LinkReader r;
+    std::vector<Found> found;
+    ASSERT_EQ(read(r, w, Seen(), found), 2u);
+    EXPECT_STREQ(found[0].app, "HybridXTrail");
+    EXPECT_EQ(found[0].appKey, Streak::ActivityScanner::appKey("HybridXTrail"));
+    EXPECT_EQ(found[0].kind, Kind::Run);
+    EXPECT_EQ(found[0].localDay, kToday);
+    EXPECT_EQ(found[0].localStart % 86400u, 21u * 3600u + 4u * 60u + 21u);
+    EXPECT_LT(found[0].localStart, found[1].localStart);
+}
+
+TEST(LinkReaderWithModel, TheWholeFamilyIsFoundOnceEach)
+{
+    // Run, Race and Trail's real bytes on one watch: every activity found, each
+    // under its own app, and a second open that has seen them finds nothing new.
+    Watch w;
+    w.fs.addFile(std::string(kShared) + "act_run.json",
+                 R"({"v":1,"app":"HybridXRun","a":[[1793099301,1440,2700,215,144,160,1]]})");
+    w.fs.addFile(std::string(kShared) + "act_race.json",
+                 R"({"v":1,"app":"HybridXRace","a":[[1793103288,1440,50,5180,150,157,6],[1793103347,1440,50,5180,141,145,6]]})");
+    w.fs.addFile(std::string(kShared) + "act_trail.json",
+                 R"({"v":1,"app":"HybridXTrail","a":[[1793135061,1440,71,362,145,159,1],[1793135165,1440,41,221,140,159,1]]})");
+    LinkReader r;
+    std::vector<Found> found;
+    const size_t n = read(r, w, Seen(), found);
+    ASSERT_EQ(n, 5u);
+    EXPECT_EQ(r.stats().files, 3);
+    int runs = 0, hybrids = 0, trails = 0;
+    Seen seen;
+    for (size_t i = 0; i < n; ++i) {
+        runs += found[i].kind == Kind::Run ? 1 : 0;
+        hybrids += found[i].kind == Kind::Hybrid ? 1 : 0;
+        trails += std::strcmp(found[i].app, "HybridXTrail") == 0 ? 1 : 0;
+        seen.keys.emplace_back(found[i].appKey, found[i].localStart);
+    }
+    EXPECT_EQ(runs, 3);
+    EXPECT_EQ(hybrids, 2);
+    EXPECT_EQ(trails, 2);
+
+    std::vector<Found> again;
+    EXPECT_EQ(read(r, w, seen, again), 0u);
+    EXPECT_EQ(r.stats().counted, 5);
+}
