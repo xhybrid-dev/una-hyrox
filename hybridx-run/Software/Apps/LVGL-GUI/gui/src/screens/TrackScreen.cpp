@@ -11,6 +11,7 @@
 #include "gui/Assets.hpp"
 #include "gui/Format.hpp"
 #include "gui/Strings.hpp"
+#include "FormText.hpp"   // HybridX Run
 
 #include <cstring>
 
@@ -65,6 +66,7 @@ void TrackScreen::build()
                   Widgets::Buttons::NONE, Widgets::Buttons::AMBER);
 
     buildFaceStatus();
+    buildFaceForm();
     buildFaceLap();
     buildFaceTotal();
     buildFaceIntervals();
@@ -120,6 +122,24 @@ void TrackScreen::buildFaceLap()
     Theme::label(f, F::Italic18, "Lap Time", 75, 204, 91);
 }
 
+// HybridX Run: running form. The layout of the totals face, so the values sit inside the round
+// display the same way: a large value under a caption, a rule, a second value, a rule, then the
+// run's averages in one line. "---" until the watch has a valid, fresh cadence.
+void TrackScreen::buildFaceForm()
+{
+    lv_obj_t* f = mFaceForm = Theme::container(mRoot, 0, 0, 240, 240);
+    Theme::label(f, F::Italic18, "Cadence", 0, 10, 240);
+    mCadenceValue = Theme::label(f, F::SemiBold40, Strings::kNoValue, 75, 29, 90);
+    Theme::label(f, F::Regular18, RunVo2::FormText::kCadenceUnit, 160, 50, 45, LV_TEXT_ALIGN_LEFT);
+    Theme::hline(f, 35, 79, 170);
+    Theme::label(f, F::Italic18, "Step length", 0, 88, 240);
+    mStepValue = Theme::label(f, F::SemiBold35, Strings::kNoValue, 53, 111, 134);
+    Theme::label(f, F::Regular18, RunVo2::FormText::kStepUnit, 178, 129, 45, LV_TEXT_ALIGN_LEFT);
+    Theme::hline(f, 35, 159, 170);
+    mFormAverage = Theme::label(f, F::Regular18, Strings::kNoValue, 20, 170, 200);
+    Theme::label(f, F::Italic18, "Run average", 0, 204, 240);
+}
+
 void TrackScreen::buildFaceStatus()
 {
     lv_obj_t* f = mFaceStatus = Theme::container(mRoot, 0, 0, 240, 240);
@@ -138,12 +158,12 @@ const uint16_t* TrackScreen::faces(uint16_t& count) const
 {
     static const uint16_t kWorkout[] = {
         FaceId::ID_WORKOUT_GAUGE, FaceId::ID_WORKOUT_STEP, FaceId::ID_WORKOUT_NEXT,
-        FaceId::ID_TRACK1, FaceId::ID_TRACK2, FaceId::ID_TRACK3,
+        FaceId::ID_TRACK1, FaceId::ID_TRACK2, FaceId::ID_FORM, FaceId::ID_TRACK3,
     };
     static const uint16_t kIntervals[] = {
-        FaceId::ID_INTERVALS, FaceId::ID_TRACK1, FaceId::ID_TRACK2, FaceId::ID_TRACK3,
+        FaceId::ID_INTERVALS, FaceId::ID_TRACK1, FaceId::ID_TRACK2, FaceId::ID_FORM, FaceId::ID_TRACK3,
     };
-    static const uint16_t kFree[] = { FaceId::ID_TRACK1, FaceId::ID_TRACK2, FaceId::ID_TRACK3 };
+    static const uint16_t kFree[] = { FaceId::ID_TRACK1, FaceId::ID_TRACK2, FaceId::ID_FORM, FaceId::ID_TRACK3 };
 
     switch (mMode) {
         case Mode::Workout:
@@ -249,6 +269,7 @@ void TrackScreen::showFace(uint16_t id)
     setHidden(mFaceIntervals,         id != FaceId::ID_INTERVALS);
     setHidden(mFaceTotal,             id != FaceId::ID_TRACK1);
     setHidden(mFaceLap,               id != FaceId::ID_TRACK2);
+    setHidden(mFaceForm,              id != FaceId::ID_FORM);
     setHidden(mFaceStatus,            id != FaceId::ID_TRACK3);
     setHidden(mWorkoutGauge->root(),  id != FaceId::ID_WORKOUT_GAUGE);
     setHidden(mWorkoutStep->root(),   id != FaceId::ID_WORKOUT_STEP);
@@ -326,6 +347,22 @@ void TrackScreen::onTrackData(const Track::Data& data)
     Fmt::heartRate(buf, sizeof(buf), data.hr);
     lv_label_set_text(mHrValue, buf);
     mHrZone->setHR(data.hr < App::Display::kMinHR ? 0.0f : data.hr, mHrThresholds, mHrThresholdCount);
+
+    // Form face (HybridX Run): 0 is no data, and reads "---".
+    char form[24];
+    RunVo2::FormText::cadence(buf, sizeof(buf), static_cast<uint16_t>(data.cadenceSpm * 10u));
+    lv_label_set_text(mCadenceValue, buf);
+    RunVo2::FormText::stepLength(buf, sizeof(buf), data.stepLengthMm);
+    lv_label_set_text(mStepValue, buf);
+    if (data.cadenceAvgSpm == 0) {
+        lv_label_set_text(mFormAverage, Strings::kNoValue);
+    } else {
+        char c[8], s[8];
+        RunVo2::FormText::cadence(c, sizeof(c), static_cast<uint16_t>(data.cadenceAvgSpm * 10u));
+        RunVo2::FormText::stepLength(s, sizeof(s), data.stepLengthAvgMm);
+        snprintf(form, sizeof(form), "%s spm / %s m", c, s);
+        lv_label_set_text(mFormAverage, form);
+    }
 
     // Workout faces: the live pace under a step with no target, the lap
     // averages on the step face.

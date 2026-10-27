@@ -721,3 +721,74 @@ so nothing reads it yet.
 - **Not checked**: anything on a watch. Whether the summary's start matches the
   `.fit` file's name on a watch is the same code path as the simulator's, but
   the zone offset is not tried with a real zone until Jon's test.
+
+## P1: cadence and step length, live and saved (27 October 2026)
+
+First phase of the plan for cadence and step length, a run detail page and VO2max
+reliability (the detail page is P2; the VO2max work, which changes nothing in the
+estimate until Jon has compared with his Garmin, is P3). Cadence and step length were
+already in every FIT **record**; P1 puts them on the screen while running, averages them,
+and writes the averages to the FIT lap and session.
+
+- **`FormStats`** (`Core`, pure): fed once per active second; keeps the run's and each lap's
+  average cadence (mean over seconds with a valid cadence) and step length (cadence-weighted:
+  sum(step x cadence) / sum(cadence), which is distance / steps, so it is right when the
+  cadence changes). Integers: cadence in tenths of a step per minute, step length in mm; 0 is
+  no data. **`FormText`** (`Core`, header-only because the GUI links no Libs sources): "172",
+  "1.08", "---".
+- **`Service::updateForm()`**, once per track tick, before the record is made: a cadence is
+  used only if the sensor has reported in the last 2.5 s (`kFormFreshMs`, the VO2max inputs'
+  limit; the sensor has no timestamp, so arrival is stamped in the callback) and is valid;
+  step length is `StrideMath::impliedStepLengthM` from the corrected GPS speed and that
+  cadence (the SDK's 0.15-2.50 m gate). The screen, the FIT record and the averages all take
+  these same values. **A behaviour change for the FIT record**: before, the record's cadence
+  flag was just the sensor's valid bit, so a stalled sensor held its last value in every
+  record; now the record carries none after 2.5 s.
+- **`Track::Data`** gained `cadenceSpm`, `stepLengthMm`, `cadenceAvgSpm`, `stepLengthAvgMm`
+  (integers, 0 = none). `TrackDataUpd` is 176 bytes (136 of data) on the host; a
+  `static_assert` now keeps it inside the kernel's 256-byte message block.
+- **FIT**: the lap and the session each gained three native fields, after the existing ones and
+  before the developer fields (the local-type count is unchanged, still 15 of 16). The numbers
+  are Garmin's profile as fitdecode 0.11.0 generates it, read from its `profile.py`, not from
+  memory: **lap** `avg_cadence` 17 (uint8), `avg_fractional_cadence` 80 (uint8, scale 128),
+  `avg_step_length` 120 (uint16, scale 10, mm); **session** 18, 92 and 134 (same types). They
+  are encoded as the record's are (`SDK::FitRecordCadence`: strides per minute split into a
+  whole and a fractional byte; step length as mm x 10) and are FIT's invalid value when a lap
+  or session had no cadence. **Found**: fitdecode decodes session field 18 as
+  `avg_running_cadence` (strides per minute, a subfield the profile selects when the sport is
+  running; the same field number), so the value 85 is 170 steps per minute.
+- **Screens**: a **FORM** face on the live screen (cadence large, then step length, then the
+  run's averages as "170 spm / 1.71 m"), after the lap face in L2 order in every mode; and a
+  **FORM** summary face (average cadence and step length) after VO2MAX. It is a new
+  `TrackView::ID_FORM` appended to the enum, so no saved face id changes. "---" while there
+  is no valid cadence. Step length is in metres whatever the pace unit (it matches the FIT).
+  `Activity/summary.json` and the `activity_*.json` sidecar are **not** changed (R4's decision
+  stands); the summary's averages live in memory for the screen only.
+- **Memory**: the live screen builds all its faces up front, so the Form face is resident for
+  the whole run. Measured in the simulator (pool 56 KB): the Track screen went from 32,816 B
+  used (peak 68%) to 36,232 B (peak 76-78%), about 3.4 KB. That is under the 80% line set in
+  the plan for building it on demand instead, but it leaves about 12 KB. **If P2 pushes the
+  peak past 80%, build the Form face when shown** (as the summary does). The summary Form face
+  is built on demand like the others (about 9.4 KB while shown).
+- **Simulator**: `IMU_RUNNING_CADENCE_SIM_ENABLE 1` in Run's `ConfigurationSimulator.hpp` (the
+  SDK's mock: a constant 170 steps per minute). Its step length is 1.5-2.4 m at the GPS
+  simulator's 15-25 km/h, beside the 2.50 m gate: it checks the plumbing, not real strides.
+  `sim_run.sh` now photographs the Form faces and prints the pool lines.
+- **`docs/experiments/fit_form_report.py <file.fit>`** (needs `pip install fitdecode`): decodes
+  a saved file and checks that every lap's and the session's average cadence and step length
+  equal what its own records say (cadence within 0.6 spm, step length within 3 mm), and that a
+  lap or session without cadence carries none. A lap ends at the second the next starts, and
+  the record written at that second belongs to the lap that was running (the checker's first
+  version counted it twice and reported 10-14 mm errors that were its own).
+- **Verified**: host tests 131 (13 new: `FormStatsTest`, `FormText`), also under ASan + UBSan.
+  Simulator: a 3-lap run with the laps' step lengths all different (1999, 1601 and 1811 mm):
+  every lap and the session match their records exactly, and the lap record counts add up to
+  the session's (13 + 18 + 20 = 51). With the cadence mock off: the screens read "---", the
+  records carry no cadence and the lap and session averages are absent. The screens were read
+  as round-face screenshots, which caught a clipped "CADENCE" label (fixed). Watch target
+  compile check 496,284 B (+2.3 KB; not for a watch), glance unchanged, Trail's copy check and
+  the link copy check pass.
+- **Not checked**: anything on a watch; how well the wrist's cadence tracks real steps (Run's
+  notes already record optical artefacts, "cadence lock"); that Garmin Connect or Strava show
+  the lap and session averages (Race's findings suggest they build their series from the
+  records; the standard fields are the likeliest to be used, but that is not tested).

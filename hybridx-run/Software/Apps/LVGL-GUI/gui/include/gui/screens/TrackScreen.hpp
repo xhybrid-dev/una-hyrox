@@ -54,6 +54,7 @@ private:
     void buildFaceIntervals();
     void buildFaceTotal();
     void buildFaceLap();
+    void buildFaceForm();
     void buildFaceStatus();
     void updateMode(const Track::Data& data);
     /// The faces of the current mode, in L2 order.
@@ -72,6 +73,7 @@ private:
     lv_obj_t* mFaceIntervals = nullptr;
     lv_obj_t* mFaceTotal     = nullptr;
     lv_obj_t* mFaceLap       = nullptr;
+    lv_obj_t* mFaceForm      = nullptr;
     lv_obj_t* mFaceStatus    = nullptr;
 
     // Intervals face
@@ -96,6 +98,11 @@ private:
     lv_obj_t* mLapDistValue  = nullptr;
     lv_obj_t* mLapTimerValue = nullptr;
     std::unique_ptr<Widgets::HeartRateZone> mHrZone;
+
+    // Form face (HybridX Run): cadence and step length, now and the run's average
+    lv_obj_t* mCadenceValue = nullptr;
+    lv_obj_t* mStepValue    = nullptr;
+    lv_obj_t* mFormAverage  = nullptr;
 
     // Status face
     lv_obj_t* mDayTime  = nullptr;

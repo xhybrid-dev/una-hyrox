@@ -14,6 +14,7 @@
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./sim_run.sh [seconds] [shots-dir] [app_config.json]
 #   SEED=1 first writes a three-run history, so the screens have a recent figure.
+# The simulator has a cadence mock (ConfigurationSimulator.hpp), so the form faces show 170 spm.
 set -u
 SECS=${1:-420}
 SHOTS=${2:-}
@@ -64,6 +65,10 @@ key 3 2                                   # R1: start
 snap 02-running
 sleep "$SECS"
 snap 03-after
+key 2; snap 03b-lap                       # L2: the lap face
+key 2; snap 03c-form                      # L2: the form face (cadence, step length)
+key 2; snap 03d-status                    # L2: the status face
+key 1; key 1; key 1                       # L1 back round to the totals face
 key 3 1                                   # R1: action menu (pauses)
 snap 04-menu
 key 2; key 2                              # L2 twice: Save
@@ -73,7 +78,12 @@ snap 05-saved                             # the summary: L2 steps through its fa
 key 2; snap 06-overview
 key 2; snap 07-heart-rate
 key 2; snap 08-vo2max
+key 2; snap 09-form                       # the run's average cadence and step length
 
+echo "--- LVGL pool (every screen switch; the summary builds one face at a time)"
+grep -E "LVGL pool" "$LOG" | sed 's/^ *//' | sort -t'(' -k2 | awk '{print}' | tail -n 14
+echo "--- form (service log)"
+grep -E "Form|cadence|Cadence" "$LOG" | sed 's/^ *//' | tail -n 5
 echo "--- VO2 (service log)"
 grep -E "VO2|vo2|Resting HR|Out of memory" "$LOG" | sed 's/^ *//'
 echo "--- files"

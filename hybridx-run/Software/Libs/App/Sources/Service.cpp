@@ -74,6 +74,9 @@ constexpr const char* kSharedFile = "../SharedData/HybridX/vo2max.json";
 // A latched HR or speed reading counts for the VO2max windows only while it is
 // this recent (both sensors report once a second).
 constexpr uint32_t kVo2FreshMs = 2500;
+/// A cadence sample older than this is not shown, recorded or averaged (a stalled sensor
+/// must not leave its last value on the screen). The same limit as the VO2max inputs.
+constexpr uint32_t kFormFreshMs = kVo2FreshMs;
 
 } // namespace
 
@@ -496,6 +499,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
         if (parser.isDataValid()) {
             mRunningCadence.cadenceSpm   = parser.getCadenceSpm();
             mRunningCadence.cadenceValid = parser.isCadenceValid();
+            mCadenceLastMs               = mKernel.sys.getTimeMs();   // HybridX Run: for the freshness test
+            mCadenceSeen                 = true;
         }
     } else if (mSensorFusion.matchesDriver(handle)) {
         static constexpr uint16_t kBatchSize = 10u;
@@ -808,19 +813,13 @@ ActivityWriter::RecordData Service::prepareRecordData()
     fitRecord.batteryLevel   = static_cast<uint8_t>(mBatterySoc.get());
     fitRecord.batteryVoltage = static_cast<uint16_t>(mBatteryVoltage.get() * 1000);
 
-    fitRecord.set(ActivityWriter::RecordData::Field::CADENCE, mRunningCadence.cadenceValid);
+    // Cadence and step length are worked out once a tick, by updateForm(), so this record,
+    // the screen and the averages all carry the same values: a cadence that is valid and
+    // fresh, and the step length implied by it and the corrected GPS speed.
+    fitRecord.set(ActivityWriter::RecordData::Field::CADENCE, mFormCadenceOk);
     fitRecord.cadenceSpm = mRunningCadence.cadenceSpm;
-
-    // Implied step length is derived SDK-side from GPS speed + cadence (the
-    // kernel no longer emits it). Gated to 0.15-2.50 m, preserving the prior
-    // record.step_length values.
-    const SDK::Calibration::StrideMath::StepLength stepLen =
-        SDK::Calibration::StrideMath::impliedStepLengthM(
-            mSpeedFilter.getInstantSpeed(),
-            mSpeedFilter.hasCurrentSample() && !mGpsDeadReckoning,
-            mRunningCadence.cadenceSpm, mRunningCadence.cadenceValid);
-    fitRecord.set(ActivityWriter::RecordData::Field::STEP_LENGTH, stepLen.valid);
-    fitRecord.stepLengthM = stepLen.meters;
+    fitRecord.set(ActivityWriter::RecordData::Field::STEP_LENGTH, mFormStepOk);
+    fitRecord.stepLengthM = mFormStepM;
 
     return fitRecord;
 }
@@ -887,6 +886,11 @@ void Service::startTrack(std::time_t utc)
     mBatteryVoltage.reset(skBatteryLogPeriodMs);
     mGps.reset();
     mRunningCadence = {};
+    mCadenceSeen    = false;
+    mFormCadenceOk  = false;
+    mFormStepOk     = false;
+    mFormStepM      = 0.0f;
+    mForm.reset();
 
     // Outdoor stride calibrator: reset latched inputs and load the stored LUT
     // for this session.
@@ -1057,6 +1061,9 @@ void Service::processTrack()
     // Altitude, m
     mTrackData.elevation = mAltitudeCounter.getCurrent();
 
+    // HybridX Run: cadence and step length for this tick (screen, record, averages).
+    updateForm();
+
     // HybridX Run: one second of the VO2max windows (a pause breaks a window).
     feedVo2();
 
@@ -1213,6 +1220,9 @@ void Service::saveLap(const LapEnd& end, float autoLapDistanceM)
     fitLap.ascent    = mAltitudeCounter.getLapAscent();
     fitLap.descent   = mAltitudeCounter.getLapDescent();
 
+    fitLap.cadenceAvgSpm  = static_cast<float>(mForm.lapCadenceAvgX10()) / 10.0f;
+    fitLap.stepLengthAvgM = static_cast<float>(mForm.lapStepAvgMm()) / 1000.0f;
+
     fitLap.wktStepIndex = end.wktStepIndex;
     fitLap.intensity    = end.intensity;
     fitLap.trigger      = end.trigger;
@@ -1237,6 +1247,7 @@ void Service::saveLap(const LapEnd& end, float autoLapDistanceM)
     mSpeedCounter.resetLap();
     mHrCounter.resetLap();
     mAltitudeCounter.resetLap();
+    mForm.resetLap();
 
     // Clear track data
     mTrackData.lapTime = 0;
@@ -1261,6 +1272,8 @@ void Service::buildPartialSummary()
     mSummary.paceAvg   = getPace(mSummary.speedAvg, mSpeedCounter.getMinValid());
     mSummary.hrMax     = mHrCounter.getMaximum();
     mSummary.hrAvg     = mHrCounter.getAverage();
+    mSummary.cadenceAvgSpm   = static_cast<uint16_t>((mForm.cadenceAvgX10() + 5u) / 10u);
+    mSummary.stepLengthAvgMm = mForm.stepAvgMm();
     mSummary.map       = mTrackMapBuilder.build(skMapMaxPoints);
 }
 
@@ -1319,6 +1332,9 @@ void Service::stopTrack(bool discard)
 
         fitTrack.ascent    = mAltitudeCounter.getAscent();
         fitTrack.descent   = mAltitudeCounter.getDescent();
+
+        fitTrack.cadenceAvgSpm  = static_cast<float>(mForm.cadenceAvgX10()) / 10.0f;
+        fitTrack.stepLengthAvgM = static_cast<float>(mForm.stepAvgMm()) / 1000.0f;
 
         // HybridX Run: this run's VO2max, into the history, onto the summary
         // and into the FIT file (NOTES, R4).
@@ -2138,6 +2154,41 @@ void Service::loadVo2()
     LOG_INFO("VO2max history: %u runs, shown %u (x10), auto max HR %u from %u runs, resting HR %u\n",
              mVo2Info.runs, mVo2Info.rollingX10, mVo2Input.autoMaxHr, mVo2History.runMaxCount(),
              mVo2Input.watchRestHr);
+}
+
+void Service::updateForm()
+{
+    // Unsigned delta: the ms clock wraps. The sensor stamps nothing of its own, so a stalled
+    // one would otherwise leave its last value on the screen and in every record.
+    const uint32_t nowMs = mKernel.sys.getTimeMs();
+    const bool fresh     = mCadenceSeen && static_cast<uint32_t>(nowMs - mCadenceLastMs) <= kFormFreshMs;
+    mFormCadenceOk       = fresh && mRunningCadence.cadenceValid && mRunningCadence.cadenceSpm > 0.0f;
+
+    // Implied step length is derived SDK-side from the corrected GPS speed and the cadence (the
+    // kernel no longer emits it), gated to 0.15-2.50 m.
+    const SDK::Calibration::StrideMath::StepLength stepLen =
+        SDK::Calibration::StrideMath::impliedStepLengthM(
+            mSpeedFilter.getInstantSpeed(),
+            mSpeedFilter.hasCurrentSample() && !mGpsDeadReckoning,
+            mRunningCadence.cadenceSpm, mFormCadenceOk);
+    mFormStepOk = mFormCadenceOk && stepLen.valid;
+    mFormStepM  = mFormStepOk ? stepLen.meters : 0.0f;
+
+    RunVo2::FormSecond s;
+    s.cadenceValid = mFormCadenceOk;
+    const float x10 = mRunningCadence.cadenceSpm * 10.0f + 0.5f;
+    s.cadenceX10   = mFormCadenceOk ? static_cast<uint16_t>(x10 > 65535.0f ? 65535.0f : x10) : 0;
+    s.stepValid    = mFormStepOk;
+    s.stepMm       = mFormStepOk ? static_cast<uint16_t>(mFormStepM * 1000.0f + 0.5f) : 0;
+    if (mTrackState == Track::State::ACTIVE) {
+        mForm.addSecond(s);   // a paused second is not counted
+    }
+
+    // For the screen: whole steps per minute and millimetres, 0 = none.
+    mTrackData.cadenceSpm      = static_cast<uint16_t>((s.cadenceX10 + 5u) / 10u);
+    mTrackData.stepLengthMm    = s.stepMm;
+    mTrackData.cadenceAvgSpm   = static_cast<uint16_t>((mForm.cadenceAvgX10() + 5u) / 10u);
+    mTrackData.stepLengthAvgMm = mForm.stepAvgMm();
 }
 
 void Service::feedVo2()

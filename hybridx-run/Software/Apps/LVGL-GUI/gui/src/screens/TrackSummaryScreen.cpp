@@ -12,6 +12,7 @@
 #include "gui/Format.hpp"
 #include "gui/Strings.hpp"
 
+#include "FormText.hpp"   // HybridX Run
 #include "Vo2Text.hpp"   // HybridX Run
 
 using namespace SDK::GUI;
@@ -46,6 +47,7 @@ void TrackSummaryScreen::destroyFace()
     mMapDistance = mMapUnits = mOverviewDistance = mOverviewUnits = mAvgPace = mTimer = nullptr;
     mMaxHr = mAvgHr = nullptr;
     mVo2Run = mVo2RunLabel = mVo2RecentLabel = nullptr;
+    mFormCadence = mFormStep = nullptr;
     mLapsCount = mLapsTotal = nullptr;
     for (auto& row : mLapRows) {
         for (auto& cell : row) {
@@ -62,6 +64,7 @@ void TrackSummaryScreen::buildFace(uint8_t face)
         case FACE_OVERVIEW:  buildFaceOverview(); break;
         case FACE_HEARTRATE: buildFaceHeartRate(); break;
         case FACE_VO2:       buildFaceVo2(); break;
+        case FACE_FORM:      buildFaceForm(); break;
         case FACE_LAPS:      buildFaceLaps(); break;
         default:             return;
     }
@@ -120,6 +123,20 @@ void TrackSummaryScreen::buildFaceVo2()
     Theme::hline(f, 25, 147, 190);
     mVo2RecentLabel = Theme::label(f, F::Medium18, "", 20, 165, 200);
     mTitle = std::make_unique<Widgets::Title>(f, "VO2MAX");
+}
+
+// HybridX Run: the run's average cadence and step length, laid out as the heart rate face.
+void TrackSummaryScreen::buildFaceForm()
+{
+    lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
+    Theme::label(f, F::SemiBold20, "CADENCE", 60, 118, 120);   // wider than "MAX HR"'s box: "CADENCE" is clipped by 78 px
+    mFormCadence = Theme::label(f, F::SemiBold40, Strings::kNoValue, 70, 77, 100);
+    Theme::label(f, F::Regular18, RunVo2::FormText::kCadenceUnit, 172, 99, 45, LV_TEXT_ALIGN_LEFT);
+    Theme::hline(f, 25, 147, 190);
+    Theme::label(f, F::SemiBold20, "STEP LENGTH", 50, 191, 140);
+    mFormStep = Theme::label(f, F::SemiBold40, Strings::kNoValue, 70, 150, 100);
+    Theme::label(f, F::Regular18, RunVo2::FormText::kStepUnit, 172, 172, 45, LV_TEXT_ALIGN_LEFT);
+    mTitle = std::make_unique<Widgets::Title>(f, "FORM");
 }
 
 void TrackSummaryScreen::buildFaceLaps()
@@ -255,6 +272,13 @@ void TrackSummaryScreen::fillFace()
             lv_label_set_text(mAvgHr, buf);
             break;
 
+        case FACE_FORM:
+            RunVo2::FormText::cadence(buf, sizeof(buf), static_cast<uint16_t>(s.cadenceAvgSpm * 10u));
+            lv_label_set_text(mFormCadence, buf);
+            RunVo2::FormText::stepLength(buf, sizeof(buf), s.stepLengthAvgMm);
+            lv_label_set_text(mFormStep, buf);
+            break;
+
         case FACE_LAPS: {
             lv_label_set_text_fmt(mLapsCount, "%lu LAPS", static_cast<unsigned long>(s.laps.size()));
             std::time_t total = 0;
@@ -326,7 +350,7 @@ void TrackSummaryScreen::onKey(uint8_t code)
                     fillLapRows();
                     updateIndicator();
                 }
-            } else if (mFaceId < FACE_VO2 || mLapPages > 0) {
+            } else if (mFaceId < FACE_FORM || mLapPages > 0) {
                 showFace(mFaceId + 1);
             }
             break;

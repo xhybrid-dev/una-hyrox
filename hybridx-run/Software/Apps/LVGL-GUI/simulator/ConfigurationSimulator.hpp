@@ -43,4 +43,11 @@
 #define IMU_STEP_COUNTER_SIM_ENABLE         1 // 0 - Disable
 #define IMU_STEP_COUNTER_SIM_STRIDE_LENGTH  1 // metres per step (running 1.0-1.4 m)
 
+// IMU running cadence (HybridX Run): a constant 170 steps per minute, valid. Without it the
+// service never sees a cadence, and the cadence and step length faces show "---". The step
+// length it implies (speed x 60 / cadence) is 1.5 to 2.4 m at the GPS simulator's 15-25 km/h:
+// the top is beside the SDK's 2.50 m gate, so the simulator's step length is a check of the
+// plumbing, not of real strides.
+#define IMU_RUNNING_CADENCE_SIM_ENABLE      1 // 0 - Disable
+
 #endif /* CONFIG_SIMULATOR_HPP */

@@ -85,6 +85,9 @@ public:
         float       hrMax     = 0.0f;   // bpm
         float       ascent    = 0.0f;   // m
         float       descent   = 0.0f;   // m
+        // HybridX Run: the lap's average cadence (steps/min) and step length (m); 0 = none.
+        float       cadenceAvgSpm   = 0.0f;
+        float       stepLengthAvgM  = 0.0f;
         // workout_step this lap belongs to (kMessageIndexInvalid = none)
         uint16_t    wktStepIndex = SDK::Fit::kMessageIndexInvalid;
         // The workout step's intensity (Invalid outside a workout)
@@ -105,6 +108,9 @@ public:
         float       hrMax     = 0.0f;   // bpm
         float       ascent    = 0.0f;   // m
         float       descent   = 0.0f;   // m
+        // HybridX Run: the run's average cadence (steps/min) and step length (m); 0 = none.
+        float       cadenceAvgSpm   = 0.0f;
+        float       stepLengthAvgM  = 0.0f;
         // HybridX Run (docs/NOTES.md, R4): written to the session as developer
         // fields, and the recent figure also as the standard max_met_data.
         uint16_t    vo2maxX10       = 0;   // this run's estimate x 10; 0 = none

@@ -495,6 +495,9 @@ namespace CustomMessage {
     constexpr size_t kMaxMessageBytes = 256u;
     static_assert(sizeof(Vo2Upd) <= kMaxMessageBytes, "Vo2Upd exceeds the 256-byte kernel pool block");
     static_assert(sizeof(Vo2ProfileSave) <= kMaxMessageBytes, "Vo2ProfileSave exceeds the 256-byte kernel pool block");
+    // The live data goes to the GUI as a whole struct every second; the running form fields
+    // (cadence, step length) were added to it (136 bytes of data, 176 with the header on the host).
+    static_assert(sizeof(TrackDataUpd) <= kMaxMessageBytes, "TrackDataUpd exceeds the 256-byte kernel pool block");
 
 
     // The kernel's largest message block is 256 bytes.

@@ -33,8 +33,10 @@ protected:
     void build() override;
 
 private:
-    // HybridX Run: FACE_VO2 added between heart rate and the laps.
-    enum Face : uint8_t { FACE_MAP = 0, FACE_OVERVIEW, FACE_HEARTRATE, FACE_VO2, FACE_LAPS, FACE_COUNT };
+    // HybridX Run: FACE_VO2 added between heart rate and the laps, then FACE_FORM (cadence and
+    // step length).
+    enum Face : uint8_t { FACE_MAP = 0, FACE_OVERVIEW, FACE_HEARTRATE, FACE_VO2, FACE_FORM, FACE_LAPS,
+                          FACE_COUNT };
 
     static constexpr uint8_t kLapPageSize = 3;   ///< rows advanced per L1/L2 press
     static constexpr uint8_t kLapVisible  = 5;   ///< rows on screen at once
@@ -50,6 +52,7 @@ private:
     void buildFaceOverview();
     void buildFaceHeartRate();
     void buildFaceVo2();
+    void buildFaceForm();
     void buildFaceLaps();
 
     void setSummary(const ActivitySummary& s);
@@ -77,6 +80,10 @@ private:
     lv_obj_t* mVo2Run         = nullptr;
     lv_obj_t* mVo2RunLabel    = nullptr;
     lv_obj_t* mVo2RecentLabel = nullptr;
+
+    // Form (HybridX Run)
+    lv_obj_t* mFormCadence = nullptr;
+    lv_obj_t* mFormStep    = nullptr;
 
     // Laps
     lv_obj_t* mLapsCount = nullptr;

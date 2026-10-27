@@ -38,6 +38,7 @@
 #include "SDK/AppConfig/AppConfig.hpp"
 #include "SDK/Interfaces/IFileSystem.hpp"
 
+#include "FormStats.hpp"
 #include "Vo2History.hpp"
 #include "Vo2Log.hpp"
 #include "Vo2Profile.hpp"
@@ -125,6 +126,14 @@ private:
         float cadenceSpm      = 0.0f;
         bool  cadenceValid    = false;
     } mRunningCadence{};
+    // HybridX Run: running form. The cadence sensor has no timestamp of its own, so the
+    // arrival of the last sample is stamped here and a stalled sensor stops counting.
+    bool                    mCadenceSeen   = false;
+    uint32_t                mCadenceLastMs = 0;
+    bool                    mFormCadenceOk = false;   ///< this tick: a valid, fresh cadence
+    bool                    mFormStepOk    = false;   ///< this tick: and a step length in the SDK's gate
+    float                   mFormStepM     = 0.0f;
+    RunVo2::FormStats       mForm;                    ///< the run's and the lap's averages
 
     // -- Outdoor stride calibration inputs (latched per stream) ---------
     struct {
@@ -286,6 +295,7 @@ private:
     void feedVo2();
     void finishVo2(std::time_t endUtc);
     void writeSharedVo2();
+    void updateForm();           ///< cadence and step length for this tick: screen, record and averages
     void writeActivityLink(const ActivityWriter::TrackData& track);   ///< the saved run, for Streak (hybridx-link)
     void sendVo2Info();
     void fillVo2Page();
