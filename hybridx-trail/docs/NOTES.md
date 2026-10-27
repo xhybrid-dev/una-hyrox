@@ -749,7 +749,8 @@ so the Streak already built reads it: no Streak change is needed.
   the average and the FIT truncates it. Run's summary does the same.
 - **The family check** (`hybridx-link/docs/experiments/family_check.sh`): Run, Race and
   Trail recorded at once into one shared folder, then Streak opened twice. All checks
-  passed (ACTIVITY_LINK.md, "Family check").
+  passed, in quick mode and with 11-minute sessions (`LONG=1`) under Streak's default
+  minimum (ACTIVITY_LINK.md, "Family check").
 - Watch target compile check (not for a watch; CI builds the real one): 455,260 B, no
   new warnings. The simulator builds.
 - Not checked: anything on a watch.

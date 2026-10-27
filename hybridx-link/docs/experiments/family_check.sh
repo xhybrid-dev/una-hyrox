@@ -63,7 +63,7 @@ key()  { DISPLAY=":$1" xdotool key "$2"; sleep "${3:-1}"; }
 hold() { DISPLAY=":$1" xdotool keydown "$2"; sleep "$3"; DISPLAY=":$1" xdotool keyup "$2"; sleep 1; }
 # Wait for the simulated GPS fix: RunLVGL's first-fix buzz is logged. A Start
 # pressed before it opens the "no GPS" question instead.
-gpsfix() { for _ in $(seq 60); do grep -q "Mock.Buzzer::play" "$OUT/$1.log" && break; sleep 1; done; sleep 2; }
+gpsfix() { for _ in $(seq 60); do grep -qs "Mock.Buzzer::play" "$OUT/$1.log" && break; sleep 1; done; sleep 2; }
 
 # The key flows are the apps' own scripts' (Run and Trail sim_run.sh, Race
 # capture_screens.sh). Keys 1-4 are L1, L2, R1, R2.
@@ -99,7 +99,7 @@ else
 fi
 open_streak() {   # open_streak <log name>: open, let the "+1" toasts play, close
     start Streak 94 "$(bin hybridx-streak HybridXStreakSimulator)" "$1"
-    for _ in $(seq 20); do grep -q "Summaries:" "$OUT/$1.log" && break; sleep 1; done
+    for _ in $(seq 20); do grep -qs "Summaries:" "$OUT/$1.log" && break; sleep 1; done
     sleep 12
     if [ -n "${SHOTS:-}" ]; then
         mkdir -p "$SHOTS"

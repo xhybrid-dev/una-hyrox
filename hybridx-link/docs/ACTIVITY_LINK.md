@@ -152,8 +152,11 @@ It needs the four simulators built, Xvfb, xdotool and fitdecode. It prints a PAS
 table and exits non-zero on any FAIL. Run it after any change to a writer, the
 library or Streak's reader. It runs by hand, not in CI: CI has no simulators.
 
-Last run (27 October 2026), quick mode: every check passed. Streak showed 3 of its 7
-dots after the first open, and the same after the second. `LONG=1`: running.
+Last run (27 October 2026): every check passed in both modes. Streak showed 3 of its 7
+dots after the first open, and the same after the second. In `LONG=1`, the 11-minute
+sessions counted under Streak's default 10-minute minimum, and Trail also left
+`trail_vo2_0.json` for Run's VO2max. Run recorded at the same time, so it had not yet
+opened to read the file.
 
 ## Checks on the watch (the phase 3 gate: Jon's test)
 
