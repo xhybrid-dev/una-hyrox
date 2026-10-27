@@ -102,9 +102,22 @@ struct Entry {
 /// Every value in range, and the average no higher than the maximum.
 bool valid(const Entry& e);
 
+/// An entry from an app's totals, which are floats and may be anything (0 when
+/// there is no heart rate, NaN if a counter went wrong): rounded to whole
+/// numbers and held inside the limits, a negative or NaN becoming 0, the average
+/// held to no more than the maximum. @p startUtc and @p tzOffsetMin are not
+/// changed, so a bad start still fails valid().
+Entry makeEntry(uint32_t startUtc, int16_t tzOffsetMin, int64_t durationSec, float distanceM, float avgHr,
+                float maxHr, Sport sport);
+
+/// A calendar date and time as seconds since 1970-01-01 on that same calendar
+/// (no zone applied): what an app has after the kernel's local-time call gives it
+/// a broken-down time (std::tm: pass tm_year + 1900, tm_mon + 1, and so on).
+int64_t calendarSeconds(int year, int month, int day, int hour, int min, int sec);
+
 /// The time-zone offset in minutes from a UTC time and the same moment on the
-/// local calendar (both in seconds), rounded to the nearest minute and clamped
-/// to the range an entry may hold.
+/// local calendar (both in seconds, the second as calendarSeconds gives it),
+/// rounded to the nearest minute and clamped to the range an entry may hold.
 int16_t tzOffsetMinutes(uint32_t utc, int64_t localSeconds);
 
 /// A file's contents.
@@ -119,7 +132,7 @@ struct ActivityFile {
 bool validAppName(const char* name);
 
 /// Read a file. False if it is not a version 1 activity file (see the top of
-/// this file). Fills @p out only on success.
+/// this file); @p out is then empty.
 bool decode(const char* text, size_t len, ActivityFile& out);
 
 /// Write a file. Returns the length, or 0 (with @p buf emptied) if the

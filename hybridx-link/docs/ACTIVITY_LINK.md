@@ -4,8 +4,9 @@ The way our activity apps tell HybridX Streak what you did. Each app leaves a
 small summary in the watch's shared folder; Streak reads them. Built so a bike
 or workout app can join later without touching Streak.
 
-**Status.** Phase 1 (the format, the shared code and its host tests) is done.
-Run's writer is phase 2; Streak's reader is phase 3 (see "Phases").
+**Status.** Phases 1 (the format, the shared code and its host tests) and 2
+(Run writes its summary) are done. Streak's reader is phase 3 (see "Phases"), so
+nothing reads the summaries yet.
 
 ## Why it exists
 
@@ -78,7 +79,11 @@ copy has drifted. Change the original, then run it with `--sync`.
   keeps the newest 16 and writes the new text. The app reads the old file and
   writes the new one with its own `SafeFile`.
 - `decode(text, len, file)`: what Streak calls for each file.
-- `tzOffsetMinutes(utc, localSeconds)`: the offset from the kernel's two clocks.
+- `makeEntry(...)`: an entry from an app's float totals, rounded and bounded (NaN or
+  negative becomes 0, the average never above the maximum). A bad start still fails
+  `valid()`, so it is not written.
+- `calendarSeconds(y, m, d, h, mi, s)` and `tzOffsetMinutes(utc, localSeconds)`: the
+  zone offset from the UTC start and the kernel's broken-down local time of it.
 - `kSlotPaths`: Run, Race, Trail, Ride, Workout. Ride and Workout are reserved now,
   so those apps work with a Streak that is already released.
 
@@ -93,8 +98,11 @@ cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-
 2. Add the app's `Software/Libs/Link` to `APPS` in `check-link-copies.sh` and run
    it with `--sync`. Add the sources to the app's `libs.cmake` and its host tests.
 3. In the app's save path, after its `.fit` has closed successfully, build an
-   `Entry` and call `append` (the Run writer in phase 2 is the model). Use the
-   app's folder name as `app`.
+   `Entry` with `makeEntry` and call `append`. `Service::writeActivityLink` in
+   `hybridx-run/Software/Libs/App/Sources/Service.cpp` is the model: keep the start
+   the `.fit` is named from, read the old file (primary, else `.bak`), `append`, write
+   with `SafeFile`, use heap buffers, and log a failure as a warning. Use the app's
+   folder name as `app`.
 4. Test it in the simulator, then on the watch (see "Checks on the watch").
 
 ## Phases
@@ -102,7 +110,7 @@ cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-
 | Phase | Work | Status |
 |---|---|---|
 | 1 | The format, `hybridx-link`, host tests, copy check, CI | Done. Jon to review the format. |
-| 2 | Run writes its summary | Not started |
+| 2 | Run writes its summary | Done (simulator-checked; see Run NOTES, "Activity link") |
 | 3 | Streak reads the summaries (app and glance) | Not started |
 | 4 | Race, Trail, then the bike and workout apps, one at a time | Later |
 

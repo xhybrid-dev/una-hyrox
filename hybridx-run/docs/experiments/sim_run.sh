@@ -2,7 +2,9 @@
 #
 # Run HybridX Run in the PC simulator: start a run, let the simulated runner
 # go for a while, then stop and save, and report what the service logged about
-# VO2max and the files it wrote (vo2.json, ../SharedData/HybridX/vo2max.json).
+# VO2max and the files it wrote (vo2.json, ../SharedData/HybridX/vo2max.json and
+# act_run.json, the summary HybridX Streak reads; it keeps the last 16 runs, and
+# this script does not clear SharedData, so a second run adds to it).
 #
 # As Intervals' sim_run.sh: Xvfb for a display, xdotool for the buttons (keys
 # 1..4 are L1, L2, R1, R2), ImageMagick's import for frames. Build the
@@ -75,8 +77,8 @@ key 2; snap 08-vo2max
 echo "--- VO2 (service log)"
 grep -E "VO2|vo2|Resting HR|Out of memory" "$LOG" | sed 's/^ *//'
 echo "--- files"
-find "$SOFT/Output" "$SOFT/SharedData" -maxdepth 3 \( -name "*.fit" -o -name "vo2*.json" \) -printf "%p %s bytes\n" 2>/dev/null
-for f in "$SOFT/Output/vo2.json" "$SOFT/SharedData/HybridX/vo2max.json"; do
+find "$SOFT/Output" "$SOFT/SharedData" -maxdepth 3 \( -name "*.fit" -o -name "vo2*.json" -o -name "act_*.json" \) -printf "%p %s bytes\n" 2>/dev/null
+for f in "$SOFT/Output/vo2.json" "$SOFT/SharedData/HybridX/vo2max.json" "$SOFT/SharedData/HybridX/act_run.json"; do
     [ -f "$f" ] && { echo "$f:"; cat "$f"; echo; }
 done
 echo "--- tuning log"

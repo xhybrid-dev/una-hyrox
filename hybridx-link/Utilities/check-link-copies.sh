@@ -11,7 +11,7 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 FROM="$ROOT/hybridx-link/Software/Libs/Link"
 
 APPS=(
-    # hybridx-run
+    hybridx-run
     # hybridx-streak
 )
 

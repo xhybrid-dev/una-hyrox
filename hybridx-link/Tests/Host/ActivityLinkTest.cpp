@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <set>
 #include <string>
 
@@ -229,6 +230,52 @@ TEST(ActivityLink, AnUnknownSportReadsAsOther)
     EXPECT_EQ(sportFromCode(-1), Sport::Other);
 }
 
+TEST(ActivityLink, AnEntryFromTotalsIsRoundedAndHeld)
+{
+    const Entry e = makeEntry(kBase, 60, 2700, 5399.6f, 151.5f, 171.4f, Sport::Run);
+    EXPECT_EQ(e.startUtc, kBase);
+    EXPECT_EQ(e.tzOffsetMin, 60);
+    EXPECT_EQ(e.durationSec, 2700u);
+    EXPECT_EQ(e.distanceM, 5400u);
+    EXPECT_EQ(e.avgHr, 152);
+    EXPECT_EQ(e.maxHr, 171);
+    EXPECT_TRUE(valid(e));
+}
+
+TEST(ActivityLink, TotalsThatAreNotSensibleBecomeNoneOrTheLimit)
+{
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+
+    Entry none = makeEntry(kBase, 0, 600, 0.0f, 0.0f, 0.0f, Sport::Workout);   // an app without GPS or HR
+    EXPECT_EQ(none.distanceM, 0u);
+    EXPECT_EQ(none.avgHr, 0);
+    EXPECT_EQ(none.maxHr, 0);
+    EXPECT_TRUE(valid(none));
+
+    Entry bad = makeEntry(kBase, 0, -50, nan, nan, -3.0f, Sport::Run);
+    EXPECT_EQ(bad.durationSec, 0u);
+    EXPECT_EQ(bad.distanceM, 0u);
+    EXPECT_EQ(bad.avgHr, 0);
+    EXPECT_EQ(bad.maxHr, 0);
+    EXPECT_TRUE(valid(bad));
+
+    Entry big = makeEntry(kBase, 0, 9999999999ll, inf, 1000.0f, 400.0f, Sport::Run);
+    EXPECT_EQ(big.durationSec, kMaxDurationSec);
+    EXPECT_EQ(big.distanceM, kMaxDistanceM);
+    EXPECT_EQ(big.maxHr, 254);
+    EXPECT_EQ(big.avgHr, 254);
+    EXPECT_TRUE(valid(big));
+
+    // The average never passes the maximum, even when the totals disagree.
+    Entry flipped = makeEntry(kBase, 0, 600, 100.0f, 180.0f, 170.0f, Sport::Run);
+    EXPECT_EQ(flipped.avgHr, 170);
+
+    // A bad start is not repaired: it fails valid() and so is never written.
+    EXPECT_FALSE(valid(makeEntry(0, 0, 600, 100.0f, 100.0f, 150.0f, Sport::Run)));
+    EXPECT_FALSE(valid(makeEntry(kBase, 2000, 600, 100.0f, 100.0f, 150.0f, Sport::Run)));
+}
+
 // ---- time zones --------------------------------------------------------------------------
 
 TEST(ActivityLink, ZonesGoThroughTheFileWithoutANegativeNumber)
@@ -258,6 +305,30 @@ TEST(ActivityLink, LocalStartLandsOnTheLocalDay)
     const uint32_t early = utc - 22u * 3600u;   // 01:30 UTC
     EXPECT_EQ(entry(early, -8 * 60).localStart() / 86400u, utcDay - 1);
     EXPECT_EQ(entry(utc, 60).localStart(), utc + 3600u);
+}
+
+TEST(ActivityLink, CalendarSecondsIsTheCalendarWithNoZone)
+{
+    EXPECT_EQ(calendarSeconds(1970, 1, 1, 0, 0, 0), 0);
+    EXPECT_EQ(calendarSeconds(1970, 1, 2, 0, 0, 1), 86401);
+    EXPECT_EQ(calendarSeconds(2000, 3, 1, 0, 0, 0), 951868800);      // after a leap day
+    EXPECT_EQ(calendarSeconds(2000, 2, 29, 12, 0, 0), 951825600);
+    EXPECT_EQ(calendarSeconds(2024, 12, 31, 23, 59, 59), 1735689599);
+    EXPECT_EQ(calendarSeconds(2026, 1, 1, 0, 0, 0), 1767225600);
+    EXPECT_EQ(calendarSeconds(2026, 10, 27, 23, 30, 0), 1793143800);   // the day used above
+    EXPECT_EQ(calendarSeconds(1969, 12, 31, 23, 59, 59), -1);
+}
+
+TEST(ActivityLink, TheOffsetFollowsFromTheBrokenDownLocalTime)
+{
+    // 2026-10-27 23:30 UTC, shown on a clock in New Zealand (UTC+13) and California (UTC-7).
+    const uint32_t utc = 1793143800u;
+    EXPECT_EQ(tzOffsetMinutes(utc, calendarSeconds(2026, 10, 28, 12, 30, 0)), 13 * 60);
+    EXPECT_EQ(tzOffsetMinutes(utc, calendarSeconds(2026, 10, 27, 16, 30, 0)), -7 * 60);
+    EXPECT_EQ(tzOffsetMinutes(utc, calendarSeconds(2026, 10, 27, 23, 30, 0)), 0);
+    // A clock across a year end: 2026-12-31 23:30 UTC at UTC+1 is 2027-01-01 00:30.
+    const uint32_t newYear = static_cast<uint32_t>(calendarSeconds(2026, 12, 31, 23, 30, 0));
+    EXPECT_EQ(tzOffsetMinutes(newYear, calendarSeconds(2027, 1, 1, 0, 30, 0)), 60);
 }
 
 TEST(ActivityLink, TzOffsetFromALocalClock)

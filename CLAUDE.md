@@ -173,6 +173,10 @@ apps.
   - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
     log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>` (also shows
     what the raw GPS speed would have given, from the `scale` column).
+- **Activity link:** on each saved run, `Service::writeActivityLink` adds the run to
+  `../SharedData/HybridX/act_run.json` for Streak (`hybridx-link/docs/ACTIVITY_LINK.md`;
+  Run NOTES "Activity link"). `Software/Libs/Link` is a **copy** of `hybridx-link`'s code:
+  edit the original, then `hybridx-link/Utilities/check-link-copies.sh --sync`.
 - **The VO2max glance** (R6): `Software/Apps/HybridXRunGlance-CMake` with
   `Software/Libs/Glance`; it reads the app's `../SharedData/HybridX/vo2max.json`.
   Preview (the simulator cannot run glances):

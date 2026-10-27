@@ -675,3 +675,49 @@ changed here, both in the files Trail copies, so Trail's copies were refreshed
   else the oldest run's.
 - Host tests: **96** (6 new), also under ASan + UBSan. Watch target compile
   check 490,732 B (not for a watch), simulator builds.
+
+## Activity link: Run tells Streak about each saved run (27 October 2026)
+
+Phase 2 of the HybridX activity link (`hybridx-link/docs/ACTIVITY_LINK.md`).
+When a run is saved, Run adds it to `../SharedData/HybridX/act_run.json`, the
+file HybridX Streak reads. Run is its only writer. The Streak side is phase 3,
+so nothing reads it yet.
+
+- **Where**: `Service::writeActivityLink`, called inside the success branch of
+  `if (mActivityWriter.stop(fitTrack))` in `stopTrack`, after
+  `notifyNewActivity()`. So it happens only for a run whose `.fit` closed
+  properly: not on discard, not for an empty session, not when the `.fit` fails
+  to close. Run's `vo2max.json` is written earlier than the `.fit`; this is not.
+- **The start** is the time `startTrack` was given, kept in the new `mStartUtc`
+  (there was no member for it). The activity file is named from the same time, so
+  the file's local start and the summary's agree. `fitTrack.timeStart` is worked
+  out from the counters and could differ by a second.
+- **The entry**: start UTC; the zone offset (from `mTimeTracker.getLocalTime`,
+  turned into minutes by `HybridXLink::tzOffsetMinutes`); the active time as
+  duration; the distance; the average and maximum heart rate; sport Run.
+  `HybridXLink::makeEntry` rounds and bounds the float totals (NaN or negative
+  become 0). An entry that fails `valid()` (a start before 2020, so an unset
+  clock) is not written; the log says why.
+- **The file**: the old file is read with `SafeFile` (the primary if it decodes,
+  else its backup), `HybridXLink::append` adds the run and keeps the newest 16,
+  and `SafeFile::write` saves it. A failure is a warning and never affects the
+  save. Two 1 KB buffers come from the heap (`new (std::nothrow)`) rather than
+  the 10 KB service stack, as Trail's ingest does; the library itself uses about
+  400 bytes of stack.
+- **Code**: `Software/Libs/Link/` is a byte-identical copy of `hybridx-link`'s
+  library (change that, then `hybridx-link/Utilities/check-link-copies.sh
+  --sync`; CI checks). `libs.cmake` adds it to the service. The GUI and the
+  glance do not use it.
+- **Verified**: Run's host tests are unchanged, 118, green. The library's own
+  are 29 (`hybridx-link`), also under ASan + UBSan. Simulator, with
+  `docs/experiments/sim_run.sh` (which now lists `act_run.json`): a 40 s run
+  wrote `{"v":1,"app":"HybridXRun","a":[[1793099301,1440,41,215,144,160,1]]}`,
+  its start the same as the `.fit`'s name and the tuning log's; a second run
+  added an entry, oldest first, with a `.bak` kept; a discarded run left the
+  file byte for byte as it was and wrote no `.fit`. The container's clock is
+  UTC, so the zone is 0 (1440 stored); a non-zero zone is covered by the library
+  tests only. Watch target compile check 494,012 B (not for a watch); glance
+  28,404 B; simulator builds, no new warnings.
+- **Not checked**: anything on a watch. Whether the summary's start matches the
+  `.fit` file's name on a watch is the same code path as the simulator's, but
+  the zone offset is not tried with a real zone until Jon's test.

@@ -37,6 +37,7 @@
 // HybridX Run
 #include "AppConfigFields.hpp"
 #include "SafeFile.hpp"
+#include "ActivityLink.hpp"
 #include "Vo2TrailIngest.hpp"
 
 #include "SDK/Calibration/StrideMath.hpp"
@@ -904,6 +905,7 @@ void Service::startTrack(std::time_t utc)
     }
 
     mSessionNotEmpty = false;
+    mStartUtc = utc;
     mLapNotEmpty = false;
     mLapCarryMs = 0;
 
@@ -1326,6 +1328,7 @@ void Service::stopTrack(bool discard)
 
         if (mActivityWriter.stop(fitTrack)) {
             notifyNewActivity();
+            writeActivityLink(fitTrack);   // only for a run whose .fit is safely saved
             // A scheduled workout counts as done only once its activity is
             // saved, and only if completion was reached. started() again
             // first: if the record could not be saved when the run began,
@@ -2233,6 +2236,47 @@ void Service::writeSharedVo2()
     if (len == 0 || !mKernel.fs.mkdir(kSharedDir)
         || !RunVo2::SafeFile::write(mKernel.fs, kSharedFile, buf, len)) {
         LOG_WARNING("Could not save the public vo2max.json\n");
+    }
+}
+
+void Service::writeActivityLink(const ActivityWriter::TrackData& track)
+{
+    // The run, in the HybridX activity link's format, for HybridX Streak to count
+    // (hybridx-link/docs/ACTIVITY_LINK.md). Its start is the one the .fit is named
+    // from, so Streak counts it once however it finds it. Nothing here may get in
+    // the way of the save: a failure is a warning.
+    using namespace HybridXLink;
+
+    const std::tm local = mTimeTracker.getLocalTime(mStartUtc);   // as the .fit's name is made
+    const uint32_t startUtc = static_cast<uint32_t>(mStartUtc);
+    const int16_t  tzMin    = tzOffsetMinutes(startUtc, calendarSeconds(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
+                                                                       local.tm_hour, local.tm_min, local.tm_sec));
+    const Entry    e        = makeEntry(startUtc, tzMin, track.duration, track.distance, track.hrAvg, track.hrMax, Sport::Run);
+    if (!valid(e)) {
+        LOG_WARNING("Not telling Streak about this run: its start (%lu) is not valid\n", static_cast<unsigned long>(e.startUtc));
+        return;
+    }
+
+    // Two kMaxBytes buffers (the old file, the new one) on the heap, not the 10 KB stack.
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[2 * kMaxBytes]);
+    if (!buf) {
+        LOG_WARNING("No memory to tell Streak about this run\n");
+        return;
+    }
+    char* const oldText = buf.get();
+    char* const newText = buf.get() + kMaxBytes;
+
+    // The old file: the primary if it reads, else its backup, else none (append starts afresh).
+    const char* path = slotPath(Slot::Run);
+    size_t oldLen    = RunVo2::SafeFile::read(mKernel.fs, path, false, oldText, kMaxBytes);
+    ActivityFile probe;   // about 330 bytes of stack: only to see that the primary reads
+    if (oldLen == 0 || !decode(oldText, oldLen, probe)) {
+        oldLen = RunVo2::SafeFile::read(mKernel.fs, path, true, oldText, kMaxBytes);
+    }
+
+    const size_t len = append(oldLen > 0 ? oldText : nullptr, oldLen, "HybridXRun", e, newText, kMaxBytes);
+    if (len == 0 || !mKernel.fs.mkdir(HybridXLink::kSharedDir) || !RunVo2::SafeFile::write(mKernel.fs, path, newText, len)) {
+        LOG_WARNING("Could not save the activity summary for Streak\n");
     }
 }
 

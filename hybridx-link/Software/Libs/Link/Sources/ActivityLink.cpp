@@ -63,6 +63,14 @@ bool readEntry(const SDK::JsonStreamReader& r, unsigned i, Entry& out)
     return true;
 }
 
+/// An empty file: no name, no entries (without building a temporary ActivityFile).
+void clear(ActivityFile& f)
+{
+    std::memset(f.app, 0, sizeof(f.app));
+    f.count   = 0;
+    f.skipped = 0;
+}
+
 bool validNameChars(const char* s, size_t len)
 {
     if (len == 0 || len >= kAppNameChars) {
@@ -101,6 +109,37 @@ bool valid(const Entry& e)
            e.durationSec <= kMaxDurationSec && e.distanceM <= kMaxDistanceM && e.avgHr <= e.maxHr;
 }
 
+Entry makeEntry(uint32_t startUtc, int16_t tzOffsetMin, int64_t durationSec, float distanceM, float avgHr,
+                float maxHr, Sport sport)
+{
+    // Round and bound a float. The test is written so that a NaN fails it and gives 0.
+    const auto whole = [](float v, float max) { return !(v > 0.0f) ? 0.0f : (v >= max ? max : v + 0.5f); };
+
+    Entry e;
+    e.startUtc    = startUtc;
+    e.tzOffsetMin = tzOffsetMin;
+    e.durationSec = durationSec <= 0 ? 0u : (durationSec > kMaxDurationSec ? kMaxDurationSec : static_cast<uint32_t>(durationSec));
+    e.distanceM   = static_cast<uint32_t>(whole(distanceM, static_cast<float>(kMaxDistanceM)));
+    e.maxHr       = static_cast<uint8_t>(whole(maxHr, 254.0f));
+    const uint8_t avg = static_cast<uint8_t>(whole(avgHr, 254.0f));
+    e.avgHr       = avg > e.maxHr ? e.maxHr : avg;
+    e.sport       = sport;
+    return e;
+}
+
+int64_t calendarSeconds(int year, int month, int day, int hour, int min, int sec)
+{
+    // Days since 1970-01-01 (H. Hinnant's days_from_civil), months counted from March.
+    const int64_t y   = year - (month <= 2 ? 1 : 0);
+    const int64_t era = (y >= 0 ? y : y - 399) / 400;
+    const int64_t yoe = y - era * 400;
+    const int64_t mp  = (month + 9) % 12;
+    const int64_t doy = (153 * mp + 2) / 5 + day - 1;
+    const int64_t doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    const int64_t days = era * 146097 + doe - 719468;
+    return days * 86400 + hour * 3600 + min * 60 + sec;
+}
+
 int16_t tzOffsetMinutes(uint32_t utc, int64_t localSeconds)
 {
     const int64_t diff = localSeconds - static_cast<int64_t>(utc);
@@ -122,6 +161,7 @@ bool validAppName(const char* name)
 
 bool decode(const char* text, size_t len, ActivityFile& out)
 {
+    clear(out);
     if (text == nullptr || len == 0) {
         return false;
     }
@@ -142,16 +182,15 @@ bool decode(const char* text, size_t len, ActivityFile& out)
         return false;
     }
 
-    ActivityFile f;
-    std::memcpy(f.app, name.data(), name.size());   // size checked above; f.app is zeroed
+    // Read straight into @p out (a second copy would double the stack this takes).
+    std::memcpy(out.app, name.data(), name.size());   // size checked above; out.app is zeroed
     for (unsigned i = 0; i < n; ++i) {
-        if (readEntry(r, i, f.entries[f.count])) {
-            ++f.count;
+        if (readEntry(r, i, out.entries[out.count])) {
+            ++out.count;
         } else {
-            ++f.skipped;
+            ++out.skipped;
         }
     }
-    out = f;
     return true;
 }
 
@@ -206,11 +245,10 @@ size_t append(const char* oldText, size_t oldLen, const char* app, const Entry& 
     }
 
     ActivityFile f;
-    ActivityFile old;
-    if (decode(oldText, oldLen, old) && std::strcmp(old.app, app) == 0) {
-        f = old;
+    if (!decode(oldText, oldLen, f) || std::strcmp(f.app, app) != 0) {
+        clear(f);   // nothing usable there, or another app's file: a fresh list
     }
-    std::strncpy(f.app, app, kAppNameChars - 1);   // f.app is zeroed, so it stays terminated
+    std::snprintf(f.app, sizeof(f.app), "%s", app);
     f.skipped = 0;
 
     // Find the place by start time, replacing an entry with the same start.
