@@ -47,7 +47,7 @@ void TrackSummaryScreen::destroyFace()
 
     mMapDistance = mMapUnits = mOverviewDistance = mOverviewUnits = mAvgPace = mTimer = nullptr;
     mMaxHr = mAvgHr = nullptr;
-    mVo2Run = mVo2RunLabel = mVo2RecentLabel = nullptr;
+    mVo2Run = mVo2RunLabel = mVo2RecentLabel = mVo2Confidence = mVo2MaxHr = nullptr;
     mFormCadence = mFormStep = nullptr;
     for (auto& o : mZoneBar) {
         o = nullptr;
@@ -135,7 +135,11 @@ void TrackSummaryScreen::buildFaceVo2()
     mVo2Run      = Theme::label(f, F::SemiBold40, Strings::kNoValue, 70, 77, 100);
     mVo2RunLabel = Theme::label(f, F::SemiBold20, "THIS RUN", 20, 118, 200);
     Theme::hline(f, 25, 147, 190);
-    mVo2RecentLabel = Theme::label(f, F::Medium18, "", 20, 165, 200);
+    mVo2RecentLabel = Theme::label(f, F::Medium18, "", 20, 160, 200);
+    // P3: how much to trust this run's figure. Narrower lower down: the round face's chord is
+    // about 150 px at the second line's foot.
+    mVo2Confidence = Theme::label(f, F::Regular14, "", 30, 184, 180, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    mVo2MaxHr      = Theme::label(f, F::Regular14, "", 45, 200, 150, LV_TEXT_ALIGN_CENTER, Color::GRAY);
     mTitle = std::make_unique<Widgets::Title>(f, "VO2MAX");
 }
 
@@ -310,6 +314,25 @@ void TrackSummaryScreen::fillFace()
             const char* why = RunVo2::Text::reason(r);
             lv_label_set_text(mVo2RunLabel, why[0] ? why : "THIS RUN");
             lv_obj_set_style_text_font(mVo2RunLabel, Theme::font(why[0] ? F::Regular16 : F::SemiBold20), 0);
+        }
+        // P3: the steady minutes behind this run's figure and how far they spread, and the max HR.
+        if (!info.hasRun || info.runX10 == 0) {
+            lv_label_set_text(mVo2Confidence, "");
+        } else {
+            char sp[8];
+            // Short: the worst case, "240 min, spread 99.9", is about 145 px (checked in the simulator).
+            lv_label_set_text_fmt(mVo2Confidence, "%u min, spread %s", static_cast<unsigned>(info.windowsUsed),
+                                  RunVo2::Text::formatX10(info.spreadX10, sp, sizeof(sp)));
+        }
+        if (!info.hasRun || info.maxHr == 0) {
+            lv_label_set_text(mVo2MaxHr, "");
+        } else {
+            const char* src = RunVo2::Text::maxSourceLabel(static_cast<RunVo2::MaxHrSource>(info.maxSource));
+            if (src[0]) {
+                lv_label_set_text_fmt(mVo2MaxHr, "Max HR %u (%s)", static_cast<unsigned>(info.maxHr), src);
+            } else {
+                lv_label_set_text_fmt(mVo2MaxHr, "Max HR %u", static_cast<unsigned>(info.maxHr));
+            }
         }
         if (info.rollingX10 == 0) {
             lv_label_set_text(mVo2RecentLabel, "");

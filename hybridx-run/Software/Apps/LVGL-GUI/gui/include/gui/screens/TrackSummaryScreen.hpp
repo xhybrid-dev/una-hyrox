@@ -87,6 +87,8 @@ private:
     lv_obj_t* mVo2Run         = nullptr;
     lv_obj_t* mVo2RunLabel    = nullptr;
     lv_obj_t* mVo2RecentLabel = nullptr;
+    lv_obj_t* mVo2Confidence  = nullptr;   ///< steady minutes and the spread (P3)
+    lv_obj_t* mVo2MaxHr       = nullptr;   ///< the max HR used, and where it came from (P3)
 
     // Form (HybridX Run)
     lv_obj_t* mFormCadence = nullptr;

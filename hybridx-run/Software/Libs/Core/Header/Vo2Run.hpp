@@ -41,11 +41,13 @@ struct WindowCounts {
     uint16_t unsteady   = 0;   ///< speed or HR not steady
     uint16_t grade      = 0;   ///< too steep, or steep downhill
     uint16_t overflow   = 0;   ///< accepted but no room left
+    uint16_t lagged     = 0;   ///< after a change of pace, not used (only when kLagGuardEnabled)
+    uint16_t afterChange = 0;  ///< used, but after a change of pace (while kLagGuardEnabled is false)
 };
 
 // Values are sent to the GUI as uint8_t (CustomMessage::Vo2Info): append only.
 /// What happened to a window (the tuning log; Vo2Log names them).
-enum class WindowOutcome : uint8_t { Kept, WarmUp, Gaps, Unsteady, Grade, Overflow };
+enum class WindowOutcome : uint8_t { Kept, WarmUp, Gaps, Unsteady, Grade, Overflow, Lagged };
 
 /// One closed window, as the tuning log records it. Means are over the good
 /// seconds; all zero when there were none.
@@ -62,6 +64,7 @@ struct WindowLog {
     uint8_t       hrMax        = 0;
     uint16_t      costX10      = 0;   ///< ACSM oxygen cost, ml/kg/min x 10
     uint16_t      speedScaleX1000 = 0; ///< mean GPS speed correction, x 1000; 0 = not known
+    bool          afterChange  = false; ///< the minute before was at another pace, or was not the minute before
 };
 
 enum class RunStatus : uint8_t {
@@ -80,6 +83,13 @@ struct RunResult {
     uint16_t      tooEasy       = 0;   ///< steady windows under the intensity floor
     uint16_t      aboveMax      = 0;   ///< steady windows with HR above max HR
     uint16_t      implausible   = 0;   ///< steady windows giving a result outside 15-95
+
+    // P3, measured first: what the estimate would be under the guards (0 = too few windows).
+    uint16_t      afterChange   = 0;   ///< windows used that followed a change of pace or a pause
+    uint16_t      withoutLagX10 = 0;   ///< the median without those
+    uint16_t      firstHalfX10  = 0;   ///< the median of the first half of the windows used...
+    uint16_t      secondHalfX10 = 0;   ///< ...and of the second (cardiac drift reads the second lower)
+    uint16_t      spreadX10     = 0;   ///< half the interquartile range of the windows' estimates
 };
 
 class Vo2Run
@@ -120,12 +130,16 @@ public:
 
 private:
     struct Window {
-        uint16_t costX10;   ///< ACSM VO2, ml/kg/min x 10
-        uint16_t hrX10;     ///< mean HR, bpm x 10
+        uint16_t costX10;       ///< ACSM VO2, ml/kg/min x 10
+        uint16_t hrX10;         ///< mean HR, bpm x 10
+        bool     afterChange;   ///< followed a change of pace or a pause (P3)
     };
 
+    /// This window's VO2max x 10, if it is inside the intensity and sanity limits; else counts why.
+    bool windowEstimate(const Window& w, const Profile& profile, RunResult& r, uint16_t& out) const;
+
     /// The tests in their fixed order; stores the window when it counts.
-    WindowOutcome judge(const WindowRecord& w, uint16_t& costX10);
+    WindowOutcome judge(const WindowRecord& w, uint16_t& costX10, bool& afterChange);
 
     WindowBuilder mBuilder;
     uint8_t       mNotedMax = 0;
@@ -136,6 +150,11 @@ private:
     Window   mWindows[Config::kMaxWindows] = {};
     uint16_t mWindowCount = 0;
     WindowCounts mCounts;
+
+    // The window judged before this one, for the HR-lag test.
+    bool     mHavePrev      = false;
+    uint32_t mPrevActiveSec = 0;
+    uint16_t mPrevSpeedX10  = 0;   ///< 0 = it had no speed
 };
 
 }  // namespace RunVo2

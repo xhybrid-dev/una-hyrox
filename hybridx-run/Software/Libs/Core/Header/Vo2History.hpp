@@ -87,6 +87,9 @@ public:
 
     /// The value to show, x 10; 0 when there are no runs.
     uint16_t rollingX10() const { return rollingOver(mCount); }
+    /// P3, measured only: the shown value counting only runs from the last Config::kMaxRunAgeDays
+    /// at @p nowUtc (0 when none is that recent). Nothing uses it for the shown value yet.
+    uint16_t rollingX10Within(uint32_t nowUtc) const;
 
     /// The value as it was before the latest run (for the trend); 0 when
     /// there was none.
@@ -132,7 +135,7 @@ public:
 
 private:
     /// The weighted mean of the latest kRollingRuns of the first n runs kept.
-    uint16_t rollingOver(uint8_t n) const;
+    uint16_t rollingOver(uint8_t n, uint32_t notBeforeUtc = 0) const;
 
     RunRecord mRuns[Config::kHistoryRuns] = {};
     uint8_t   mFirst = 0;

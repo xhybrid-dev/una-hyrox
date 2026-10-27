@@ -2278,8 +2278,9 @@ void Service::finishVo2(std::time_t endUtc)
     const RunVo2::Profile   profile = RunVo2::resolveProfile(mVo2Input, endUtc);
     const RunVo2::RunResult result  = mVo2Run.estimate(profile);
     const RunVo2::WindowCounts& c   = mVo2Run.counts();
-    LOG_INFO("VO2 windows: %u kept, %u warm-up, %u gaps, %u unsteady, %u grade, %u overflow\n",
-             c.accepted, c.warmUp, c.gaps, c.unsteady, c.grade, c.overflow);
+    LOG_INFO("VO2 windows: %u kept (%u after a change of pace), %u warm-up, %u gaps, %u unsteady, %u grade, "
+             "%u overflow, %u lagged\n",
+             c.accepted, c.afterChange, c.warmUp, c.gaps, c.unsteady, c.grade, c.overflow, c.lagged);
     LOG_INFO("VO2 run: status %u (profile %u), %u (x10) from %u windows (%u too easy, %u above max, %u implausible); "
              "max HR %u (source %u), rest %u, run max %u\n",
              static_cast<unsigned>(result.status), static_cast<unsigned>(result.profileStatus),
@@ -2298,8 +2299,15 @@ void Service::finishVo2(std::time_t endUtc)
     if (result.status == RunVo2::RunStatus::Ok) {
         mVo2History.add(RunVo2::RunRecord{static_cast<uint32_t>(endUtc), result.vo2x10, result.windowsUsed});
     }
+    // P3, measured first: what the guards and the age limit would give. Nothing below uses them.
+    const uint16_t shownWithin = mVo2History.rollingX10Within(static_cast<uint32_t>(endUtc));
+    LOG_INFO("VO2 what-if: without lag %u, halves %u/%u, spread %u (x10); shown %u, %u-day limit %u\n",
+             result.withoutLagX10, result.firstHalfX10, result.secondHalfX10, result.spreadX10,
+             mVo2History.rollingX10(), static_cast<unsigned>(RunVo2::Config::kMaxRunAgeDays), shownWithin);
     if (mVo2LogFile) {
         writeVo2Log(RunVo2::Log::resultLine(result, profile, mVo2Run.sustainedMaxHr(),
+                                            mVo2LogLine, sizeof(mVo2LogLine)));
+        writeVo2Log(RunVo2::Log::whatIfLine(result, mVo2History.rollingX10(), shownWithin,
                                             mVo2LogLine, sizeof(mVo2LogLine)));
         closeVo2Log(false);
     }
@@ -2313,6 +2321,7 @@ void Service::finishVo2(std::time_t endUtc)
     mVo2Info.profileStatus = static_cast<uint8_t>(result.profileStatus);
     mVo2Info.runX10        = result.status == RunVo2::RunStatus::Ok ? result.vo2x10 : 0;
     mVo2Info.windowsUsed   = result.windowsUsed;
+    mVo2Info.spreadX10     = result.status == RunVo2::RunStatus::Ok ? result.spreadX10 : 0;
     mVo2Info.maxHr         = profile.maxHr;
     mVo2Info.maxSource     = static_cast<uint8_t>(profile.maxSource);
     mVo2Info.restHr        = profile.restHr;

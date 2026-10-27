@@ -52,6 +52,7 @@ add_executable(hybridx-run-host-tests
     Vo2TrailIngestTest.cpp
     FormStatsTest.cpp
     RunStatsTest.cpp
+    Vo2GuardTest.cpp
     "${CORE_LIBS}/Sources/Vo2Profile.cpp"
     "${CORE_LIBS}/Sources/Vo2Window.cpp"
     "${CORE_LIBS}/Sources/Vo2WindowFile.cpp"

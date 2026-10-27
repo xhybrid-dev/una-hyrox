@@ -217,7 +217,8 @@ namespace CustomMessage {
         uint8_t  runStatus     = 0;   ///< RunVo2::RunStatus
         uint8_t  profileStatus = 0;   ///< RunVo2::ProfileStatus
         uint16_t runX10        = 0;   ///< this run's estimate x 10; 0 = none
-        uint16_t windowsUsed   = 0;
+        uint16_t windowsUsed   = 0;   ///< steady minutes behind it
+        uint16_t spreadX10     = 0;   ///< how far a typical minute's estimate sat from it, x 10 (P3)
         uint8_t  maxHr         = 0;
         uint8_t  maxSource     = 0;   ///< RunVo2::MaxHrSource
         uint8_t  restHr        = 0;

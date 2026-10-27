@@ -90,7 +90,7 @@ Pure C++ in `Software/Libs/Core`, no SDK headers, host-tested.
 | Warm-up ignored | 300 s | chosen: HR lag |
 | Slowest pace | 134 m/min (7:28 /km) | ACSM's running-equation range |
 | Speed spread | 8% | chosen |
-| HR range in a window | 10 bpm | chosen |
+| HR range in a window | 12 bpm (10 until L1, 15 October 2026) | chosen |
 | Grade | -3% to +10%; gentle downhill as 0 | ACSM covers level and uphill; limits chosen |
 | Lowest intensity | 50% HRR | chosen |
 | Plausible VO2max | 15-95 | chosen |
@@ -853,3 +853,53 @@ persisted (the faces show the run just finished, and are gone with the app).
 - **Not checked**: anything on a watch; drift on a real run (the simulator's run is two minutes of mock
   data, so the page says "Needs 30+ min"; the drift and decoupling figures have only the unit tests
   behind them); the real heart-rate zones' thresholds from the kernel (the tests use the defaults).
+
+## P3: VO2max reliability, measured first (27 October 2026)
+
+Third phase of the plan. **The estimate does not change.** Every guard below is worked out on each
+run and written to the tuning log, so Jon can see what it would do; it is switched on (or not) after
+he has compared the app with his Garmin. The existing estimate tests prove it: the 54.4 reference
+and Jon's 14 October run (45.1 from 34 windows) are unchanged.
+
+- **HR-lag guard** (`Vo2Run::judge`). In the minute or two after the pace changes, or after a pause,
+  heart rate has not caught up, so the minute reads as a higher VO2max. Each window is flagged as
+  "after a change" when the window before it was more than 10% off its pace (`kLagMaxSpeedChangePct`,
+  provisional), had no speed, or was not the minute just before. A pause shows as a gap because it
+  drops the part-built window; a pause exactly on a window's edge is not seen. `kLagGuardEnabled`
+  (false, and a `static_assert` in the tests keeps it so until decided) makes flagged windows rejected
+  as `Lagged`, a new outcome appended to the enum (it travels to the GUI as `uint8_t`). While off, a
+  flagged window is used and counted in `WindowCounts::afterChange`.
+- **What it would have changed** (`RunResult`): `withoutLagX10`, the median without the flagged
+  windows; `firstHalfX10` and `secondHalfX10`, the medians of the first and second half of the windows
+  used, in run order (cardiac drift reads the second lower; each half needs 3 windows); `spreadX10`, half
+  the interquartile range of the windows' estimates (how far a typical minute sits from the figure).
+  `estimate()` now uses two arrays of 240 on the service stack (about 1 KB, half of it new).
+- **Jon's 14 October run**: 2 of the 34 minutes followed a change of pace; without them the figure is
+  the same, 45.1; the halves read 45.9 and 44.1 (cardiac drift of about 1.8); spread 1.2. The same
+  figures come from an independent Python reading of the rules (`vo2_log_whatif.py`, which now also
+  prints the lag guard's result and the spread), and a host test pins them.
+- **Trail's runs** carry only the minutes Trail kept, so their windows are often not back to back and
+  many are flagged. That is conservative and only affects `withoutLagX10` while the guard is off; if the
+  guard is switched on it needs thought for Trail runs first.
+- **The shown value's age limit, measured only** (`Vo2History::rollingX10Within`): the shown value
+  counting only runs from the last 42 days (`kMaxRunAgeDays`, provisional). **Not given a switch**:
+  switching it on properly also changes the glance's shared file and the per-run "shown" values the
+  trend is drawn from, and doing half of that would leave the glance and the app disagreeing. Wire it
+  once Jon decides.
+- **Tuning log**: the window line has a new last column, `lag` (0/1), and an outcome `lagged`; after the
+  result line comes `# what-if (not used yet) after_change N, without_lag X, first_half X, second_half X,
+  spread X, shown X, shown_42d X`. `vo2_log_report.py` reads columns by name, so older and newer logs both
+  read; `vo2_log_whatif.py` works the lag flag out itself for logs from before P3.
+- **On the summary's VO2 face** (display only): under "Recent", the steady minutes behind this run's
+  figure and their spread ("34 min, spread 1.2"), and the max HR used and where it came from ("Max HR
+  182 (age)", "(runs)" or "(entered)"). The first version said "34 min steady, spread 1.2" and clipped at
+  the worst case on the round face (checked in the simulator with the longest values forced for one
+  screenshot): shortened. `Vo2Info` carries `spreadX10`.
+- **Verified**: host tests 175 (12 new, plus the log tests and Jon's run extended), also under ASan +
+  UBSan. Simulator: a saved run's tuning log and service log carry the new lines; the VO2 face with its
+  new lines (worst case forced, then reverted). Watch target compile check 503,408 B (not for a watch),
+  glance unchanged, Trail's and the link copy checks pass (none of the copied files changed).
+- **For Jon to decide, after the Garmin comparison**: switch on the lag guard (and what to do for Trail
+  runs); the age limit, and how long; whether the drift between halves should limit which minutes count.
+  Each tuning log now says, per run, what each would have done.
+

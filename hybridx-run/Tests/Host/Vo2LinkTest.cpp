@@ -373,6 +373,18 @@ TEST(Vo2Link, JonsRunUnderTheNewRules)
     ASSERT_EQ(r.status, RunStatus::Ok);
     EXPECT_EQ(r.windowsUsed, 34);
     EXPECT_NEAR(r.vo2x10, 451, 2);
+
+    // P3, measured first (the figures from an independent Python reading of the same rules):
+    // two of the 34 minutes followed a change of pace, and without them the estimate is the same;
+    // the first half of the minutes reads 45.9 and the second 44.1 (cardiac drift); a typical minute
+    // sits 1.2 from the middle.
+    EXPECT_EQ(run.counts().afterChange, 2);
+    EXPECT_EQ(run.counts().lagged, 0);   // the guard is off: they were used
+    EXPECT_EQ(r.afterChange, 2);
+    EXPECT_NEAR(r.withoutLagX10, 451, 1);
+    EXPECT_NEAR(r.firstHalfX10, 459, 1);
+    EXPECT_NEAR(r.secondHalfX10, 441, 1);
+    EXPECT_NEAR(r.spreadX10, 12, 1);
 }
 
 // ---- the shared file --------------------------------------------------------
