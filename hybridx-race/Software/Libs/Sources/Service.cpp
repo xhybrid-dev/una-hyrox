@@ -26,8 +26,10 @@
 #include "SDK/Tools/FirmwareVersion.hpp"
 #include "SDK/Utils/Utils.hpp"
 
+#include "ActivityLink.hpp"
 #include "AppConfigFields.hpp"
 #include "LapTiming.hpp"
+#include "SafeFile.hpp"
 
 #define LOG_MODULE_PRX   "Service"
 #define LOG_MODULE_LEVEL LOG_LEVEL_INFO
@@ -856,6 +858,7 @@ void Service::saveRace(bool discard)
 
     if (ok) {
         notifyNewActivity();
+        writeActivityLink(track);   // only for a race whose .fit is safely saved
         LOG_INFO("Race saved: %u laps\n", mRace.recordedCount());
     } else {
         LOG_ERROR("Failed to write the activity file\n");
@@ -873,6 +876,49 @@ void Service::saveRace(bool discard)
     // It also stops processRace() reconnecting the sensors behind the summary.
     mRace.reset();
     disconnect();
+}
+
+void Service::writeActivityLink(const ActivityWriter::TrackData& track)
+{
+    // The race, in the HybridX activity link's format, for HybridX Streak to count
+    // (hybridx-link/docs/ACTIVITY_LINK.md). Its start is the one the .fit is named
+    // from, so Streak counts it once however it finds it. Nothing here may get in the
+    // way of the save: a failure is a warning. As Run's (hybridx-run NOTES, "Activity link").
+    using namespace HybridXLink;
+
+    const std::tm  local    = mTimeTracker.getLocalTime(mRaceStartUtc);   // as the .fit's name is made
+    const uint32_t startUtc = static_cast<uint32_t>(mRaceStartUtc);
+    const int16_t  tzMin    = tzOffsetMinutes(startUtc, calendarSeconds(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
+                                                                       local.tm_hour, local.tm_min, local.tm_sec));
+    // The distance is the race's planned distance for the laps it recorded (an early finish is shorter).
+    const Entry e = makeEntry(startUtc, tzMin, track.duration, static_cast<float>(track.distanceM), track.hrAvg,
+                              track.hrMax, Sport::Hybrid);
+    if (!valid(e)) {
+        LOG_WARNING("Not telling Streak about this race: its start (%lu) is not valid\n", static_cast<unsigned long>(e.startUtc));
+        return;
+    }
+
+    // Two kMaxBytes buffers (the old file, the new one) on the heap, not the service stack.
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[2 * kMaxBytes]);
+    if (!buf) {
+        LOG_WARNING("No memory to tell Streak about this race\n");
+        return;
+    }
+    char* const oldText = buf.get();
+    char* const newText = buf.get() + kMaxBytes;
+
+    // The old file: the primary if it reads, else its backup, else none (append starts afresh).
+    const char* path = slotPath(Slot::Race);
+    size_t oldLen    = Race::SafeFile::read(mKernel.fs, path, false, oldText, kMaxBytes);
+    ActivityFile probe;   // about 330 bytes of stack: only to see that the primary reads
+    if (oldLen == 0 || !decode(oldText, oldLen, probe)) {
+        oldLen = Race::SafeFile::read(mKernel.fs, path, true, oldText, kMaxBytes);
+    }
+
+    const size_t len = append(oldLen > 0 ? oldText : nullptr, oldLen, "HybridXRace", e, newText, kMaxBytes);
+    if (len == 0 || !mKernel.fs.mkdir(kSharedDir) || !Race::SafeFile::write(mKernel.fs, path, newText, len)) {
+        LOG_WARNING("Could not save the activity summary for Streak\n");
+    }
 }
 
 void Service::onSegmentOpened()

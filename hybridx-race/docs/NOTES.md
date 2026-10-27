@@ -2267,3 +2267,45 @@ nothing about how the apps behave on firmware 1.6.2.
 - Where a simulator puts its binary differs by app: Race and Knitting use
   `<simulator>/build/bin`, Streak uses `<build dir>/bin`. Read the app's own `CMakeLists.txt`
   before scripting a run.
+
+## Amendment — Race tells Streak about each saved race (27 October 2026)
+
+Phase 4 (Race) of the HybridX activity link (`hybridx-link/docs/ACTIVITY_LINK.md`).
+When a race is saved, Race adds it to `../SharedData/HybridX/act_race.json`, the
+file HybridX Streak reads (Streak NOTES, "Activity link"). Race is its only writer.
+Nothing about the race, its laps or its `.fit` changes.
+
+- **Where**: `Service::writeActivityLink`, called inside `if (ok)` after
+  `mActivityWriter.stop(track)` in `saveRace`, beside `notifyNewActivity()`. So it
+  happens only for a race whose `.fit` closed properly. A discarded race
+  (`saveRace(true)`) returns before it; so does an app that was never started.
+- **The entry**: the start is `mRaceStartUtc`, the time the `.fit` is named from, so
+  Streak counts a race once however it finds it. The zone is the offset of
+  `mTimeTracker.getLocalTime(mRaceStartUtc)` from UTC. Duration is the active time
+  (`track.duration`); heart rate is the laps' own totals; sport is Hybrid (6), which
+  Streak reads as its Hybrid kind, as its classifier already does for this folder.
+- **Distance is the planned distance of the laps that were recorded** (`track.distanceM`,
+  from `RaceModel::distanceM` per lap), not a measured one; a race ended early is
+  shorter (the simulator's Half A wrote 5,180 m). Streak ignores distance today.
+- **The file**: the old file is read with `SafeFile` (the primary if it decodes, else
+  its backup), `HybridXLink::append` adds the race and keeps the newest 16, and
+  `SafeFile::write` saves it. A failure is a warning and never affects the save. The
+  two 1 KB buffers come from the heap (`new (std::nothrow)`), as Run's do.
+- **Code**: `Software/Libs/Link/` is a byte-identical copy of `hybridx-link`'s library
+  (change that, then `hybridx-link/Utilities/check-link-copies.sh --sync`; CI checks);
+  `libs.cmake` adds it to the service. `Software/Libs/{Header,Sources}/SafeFile.*` is a
+  copy of Run's (itself Streak's), in the `Race::SafeFile` namespace: Race had no
+  whole-file save before, because its other files go through the SDK's settings classes.
+- **Verified**: Race's host tests are unchanged, 145, green. Simulator (a Half, eight
+  6 s segments): race 1 wrote `[1793103288,1440,50,5180,150,157,6]`, its start the
+  same second as the `.fit`'s name (12:14:48 UTC); race 2 added a second entry, oldest
+  first; a race started and discarded from the action menu left the file as it was and
+  wrote no `.fit`. An early finish (2 of 8 segments, `completed 0`) wrote `[…,16,2000,…]`
+  in an earlier run. Streak's host tests read these bytes as two Hybrid activities
+  (134 tests). Watch target compile check 379,912 B (not for a watch), simulator builds,
+  no new warnings.
+- **Not checked**: anything on a watch; a non-zero zone end to end (the container is
+  UTC; the zone maths is covered by the library's host tests).
+- **Found along the way**: in the simulator the action menu does not open from the race
+  screen until the split's toast has gone (about 2 s), so a script that presses R1 right
+  after a split sees nothing happen.

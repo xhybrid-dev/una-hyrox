@@ -36,6 +36,7 @@ public:
     void onAccessoryStatus(uint8_t state, const char* name) override;
     void onVo2Info(const CustomMessage::Vo2Info& info) override;   // HybridX Run
     void onWorkoutList() override;
+    void onSettings(const Settings& settings) override;   // HybridX Run: the treadmill switch
 
 protected:
     void build() override;
@@ -45,6 +46,8 @@ private:
 
     void confirm();
     void updateBackground();
+    void toggleTreadmill();   ///< HybridX Run
+    bool treadmill() const { return mModel.getSettings().treadmill; }
     /// Offer today's scheduled workout, once, when the list arrives.
     void checkTodayPrompt();
 

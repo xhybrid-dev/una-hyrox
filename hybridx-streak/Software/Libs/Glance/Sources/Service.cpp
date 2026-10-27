@@ -16,6 +16,7 @@
 
 #include "ActivityScanner.hpp"
 #include "GlanceLayout.hpp"
+#include "LinkReader.hpp"
 #include "StateCodec.hpp"
 #include "StreakModel.hpp"
 #include "WeekMath.hpp"
@@ -42,7 +43,11 @@ GlanceSize_t size(int32_t w, int32_t h)
 // Placed at start-up: far larger than the glance service's stack.
 alignas(Streak::StreakModel) uint8_t     sModelStorage[sizeof(Streak::StreakModel)];
 alignas(Streak::ActivityScanner) uint8_t sScannerStorage[sizeof(Streak::ActivityScanner)];
-Streak::Found  sFound[Service::kMaxNew];
+alignas(Streak::LinkReader) uint8_t      sLinkStorage[sizeof(Streak::LinkReader)];
+// The scan reads at most kMaxNew .fit files (each is slow to read); the summaries are
+// small files, so more of them fit.
+constexpr size_t kMaxFound = 16;
+Streak::Found  sFound[kMaxFound];
 char           sScratch[Streak::StateCodec::kMaxBytes];
 Glance::Layout sLayout;
 } // namespace
@@ -111,6 +116,7 @@ void Service::build()
     mBuilt = true;
     auto* model   = new (sModelStorage) Streak::StreakModel();
     auto* scanner = new (sScannerStorage) Streak::ActivityScanner();
+    auto* link    = new (sLinkStorage) Streak::LinkReader();
 
     // The app's public copy; none means the app has never been opened.
     Glance::State        state = Glance::State::Normal;
@@ -133,7 +139,8 @@ void Service::build()
             // Project to now: what the app would show if opened, not saved.
             int32_t from = 0, to = 0;
             model->scanWindow(today, from, to);
-            const size_t   n = scanner->scan(mKernel.fs, "HybridXStreak", from, to, *model, sFound, kMaxNew);
+            size_t n = scanner->scan(mKernel.fs, "HybridXStreak", from, to, *model, sFound, kMaxNew);
+            n        = link->addTo(mKernel.fs, from, to, *model, sFound, n, kMaxFound);
             Streak::Events ignored;
             model->update(today, sFound, n, ignored);
             view = model->view(today);

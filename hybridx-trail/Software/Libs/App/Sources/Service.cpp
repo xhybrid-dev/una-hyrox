@@ -34,6 +34,7 @@
 #include "SDK/Calibration/StrideMath.hpp"
 
 #include "SafeFile.hpp"   // HybridX Trail: a copy of Run's (Vo2Link)
+#include "ActivityLink.hpp" // HybridX Trail: a copy of hybridx-link's (Link)
 
 #define LOG_MODULE_PRX      "Service"
 #define LOG_MODULE_LEVEL    LOG_LEVEL_INFO
@@ -867,6 +868,7 @@ void Service::startTrack(std::time_t utc)
     // Outdoor stride calibrator: reset latched inputs and load the stored LUT
     // for this session.
     mGradeData = {};
+    mStartUtc  = utc;   // the start the .fit is named from, for the activity link
     startVo2(utc);
     mGpsSpeedValid    = false;
     mGpsSpeedFresh    = false;
@@ -1244,6 +1246,7 @@ void Service::stopTrack(bool discard)
 
         if (mActivityWriter.stop(fitTrack)) {
             notifyNewActivity();
+            writeActivityLink(fitTrack);   // only for a run whose .fit is safely saved
         } else {
             LOG_ERROR("activity save failed\n");
             // Do NOT notify: the .fit is left unfinished, so the crash-recovery
@@ -1384,6 +1387,54 @@ void Service::saveVo2Windows()
     LOG_INFO("VO2 windows for Run: run %lu, %u windows, max HR %u, slot %u (%lu bytes)\n",
              static_cast<unsigned long>(mVo2RunId), mVo2WindowCount, maxHr, slot,
              static_cast<unsigned long>(len));
+}
+
+// -- HybridX Trail: the activity link, for HybridX Streak --------------------------------
+
+void Service::writeActivityLink(const ActivityWriter::TrackData& track)
+{
+    // The run, in the HybridX activity link's format, for HybridX Streak to count
+    // (hybridx-link/docs/ACTIVITY_LINK.md). Run's own writer, with Trail's slot
+    // and folder name. Its start is the one the .fit is named from, so Streak
+    // counts it once however it finds it. Nothing here may get in the way of the
+    // save: a failure is a warning.
+    using namespace HybridXLink;
+
+    const std::tm  local    = mTimeTracker.getLocalTime(mStartUtc);   // as the .fit's name is made
+    const uint32_t startUtc = static_cast<uint32_t>(mStartUtc);
+    const int16_t  tzMin    = tzOffsetMinutes(startUtc, calendarSeconds(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
+                                                                       local.tm_hour, local.tm_min, local.tm_sec));
+    const Entry    e        = makeEntry(startUtc, tzMin, track.duration, track.distance, track.hrAvg, track.hrMax, Sport::Run);
+    if (!valid(e)) {
+        LOG_WARNING("Not telling Streak about this run: its start (%lu) is not valid\n", static_cast<unsigned long>(e.startUtc));
+        return;
+    }
+
+    // Two kMaxBytes buffers (the old file, the new one) on the heap, not the small stack.
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[2 * kMaxBytes]);
+    if (!buf) {
+        LOG_WARNING("No memory to tell Streak about this run\n");
+        return;
+    }
+    char* const oldText = buf.get();
+    char* const newText = buf.get() + kMaxBytes;
+
+    // The old file: the primary if it reads, else its backup, else none (append starts afresh).
+    const char* path = slotPath(Slot::Trail);
+    size_t oldLen    = RunVo2::SafeFile::read(mKernel.fs, path, false, oldText, kMaxBytes);
+    ActivityFile probe;   // about 330 bytes of stack: only to see that the primary reads
+    if (oldLen == 0 || !decode(oldText, oldLen, probe)) {
+        oldLen = RunVo2::SafeFile::read(mKernel.fs, path, true, oldText, kMaxBytes);
+    }
+
+    const size_t len = append(oldLen > 0 ? oldText : nullptr, oldLen, "HybridXTrail", e, newText, kMaxBytes);
+    mKernel.fs.mkdir("../SharedData");   // already there on a watch that has run another HybridX app
+    if (len == 0 || !mKernel.fs.mkdir(HybridXLink::kSharedDir) || !RunVo2::SafeFile::write(mKernel.fs, path, newText, len)) {
+        LOG_WARNING("Could not save the activity summary for Streak\n");
+        return;
+    }
+    LOG_INFO("Activity summary for Streak: %lu s, %lu m (%lu bytes)\n", static_cast<unsigned long>(e.durationSec),
+             static_cast<unsigned long>(e.distanceM), static_cast<unsigned long>(len));
 }
 
 void Service::pauseTrack(bool pause)

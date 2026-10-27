@@ -10,6 +10,7 @@
 # L1, L2, R1, R2), ImageMagick's import for frames. Build the simulator first.
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./sim_run.sh <route.gpx> <seconds> [shots-dir]
+# DISCARD=1 discards the activity instead of saving it.
 #   e.g.  ./sim_run.sh sim-wrong-turn.gpx 80
 set -u
 ROUTE=${1:-sim-wrong-turn.gpx}
@@ -49,8 +50,13 @@ snap 02-running
 sleep "$SECS"
 snap 03-after
 key 3 1                                    # R1: action menu (pauses)
-key 2; key 2                               # L2 twice: Save
-hold 3 3                                   # hold R1: save
+if [ "${DISCARD:-0}" = 1 ]; then
+    key 2; key 2; key 2                    # L2 three times: Discard
+    hold 3 3                               # hold R1: discard
+else
+    key 2; key 2                           # L2 twice: Save
+    hold 3 3                               # hold R1: save
+fi
 sleep 3
 snap 04-saved
 

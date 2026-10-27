@@ -34,6 +34,40 @@ namespace {
     const Field kMaxMetSport{5, fit::BaseType::Enum};
     const Field kMaxMetSubSport{6, fit::BaseType::Enum};
 
+    // HybridX Run: the lap and session averages of cadence and step length. Not declared
+    // in the SDK's FitProfile.hpp (it has only the record's), so defined here as the
+    // max_met_data message is. The numbers are from Garmin's FIT profile as generated into
+    // fitdecode 0.11.0's profile.py:
+    //   lap:     avg_cadence 17 (uint8, rpm), avg_fractional_cadence 80 (uint8, scale 128),
+    //            avg_step_length 120 (uint16, scale 10, mm);
+    //   session: avg_cadence 18, avg_fractional_cadence 92, avg_step_length 134 (same types).
+    // Written the way the record's are (strides per minute, split into a whole and a
+    // fractional byte, and the step length as mm x 10) by SDK::FitRecordCadence.
+    const Field kLapAvgCadence{17, fit::BaseType::UInt8};
+    const Field kLapAvgFractionalCadence{80, fit::BaseType::UInt8};
+    const Field kLapAvgStepLength{120, fit::BaseType::UInt16};
+    const Field kSessionAvgCadence{18, fit::BaseType::UInt8};
+    const Field kSessionAvgFractionalCadence{92, fit::BaseType::UInt8};
+    const Field kSessionAvgStepLength{134, fit::BaseType::UInt16};
+
+    /// Append a cadence average (whole and fractional bytes) and a step length average to a
+    /// lap or session; FIT's invalid value for a missing one (0 = none).
+    void addFormAverages(fit::FitWriter::Data& d, float cadenceAvgSpm, float stepLengthAvgM)
+    {
+        if (cadenceAvgSpm > 0.0f) {
+            const auto c = SDK::FitRecordCadence::encodeCadenceSpm(cadenceAvgSpm);
+            d.u8(c.cadence).u8(c.fractionalCadence);
+        } else {
+            d.invalid(fit::BaseType::UInt8);
+            d.invalid(fit::BaseType::UInt8);
+        }
+        if (stepLengthAvgM > 0.0f) {
+            d.u16(SDK::FitRecordCadence::encodeStepLengthM(stepLengthAvgM));
+        } else {
+            d.invalid(fit::BaseType::UInt16);
+        }
+    }
+
     // Native record fields shared by every record variant (HR/cadence/etc.).
     // GPS adds position; battery adds developer fields. Field order here defines
     // the on-wire order and must match the value-write order in addRecord().
@@ -104,6 +138,7 @@ void ActivityWriter::start(const AppInfo& info)
     // HybridX Run: float32 so any reader shows 52.3 with no scale to know.
     writeFieldDescription(DF_VO2MAX, "vo2max", "ml/kg/min", fit::BaseType::Float32);
     writeFieldDescription(DF_VO2MAX_RECENT, "vo2max_recent", "ml/kg/min", fit::BaseType::Float32);
+    writeFieldDescription(DF_DISTANCE_EST, "distance_estimate", "m", fit::BaseType::Float32);
 
     // event
     mFit->defineMessage(L_EVENT, fit::mesgNum(fit::MesgNum::Event),
@@ -121,7 +156,8 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Lap::TotalAscent, fit::field::Lap::TotalDescent,
          fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate,
          fit::field::Lap::WktStepIndex, fit::field::Lap::Intensity,
-         fit::field::Lap::LapTrigger});
+         fit::field::Lap::LapTrigger,
+         kLapAvgCadence, kLapAvgFractionalCadence, kLapAvgStepLength});   // HybridX Run
     mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
         {fit::field::Session::Timestamp, fit::field::Session::StartTime,
          fit::field::Session::TotalElapsedTime, fit::field::Session::TotalTimerTime,
@@ -130,8 +166,9 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Session::TotalAscent, fit::field::Session::TotalDescent,
          fit::field::Session::NumLaps, fit::field::Session::Sport,
          fit::field::Session::SubSport, fit::field::Session::AvgHeartRate,
-         fit::field::Session::MaxHeartRate},
-        {{DF_VO2MAX, 4, 0}, {DF_VO2MAX_RECENT, 4, 0}});   // HybridX Run
+         fit::field::Session::MaxHeartRate,
+         kSessionAvgCadence, kSessionAvgFractionalCadence, kSessionAvgStepLength},   // HybridX Run
+        {{DF_VO2MAX, 4, 0}, {DF_VO2MAX_RECENT, 4, 0}, {DF_DISTANCE_EST, 4, 0}});   // HybridX Run
     mFit->defineMessage(L_MAX_MET, kMesgMaxMetData,
         {kMaxMetUpdateTime, kMaxMetVo2Max, kMaxMetSport, kMaxMetSubSport});
     mFit->defineMessage(L_ACTIVITY, fit::mesgNum(fit::MesgNum::Activity),
@@ -161,9 +198,11 @@ void ActivityWriter::defineRecordMessages()
         {DF_HR_SOURCE, 1, 0}, {DF_HR_OPTICAL, 1, 0}, {DF_HR_EXTERNAL, 1, 0},
     };
 
-    // Plain record (HR/cadence only) + 3 HR developer fields.
+    // Plain record (HR/cadence only) + 3 HR developer fields. HybridX Run: the records
+    // without GPS also carry the distance so far, which a treadmill run has (invalid when
+    // an outdoor second has no fix).
     mFit->defineMessage(L_RECORD, fit::mesgNum(fit::MesgNum::Record),
-        {fit::field::Record::Timestamp,
+        {fit::field::Record::Timestamp, fit::field::Record::Distance,
          kRecordCommonTail[0], kRecordCommonTail[1], kRecordCommonTail[2],
          kRecordCommonTail[3], kRecordCommonTail[4], kRecordCommonTail[5]},
         {hr3[0], hr3[1], hr3[2]});
@@ -178,7 +217,7 @@ void ActivityWriter::defineRecordMessages()
 
     // + battery (5 developer fields).
     mFit->defineMessage(L_RECORD_B, fit::mesgNum(fit::MesgNum::Record),
-        {fit::field::Record::Timestamp,
+        {fit::field::Record::Timestamp, fit::field::Record::Distance,
          kRecordCommonTail[0], kRecordCommonTail[1], kRecordCommonTail[2],
          kRecordCommonTail[3], kRecordCommonTail[4], kRecordCommonTail[5]},
         {batt5[0], batt5[1], batt5[2], batt5[3], batt5[4]});
@@ -245,6 +284,11 @@ void ActivityWriter::addRecord(const RecordData& record)
     if (gps) {
         d.i32(record.has(RecordData::Field::COORDS) ? degreesToSemicircles(record.latitude) : 0)
          .i32(degreesToSemicircles(record.longitude));
+    } else {
+        // distance (100 * m), HybridX Run
+        d.u32(record.has(RecordData::Field::DISTANCE) && record.distance >= 0.0f
+                  ? static_cast<uint32_t>(record.distance * 100.0f + 0.5f)
+                  : static_cast<uint32_t>(fit::baseTypeInvalid(fit::BaseType::UInt32)));
     }
     // enhanced_altitude (5 * m + 500), enhanced_speed (1000 * m/s)
     d.u32(record.has(RecordData::Field::ALTITUDE)
@@ -294,7 +338,8 @@ void ActivityWriter::addLap(const LapData& lap)
     if (!mFit) {
         return;
     }
-    mFit->data(L_LAP)
+    fit::FitWriter::Data lapData = mFit->data(L_LAP);
+    lapData
         .u32(unixToFitTimestamp(lap.timestamp))
         .u32(unixToFitTimestamp(lap.timeStart))
         .u32(static_cast<uint32_t>(lap.elapsed * 1000.0f + 0.5f))
@@ -309,8 +354,9 @@ void ActivityWriter::addLap(const LapData& lap)
         .u8(static_cast<uint8_t>(lap.hrMax))
         .u16(lap.wktStepIndex)
         .u8(static_cast<uint8_t>(lap.intensity))
-        .u8(static_cast<uint8_t>(lap.trigger))
-        .write();
+        .u8(static_cast<uint8_t>(lap.trigger));
+    addFormAverages(lapData, lap.cadenceAvgSpm, lap.stepLengthAvgM);   // HybridX Run
+    lapData.write();
     mLapCounter++;
 
     // Laps are sparse: flush and advance the marker, but only when the flush
@@ -364,9 +410,11 @@ bool ActivityWriter::stop(const TrackData& track)
         .u16(static_cast<uint16_t>(track.descent))
         .u16(mLapCounter)
         .u8(static_cast<uint8_t>(fit::Sport::Running))
-        .u8(static_cast<uint8_t>(fit::SubSport::Generic))
+        .u8(static_cast<uint8_t>(track.treadmill ? fit::SubSport::Treadmill : fit::SubSport::Generic))
         .u8(static_cast<uint8_t>(track.hrAvg))
         .u8(static_cast<uint8_t>(track.hrMax));
+    // HybridX Run: the cadence and step length averages (native fields, before the developer ones).
+    addFormAverages(session, track.cadenceAvgSpm, track.stepLengthAvgM);
     // HybridX Run: the developer fields, at the tail; FIT's invalid value when
     // there is no figure.
     for (const uint16_t x10 : {track.vo2maxX10, track.vo2maxRecentX10}) {
@@ -375,6 +423,11 @@ bool ActivityWriter::stop(const TrackData& track)
         } else {
             session.invalid(fit::BaseType::Float32);
         }
+    }
+    if (track.treadmill && track.distanceEstimateM > 0.0f) {
+        session.f32(track.distanceEstimateM);
+    } else {
+        session.invalid(fit::BaseType::Float32);
     }
     ok = session.write() && ok;
 

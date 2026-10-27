@@ -29,6 +29,8 @@ set(STREAK_SOFTWARE "${CMAKE_CURRENT_LIST_DIR}/../../Software")
 set(STREAK_GUI      "${STREAK_SOFTWARE}/Apps/LVGL-GUI/gui")
 set(STREAK_PROBE    "${CMAKE_CURRENT_LIST_DIR}/../../Tools/Probe/Software/Libs")
 file(GLOB STREAK_CORE_TEST_SOURCES CONFIGURE_DEPENDS "${STREAK_SOFTWARE}/Libs/Core/Sources/*.cpp")
+# Streak's copy of the activity link (the summaries the HybridX apps leave; LinkReader reads them).
+set(STREAK_LINK "${STREAK_SOFTWARE}/Libs/Link")
 # The SDK's FIT encoder and CRC: the reader checks CRCs with the SDK's own
 # function, and the fixtures are written by the SDK's own writer.
 set(SDK_FIT_SOURCES
@@ -51,6 +53,7 @@ add_executable(hybridx-streak-host-tests
     ProbeRunnerTest.cpp
     FitSessionReaderTest.cpp
     ActivityScannerTest.cpp
+    LinkReaderTest.cpp
     StreakModelTest.cpp
     StateCodecTest.cpp
     GlanceLayoutTest.cpp
@@ -58,6 +61,7 @@ add_executable(hybridx-streak-host-tests
     support/TreeFileSystem.cpp
     support/FitFixture.cpp
     ${STREAK_CORE_TEST_SOURCES}
+    "${STREAK_LINK}/Sources/ActivityLink.cpp"
     ${SDK_FIT_SOURCES}
     ${SDK_JSON_SOURCES}
     "${STREAK_GUI}/src/summit/SummitGeometry.cpp"
@@ -66,6 +70,7 @@ add_executable(hybridx-streak-host-tests
 )
 target_include_directories(hybridx-streak-host-tests PRIVATE
     "${STREAK_SOFTWARE}/Libs/Core/Header"
+    "${STREAK_LINK}/Header"
     "${STREAK_GUI}/include"
     "${STREAK_PROBE}/Header"
     "${STREAK_SOFTWARE}/Libs/Glance/Header"
@@ -90,9 +95,11 @@ enable_testing()
 add_test(NAME hybridx-streak-host-tests COMMAND hybridx-streak-host-tests)
 
 # make_state: a saved history for the simulator (walkthrough, shield and summit flows).
-add_executable(make_state tools/make_state.cpp ${STREAK_CORE_TEST_SOURCES} ${SDK_FIT_SOURCES} ${SDK_JSON_SOURCES})
+add_executable(make_state tools/make_state.cpp ${STREAK_CORE_TEST_SOURCES} "${STREAK_LINK}/Sources/ActivityLink.cpp"
+    ${SDK_FIT_SOURCES} ${SDK_JSON_SOURCES})
 target_include_directories(make_state PRIVATE
     "${STREAK_SOFTWARE}/Libs/Core/Header"
+    "${STREAK_LINK}/Header"
     "${UNA_SDK_ROOT}/Libs/Header"
     "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
 )

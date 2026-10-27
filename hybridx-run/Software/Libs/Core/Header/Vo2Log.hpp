@@ -39,6 +39,9 @@ size_t contextLine(std::time_t startUtc, const Profile& profile, char* buf, size
 size_t headerLine(char* buf, size_t cap);
 size_t windowLine(const WindowLog& w, char* buf, size_t cap);
 size_t resultLine(const RunResult& r, const Profile& profile, uint8_t runMaxHr, char* buf, size_t cap);
+/// P3, measured first: what the guards would make of the run, and the shown value with the age
+/// limit (Config::kMaxRunAgeDays). A comment line, after the result line.
+size_t whatIfLine(const RunResult& r, uint16_t shownX10, uint16_t shownWithinX10, char* buf, size_t cap);
 
 }  // namespace RunVo2::Log
 

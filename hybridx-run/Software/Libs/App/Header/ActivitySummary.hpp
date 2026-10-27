@@ -41,6 +41,9 @@ struct ActivitySummary {
     float paceAvg;      ///< Average pace in s/m
     float hrMax;        ///< Maximum Heart Rate in bpm
     float hrAvg;        ///< Average Heart Rate in bpm
+    // HybridX Run: in memory only (summary.json is not changed; see NOTES, R4).
+    uint16_t cadenceAvgSpm   = 0;   ///< Average steps per minute; 0 = none
+    uint16_t stepLengthAvgMm = 0;   ///< Average step length in millimetres; 0 = none
     SDK::TrackMapScreen map; ///< Track map
 
     std::vector<LapSummary> laps; ///< Per-lap summary data

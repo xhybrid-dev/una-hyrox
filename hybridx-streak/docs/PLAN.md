@@ -7,6 +7,13 @@ the watch records, from any app, automatically**. This plan turns Jon's brief
 actually offers. The evidence for every platform claim is in `NOTES.md`,
 §E.1-E.9.
 
+**Update, 27 October 2026.** Gate 0 closed NOT GO (NOTES): Streak cannot read other
+apps' `Activity/` folders on a watch. §3's option B is built as the activity link
+(NOTES, "Activity link"; `hybridx-link/docs/ACTIVITY_LINK.md`): the HybridX apps
+leave summaries in `../SharedData/HybridX/` and Streak counts them. Until UNA gives
+apps a way to see the built-in ones, only the HybridX apps count on a watch. The
+status below is from 25 September and is out of date on Gate 0.
+
 **Status: Phases S0–S4 built, 25 September 2026; waiting on Gates 0, 3 and 4.**
 Jon accepted every §12 recommendation and chose the **Summit climb** look,
 teal and lime, and an encouraging-coach voice (`DESIGN.md`). Built so far:

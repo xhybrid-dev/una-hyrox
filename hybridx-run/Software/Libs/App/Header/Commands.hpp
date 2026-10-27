@@ -14,6 +14,7 @@
 #include "Settings.hpp"
 #include "Track.hpp"
 #include "ActivitySummary.hpp"
+#include "RunStats.hpp"   // HybridX Run: RunVo2::RunStatsResult (plain data)
 
 // Force 4-byte alignment for all message structures
 #pragma pack(push, 4)
@@ -44,6 +45,8 @@ namespace CustomMessage {
     // HybridX Run: our own IDs, after UNA's workout block (0x13-0x18).
     constexpr SDK::MessageType::Type VO2_UPDATE                = 0x00000019;   // HybridX Run
     constexpr SDK::MessageType::Type VO2_PROFILE_SAVE          = 0x0000001A;   // HybridX Run, GUI -> Service
+    constexpr SDK::MessageType::Type RUN_STATS_UPDATE          = 0x0000001B;   // HybridX Run: the run detail page
+    constexpr SDK::MessageType::Type TREADMILL_ASK             = 0x0000001C;   // HybridX Run: the treadmill's distance, please
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -55,6 +58,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type INTERVALS_NEXT_PHASE  = 0x00000011;  ///< R2: next interval phase or workout step
     constexpr SDK::MessageType::Type WORKOUT_DETAILS_REQUEST = 0x00000017;
     constexpr SDK::MessageType::Type WORKOUT_END             = 0x00000018;
+    constexpr SDK::MessageType::Type TREADMILL_DISTANCE      = 0x0000001D;  ///< HybridX Run: the answer to TREADMILL_ASK
 
     // Service <-> GUI
     struct SettingsUpd : public SDK::MessageBase {
@@ -215,10 +219,12 @@ namespace CustomMessage {
         uint8_t  runStatus     = 0;   ///< RunVo2::RunStatus
         uint8_t  profileStatus = 0;   ///< RunVo2::ProfileStatus
         uint16_t runX10        = 0;   ///< this run's estimate x 10; 0 = none
-        uint16_t windowsUsed   = 0;
+        uint16_t windowsUsed   = 0;   ///< steady minutes behind it
+        uint16_t spreadX10     = 0;   ///< how far a typical minute's estimate sat from it, x 10 (P3)
         uint8_t  maxHr         = 0;
         uint8_t  maxSource     = 0;   ///< RunVo2::MaxHrSource
         uint8_t  restHr        = 0;
+        bool     runTreadmill  = false; ///< the run was on a treadmill: no estimate (NOTES, "Treadmill")
 
         // The VO2max page: the last runs, newest first, as local dates.
         struct Row {
@@ -254,6 +260,34 @@ namespace CustomMessage {
         {
             this->info = info;
         }
+    };
+
+    // HybridX Run: the run detail page's numbers (zones, best splits, halves, drift). Sent when a
+    // track starts (all zero), when it is paused and when it is saved.
+    struct RunStatsUpd : public SDK::MessageBase {
+        RunVo2::RunStatsResult stats;
+        RunStatsUpd() : SDK::MessageBase(RUN_STATS_UPDATE), stats{} {}
+
+        explicit RunStatsUpd(const RunVo2::RunStatsResult& stats)
+            : RunStatsUpd()
+        {
+            this->stats = stats;
+        }
+    };
+
+    // HybridX Run: a treadmill run has been stopped and saved up to its session; the service
+    // waits for the distance the treadmill's console shows (NOTES, "Treadmill").
+    struct TreadmillAsk : public SDK::MessageBase {
+        float estimateM = 0.0f;   ///< the distance worked out from cadence
+        TreadmillAsk() : SDK::MessageBase(TREADMILL_ASK) {}
+        explicit TreadmillAsk(float estimateM) : TreadmillAsk() { this->estimateM = estimateM; }
+    };
+
+    // HybridX Run: the answer. 0 keeps the estimate (Skip, or the app closing).
+    struct TreadmillDistance : public SDK::MessageBase {
+        float metres = 0.0f;
+        TreadmillDistance() : SDK::MessageBase(TREADMILL_DISTANCE) {}
+        explicit TreadmillDistance(float metres) : TreadmillDistance() { this->metres = metres; }
     };
 
     // HybridX Run: the athlete's numbers set on the watch (0 = not set /
@@ -495,6 +529,10 @@ namespace CustomMessage {
     constexpr size_t kMaxMessageBytes = 256u;
     static_assert(sizeof(Vo2Upd) <= kMaxMessageBytes, "Vo2Upd exceeds the 256-byte kernel pool block");
     static_assert(sizeof(Vo2ProfileSave) <= kMaxMessageBytes, "Vo2ProfileSave exceeds the 256-byte kernel pool block");
+    static_assert(sizeof(RunStatsUpd) <= kMaxMessageBytes, "RunStatsUpd exceeds the 256-byte kernel pool block");
+    // The live data goes to the GUI as a whole struct every second; the running form fields
+    // (cadence, step length) were added to it (136 bytes of data, 176 with the header on the host).
+    static_assert(sizeof(TrackDataUpd) <= kMaxMessageBytes, "TrackDataUpd exceeds the 256-byte kernel pool block");
 
 
     // The kernel's largest message block is 256 bytes.

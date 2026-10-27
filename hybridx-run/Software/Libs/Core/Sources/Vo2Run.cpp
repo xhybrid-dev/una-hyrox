@@ -35,6 +35,9 @@ void Vo2Run::reset()
     mLogReady     = false;
     mWindowCount  = 0;
     mCounts       = WindowCounts{};
+    mHavePrev      = false;
+    mPrevActiveSec = 0;
+    mPrevSpeedX10  = 0;
 }
 
 void Vo2Run::addSecond(const Sample& s)
@@ -46,7 +49,8 @@ void Vo2Run::addSecond(const Sample& s)
         return;
     }
     uint16_t cost = 0;
-    const WindowOutcome outcome = judge(w, cost);
+    bool     afterChange = false;
+    const WindowOutcome outcome = judge(w, cost, afterChange);
 
     mLog                 = WindowLog{};
     mLog.index           = w.index;
@@ -61,13 +65,15 @@ void Vo2Run::addSecond(const Sample& s)
     mLog.hrMax           = w.hrMax;
     mLog.costX10         = cost;
     mLog.speedScaleX1000 = w.speedScaleX1000;
+    mLog.afterChange     = afterChange;
     mLogReady            = true;
 }
 
 WindowOutcome Vo2Run::addWindow(const WindowRecord& w)
 {
     uint16_t cost = 0;
-    return judge(w, cost);
+    bool     afterChange = false;
+    return judge(w, cost, afterChange);
 }
 
 bool Vo2Run::popWindowLog(WindowLog& out)
@@ -80,12 +86,27 @@ bool Vo2Run::popWindowLog(WindowLog& out)
     return true;
 }
 
-WindowOutcome Vo2Run::judge(const WindowRecord& w, uint16_t& costX10)
+WindowOutcome Vo2Run::judge(const WindowRecord& w, uint16_t& costX10, bool& afterChange)
 {
     costX10 = 0;
     if (w.goodSec > 0) {
         costX10 = static_cast<uint16_t>(std::lround(acsmRunningVo2(w.speedMMinX10, w.gradeX10) * 10.0f));
     }
+
+    // HR lag (P3): was the minute before this one at the same pace, and was it the minute before?
+    // Active seconds do not count a pause, but a pause drops the part-built window, so a window
+    // after one ends more than a minute after the last. (A pause exactly on a window's edge is
+    // not seen.) Every window judged becomes the next one's "before", whatever its outcome.
+    const uint16_t speed = w.goodSec > 0 ? w.speedMMinX10 : 0;
+    afterChange = true;
+    if (mHavePrev && w.activeSec - mPrevActiveSec == Config::kWindowSec && mPrevSpeedX10 > 0 && speed > 0) {
+        const float change = std::fabs(static_cast<float>(speed) - static_cast<float>(mPrevSpeedX10)) * 100.0f /
+                             static_cast<float>(mPrevSpeedX10);
+        afterChange = change > Config::kLagMaxSpeedChangePct;
+    }
+    mHavePrev      = true;
+    mPrevActiveSec = w.activeSec;
+    mPrevSpeedX10  = speed;
 
     if (w.activeSec <= Config::kWarmUpSec) {
         ++mCounts.warmUp;
@@ -108,15 +129,58 @@ WindowOutcome Vo2Run::judge(const WindowRecord& w, uint16_t& costX10)
         ++mCounts.unsteady;
         return WindowOutcome::Unsteady;
     }
+    if (afterChange && Config::kLagGuardEnabled) {
+        ++mCounts.lagged;
+        return WindowOutcome::Lagged;
+    }
     if (mWindowCount >= Config::kMaxWindows) {
         ++mCounts.overflow;
         return WindowOutcome::Overflow;
     }
 
-    mWindows[mWindowCount++] = Window{costX10, w.hrX10};
+    mWindows[mWindowCount++] = Window{costX10, w.hrX10, afterChange};
     ++mCounts.accepted;
+    if (afterChange) {
+        ++mCounts.afterChange;
+    }
     return WindowOutcome::Kept;
 }
+
+bool Vo2Run::windowEstimate(const Window& w, const Profile& profile, RunResult& r, uint16_t& out) const
+{
+    const float rest    = static_cast<float>(profile.restHr);
+    const float reserve = static_cast<float>(profile.maxHr) - rest;
+    const float hr      = w.hrX10 / 10.0f;
+    const float hrr     = (hr - rest) / reserve;
+    if (hrr > 1.0f) {
+        ++r.aboveMax;
+        return false;
+    }
+    if (hrr * 100.0f < Config::kMinHrrPct) {
+        ++r.tooEasy;
+        return false;
+    }
+    const float cost = w.costX10 / 10.0f;
+    const float vo2  = 3.5f + (cost - 3.5f) / hrr;
+    if (vo2 < Config::kMinPlausibleVo2 || vo2 > Config::kMaxPlausibleVo2) {
+        ++r.implausible;
+        return false;
+    }
+    out = static_cast<uint16_t>(std::lround(vo2 * 10.0f));
+    return true;
+}
+
+namespace
+{
+
+/// The median of the first n of @p v, sorting them in place.
+uint16_t medianOf(uint16_t* v, uint16_t n)
+{
+    std::sort(v, v + n);
+    return (n % 2 == 1) ? v[n / 2] : static_cast<uint16_t>((v[n / 2 - 1] + v[n / 2] + 1) / 2);
+}
+
+}  // namespace
 
 RunResult Vo2Run::estimate(const Profile& profile) const
 {
@@ -127,29 +191,23 @@ RunResult Vo2Run::estimate(const Profile& profile) const
         return r;
     }
 
-    // Per-window VO2max x 10, kept only within the intensity and sanity limits.
+    // Per-window VO2max x 10, kept only within the intensity and sanity limits, in run order.
+    // Two arrays of 240: about 1 KB of the service's stack, as before plus the second.
     uint16_t est[Config::kMaxWindows];
+    uint16_t tmp[Config::kMaxWindows];
     uint16_t n = 0;
-    const float rest    = static_cast<float>(profile.restHr);
-    const float reserve = static_cast<float>(profile.maxHr) - rest;
+    uint16_t clean = 0;   // used windows not after a change of pace
     for (uint16_t i = 0; i < mWindowCount; ++i) {
-        const float hr  = mWindows[i].hrX10 / 10.0f;
-        const float hrr = (hr - rest) / reserve;
-        if (hrr > 1.0f) {
-            ++r.aboveMax;
+        uint16_t v = 0;
+        if (!windowEstimate(mWindows[i], profile, r, v)) {
             continue;
         }
-        if (hrr * 100.0f < Config::kMinHrrPct) {
-            ++r.tooEasy;
-            continue;
+        est[n++] = v;
+        if (mWindows[i].afterChange) {
+            ++r.afterChange;
+        } else {
+            tmp[clean++] = v;
         }
-        const float cost = mWindows[i].costX10 / 10.0f;
-        const float vo2  = 3.5f + (cost - 3.5f) / hrr;
-        if (vo2 < Config::kMinPlausibleVo2 || vo2 > Config::kMaxPlausibleVo2) {
-            ++r.implausible;
-            continue;
-        }
-        est[n++] = static_cast<uint16_t>(std::lround(vo2 * 10.0f));
     }
 
     r.windowsUsed = n;
@@ -166,10 +224,24 @@ RunResult Vo2Run::estimate(const Profile& profile) const
         return r;
     }
 
-    std::sort(est, est + n);
-    r.vo2x10 = (n % 2 == 1)
-        ? est[n / 2]
-        : static_cast<uint16_t>((est[n / 2 - 1] + est[n / 2] + 1) / 2);
+    // P3, measured first. Without the windows after a change of pace (tmp holds them in order).
+    if (clean >= Config::kMinWindows) {
+        r.withoutLagX10 = medianOf(tmp, clean);
+    }
+    // The halves of the windows used, in run order (est is still in order here).
+    const uint16_t half = n / 2;
+    if (half >= Config::kMinHalfWindows && n - half >= Config::kMinHalfWindows) {
+        std::copy(est, est + half, tmp);
+        r.firstHalfX10 = medianOf(tmp, half);
+        std::copy(est + half, est + n, tmp);
+        r.secondHalfX10 = medianOf(tmp, static_cast<uint16_t>(n - half));
+    }
+
+    r.vo2x10 = medianOf(est, n);   // sorts est
+    // Half the interquartile range (nearest rank): a typical distance of a window from the middle.
+    const uint16_t q1 = est[n / 4];
+    const uint16_t q3 = est[(3 * n) / 4 < n ? (3 * n) / 4 : n - 1];
+    r.spreadX10 = static_cast<uint16_t>((q3 - q1 + 1) / 2);
     r.status = RunStatus::Ok;
     return r;
 }

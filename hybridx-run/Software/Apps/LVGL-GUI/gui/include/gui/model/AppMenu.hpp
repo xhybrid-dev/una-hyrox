@@ -56,7 +56,8 @@ struct Position {
 
 struct Root {
     // HybridX Run: ID_VO2 added before Settings (the VO2max page, R5).
-    enum Id { ID_START = 0, ID_WORKOUTS, ID_INTERVALS, ID_VO2, ID_SETTINGS,
+    // HybridX Run: ID_TREADMILL (an on/off switch) under Start (NOTES, "Treadmill").
+    enum Id { ID_START = 0, ID_TREADMILL, ID_WORKOUTS, ID_INTERVALS, ID_VO2, ID_SETTINGS,
               ID_COUNT, ID_DEFAULT = ID_START };
 
     // The workout list: a Free run row while a workout is armed, then one
@@ -153,6 +154,7 @@ struct Root {
 struct TrackView {
     enum Id { ID_WORKOUT_GAUGE = 0, ID_WORKOUT_STEP, ID_WORKOUT_NEXT,
               ID_INTERVALS, ID_TRACK1, ID_TRACK2, ID_TRACK3,
+              ID_FORM,   // HybridX Run: cadence and step length (after the lap face in L2 order)
               ID_COUNT, ID_DEFAULT = ID_WORKOUT_GAUGE };
 
     // End workout shows only while a structured workout runs.

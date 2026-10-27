@@ -117,8 +117,17 @@ struct Data {
     // Elevation, m (current altitude from barometer)
     float elevation    = 0.0f;
 
+    // Running form (HybridX Run). 0 = no data: the sensor is stale or invalid, or
+    // the step length is outside the SDK's 0.15-2.50 m gate. Integers, so the
+    // GUI formats them without floats (FormText).
+    uint16_t cadenceSpm      = 0;   ///< steps per minute, now
+    uint16_t stepLengthMm    = 0;   ///< millimetres, now
+    uint16_t cadenceAvgSpm   = 0;   ///< the run's average steps per minute
+    uint16_t stepLengthAvgMm = 0;   ///< the run's average step length, millimetres
+
     bool intervalsMode = false; ///< true when the track was started in intervals mode
     bool workoutMode   = false; ///< true while a structured workout runs; WORKOUT_DATA carries its face
+    bool treadmill     = false; ///< HybridX Run: a treadmill run (speed and distance from cadence, no GPS)
 
     // Interval training (populated only when intervalsMode == true)
     IntervalsData intervals {};

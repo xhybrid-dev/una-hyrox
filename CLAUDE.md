@@ -66,10 +66,36 @@ the watch records, from any app. It is independent of HybridX Race.
     <dir>` (real FIT files from `build-tests/make_fit`), plus
     `build-tests/make_state` for a history. Run the simulator from
     `<dir>/a/b/c/d/e`.
+  - a pretend watch as a real one is, with only the HybridX apps' summaries (no
+    Activity folders): `docs/experiments/sim_fixtures_link.sh <dir>` (see
+    `hybridx-link/docs/ACTIVITY_LINK.md`; `LinkReader` reads them on open);
   - captures:
     - real app: `docs/experiments/capture_real.sh`, `walkthrough_real.sh`;
     - demo: `RECORD=1 capture_screens.sh`, `walkthrough.sh`;
     - glance mock-up: `glance_preview.py build-tests/glance_preview <out.png>`.
+
+## HybridX Activity Link (`hybridx-link/`)
+How our activity apps tell Streak what you did on a real watch, where Streak cannot
+read other apps' `Activity/` folders (Streak NOTES, Gate 0). Each app leaves its last
+16 activities in its own `../SharedData/HybridX/act_<slot>.json`; Streak reads them.
+It is not an app. It counts our own apps only, not UNA's built-in ones. Writers so far:
+Run (`act_run.json`), Race (`act_race.json`) and Trail (`act_trail.json`); the reader is
+Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
+`Service::writeActivityLink` in its own `Service.cpp`, called once the `.fit` has closed.
+- **Docs:** the format, the rules and how to add an app: `hybridx-link/docs/ACTIVITY_LINK.md`.
+  Read it at the start of each link phase (phases 1-4 in its table).
+- **Rules:** the same standing rules as Race apply. One writer per file; the reader opens
+  the fixed names in `kSlotPaths` and never lists the folder.
+- **Layout:** the original is `Software/Libs/Link` (pure, no file I/O). Each app keeps a
+  byte-identical copy in its own `Software/Libs/Link`; `Utilities/check-link-copies.sh`
+  checks it (`--sync` copies the original over), and CI runs it. Change the original,
+  never a copy.
+- **Commands:**
+  - host tests: `cmake -S hybridx-link/Tests/Host -B hybridx-link/build-tests && cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-host-tests`;
+  - the family check (Run, Race and Trail save into one shared folder, then Streak opens
+    twice and must count each once): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
+    (about 3 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
+    `TREADMILL=1` for a treadmill Run; needs the four simulators built).
 
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You
@@ -89,6 +115,11 @@ independent of Race and Streak.
   the phone over the watch's BLE File Transfer Service for release (NOTES,
   "Phone delivery over BLE"). The Android sender is `Tools/RouteSender`
   (plain Java, no Gradle; its README has the test plan).
+- **Activity link:** on each saved run, `Service::writeActivityLink` adds the run to
+  `../SharedData/HybridX/act_trail.json` for Streak (Trail NOTES "Activity link").
+  `Software/Libs/Link` is a **copy** of `hybridx-link`'s code (edit the original, then
+  `hybridx-link/Utilities/check-link-copies.sh --sync`). `docs/experiments/sim_run.sh`
+  takes `DISCARD=1`.
 - **Run link:** Trail leaves its runs' steady minutes in the shared folder for
   HybridX Run's VO2max (NOTES "Run link"; plan in `hybridx-run/docs/VO2_LINK_PLAN.md`).
   `Software/Libs/Vo2Link` holds **copies of Run's window code** (edit Run's, then
@@ -151,13 +182,28 @@ apps.
   - host tests: `cmake -S hybridx-run/Tests/Host -B hybridx-run/build-tests && cmake --build hybridx-run/build-tests && hybridx-run/build-tests/hybridx-run-host-tests`;
   - simulator: `hybridx-run/Software/Apps/LVGL-GUI/simulator`;
   - a run in the simulator: `docs/experiments/sim_run.sh [seconds] [shots]
-    [app_config.json]` (`SEED=1` for a history); the VO2max screens:
+    [app_config.json]` (`SEED=1` for a history; `DISCARD=1` discards; `TREADMILL=1` a treadmill
+    run, with `TREAD_TENTHS`/`TREAD_FINE` for the entry, `TREAD_SKIP=1` or `TREAD_CLOSE=1`); the VO2max screens:
     `docs/experiments/capture_vo2.sh [out-dir]` (into `docs/screens/`);
   - Trail's runs counted by Run (synthetic files): `docs/experiments/sim_trail_ingest.sh`
     (needs the simulator and `build-tests/make_trail_run`);
+  - cadence and step length (live Form face, summary Form face, FIT lap and session averages):
+    `docs/experiments/fit_form_report.py <file.fit>` checks a saved file's averages against its own
+    records (the simulator has a cadence mock, so `sim_run.sh` shows 170 spm);
+  - the run detail faces (zones, best splits, pacing and drift): `docs/experiments/fit_detail_report.py
+    <file.fit> --log <simulator log>` recomputes them from a saved file and compares (it scales the
+    integrated distance to the session total; the simulator's mock speed and distance disagree);
   - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
     log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>` (also shows
     what the raw GPS speed would have given, from the `scale` column).
+- **Treadmill mode** (NOTES "Treadmill"): a main-menu switch; the SDK's cadence-to-stride model
+  (`CadenceStrideModel`, `TreadmillSpeedEstimator`) gives speed and distance, the console's distance
+  is asked for after Save (`TreadmillDistanceScreen`), no VO2max. A treadmill `.fit`:
+  `docs/experiments/fit_treadmill_report.py <file.fit> [--entered M] [--link act_run.json]`.
+- **Activity link:** on each saved run, `Service::writeActivityLink` adds the run to
+  `../SharedData/HybridX/act_run.json` for Streak (`hybridx-link/docs/ACTIVITY_LINK.md`;
+  Run NOTES "Activity link"). `Software/Libs/Link` is a **copy** of `hybridx-link`'s code:
+  edit the original, then `hybridx-link/Utilities/check-link-copies.sh --sync`.
 - **The VO2max glance** (R6): `Software/Apps/HybridXRunGlance-CMake` with
   `Software/Libs/Glance`; it reads the app's `../SharedData/HybridX/vo2max.json`.
   Preview (the simulator cannot run glances):

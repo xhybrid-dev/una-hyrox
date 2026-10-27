@@ -15,6 +15,7 @@
 
 #include "ActivityScanner.hpp"
 #include "AppConfigFields.hpp"
+#include "LinkReader.hpp"
 #include "StateCodec.hpp"
 #include "StreakModel.hpp"
 #include "WeekMath.hpp"
@@ -35,8 +36,10 @@ constexpr size_t      kMaxFound   = Streak::ActivityScanner::kMaxNew;
 // Placed at start-up (see the header): far larger than the service stack.
 alignas(Streak::StreakModel) uint8_t     sModelStorage[sizeof(Streak::StreakModel)];
 alignas(Streak::ActivityScanner) uint8_t sScannerStorage[sizeof(Streak::ActivityScanner)];
+alignas(Streak::LinkReader) uint8_t      sLinkStorage[sizeof(Streak::LinkReader)];
 Streak::StreakModel*     sModel   = nullptr;
 Streak::ActivityScanner* sScanner = nullptr;
+Streak::LinkReader*      sLink    = nullptr;
 Streak::Found            sFound[kMaxFound];
 char                     sScratch[Streak::StateCodec::kMaxBytes];
 } // namespace
@@ -46,6 +49,7 @@ Service::Service(SDK::Kernel& kernel)
 {
     sModel   = new (sModelStorage) Streak::StreakModel();
     sScanner = new (sScannerStorage) Streak::ActivityScanner();
+    sLink    = new (sLinkStorage) Streak::LinkReader();
 }
 
 // -- The clock --------------------------------------------------------------------------
@@ -123,12 +127,18 @@ void Service::open()
     int32_t from = 0, to = 0;
     sModel->scanWindow(n.day, from, to);
     const uint32_t startMs = mKernel.sys.getTimeMs();
-    const size_t   found   = sScanner->scan(mKernel.fs, APP_NAME, from, to, *sModel, sFound, kMaxFound);
+    size_t         found   = sScanner->scan(mKernel.fs, APP_NAME, from, to, *sModel, sFound, kMaxFound);
     const auto&    st      = sScanner->stats();
     LOG_INFO("Scan days %ld..%ld: %u apps, %u new, %u read, %u rejected, %u recording, %u deferred, %lu ms%s\n",
              static_cast<long>(from), static_cast<long>(to), st.apps, st.candidates, st.read, st.rejected, st.recording,
              st.deferred, static_cast<unsigned long>(mKernel.sys.getTimeMs() - startMs),
              st.listed ? "" : " (cannot list ..)");
+
+    // What the HybridX apps left in the shared folder (the only route on a watch).
+    found = sLink->addTo(mKernel.fs, from, to, *sModel, sFound, found, kMaxFound);
+    const auto& ls = sLink->stats();
+    LOG_INFO("Summaries: %u files, %u entries, %u new, %u counted, %u outside, %u invalid, %u deferred\n", ls.files,
+             ls.entries, ls.added, ls.counted, ls.outside, ls.invalid, ls.deferred);
 
     sModel->update(n.day, sFound, found, mMoments);
 

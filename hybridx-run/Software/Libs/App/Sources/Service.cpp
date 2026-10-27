@@ -37,7 +37,9 @@
 // HybridX Run
 #include "AppConfigFields.hpp"
 #include "SafeFile.hpp"
+#include "ActivityLink.hpp"
 #include "Vo2TrailIngest.hpp"
+#include "Treadmill.hpp"
 
 #include "SDK/Calibration/StrideMath.hpp"
 #include "SDK/Workout/StepLabel.hpp"
@@ -73,6 +75,9 @@ constexpr const char* kSharedFile = "../SharedData/HybridX/vo2max.json";
 // A latched HR or speed reading counts for the VO2max windows only while it is
 // this recent (both sensors report once a second).
 constexpr uint32_t kVo2FreshMs = 2500;
+/// A cadence sample older than this is not shown, recorded or averaged (a stalled sensor
+/// must not leave its last value on the screen). The same limit as the VO2max inputs.
+constexpr uint32_t kFormFreshMs = kVo2FreshMs;
 
 } // namespace
 
@@ -106,6 +111,8 @@ Service::Service(SDK::Kernel &kernel)
         , mBatteryVoltage(kernel.sys)
         , mWristTiltDetector()
         , mCalibrator(mKernel.fs)
+        , mTreadModel(mKernel.fs)
+        , mTreadEstimator(mTreadModel)
         , mSchedule(mKernel.fs)
 {
     mTimeCounter.init();
@@ -177,6 +184,11 @@ void Service::run()
                     if (mTrackState != Track::State::INACTIVE) {
                         stopTrack(false);
                     }
+                    // HybridX Run: a treadmill run still waiting for its distance keeps the
+                    // estimate, so its .fit is closed and nothing is lost.
+                    if (mAwaitingDistance) {
+                        finishTreadmill(0.0f);
+                    }
                     // We must release message because this is the last event.
                     mKernel.comm.releaseMessage(msg);
                     return;
@@ -234,6 +246,10 @@ void Service::run()
                 case CustomMessage::WORKOUT_DETAILS_REQUEST:  {
                     LOG_DEBUG("WORKOUT_DETAILS_REQUEST\n");
                     handleEvent(*static_cast<CustomMessage::WorkoutDetailsRequest*>(msg));
+                } break;
+
+                case CustomMessage::TREADMILL_DISTANCE:  {   // HybridX Run
+                    handleEvent(*static_cast<CustomMessage::TreadmillDistance*>(msg));
                 } break;
 
                 case CustomMessage::WORKOUT_END:  {
@@ -336,15 +352,16 @@ void Service::connectSensors()
     // so a subscribe that lost the ~100 ms ack race at track start is retried
     // (pumped from processTrack each tick) instead of dropped for the whole
     // session. Already-connected sensors are skipped, so there is no churn.
+    // HybridX Run: a treadmill run takes no GPS, altitude or grade.
     if (!mSensorBatteryLevel.isConnected())   { mSensorBatteryLevel.connect(); }
     if (!mSensorBatteryMetrics.isConnected()) { mSensorBatteryMetrics.connect(); }
-    if (!mSensorGpsSpeed.isConnected())       { mSensorGpsSpeed.connect(); }
-    if (!mSensorGpsDistance.isConnected())    { mSensorGpsDistance.connect(); }
-    if (!mSensorPressure.isConnected())       { mSensorPressure.connect(); }
+    if (!mTreadmill && !mSensorGpsSpeed.isConnected())    { mSensorGpsSpeed.connect(); }
+    if (!mTreadmill && !mSensorGpsDistance.isConnected()) { mSensorGpsDistance.connect(); }
+    if (!mTreadmill && !mSensorPressure.isConnected())    { mSensorPressure.connect(); }
     if (!mSensorHr.isConnected())             { mSensorHr.connect(); }
     if (!mSensorFusion.isConnected())         { mSensorFusion.connect(); }
     if (!mSensorRunningCadence.isConnected()) { mSensorRunningCadence.connect(); }
-    if (!mSensorGrade.isConnected())          { mSensorGrade.connect(); }
+    if (!mTreadmill && !mSensorGrade.isConnected())       { mSensorGrade.connect(); }
 
     mIsSensorsConnected = true;
 }
@@ -495,6 +512,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
         if (parser.isDataValid()) {
             mRunningCadence.cadenceSpm   = parser.getCadenceSpm();
             mRunningCadence.cadenceValid = parser.isCadenceValid();
+            mCadenceLastMs               = mKernel.sys.getTimeMs();   // HybridX Run: for the freshness test
+            mCadenceSeen                 = true;
         }
     } else if (mSensorFusion.matchesDriver(handle)) {
         static constexpr uint16_t kBatchSize = 10u;
@@ -560,6 +579,13 @@ void Service::onStopGUI()
 {
     mGuiStarted = false;
 
+    // HybridX Run: the app is closing while a treadmill run waits for its distance (the
+    // service then exits without an APP_STOP of its own): keep the estimate, so the .fit is
+    // closed and Streak hears of the run.
+    if (mAwaitingDistance) {
+        finishTreadmill(0.0f);
+    }
+
     requestAccessoryRelease();
     mSensorWristMotion.disconnect();
     mSensorHrMetrics.disconnect();
@@ -571,9 +597,16 @@ void Service::handleEvent(const CustomMessage::TrackStart& event)
     // and the GPS could have already updated the current time.
     mTimeTracker.init();
 
+    // A treadmill run that never got its distance keeps its estimate before a new one starts.
+    if (mAwaitingDistance) {
+        finishTreadmill(0.0f);
+    }
+
     // A workout from the list replaces any armed intervals.
     mWorkoutRequested = event.workout;
     mIntervalsMode    = event.intervalsMode && event.workout == CustomMessage::TrackStart::kNoWorkout;
+    // HybridX Run: the treadmill setting applies to a plain run only, for now (NOTES, "Treadmill").
+    mTreadmill        = mSettings.treadmill && !event.intervalsMode && event.workout == CustomMessage::TrackStart::kNoWorkout;
 
     startTrack(mTimeTracker.getExpectedUTC());
 }
@@ -783,6 +816,14 @@ ActivityWriter::RecordData Service::prepareRecordData()
     // records agree with max_speed. It is still the receiver's 10 s average.
     fitRecord.set(ActivityWriter::RecordData::Field::SPEED, mSpeedFilter.hasCurrentSample());
     fitRecord.speed        = mSpeedFilter.getInstantSpeed();
+    if (mTreadmill) {
+        // HybridX Run: the speed and distance worked out from cadence. The records keep the
+        // estimate; only the session takes the athlete's correction (as the SDK's example).
+        fitRecord.set(ActivityWriter::RecordData::Field::SPEED, mTreadEstimator.speedValid());
+        fitRecord.speed    = mTreadEstimator.speedMps();
+        fitRecord.set(ActivityWriter::RecordData::Field::DISTANCE, true);
+        fitRecord.distance = mDistanceCounter.getValueActive();
+    }
 
     fitRecord.set(ActivityWriter::RecordData::Field::ALTITUDE, mAltitudeCounter.isValid());
     fitRecord.altitude     = mAltitudeCounter.getCurrent();
@@ -807,19 +848,13 @@ ActivityWriter::RecordData Service::prepareRecordData()
     fitRecord.batteryLevel   = static_cast<uint8_t>(mBatterySoc.get());
     fitRecord.batteryVoltage = static_cast<uint16_t>(mBatteryVoltage.get() * 1000);
 
-    fitRecord.set(ActivityWriter::RecordData::Field::CADENCE, mRunningCadence.cadenceValid);
+    // Cadence and step length are worked out once a tick, by updateForm(), so this record,
+    // the screen and the averages all carry the same values: a cadence that is valid and
+    // fresh, and the step length implied by it and the corrected GPS speed.
+    fitRecord.set(ActivityWriter::RecordData::Field::CADENCE, mFormCadenceOk);
     fitRecord.cadenceSpm = mRunningCadence.cadenceSpm;
-
-    // Implied step length is derived SDK-side from GPS speed + cadence (the
-    // kernel no longer emits it). Gated to 0.15-2.50 m, preserving the prior
-    // record.step_length values.
-    const SDK::Calibration::StrideMath::StepLength stepLen =
-        SDK::Calibration::StrideMath::impliedStepLengthM(
-            mSpeedFilter.getInstantSpeed(),
-            mSpeedFilter.hasCurrentSample() && !mGpsDeadReckoning,
-            mRunningCadence.cadenceSpm, mRunningCadence.cadenceValid);
-    fitRecord.set(ActivityWriter::RecordData::Field::STEP_LENGTH, stepLen.valid);
-    fitRecord.stepLengthM = stepLen.meters;
+    fitRecord.set(ActivityWriter::RecordData::Field::STEP_LENGTH, mFormStepOk);
+    fitRecord.stepLengthM = mFormStepM;
 
     return fitRecord;
 }
@@ -834,6 +869,12 @@ void Service::sendInitialInfoToGui()
         if (msg.send(100) && msg.ok()) {
             mIsImperial = msg->imperialUnits;
             mTimeFormat12h = msg->timeFormat;
+
+            // HybridX Run: the height sets a treadmill run's stride before any calibration
+            // (the SDK's model clamps an implausible one). Kept at its default when unset.
+            if (msg->heightCm > 0) {
+                mHeightM = static_cast<float>(msg->heightCm) / 100.0f;
+            }
 
             if (msg->heartRateCount > CustomMessage::kHrThresholdsCount) {
                 msg->heartRateCount = CustomMessage::kHrThresholdsCount;
@@ -886,6 +927,22 @@ void Service::startTrack(std::time_t utc)
     mBatteryVoltage.reset(skBatteryLogPeriodMs);
     mGps.reset();
     mRunningCadence = {};
+    mCadenceSeen    = false;
+    mFormCadenceOk  = false;
+    mFormStepOk     = false;
+    mFormStepM      = 0.0f;
+    mForm.reset();
+    if (!mRunStats) {
+        mRunStats.reset(new (std::nothrow) RunVo2::RunStats());
+        if (!mRunStats) {
+            LOG_WARNING("No memory for the run detail page\n");
+        }
+    }
+    if (mRunStats) {
+        mRunStats->reset(mHrThresholds, CustomMessage::kHrThresholdsCount);
+        mRunStats->setTreadmill(mTreadmill);
+    }
+    sendRunStats();   // a new run: the page starts from nothing
 
     // Outdoor stride calibrator: reset latched inputs and load the stored LUT
     // for this session.
@@ -903,15 +960,32 @@ void Service::startTrack(std::time_t utc)
         mCalibrator.enableTrace("../SharedData/stride_trace.csv");
     }
 
+    // HybridX Run: a treadmill run. The stride model reads the outdoor table and this app's
+    // treadmill correction and fixes its tier for the run; the GPS is let go.
+    mTrackData.treadmill = mTreadmill;
+    mLastTreadUtc        = 0;
+    if (mTreadmill) {
+        mTreadModel.startSession(mHeightM);
+        mTreadEstimator.startSession();
+        mGpsWanted = false;
+        mSensorGpsLocation.disconnect();
+        LOG_INFO("Treadmill run: stride tier %u, height %u cm\n", static_cast<unsigned>(mTreadModel.phase()),
+                 static_cast<unsigned>(mHeightM * 100.0f + 0.5f));
+    }
+
     mSessionNotEmpty = false;
+    mStartUtc = utc;
     mLapNotEmpty = false;
     mLapCarryMs = 0;
 
     // HybridX Run: a fresh VO2max run; the last run's figures leave the screens.
     mVo2Run.reset();
     mVo2Info.hasRun = false;
+    mVo2Info.runTreadmill = false;
     sendVo2Info();
-    openVo2Log(utc);
+    if (!mTreadmill) {
+        openVo2Log(utc);   // no tuning log for a treadmill run: it has no VO2max
+    }
 
     // Intervals mode initialization
     mIntervalsCompleted = false;
@@ -1013,7 +1087,23 @@ void Service::processTrack()
     // The counter is fed from here rather than from the sensor callback so that
     // every statistic derives from the corrected speed, at a uniform 1 Hz. The
     // INSTANT value goes in, not the smoothed one, so a maximum keeps its peak.
-    if (mTrackState == Track::State::ACTIVE) {
+    if (mTreadmill) {
+        // HybridX Run: the speed and distance from cadence, as the SDK's Treadmill example
+        // (its Service::processTrack). Integrated only while active, so a pause halts it.
+        if (mTrackState == Track::State::ACTIVE) {
+            const std::time_t nowUtc = mTimeCounter.getCurrent();
+            const float dt = (mLastTreadUtc == 0) ? 1.0f : static_cast<float>(nowUtc - mLastTreadUtc);
+            mLastTreadUtc  = nowUtc;
+            // The cadence counts only while fresh, as for the Form face (updateForm).
+            const uint32_t nowMs = mKernel.sys.getTimeMs();
+            const bool fresh = mCadenceSeen && static_cast<uint32_t>(nowMs - mCadenceLastMs) <= kFormFreshMs;
+            mTreadEstimator.tick(mRunningCadence.cadenceSpm, fresh && mRunningCadence.cadenceValid, dt);
+            mDistanceCounter.add(mTreadEstimator.distanceM());   // cumulative, monotonic
+            // Every tick: speedMps() is 0 once the hold-forward runs out, which updates only the
+            // current value (below the counter's valid minimum), never the average or maximum.
+            mSpeedCounter.add(mTreadEstimator.speedMps());
+        }
+    } else if (mTrackState == Track::State::ACTIVE) {
         mSpeedFilter.tick(mGpsSpeedMs, mGpsSpeedValid && mGpsSpeedFresh,
                           mGps.latitude, mGps.longitude, mGps.fix && mGpsPosFresh);
         if (mSpeedFilter.hasCurrentSample()) {
@@ -1028,7 +1118,7 @@ void Service::processTrack()
     mGpsSpeedFresh  = false;
     mGpsPosFresh    = false;
     mGpsSpeedPeakMs = 0.0f;
-    mTrackData.speed = mSpeedFilter.getSpeed();
+    mTrackData.speed = mTreadmill ? mTreadEstimator.speedMps() : mSpeedFilter.getSpeed();
 
     mTrackData.avgSpeed    = speedFromTotals(mTrackData.distance, mTrackData.totalTime);
     mTrackData.maxSpeed    = mSpeedCounter.getMaximum();
@@ -1038,7 +1128,7 @@ void Service::processTrack()
 
     // Pace, s/m
     const float kMinSpeed = mSpeedCounter.getMinValid();
-    mTrackData.pace = mSpeedFilter.getPace();
+    mTrackData.pace = mTreadmill ? getPace(mTrackData.speed, kMinSpeed) : mSpeedFilter.getPace();
     mTrackData.avgPace = getPace(mTrackData.avgSpeed, kMinSpeed);
     mTrackData.lapPace = getPace(mTrackData.avgLapSpeed, kMinSpeed);
 
@@ -1054,6 +1144,9 @@ void Service::processTrack()
 
     // Altitude, m
     mTrackData.elevation = mAltitudeCounter.getCurrent();
+
+    // HybridX Run: cadence and step length for this tick (screen, record, averages).
+    updateForm();
 
     // HybridX Run: one second of the VO2max windows (a pause breaks a window).
     feedVo2();
@@ -1073,7 +1166,8 @@ void Service::processTrack()
     if (mTrackState == Track::State::ACTIVE) {
         // Feed the outdoor stride calibrator from the latest latched values,
         // inline at the 1 Hz record-write point and before the FIT write.
-        {
+        // HybridX Run: never from a treadmill run (it learns from GPS speed only).
+        if (!mTreadmill) {
             SDK::Calibration::CalibratorSample cs;
             cs.gps_speed_ms           = mSpeedFilter.getInstantSpeed();
             cs.gps_speed_valid        = mSpeedFilter.hasCurrentSample();
@@ -1211,6 +1305,9 @@ void Service::saveLap(const LapEnd& end, float autoLapDistanceM)
     fitLap.ascent    = mAltitudeCounter.getLapAscent();
     fitLap.descent   = mAltitudeCounter.getLapDescent();
 
+    fitLap.cadenceAvgSpm  = static_cast<float>(mForm.lapCadenceAvgX10()) / 10.0f;
+    fitLap.stepLengthAvgM = static_cast<float>(mForm.lapStepAvgMm()) / 1000.0f;
+
     fitLap.wktStepIndex = end.wktStepIndex;
     fitLap.intensity    = end.intensity;
     fitLap.trigger      = end.trigger;
@@ -1235,6 +1332,7 @@ void Service::saveLap(const LapEnd& end, float autoLapDistanceM)
     mSpeedCounter.resetLap();
     mHrCounter.resetLap();
     mAltitudeCounter.resetLap();
+    mForm.resetLap();
 
     // Clear track data
     mTrackData.lapTime = 0;
@@ -1259,6 +1357,8 @@ void Service::buildPartialSummary()
     mSummary.paceAvg   = getPace(mSummary.speedAvg, mSpeedCounter.getMinValid());
     mSummary.hrMax     = mHrCounter.getMaximum();
     mSummary.hrAvg     = mHrCounter.getAverage();
+    mSummary.cadenceAvgSpm   = static_cast<uint16_t>((mForm.cadenceAvgX10() + 5u) / 10u);
+    mSummary.stepLengthAvgMm = mForm.stepAvgMm();
     mSummary.map       = mTrackMapBuilder.build(skMapMaxPoints);
 }
 
@@ -1294,6 +1394,7 @@ void Service::stopTrack(bool discard)
             LOG_ERROR("Can't save activity summary\n");
         }
         SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
+        sendRunStats();
 
         // Save FIT file
         ActivityWriter::TrackData fitTrack{};
@@ -1318,27 +1419,36 @@ void Service::stopTrack(bool discard)
         fitTrack.ascent    = mAltitudeCounter.getAscent();
         fitTrack.descent   = mAltitudeCounter.getDescent();
 
-        // HybridX Run: this run's VO2max, into the history, onto the summary
-        // and into the FIT file (NOTES, R4).
-        finishVo2(endUtc);
-        fitTrack.vo2maxX10       = mVo2Info.runX10;
-        fitTrack.vo2maxRecentX10 = mVo2Info.rollingX10;
+        fitTrack.cadenceAvgSpm  = static_cast<float>(mForm.cadenceAvgX10()) / 10.0f;
+        fitTrack.stepLengthAvgM = static_cast<float>(mForm.stepAvgMm()) / 1000.0f;
 
-        if (mActivityWriter.stop(fitTrack)) {
-            notifyNewActivity();
-            // A scheduled workout counts as done only once its activity is
-            // saved, and only if completion was reached. started() again
-            // first: if the record could not be saved when the run began,
-            // the one held is still the workout before, and completed()
-            // would mark that one.
-            if (mWorkoutReachedEnd && mWorkoutDate != 0
-                && !(mSchedule.started(mWorkoutDate, mWorkoutFile) && mSchedule.completed())) {
-                LOG_ERROR("Can't save the workout schedule state\n");
+        if (mTreadmill) {
+            // HybridX Run: a treadmill run. No VO2max; the session waits for the distance the
+            // treadmill's console shows (the GUI asks; finishTreadmill() closes the file).
+            fitTrack.treadmill = true;
+            mPendingTrack      = fitTrack;
+            mTreadEstimateM    = fitTrack.distance;
+            const float* hist  = mTreadEstimator.stepHistogram();
+            for (size_t i = 0; i < SDK::Calibration::StrideLut::kBinCount; ++i) {
+                mTreadSteps[i] = hist[i];
             }
+            mAwaitingDistance = true;
+            mVo2Info.hasRun       = true;
+            mVo2Info.runTreadmill = true;
+            mVo2Info.runX10       = 0;
+            mVo2Info.windowsUsed  = 0;
+            mVo2Info.maxHr        = 0;   // nothing about this run's max is shown
+            sendVo2Info();
+            SDK::send_msg<CustomMessage::TreadmillAsk>(mKernel, mTreadEstimateM);
+            LOG_INFO("Treadmill run: waiting for the distance (estimate %lu m)\n",
+                     static_cast<unsigned long>(mTreadEstimateM + 0.5f));
         } else {
-            LOG_ERROR("activity save failed\n");
-            // Do NOT notify: the .fit is left unfinished, so the crash-recovery
-            // marker (if any) stays for the next boot to finalize.
+            // HybridX Run: this run's VO2max, into the history, onto the summary
+            // and into the FIT file (NOTES, R4).
+            finishVo2(endUtc);
+            fitTrack.vo2maxX10       = mVo2Info.runX10;
+            fitTrack.vo2maxRecentX10 = mVo2Info.rollingX10;
+            closeActivity(fitTrack);
         }
     } else {
         mActivityWriter.discard();
@@ -1347,6 +1457,7 @@ void Service::stopTrack(bool discard)
 
     mTrackState  = Track::State::INACTIVE;
     mWorkoutMode = false;
+    mRunStats.reset();   // the last message to the GUI carried its numbers; the 4 KB goes back
     LOG_INFO("Track stopped. UTC: %u\n", static_cast<uint32_t>(mTimeCounter.getEndValue()));
     LOG_INFO("Time: %u / %u s\n", static_cast<uint32_t>(mTimeCounter.getValueActive()), static_cast<uint32_t>(mTimeCounter.getValueTotal()));
     LOG_INFO("Distance: %.3f m\n", mDistanceCounter.getValueActive());
@@ -1369,6 +1480,70 @@ void Service::stopTrack(bool discard)
     disconnect();
 }
 
+bool Service::closeActivity(const ActivityWriter::TrackData& track)
+{
+    if (!mActivityWriter.stop(track)) {
+        LOG_ERROR("activity save failed\n");
+        // Do NOT notify: the .fit is left unfinished, so the crash-recovery
+        // marker (if any) stays for the next boot to finalize.
+        return false;
+    }
+    notifyNewActivity();
+    writeActivityLink(track);   // only for a run whose .fit is safely saved
+    // A scheduled workout counts as done only once its activity is
+    // saved, and only if completion was reached. started() again
+    // first: if the record could not be saved when the run began,
+    // the one held is still the workout before, and completed()
+    // would mark that one.
+    if (mWorkoutReachedEnd && mWorkoutDate != 0
+        && !(mSchedule.started(mWorkoutDate, mWorkoutFile) && mSchedule.completed())) {
+        LOG_ERROR("Can't save the workout schedule state\n");
+    }
+    return true;
+}
+
+// -- HybridX Run: the end of a treadmill run (docs/NOTES.md "Treadmill") -----------------------
+
+void Service::handleEvent(const CustomMessage::TreadmillDistance& event)
+{
+    finishTreadmill(event.metres);
+}
+
+void Service::finishTreadmill(float metres)
+{
+    if (!mAwaitingDistance) {
+        return;
+    }
+    mAwaitingDistance = false;
+
+    // The SDK's model decides the distance for the file: the entry if it passes its sanity
+    // gates, else the estimate (0 = skipped). It learns from the entry only in its top tier.
+    const SDK::Calibration::CadenceStrideModel::CalibrationResult res =
+        mTreadModel.applyPostRunCalibration(mTreadSteps, mTreadEstimateM, metres > 0.0f ? metres : 0.0f);
+    const RunVo2::Treadmill::Totals t = RunVo2::Treadmill::correct(
+        mTreadEstimateM, res.distanceForFitM, static_cast<float>(mPendingTrack.duration), mPendingTrack.speedMax);
+
+    mPendingTrack.distance          = t.distanceM;
+    mPendingTrack.speedAvg          = t.speedAvg;
+    mPendingTrack.speedMax          = t.speedMax;
+    mPendingTrack.distanceEstimateM = mTreadEstimateM;
+
+    // The summary takes the same totals (its laps stay as recorded, as the FIT's do).
+    mSummary.distance = t.distanceM;
+    mSummary.speedAvg = t.speedAvg;
+    mSummary.paceAvg  = getPace(t.speedAvg, mSpeedCounter.getMinValid());
+    if (!mActivitySummarySerializer.save(mSummary)) {
+        LOG_ERROR("Can't save activity summary\n");
+    }
+    SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
+
+    closeActivity(mPendingTrack);
+    LOG_INFO("Treadmill run saved: %lu m (estimate %lu m, entered %lu m, accepted %u, learned %u)\n",
+             static_cast<unsigned long>(t.distanceM + 0.5f), static_cast<unsigned long>(mTreadEstimateM + 0.5f),
+             static_cast<unsigned long>(metres > 0.0f ? metres + 0.5f : 0.0f),
+             res.dActualAccepted ? 1u : 0u, res.deltaLutUpdated ? 1u : 0u);
+}
+
 void Service::pauseTrack(bool pause)
 {
     if (mTrackState == Track::State::INACTIVE) {
@@ -1385,6 +1560,9 @@ void Service::pauseTrack(bool pause)
         mActivityWriter.pause(mTimeCounter.getCurrent());
 
         mCalibrator.pause();   // stop ingesting, reset steady-state counter
+        if (mTreadmill) {
+            mTreadEstimator.pause();   // HybridX Run: halt the integration; speed -> 0
+        }
 
         mTrackState = Track::State::PAUSED;
         LOG_INFO("Track paused. UTC: %u\n", static_cast<uint32_t>(mTimeCounter.getCurrent()));
@@ -1392,6 +1570,7 @@ void Service::pauseTrack(bool pause)
 
         buildPartialSummary();
         SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
+        sendRunStats();
     } else if (!pause && mTrackState == Track::State::PAUSED) {
         mTimeCounter.resume();
         mDistanceCounter.resume();
@@ -1413,6 +1592,10 @@ void Service::pauseTrack(bool pause)
 
         mCalibrator.resume();  // restart steady-state counter from zero
         mLastCalibUtc = 0;     // avoid a spurious cross-pause delta_t
+        if (mTreadmill) {
+            mTreadEstimator.resume();
+            mLastTreadUtc = 0;   // likewise for the treadmill integration
+        }
 
         mTrackState = Track::State::ACTIVE;
         LOG_INFO("Track resumed. UTC: %u\n", static_cast<uint32_t>(mTimeCounter.getCurrent()));
@@ -2137,6 +2320,72 @@ void Service::loadVo2()
              mVo2Input.watchRestHr);
 }
 
+void Service::sendRunStats()
+{
+    RunVo2::RunStatsResult stats;   // all zero when there is no run or no memory for one
+    if (mRunStats) {
+        stats = mRunStats->result();
+    }
+    SDK::send_msg<CustomMessage::RunStatsUpd>(mKernel, stats);
+    if (stats.activeSec > 0) {
+        // Integers only. docs/experiments/fit_detail_report.py --log reads this line back.
+        LOG_INFO("Run detail: %lu s; zones %lu/%lu/%lu/%lu/%lu/%lu s; best %lu/%lu/%lu ms; "
+                 "half pace %u/%u s/km; GAP %u mm/s; drift %u (%d)\n",
+                 static_cast<unsigned long>(stats.activeSec),
+                 static_cast<unsigned long>(stats.zoneSec[0]), static_cast<unsigned long>(stats.zoneSec[1]),
+                 static_cast<unsigned long>(stats.zoneSec[2]), static_cast<unsigned long>(stats.zoneSec[3]),
+                 static_cast<unsigned long>(stats.zoneSec[4]), static_cast<unsigned long>(stats.zoneSec[5]),
+                 static_cast<unsigned long>(stats.bestMs[0]), static_cast<unsigned long>(stats.bestMs[1]),
+                 static_cast<unsigned long>(stats.bestMs[2]),
+                 static_cast<unsigned>(stats.halfPace[0] * 1000.0f + 0.5f), static_cast<unsigned>(stats.halfPace[1] * 1000.0f + 0.5f),
+                 static_cast<unsigned>(stats.gapSpeedMmps), static_cast<unsigned>(stats.driftStatus),
+                 static_cast<int>(stats.driftX10));
+    }
+}
+
+void Service::updateForm()
+{
+    // Unsigned delta: the ms clock wraps. The sensor stamps nothing of its own, so a stalled
+    // one would otherwise leave its last value on the screen and in every record.
+    const uint32_t nowMs = mKernel.sys.getTimeMs();
+    const bool fresh     = mCadenceSeen && static_cast<uint32_t>(nowMs - mCadenceLastMs) <= kFormFreshMs;
+    mFormCadenceOk       = fresh && mRunningCadence.cadenceValid && mRunningCadence.cadenceSpm > 0.0f;
+
+    // Implied step length is derived SDK-side from the corrected GPS speed and the cadence (the
+    // kernel no longer emits it), gated to 0.15-2.50 m.
+    SDK::Calibration::StrideMath::StepLength stepLen =
+        SDK::Calibration::StrideMath::impliedStepLengthM(
+            mSpeedFilter.getInstantSpeed(),
+            mSpeedFilter.hasCurrentSample() && !mGpsDeadReckoning,
+            mRunningCadence.cadenceSpm, mFormCadenceOk);
+    if (mTreadmill) {
+        // HybridX Run: indoors the step is the stride model's (a stride is two steps), as the
+        // SDK's Treadmill example writes it; there is no GPS speed to imply one from.
+        const float step = mFormCadenceOk ? mTreadModel.treadmillStrideLengthM(mRunningCadence.cadenceSpm) / 2.0f
+                                          : 0.0f;
+        stepLen.valid  = step > 0.0f;
+        stepLen.meters = step;
+    }
+    mFormStepOk = mFormCadenceOk && stepLen.valid;
+    mFormStepM  = mFormStepOk ? stepLen.meters : 0.0f;
+
+    RunVo2::FormSecond s;
+    s.cadenceValid = mFormCadenceOk;
+    const float x10 = mRunningCadence.cadenceSpm * 10.0f + 0.5f;
+    s.cadenceX10   = mFormCadenceOk ? static_cast<uint16_t>(x10 > 65535.0f ? 65535.0f : x10) : 0;
+    s.stepValid    = mFormStepOk;
+    s.stepMm       = mFormStepOk ? static_cast<uint16_t>(mFormStepM * 1000.0f + 0.5f) : 0;
+    if (mTrackState == Track::State::ACTIVE) {
+        mForm.addSecond(s);   // a paused second is not counted
+    }
+
+    // For the screen: whole steps per minute and millimetres, 0 = none.
+    mTrackData.cadenceSpm      = static_cast<uint16_t>((s.cadenceX10 + 5u) / 10u);
+    mTrackData.stepLengthMm    = s.stepMm;
+    mTrackData.cadenceAvgSpm   = static_cast<uint16_t>((mForm.cadenceAvgX10() + 5u) / 10u);
+    mTrackData.stepLengthAvgMm = mForm.stepAvgMm();
+}
+
 void Service::feedVo2()
 {
     const uint32_t nowMs = mKernel.sys.getTimeMs();
@@ -2164,7 +2413,24 @@ void Service::feedVo2()
     s.gradeValid    = mGradeData.gradeValid && gradeFresh;   // stale: taken as level
     s.hrBpm         = (hrFresh && hr > 0.0f && hr < 255.0f) ? static_cast<uint8_t>(hr + 0.5f) : 0;
     s.hrTrust       = trust;   // the raw value: the core applies RunLVGL's 1-3 test
+    if (mTreadmill) {
+        // A treadmill run counts towards the detail page only (zones, splits, halves): its
+        // speed is worked out from cadence and its incline is unknown, so it has no VO2max
+        // (Jon, 27 October 2026; NOTES, "Treadmill").
+        s.speedMs       = mTreadEstimator.speedMps();
+        s.speedValid    = mTreadEstimator.speedValid();
+        s.speedScale    = 1.0f;
+        s.deadReckoning = false;
+        s.gradeValid    = false;
+        if (mRunStats) {
+            mRunStats->addSecond(s, mDistanceCounter.getValueActive());
+        }
+        return;
+    }
     mVo2Run.addSecond(s);
+    if (mRunStats) {
+        mRunStats->addSecond(s, mDistanceCounter.getValueActive());   // HybridX Run: the detail page
+    }
 
     // The tuning log: one row per closed window (about once a minute).
     RunVo2::WindowLog w;
@@ -2185,8 +2451,9 @@ void Service::finishVo2(std::time_t endUtc)
     const RunVo2::Profile   profile = RunVo2::resolveProfile(mVo2Input, endUtc);
     const RunVo2::RunResult result  = mVo2Run.estimate(profile);
     const RunVo2::WindowCounts& c   = mVo2Run.counts();
-    LOG_INFO("VO2 windows: %u kept, %u warm-up, %u gaps, %u unsteady, %u grade, %u overflow\n",
-             c.accepted, c.warmUp, c.gaps, c.unsteady, c.grade, c.overflow);
+    LOG_INFO("VO2 windows: %u kept (%u after a change of pace), %u warm-up, %u gaps, %u unsteady, %u grade, "
+             "%u overflow, %u lagged\n",
+             c.accepted, c.afterChange, c.warmUp, c.gaps, c.unsteady, c.grade, c.overflow, c.lagged);
     LOG_INFO("VO2 run: status %u (profile %u), %u (x10) from %u windows (%u too easy, %u above max, %u implausible); "
              "max HR %u (source %u), rest %u, run max %u\n",
              static_cast<unsigned>(result.status), static_cast<unsigned>(result.profileStatus),
@@ -2205,8 +2472,15 @@ void Service::finishVo2(std::time_t endUtc)
     if (result.status == RunVo2::RunStatus::Ok) {
         mVo2History.add(RunVo2::RunRecord{static_cast<uint32_t>(endUtc), result.vo2x10, result.windowsUsed});
     }
+    // P3, measured first: what the guards and the age limit would give. Nothing below uses them.
+    const uint16_t shownWithin = mVo2History.rollingX10Within(static_cast<uint32_t>(endUtc));
+    LOG_INFO("VO2 what-if: without lag %u, halves %u/%u, spread %u (x10); shown %u, %u-day limit %u\n",
+             result.withoutLagX10, result.firstHalfX10, result.secondHalfX10, result.spreadX10,
+             mVo2History.rollingX10(), static_cast<unsigned>(RunVo2::Config::kMaxRunAgeDays), shownWithin);
     if (mVo2LogFile) {
         writeVo2Log(RunVo2::Log::resultLine(result, profile, mVo2Run.sustainedMaxHr(),
+                                            mVo2LogLine, sizeof(mVo2LogLine)));
+        writeVo2Log(RunVo2::Log::whatIfLine(result, mVo2History.rollingX10(), shownWithin,
                                             mVo2LogLine, sizeof(mVo2LogLine)));
         closeVo2Log(false);
     }
@@ -2220,6 +2494,7 @@ void Service::finishVo2(std::time_t endUtc)
     mVo2Info.profileStatus = static_cast<uint8_t>(result.profileStatus);
     mVo2Info.runX10        = result.status == RunVo2::RunStatus::Ok ? result.vo2x10 : 0;
     mVo2Info.windowsUsed   = result.windowsUsed;
+    mVo2Info.spreadX10     = result.status == RunVo2::RunStatus::Ok ? result.spreadX10 : 0;
     mVo2Info.maxHr         = profile.maxHr;
     mVo2Info.maxSource     = static_cast<uint8_t>(profile.maxSource);
     mVo2Info.restHr        = profile.restHr;
@@ -2233,6 +2508,47 @@ void Service::writeSharedVo2()
     if (len == 0 || !mKernel.fs.mkdir(kSharedDir)
         || !RunVo2::SafeFile::write(mKernel.fs, kSharedFile, buf, len)) {
         LOG_WARNING("Could not save the public vo2max.json\n");
+    }
+}
+
+void Service::writeActivityLink(const ActivityWriter::TrackData& track)
+{
+    // The run, in the HybridX activity link's format, for HybridX Streak to count
+    // (hybridx-link/docs/ACTIVITY_LINK.md). Its start is the one the .fit is named
+    // from, so Streak counts it once however it finds it. Nothing here may get in
+    // the way of the save: a failure is a warning.
+    using namespace HybridXLink;
+
+    const std::tm local = mTimeTracker.getLocalTime(mStartUtc);   // as the .fit's name is made
+    const uint32_t startUtc = static_cast<uint32_t>(mStartUtc);
+    const int16_t  tzMin    = tzOffsetMinutes(startUtc, calendarSeconds(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
+                                                                       local.tm_hour, local.tm_min, local.tm_sec));
+    const Entry    e        = makeEntry(startUtc, tzMin, track.duration, track.distance, track.hrAvg, track.hrMax, Sport::Run);
+    if (!valid(e)) {
+        LOG_WARNING("Not telling Streak about this run: its start (%lu) is not valid\n", static_cast<unsigned long>(e.startUtc));
+        return;
+    }
+
+    // Two kMaxBytes buffers (the old file, the new one) on the heap, not the 10 KB stack.
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[2 * kMaxBytes]);
+    if (!buf) {
+        LOG_WARNING("No memory to tell Streak about this run\n");
+        return;
+    }
+    char* const oldText = buf.get();
+    char* const newText = buf.get() + kMaxBytes;
+
+    // The old file: the primary if it reads, else its backup, else none (append starts afresh).
+    const char* path = slotPath(Slot::Run);
+    size_t oldLen    = RunVo2::SafeFile::read(mKernel.fs, path, false, oldText, kMaxBytes);
+    ActivityFile probe;   // about 330 bytes of stack: only to see that the primary reads
+    if (oldLen == 0 || !decode(oldText, oldLen, probe)) {
+        oldLen = RunVo2::SafeFile::read(mKernel.fs, path, true, oldText, kMaxBytes);
+    }
+
+    const size_t len = append(oldLen > 0 ? oldText : nullptr, oldLen, "HybridXRun", e, newText, kMaxBytes);
+    if (len == 0 || !mKernel.fs.mkdir(HybridXLink::kSharedDir) || !RunVo2::SafeFile::write(mKernel.fs, path, newText, len)) {
+        LOG_WARNING("Could not save the activity summary for Streak\n");
     }
 }
 

@@ -57,7 +57,9 @@ void TrackResultScreen::dismissCb(lv_timer_t* t)
     auto* self = static_cast<TrackResultScreen*>(lv_timer_get_user_data(t));
     self->mDismiss = nullptr;   // a one-shot timer deletes itself after this call
     if (self->mResult == Result::Saved) {
-        ScreenManager::instance().goTo(ScreenId::TrackSummary);
+        // HybridX Run: a treadmill run asks for the console's distance first.
+        ScreenManager::instance().goTo(self->mModel.getTrackData().treadmill ? ScreenId::TreadmillDistance
+                                                                            : ScreenId::TrackSummary);
     } else {
         self->mModel.exitApp();
     }

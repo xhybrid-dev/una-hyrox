@@ -19,10 +19,15 @@ set(RUN_CORE_GUI_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/Core/Sources/Vo2Settings.cpp
 )
 
-set(LIBS_SOURCES ${RUN_CORE_SOURCES} ${RUN_APP_SOURCES})
+# Link/ -- the HybridX activity link (the summary Streak reads): a byte-identical
+#          copy of hybridx-link/'s code, kept so by Utilities/check-link-copies.sh.
+file(GLOB RUN_LINK_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/Link/Sources/*.cpp)
+
+set(LIBS_SOURCES ${RUN_CORE_SOURCES} ${RUN_APP_SOURCES} ${RUN_LINK_SOURCES})
 set(LIBS_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/Core/Header
     ${CMAKE_CURRENT_LIST_DIR}/App/Header
+    ${CMAKE_CURRENT_LIST_DIR}/Link/Header
 )
 
 # The glance (HybridXRunGlance-CMake): Glance + the text it formats with.

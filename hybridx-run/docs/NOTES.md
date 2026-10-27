@@ -90,7 +90,7 @@ Pure C++ in `Software/Libs/Core`, no SDK headers, host-tested.
 | Warm-up ignored | 300 s | chosen: HR lag |
 | Slowest pace | 134 m/min (7:28 /km) | ACSM's running-equation range |
 | Speed spread | 8% | chosen |
-| HR range in a window | 10 bpm | chosen |
+| HR range in a window | 12 bpm (10 until L1, 15 October 2026) | chosen |
 | Grade | -3% to +10%; gentle downhill as 0 | ACSM covers level and uphill; limits chosen |
 | Lowest intensity | 50% HRR | chosen |
 | Plausible VO2max | 15-95 | chosen |
@@ -675,3 +675,360 @@ changed here, both in the files Trail copies, so Trail's copies were refreshed
   else the oldest run's.
 - Host tests: **96** (6 new), also under ASan + UBSan. Watch target compile
   check 490,732 B (not for a watch), simulator builds.
+
+## Activity link: Run tells Streak about each saved run (27 October 2026)
+
+Phase 2 of the HybridX activity link (`hybridx-link/docs/ACTIVITY_LINK.md`).
+When a run is saved, Run adds it to `../SharedData/HybridX/act_run.json`, the
+file HybridX Streak reads. Run is its only writer. The Streak side is phase 3,
+so nothing reads it yet.
+
+- **Where**: `Service::writeActivityLink`, called inside the success branch of
+  `if (mActivityWriter.stop(fitTrack))` in `stopTrack`, after
+  `notifyNewActivity()`. So it happens only for a run whose `.fit` closed
+  properly: not on discard, not for an empty session, not when the `.fit` fails
+  to close. Run's `vo2max.json` is written earlier than the `.fit`; this is not.
+- **The start** is the time `startTrack` was given, kept in the new `mStartUtc`
+  (there was no member for it). The activity file is named from the same time, so
+  the file's local start and the summary's agree. `fitTrack.timeStart` is worked
+  out from the counters and could differ by a second.
+- **The entry**: start UTC; the zone offset (from `mTimeTracker.getLocalTime`,
+  turned into minutes by `HybridXLink::tzOffsetMinutes`); the active time as
+  duration; the distance; the average and maximum heart rate; sport Run.
+  `HybridXLink::makeEntry` rounds and bounds the float totals (NaN or negative
+  become 0). An entry that fails `valid()` (a start before 2020, so an unset
+  clock) is not written; the log says why.
+- **The file**: the old file is read with `SafeFile` (the primary if it decodes,
+  else its backup), `HybridXLink::append` adds the run and keeps the newest 16,
+  and `SafeFile::write` saves it. A failure is a warning and never affects the
+  save. Two 1 KB buffers come from the heap (`new (std::nothrow)`) rather than
+  the 10 KB service stack, as Trail's ingest does; the library itself uses about
+  400 bytes of stack.
+- **Code**: `Software/Libs/Link/` is a byte-identical copy of `hybridx-link`'s
+  library (change that, then `hybridx-link/Utilities/check-link-copies.sh
+  --sync`; CI checks). `libs.cmake` adds it to the service. The GUI and the
+  glance do not use it.
+- **Verified**: Run's host tests are unchanged, 118, green. The library's own
+  are 29 (`hybridx-link`), also under ASan + UBSan. Simulator, with
+  `docs/experiments/sim_run.sh` (which now lists `act_run.json`): a 40 s run
+  wrote `{"v":1,"app":"HybridXRun","a":[[1793099301,1440,41,215,144,160,1]]}`,
+  its start the same as the `.fit`'s name and the tuning log's; a second run
+  added an entry, oldest first, with a `.bak` kept; a discarded run left the
+  file byte for byte as it was and wrote no `.fit`. The container's clock is
+  UTC, so the zone is 0 (1440 stored); a non-zero zone is covered by the library
+  tests only. Watch target compile check 494,012 B (not for a watch); glance
+  28,404 B; simulator builds, no new warnings.
+- **Not checked**: anything on a watch. Whether the summary's start matches the
+  `.fit` file's name on a watch is the same code path as the simulator's, but
+  the zone offset is not tried with a real zone until Jon's test.
+
+## P1: cadence and step length, live and saved (27 October 2026)
+
+First phase of the plan for cadence and step length, a run detail page and VO2max
+reliability (the detail page is P2; the VO2max work, which changes nothing in the
+estimate until Jon has compared with his Garmin, is P3). Cadence and step length were
+already in every FIT **record**; P1 puts them on the screen while running, averages them,
+and writes the averages to the FIT lap and session.
+
+- **`FormStats`** (`Core`, pure): fed once per active second; keeps the run's and each lap's
+  average cadence (mean over seconds with a valid cadence) and step length (cadence-weighted:
+  sum(step x cadence) / sum(cadence), which is distance / steps, so it is right when the
+  cadence changes). Integers: cadence in tenths of a step per minute, step length in mm; 0 is
+  no data. **`FormText`** (`Core`, header-only because the GUI links no Libs sources): "172",
+  "1.08", "---".
+- **`Service::updateForm()`**, once per track tick, before the record is made: a cadence is
+  used only if the sensor has reported in the last 2.5 s (`kFormFreshMs`, the VO2max inputs'
+  limit; the sensor has no timestamp, so arrival is stamped in the callback) and is valid;
+  step length is `StrideMath::impliedStepLengthM` from the corrected GPS speed and that
+  cadence (the SDK's 0.15-2.50 m gate). The screen, the FIT record and the averages all take
+  these same values. **A behaviour change for the FIT record**: before, the record's cadence
+  flag was just the sensor's valid bit, so a stalled sensor held its last value in every
+  record; now the record carries none after 2.5 s.
+- **`Track::Data`** gained `cadenceSpm`, `stepLengthMm`, `cadenceAvgSpm`, `stepLengthAvgMm`
+  (integers, 0 = none). `TrackDataUpd` is 176 bytes (136 of data) on the host; a
+  `static_assert` now keeps it inside the kernel's 256-byte message block.
+- **FIT**: the lap and the session each gained three native fields, after the existing ones and
+  before the developer fields (the local-type count is unchanged, still 15 of 16). The numbers
+  are Garmin's profile as fitdecode 0.11.0 generates it, read from its `profile.py`, not from
+  memory: **lap** `avg_cadence` 17 (uint8), `avg_fractional_cadence` 80 (uint8, scale 128),
+  `avg_step_length` 120 (uint16, scale 10, mm); **session** 18, 92 and 134 (same types). They
+  are encoded as the record's are (`SDK::FitRecordCadence`: strides per minute split into a
+  whole and a fractional byte; step length as mm x 10) and are FIT's invalid value when a lap
+  or session had no cadence. **Found**: fitdecode decodes session field 18 as
+  `avg_running_cadence` (strides per minute, a subfield the profile selects when the sport is
+  running; the same field number), so the value 85 is 170 steps per minute.
+- **Screens**: a **FORM** face on the live screen (cadence large, then step length, then the
+  run's averages as "170 spm / 1.71 m"), after the lap face in L2 order in every mode; and a
+  **FORM** summary face (average cadence and step length) after VO2MAX. It is a new
+  `TrackView::ID_FORM` appended to the enum, so no saved face id changes. "---" while there
+  is no valid cadence. Step length is in metres whatever the pace unit (it matches the FIT).
+  `Activity/summary.json` and the `activity_*.json` sidecar are **not** changed (R4's decision
+  stands); the summary's averages live in memory for the screen only.
+- **Memory**: the live screen builds all its faces up front, so the Form face is resident for
+  the whole run. Measured in the simulator (pool 56 KB): the Track screen went from 32,816 B
+  used (peak 68%) to 36,232 B (peak 76-78%), about 3.4 KB. That is under the 80% line set in
+  the plan for building it on demand instead, but it leaves about 12 KB. **If P2 pushes the
+  peak past 80%, build the Form face when shown** (as the summary does). The summary Form face
+  is built on demand like the others (about 9.4 KB while shown).
+- **Simulator**: `IMU_RUNNING_CADENCE_SIM_ENABLE 1` in Run's `ConfigurationSimulator.hpp` (the
+  SDK's mock: a constant 170 steps per minute). Its step length is 1.5-2.4 m at the GPS
+  simulator's 15-25 km/h, beside the 2.50 m gate: it checks the plumbing, not real strides.
+  `sim_run.sh` now photographs the Form faces and prints the pool lines.
+- **`docs/experiments/fit_form_report.py <file.fit>`** (needs `pip install fitdecode`): decodes
+  a saved file and checks that every lap's and the session's average cadence and step length
+  equal what its own records say (cadence within 0.6 spm, step length within 3 mm), and that a
+  lap or session without cadence carries none. A lap ends at the second the next starts, and
+  the record written at that second belongs to the lap that was running (the checker's first
+  version counted it twice and reported 10-14 mm errors that were its own).
+- **Verified**: host tests 131 (13 new: `FormStatsTest`, `FormText`), also under ASan + UBSan.
+  Simulator: a 3-lap run with the laps' step lengths all different (1999, 1601 and 1811 mm):
+  every lap and the session match their records exactly, and the lap record counts add up to
+  the session's (13 + 18 + 20 = 51). With the cadence mock off: the screens read "---", the
+  records carry no cadence and the lap and session averages are absent. The screens were read
+  as round-face screenshots, which caught a clipped "CADENCE" label (fixed). Watch target
+  compile check 496,284 B (+2.3 KB; not for a watch), glance unchanged, Trail's copy check and
+  the link copy check pass.
+- **Not checked**: anything on a watch; how well the wrist's cadence tracks real steps (Run's
+  notes already record optical artefacts, "cadence lock"); that Garmin Connect or Strava show
+  the lap and session averages (Race's findings suggest they build their series from the
+  records; the standard fields are the likeliest to be used, but that is not tested).
+
+## P2: the run detail page (27 October 2026)
+
+Second phase of the plan for cadence and step length, a run detail page and VO2max
+reliability. Everything here is computed from data the run already collects; nothing is
+persisted (the faces show the run just finished, and are gone with the app).
+
+- **`RunStats`** (`Core`, pure, host-tested; allocated on the heap when a track starts and freed
+  when it ends, about 4 KB, so it costs nothing while the app is idle). Fed once per active second by
+  `feedVo2()` with the same `Sample` the VO2max windows take, plus the distance so far. It does **not**
+  touch `Vo2Window*` (Trail byte-copies those; the CI check still passes). It keeps:
+  - **time in zones**, by the watch's own thresholds (the first five of `mHrThresholds`, read as the
+    arc on the lap face reads them: above threshold i is zone i + 1, at or below the first is "below zone 1"),
+    counting only seconds with a good heart rate by the VO2max core's own test;
+  - **best 1 km, 1 mile and 5 km**: a ring of the time each 10 m was crossed (512 entries, 2 KB),
+    each crossing placed inside its second by interpolation; the best is the shortest time between a
+    boundary and the point L metres earlier. It ends on a 10 m boundary, so it can miss the true best
+    by the pace change over under 10 m (the tests: 199.9-201.0 s for a true 200.0 s). A second in which
+    the distance moves by more than 20 m, or backwards, restarts the ring so no split spans a GPS catch-up
+    or a counter reset (earlier bests stand). Pauses are not in the ring's time;
+  - **first and second half of the run**, and **drift**, from 64 cumulative checkpoints thinned by
+    doubling the spacing, so any run length fits and a half is read by interpolation to within the spacing
+    (at most 3% of the run). Drift is aerobic decoupling (Pa:HR, as published by Friel): after the 300 s
+    warm-up, EF = level-equivalent speed (m/min) / average HR for each half, drift = (EF1 - EF2) / EF1.
+    The level speed is the run's grade-adjusted speed, summed as `WindowBuilder` does (uphill only; a host
+    test checks the two agree to 0.001 m/s on a run with invalid, dead-reckoned, slow and paused seconds).
+    It does not depend on the athlete's max HR, which is VO2max's biggest weakness.
+  - **Provisional, for Jon to tune on real runs** (`StatsConfig`): drift needs 1,800 s after the warm-up,
+    a heart rate and a moving speed for 80% of each half's seconds, and halves whose level speeds are within
+    10%; otherwise it says why ("Needs 30+ min", "No steady HR", "Pace not steady"). A checkpoint that falls
+    between two readings smooths a sharp change: drift can be about 0.2 of a percentage point off (the tests
+    show 4.6 for a true 4.8).
+- **Message**: `RunStatsUpd` (id 0x1B, plain data, a `static_assert` keeps it inside the 256-byte block),
+  sent when a track starts (all zero), when it is paused and when it is saved. The summary can be opened
+  while paused, so the faces work from the live numbers. The service logs one integers-only line,
+  "Run detail: ...", whenever it sends.
+- **Summary faces** (each built only while shown, like the others), after FORM: **ZONES** (five bars in
+  the arc's colours with a time each; "Below Z1" underneath), **BEST SPLITS** (1 km, 1 mi, 5 km, and the
+  pace of each half), **PACING** (the uphill-adjusted pace and drift, with the reason when there is none).
+  Three faces, not the plan's two: one crowded the round display. Paces follow the pace unit setting.
+- **LVGL pool: the Form face is now built only while shown** (the plan's fallback). The first measurements
+  (P1) were on a 70 s run, which never reaches the 1 km auto-lap. A run with an auto-lap shows the lap card
+  and then rebuilds the Track screen, and with the Form face built up front that rebuild took the peak to
+  **82%**. Built on demand the Track screen is back to 32.8 KB (it was 36.2 KB) and the peak after a lap
+  is 74%, 78% after the action menu opens. The older 68-71% figures were runs too short for an auto-lap;
+  78% is what a run with a lap reaches without any new face. The summary faces peak at about 12 KB while shown.
+- **`docs/experiments/fit_detail_report.py <file.fit> [--log <sim log>]`** recomputes the zones, best
+  splits and half paces from a saved file by brute force, and compares them with the service's own line.
+  In a 338 s simulator run: zones identical (17/306/4 s), best 1 km 188.1 s against 187.4 s, mile 303.3
+  against 304.9, half paces identical. **The simulator's mock GPS speed and distance disagree by about
+  25%** (its pace readout says 4:02/km where the distance counter works out to 3:12), so the checker scales
+  the file's integrated distance to the session's `total_distance` and prints the scale (1.106 here); the
+  first, unscaled comparison failed for exactly that reason, which is the simulator and not `RunStats`.
+- **Verified**: host tests 163 (32 new: zones, splits, halves, drift, grade-adjusted speed against the
+  builder, the drift text), also under ASan + UBSan. Simulator: a 200-330 s run, the faces read as
+  round-face screenshots (three right-hand labels were moved off the amber arc); a paused-and-saved run and
+  a discarded run (no `.fit`, `act_run.json` unchanged, no errors). Watch target compile check 501,968 B
+  (+5.7 KB over P1; not for a watch), glance unchanged, Trail's and the link copy checks pass.
+- **Not checked**: anything on a watch; drift on a real run (the simulator's run is two minutes of mock
+  data, so the page says "Needs 30+ min"; the drift and decoupling figures have only the unit tests
+  behind them); the real heart-rate zones' thresholds from the kernel (the tests use the defaults).
+
+## P3: VO2max reliability, measured first (27 October 2026)
+
+Third phase of the plan. **The estimate does not change.** Every guard below is worked out on each
+run and written to the tuning log, so Jon can see what it would do; it is switched on (or not) after
+he has compared the app with his Garmin. The existing estimate tests prove it: the 54.4 reference
+and Jon's 14 October run (45.1 from 34 windows) are unchanged.
+
+- **HR-lag guard** (`Vo2Run::judge`). In the minute or two after the pace changes, or after a pause,
+  heart rate has not caught up, so the minute reads as a higher VO2max. Each window is flagged as
+  "after a change" when the window before it was more than 10% off its pace (`kLagMaxSpeedChangePct`,
+  provisional), had no speed, or was not the minute just before. A pause shows as a gap because it
+  drops the part-built window; a pause exactly on a window's edge is not seen. `kLagGuardEnabled`
+  (false, and a `static_assert` in the tests keeps it so until decided) makes flagged windows rejected
+  as `Lagged`, a new outcome appended to the enum (it travels to the GUI as `uint8_t`). While off, a
+  flagged window is used and counted in `WindowCounts::afterChange`.
+- **What it would have changed** (`RunResult`): `withoutLagX10`, the median without the flagged
+  windows; `firstHalfX10` and `secondHalfX10`, the medians of the first and second half of the windows
+  used, in run order (cardiac drift reads the second lower; each half needs 3 windows); `spreadX10`, half
+  the interquartile range of the windows' estimates (how far a typical minute sits from the figure).
+  `estimate()` now uses two arrays of 240 on the service stack (about 1 KB, half of it new).
+- **Jon's 14 October run**: 2 of the 34 minutes followed a change of pace; without them the figure is
+  the same, 45.1; the halves read 45.9 and 44.1 (cardiac drift of about 1.8); spread 1.2. The same
+  figures come from an independent Python reading of the rules (`vo2_log_whatif.py`, which now also
+  prints the lag guard's result and the spread), and a host test pins them.
+- **Trail's runs** carry only the minutes Trail kept, so their windows are often not back to back and
+  many are flagged. That is conservative and only affects `withoutLagX10` while the guard is off; if the
+  guard is switched on it needs thought for Trail runs first.
+- **The shown value's age limit, measured only** (`Vo2History::rollingX10Within`): the shown value
+  counting only runs from the last 42 days (`kMaxRunAgeDays`, provisional). **Not given a switch**:
+  switching it on properly also changes the glance's shared file and the per-run "shown" values the
+  trend is drawn from, and doing half of that would leave the glance and the app disagreeing. Wire it
+  once Jon decides.
+- **Tuning log**: the window line has a new last column, `lag` (0/1), and an outcome `lagged`; after the
+  result line comes `# what-if (not used yet) after_change N, without_lag X, first_half X, second_half X,
+  spread X, shown X, shown_42d X`. `vo2_log_report.py` reads columns by name, so older and newer logs both
+  read; `vo2_log_whatif.py` works the lag flag out itself for logs from before P3.
+- **On the summary's VO2 face** (display only): under "Recent", the steady minutes behind this run's
+  figure and their spread ("34 min, spread 1.2"), and the max HR used and where it came from ("Max HR
+  182 (age)", "(runs)" or "(entered)"). The first version said "34 min steady, spread 1.2" and clipped at
+  the worst case on the round face (checked in the simulator with the longest values forced for one
+  screenshot): shortened. `Vo2Info` carries `spreadX10`.
+- **Verified**: host tests 175 (12 new, plus the log tests and Jon's run extended), also under ASan +
+  UBSan. Simulator: a saved run's tuning log and service log carry the new lines; the VO2 face with its
+  new lines (worst case forced, then reverted). Watch target compile check 503,408 B (not for a watch),
+  glance unchanged, Trail's and the link copy checks pass (none of the copied files changed).
+- **For Jon to decide, after the Garmin comparison**: switch on the lag guard (and what to do for Trail
+  runs); the age limit, and how long; whether the drift between halves should limit which minutes count.
+  Each tuning log now says, per run, what each would have done.
+
+
+## Treadmill: a treadmill mode that counts towards Streak (27 October 2026)
+
+Jon asked for treadmill runs to be recorded in Run and counted by HybridX Streak; Hike is
+left for later. His decisions:
+- **No VO2max from a treadmill run.** Its speed is worked out from cadence and its
+  incline is unknown, so it never moves the estimate, the history or the glance.
+- **The console's distance is asked for after every run, and can be skipped.**
+- **Plain runs only for now.** Workouts and intervals indoors are a later phase.
+
+**The method is the SDK's**, as in its Treadmill example (`una-sdk/Examples/Apps/Treadmill`,
+the base of UNA's Treadmill app), not ours:
+- `SDK::Calibration::CadenceStrideModel` turns cadence into stride length. It reads the
+  shared outdoor stride table `../SharedData/stride.json`, which Run's outdoor runs
+  already teach through `OutdoorStrideCalibrator`.
+- It keeps a treadmill correction table, `treadmill_delta.json`, in Run's own folder. UNA's
+  own Treadmill app learns in its folder, so the two apps learn separately.
+- **Tiers.** The tier is fixed at the start of each run:
+  1. not enough outdoor data: a stride from the UNA profile's height;
+  2. stride from the outdoor table;
+  3. outdoor table plus the learned treadmill correction.
+- **Learning.** The correction learns from an entered distance only in tier 3 and only on a
+  run of 2 km or more (the SDK's `kDeltaLearnMinDistanceM`).
+- `TreadmillSpeedEstimator` integrates speed and distance at 1 Hz. It holds the last speed
+  for 5 s when the cadence drops out.
+
+**What changed:**
+- **The switch.**
+  - The main menu has a **Treadmill** on/off switch under Start, saved in `settings.json`
+    (`"treadmill"`, absent = off).
+  - On, Start's hint reads "Treadmill", and Start needs no GPS fix. An armed workout
+    waits, and intervals ignore the switch.
+  - The GPS icon shows absent, on the main menu and on the live status face.
+- **The service** (`Service.cpp`; `mTreadmill` is latched at the start):
+  - **Sensors.** No GPS speed, distance, pressure or grade, and the GPS is let go. The
+    distance and speed counters are fed from the estimator, with the cadence counting only
+    while fresh, as for the Form face. Pause and resume halt and restart the integration.
+  - **Step length** (Form face and records) is the model's stride ÷ 2.
+  - **Not fed:** `OutdoorStrideCalibrator`, which must learn from GPS only.
+  - **VO2max and the detail page.** No VO2max, no window log and no tuning log. The detail
+    page still counts zones, best splits and halves. Drift is not given (new
+    `DriftStatus::Treadmill`: "Not on treadmill"), because indoors the speed comes from the
+    cadence, so speed per heartbeat cannot drift independently.
+- **After Save:**
+  - **Held back.** The lap and summary are saved, but the session is held
+    (`mPendingTrack`), and `TREADMILL_ASK` (0x1C) sends the estimate to the GUI.
+  - **The distance screen** (`TreadmillDistanceScreen`, after "Saved") offers the estimate
+    in km or miles to two decimals. L1 and L2 step by 0.10; R1 moves on to 0.01; R1 saves;
+    R2 on the first stage keeps the estimate.
+  - **Bounded entries.** The picker stops at the band the SDK's model accepts (0.5× to 2×
+    the estimate, `kDActualRatioMin`/`Max`), so no entry is silently dropped. It was first
+    built without the band: an entry of 2.1× was rejected and the estimate kept, without a
+    word.
+  - **Finishing.** `TREADMILL_DISTANCE` (0x1D) answers, and `finishTreadmill()` takes it to
+    `applyPostRunCalibration`. `RunVo2::Treadmill::correct` then sets the session: the
+    distance as decided, average speed = distance ÷ timer time, and maximum × k. The summary
+    is re-saved, the `.fit` is closed, and Streak is told with the corrected distance.
+  - **Records and laps keep the estimate**, as the SDK's example does (the usual
+    convention).
+- **The app closing on that screen keeps the estimate.** This covers both the
+  `COMMAND_APP_STOP` path and the GUI stopping on its own. **Found in the simulator:** the
+  GUI exiting sends the service only "GUI stopped", and it then exits without an APP_STOP.
+  The run was left unfinished (crash recovery would have closed it at the next open, but
+  Streak would never have heard). `onStopGUI` now finishes it.
+- **FIT:**
+  - session `sub_sport` treadmill (1, the SDK's `fit::SubSport::Treadmill`);
+  - a session developer field `distance_estimate` (9, float32 m), invalid outdoors;
+  - the records without GPS now also carry `distance` (field 5, `uint32` × 100, as
+    fitdecode's profile and the SDK's `FitProfile.hpp` give it). It is invalid outdoors,
+    when a second has no fix.
+- **Activity link:** unchanged. A treadmill run is a Run (sport 1) in `act_run.json`, with
+  the corrected distance, so Streak counts it with no change.
+- **The summary:**
+  - the map face says "No map on a treadmill" under the title TREADMILL;
+  - the VO2 face says "Not on treadmill" (the recent figure below is still the outdoor
+    runs');
+  - the pacing face shows no adjusted pace.
+- **Code:**
+  - `Core/Header/Treadmill.hpp` (header-only, as the GUI uses it): `correct`, the entry's
+    hundredths, `range` and `text`;
+  - `RunStats::setTreadmill`;
+  - `Settings::treadmill`;
+  - `Track::Data::treadmill`;
+  - `Vo2Info::runTreadmill`;
+  - `ActivityWriter`'s `TrackData::treadmill` and `distanceEstimateM`, and
+    `RecordData::DISTANCE`.
+
+### Treadmill verified
+- Host tests: **183** (8 new: `TreadmillTest`, and the treadmill drift case), also under
+  ASan and UBSan. `SettingsSerializer` has no host test (it uses the SDK's file classes, as
+  before).
+- **Simulator** (`sim_run.sh` with `TREADMILL=1`; the cadence mock gives 170 spm; tier 1,
+  170 cm, 1.14 m steps):
+  - **Corrected:** estimate 314 m, entry 620 m (the 2× limit), accepted. The FIT's session
+    has 620 m with treadmill as its sub-sport, `distance_estimate` 313.7 m, and records
+    running from 0 to 313.7 m with no position. `act_run.json` holds 620 m, sport 1.
+  - **Skipped:** the estimate (217 m) kept everywhere.
+  - **App closed on the distance screen** (`TREAD_CLOSE=1`): the estimate kept, and the file
+    finished and read.
+  - **Discard** (`DISCARD=1`): no `.fit`, and `act_run.json` byte for byte unchanged.
+  - **Outdoor run unchanged:** sub-sport generic, no estimate field, the VO2 path run, and
+    the cadence averages match the records (`fit_form_report.py`).
+  - All checked by `docs/experiments/fit_treadmill_report.py`.
+- **Screens checked by eye** (round-face captures):
+  - the switch, and Start with its hint;
+  - the distance screen in both stages;
+  - the summary's map, VO2 and pacing faces;
+  - the live Form face (170 spm, 1.14 m).
+  Two layout faults were found and fixed: the switch's text was clipped in the 30 px face,
+  and the hint overlapped the title.
+- LVGL pool peak 78%.
+- **The family check with `TREADMILL=1`:** every check passed. Streak counted Run's
+  treadmill run as a Run, once.
+- **Builds:** the watch target compiles (511,420 B, compile check only) and so does the
+  glance. Trail's Vo2Link copies and the activity-link copies are unchanged.
+- **Not checked:** anything on a watch. Above all, how well wrist cadence works on a
+  treadmill (holding the rails will undercount), and how close tiers 2 and 3 come to the
+  console.
+
+### For Jon on the watch
+1. Run outdoors a few times first if Run is new to the watch: the outdoor table is what
+   lifts the treadmill out of tier 1. The service log line "Treadmill run: stride tier N"
+   says which tier a run used.
+2. Turn **Treadmill** on, then run 15 to 30 minutes at a steady speed without holding the
+   rails. Save, and enter the console's distance.
+3. Do a second run: its estimate should land nearer the console (learning needs tier 3
+   and 2 km or more).
+4. Open Streak and look for "+1 Run". In Strava or Garmin Connect, the run should show as
+   a treadmill run with the corrected distance.

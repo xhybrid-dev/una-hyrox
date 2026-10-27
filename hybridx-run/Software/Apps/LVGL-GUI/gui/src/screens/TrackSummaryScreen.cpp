@@ -12,6 +12,8 @@
 #include "gui/Format.hpp"
 #include "gui/Strings.hpp"
 
+#include "FormText.hpp"   // HybridX Run
+#include "RunStatsText.hpp"   // HybridX Run
 #include "Vo2Text.hpp"   // HybridX Run
 
 using namespace SDK::GUI;
@@ -45,7 +47,18 @@ void TrackSummaryScreen::destroyFace()
 
     mMapDistance = mMapUnits = mOverviewDistance = mOverviewUnits = mAvgPace = mTimer = nullptr;
     mMaxHr = mAvgHr = nullptr;
-    mVo2Run = mVo2RunLabel = mVo2RecentLabel = nullptr;
+    mVo2Run = mVo2RunLabel = mVo2RecentLabel = mVo2Confidence = mVo2MaxHr = nullptr;
+    mFormCadence = mFormStep = nullptr;
+    for (auto& o : mZoneBar) {
+        o = nullptr;
+    }
+    for (auto& o : mZoneTime) {
+        o = nullptr;
+    }
+    mZoneBelow = nullptr;
+    mBestTime[0] = mBestTime[1] = mBestTime[2] = nullptr;
+    mHalfPace[0] = mHalfPace[1] = nullptr;
+    mGapPace = mDrift = mDriftNote = nullptr;
     mLapsCount = mLapsTotal = nullptr;
     for (auto& row : mLapRows) {
         for (auto& cell : row) {
@@ -62,6 +75,10 @@ void TrackSummaryScreen::buildFace(uint8_t face)
         case FACE_OVERVIEW:  buildFaceOverview(); break;
         case FACE_HEARTRATE: buildFaceHeartRate(); break;
         case FACE_VO2:       buildFaceVo2(); break;
+        case FACE_FORM:      buildFaceForm(); break;
+        case FACE_ZONES:     buildFaceZones(); break;
+        case FACE_SPLITS:    buildFaceSplits(); break;
+        case FACE_PACING:    buildFacePacing(); break;
         case FACE_LAPS:      buildFaceLaps(); break;
         default:             return;
     }
@@ -77,6 +94,12 @@ void TrackSummaryScreen::buildFaceMap()
     mMapUnits    = Theme::label(f, F::Medium18, Strings::kKm, 178, 73, 45, LV_TEXT_ALIGN_LEFT);
     mMapDistance = Theme::label(f, F::SemiBold40, Strings::kNoValue, 60, 51, 120);
     Theme::image(f, &img_runningman_30x30, 33, 62);
+    if (mModel.getTrackData().treadmill) {
+        // HybridX Run: a treadmill run has no route to draw.
+        Theme::label(f, F::Medium18, "No map on a\ntreadmill", 45, 120, 150, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+        mTitle = std::make_unique<Widgets::Title>(f, "TREADMILL");
+        return;
+    }
     mMap = std::make_unique<Widgets::Map>(f, 45, 90);
     mTitle = std::make_unique<Widgets::Title>(f, "MAP");
 }
@@ -118,8 +141,85 @@ void TrackSummaryScreen::buildFaceVo2()
     mVo2Run      = Theme::label(f, F::SemiBold40, Strings::kNoValue, 70, 77, 100);
     mVo2RunLabel = Theme::label(f, F::SemiBold20, "THIS RUN", 20, 118, 200);
     Theme::hline(f, 25, 147, 190);
-    mVo2RecentLabel = Theme::label(f, F::Medium18, "", 20, 165, 200);
+    mVo2RecentLabel = Theme::label(f, F::Medium18, "", 20, 160, 200);
+    // P3: how much to trust this run's figure. Narrower lower down: the round face's chord is
+    // about 150 px at the second line's foot.
+    mVo2Confidence = Theme::label(f, F::Regular14, "", 30, 184, 180, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    mVo2MaxHr      = Theme::label(f, F::Regular14, "", 45, 200, 150, LV_TEXT_ALIGN_CENTER, Color::GRAY);
     mTitle = std::make_unique<Widgets::Title>(f, "VO2MAX");
+}
+
+// HybridX Run: the run's average cadence and step length, laid out as the heart rate face.
+void TrackSummaryScreen::buildFaceForm()
+{
+    lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
+    Theme::label(f, F::SemiBold20, "CADENCE", 60, 118, 120);   // wider than "MAX HR"'s box: "CADENCE" is clipped by 78 px
+    mFormCadence = Theme::label(f, F::SemiBold40, Strings::kNoValue, 70, 77, 100);
+    Theme::label(f, F::Regular18, RunVo2::FormText::kCadenceUnit, 172, 99, 45, LV_TEXT_ALIGN_LEFT);
+    Theme::hline(f, 25, 147, 190);
+    Theme::label(f, F::SemiBold20, "STEP LENGTH", 50, 191, 140);
+    mFormStep = Theme::label(f, F::SemiBold40, Strings::kNoValue, 70, 150, 100);
+    Theme::label(f, F::Regular18, RunVo2::FormText::kStepUnit, 172, 172, 45, LV_TEXT_ALIGN_LEFT);
+    mTitle = std::make_unique<Widgets::Title>(f, "FORM");
+}
+
+namespace
+{
+// The zone colours of the heart-rate arc on the lap face (Widgets.cpp), zone 1 to 5.
+constexpr uint32_t kZoneColour[5] = {
+    SDK::GUI::Color::GRAY, SDK::GUI::Color::CHARTREUSE, SDK::GUI::Color::YELLOW,
+    SDK::GUI::Color::YELLOW_DARK, SDK::GUI::Color::RED,
+};
+constexpr int32_t kZoneBarX   = 66;
+constexpr int32_t kZoneBarMax = 86;   // the widest bar, in pixels
+}  // namespace
+
+// HybridX Run: time in the watch's heart-rate zones, a bar and a time each. Inside the round
+// face: rows from y 44 to 188, x 30 to 210 (the chord is 188 px wide at the bottom row).
+void TrackSummaryScreen::buildFaceZones()
+{
+    lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
+    for (uint8_t i = 0; i < kZoneRows; ++i) {
+        const int32_t y = 44 + i * 30;
+        char name[4];
+        snprintf(name, sizeof(name), "Z%u", static_cast<unsigned>(i + 1));
+        Theme::label(f, F::Medium18, name, 28, y, 34, LV_TEXT_ALIGN_LEFT, kZoneColour[i]);
+        mZoneBar[i]  = Theme::box(f, kZoneBarX, y + 4, 4, 16, kZoneColour[i], 3);
+        mZoneTime[i] = Theme::label(f, F::Regular16, "", 144, y + 2, 58, LV_TEXT_ALIGN_RIGHT);   // ends short of the amber arc
+    }
+    mZoneBelow = Theme::label(f, F::Regular14, "", 20, 192, 200, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    mTitle = std::make_unique<Widgets::Title>(f, "ZONES");
+}
+
+// HybridX Run: the fastest 1 km, 1 mile and 5 km of the run, and the pace of each half.
+void TrackSummaryScreen::buildFaceSplits()
+{
+    lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
+    static const char* const kLabel[3] = {"1 km", "1 mi", "5 km"};
+    for (uint8_t i = 0; i < 3; ++i) {
+        const int32_t y = 46 + i * 34;
+        Theme::label(f, F::Medium18, kLabel[i], 40, y + 5, 60, LV_TEXT_ALIGN_LEFT);
+        mBestTime[i] = Theme::label(f, F::SemiBold25, Strings::kNoValue, 96, y, 100, LV_TEXT_ALIGN_RIGHT);
+    }
+    Theme::hline(f, 35, 150, 170);
+    Theme::label(f, F::Regular14, "HALF PACE", 20, 156, 200, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    mHalfPace[0] = Theme::label(f, F::SemiBold20, Strings::kNoValue, 28, 176, 88);
+    mHalfPace[1] = Theme::label(f, F::SemiBold20, Strings::kNoValue, 124, 176, 88);
+    Theme::vline(f, 119, 172, 28);
+    mTitle = std::make_unique<Widgets::Title>(f, "BEST SPLITS");
+}
+
+// HybridX Run: the run's grade-adjusted pace, and the drift of heart rate against pace.
+void TrackSummaryScreen::buildFacePacing()
+{
+    lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
+    Theme::label(f, F::Regular14, "ADJUSTED PACE", 20, 46, 190, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    mGapPace = Theme::label(f, F::SemiBold35, Strings::kNoValue, 40, 62, 160);
+    Theme::hline(f, 35, 108, 170);
+    Theme::label(f, F::Regular14, "DRIFT", 20, 116, 200, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    mDrift     = Theme::label(f, F::SemiBold35, Strings::kNoValue, 40, 132, 160);
+    mDriftNote = Theme::label(f, F::Regular16, "", 20, 178, 200);
+    mTitle = std::make_unique<Widgets::Title>(f, "PACING");
 }
 
 void TrackSummaryScreen::buildFaceLaps()
@@ -175,6 +275,13 @@ void TrackSummaryScreen::onActivitySummary(const ActivitySummary& summary)
     updateIndicator();     // ...and the indicator with it
 }
 
+void TrackSummaryScreen::onRunStats(const RunVo2::RunStatsResult& /*stats*/)
+{
+    if (mFaceId == FACE_ZONES || mFaceId == FACE_SPLITS || mFaceId == FACE_PACING) {
+        fillFace();
+    }
+}
+
 void TrackSummaryScreen::onVo2Info(const CustomMessage::Vo2Info& /*info*/)
 {
     if (mFaceId == FACE_VO2) {
@@ -201,7 +308,13 @@ void TrackSummaryScreen::fillFace()
     if (mFaceId == FACE_VO2) {   // HybridX Run
         const CustomMessage::Vo2Info& info = mModel.getVo2Info();
         char v[8];
-        if (!info.hasRun) {
+        if (mModel.getTrackData().treadmill) {
+            // HybridX Run: no VO2max from a treadmill run (NOTES, "Treadmill"); the recent
+            // figure below is still the outdoor runs'.
+            lv_label_set_text(mVo2Run, Strings::kNoValue);
+            lv_label_set_text(mVo2RunLabel, "Not on treadmill");
+            lv_obj_set_style_text_font(mVo2RunLabel, Theme::font(F::Regular16), 0);
+        } else if (!info.hasRun) {
             // Paused: the estimate is made when the run is saved.
             lv_label_set_text(mVo2Run, Strings::kNoValue);
             lv_label_set_text(mVo2RunLabel, "After saving");
@@ -214,6 +327,25 @@ void TrackSummaryScreen::fillFace()
             lv_label_set_text(mVo2RunLabel, why[0] ? why : "THIS RUN");
             lv_obj_set_style_text_font(mVo2RunLabel, Theme::font(why[0] ? F::Regular16 : F::SemiBold20), 0);
         }
+        // P3: the steady minutes behind this run's figure and how far they spread, and the max HR.
+        if (!info.hasRun || info.runX10 == 0) {
+            lv_label_set_text(mVo2Confidence, "");
+        } else {
+            char sp[8];
+            // Short: the worst case, "240 min, spread 99.9", is about 145 px (checked in the simulator).
+            lv_label_set_text_fmt(mVo2Confidence, "%u min, spread %s", static_cast<unsigned>(info.windowsUsed),
+                                  RunVo2::Text::formatX10(info.spreadX10, sp, sizeof(sp)));
+        }
+        if (!info.hasRun || info.maxHr == 0) {
+            lv_label_set_text(mVo2MaxHr, "");
+        } else {
+            const char* src = RunVo2::Text::maxSourceLabel(static_cast<RunVo2::MaxHrSource>(info.maxSource));
+            if (src[0]) {
+                lv_label_set_text_fmt(mVo2MaxHr, "Max HR %u (%s)", static_cast<unsigned>(info.maxHr), src);
+            } else {
+                lv_label_set_text_fmt(mVo2MaxHr, "Max HR %u", static_cast<unsigned>(info.maxHr));
+            }
+        }
         if (info.rollingX10 == 0) {
             lv_label_set_text(mVo2RecentLabel, "");
         } else {
@@ -222,6 +354,11 @@ void TrackSummaryScreen::fillFace()
                                   RunVo2::Text::formatX10(info.rollingX10, v, sizeof(v)), runs,
                                   runs == 1 ? "run" : "runs");
         }
+        return;
+    }
+
+    if (mFaceId == FACE_ZONES || mFaceId == FACE_SPLITS || mFaceId == FACE_PACING) {   // HybridX Run
+        fillDetail();
         return;
     }
 
@@ -237,7 +374,9 @@ void TrackSummaryScreen::fillFace()
             if (mFaceId == FACE_MAP) {
                 lv_label_set_text(mMapDistance, buf);
                 lv_label_set_text(mMapUnits, Fmt::units(mIsImperial));
-                mMap->setMap(s.map);
+                if (mMap) {
+                    mMap->setMap(s.map);
+                }
             } else {
                 lv_label_set_text(mOverviewDistance, buf);
                 lv_label_set_text(mOverviewUnits, Fmt::units(mIsImperial));
@@ -253,6 +392,13 @@ void TrackSummaryScreen::fillFace()
             lv_label_set_text(mMaxHr, buf);
             Fmt::heartRate(buf, sizeof(buf), s.hrAvg);
             lv_label_set_text(mAvgHr, buf);
+            break;
+
+        case FACE_FORM:
+            RunVo2::FormText::cadence(buf, sizeof(buf), static_cast<uint16_t>(s.cadenceAvgSpm * 10u));
+            lv_label_set_text(mFormCadence, buf);
+            RunVo2::FormText::stepLength(buf, sizeof(buf), s.stepLengthAvgMm);
+            lv_label_set_text(mFormStep, buf);
             break;
 
         case FACE_LAPS: {
@@ -271,6 +417,78 @@ void TrackSummaryScreen::fillFace()
         default:
             break;
     }
+}
+
+// HybridX Run: the run detail faces, from the service's RunStatsUpd (sent at pause and at save).
+void TrackSummaryScreen::fillDetail()
+{
+    const RunVo2::RunStatsResult& r = mModel.getRunStats();
+    char buf[24];
+
+    if (mFaceId == FACE_ZONES) {
+        uint32_t most = 0;
+        for (uint8_t i = 1; i <= kZoneRows; ++i) {
+            most = r.zoneSec[i] > most ? r.zoneSec[i] : most;
+        }
+        for (uint8_t i = 0; i < kZoneRows; ++i) {
+            const uint32_t sec = r.zoneSec[i + 1];
+            // A bar is at least a dot wide if the zone was used at all; the longest fills kZoneBarMax.
+            const int32_t w = sec == 0 || most == 0 ? 0 : 4 + static_cast<int32_t>((kZoneBarMax - 4) * static_cast<uint64_t>(sec) / most);
+            lv_obj_set_width(mZoneBar[i], w > 0 ? w : 1);
+            if (w == 0) {
+                lv_obj_add_flag(mZoneBar[i], LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_obj_remove_flag(mZoneBar[i], LV_OBJ_FLAG_HIDDEN);
+            }
+            if (r.zoneCount == 0) {
+                lv_label_set_text(mZoneTime[i], Strings::kNoValue);
+            } else {
+                Fmt::shortTime(buf, sizeof(buf), static_cast<std::time_t>(sec));
+                lv_label_set_text(mZoneTime[i], buf);
+            }
+        }
+        if (r.zoneCount == 0 || r.zoneSec[0] == 0) {
+            lv_label_set_text(mZoneBelow, "");
+        } else {
+            char t[16];
+            Fmt::shortTime(t, sizeof(t), static_cast<std::time_t>(r.zoneSec[0]));
+            snprintf(buf, sizeof(buf), "Below Z1  %s", t);
+            lv_label_set_text(mZoneBelow, buf);
+        }
+        return;
+    }
+
+    if (mFaceId == FACE_SPLITS) {
+        for (uint8_t i = 0; i < 3; ++i) {
+            if (r.bestMs[i] == 0) {
+                lv_label_set_text(mBestTime[i], Strings::kNoValue);
+            } else {
+                Fmt::shortTime(buf, sizeof(buf), static_cast<std::time_t>((r.bestMs[i] + 500u) / 1000u));
+                lv_label_set_text(mBestTime[i], buf);
+            }
+        }
+        for (uint8_t h = 0; h < 2; ++h) {
+            if (r.halfPace[h] <= 0.0f) {
+                lv_label_set_text(mHalfPace[h], Strings::kNoValue);
+            } else {
+                Fmt::pace(buf, sizeof(buf), Fmt::paceUnits(r.halfPace[h], mIsImperial));
+                lv_label_set_text(mHalfPace[h], buf);
+            }
+        }
+        return;
+    }
+
+    // FACE_PACING. HybridX Run: a treadmill run's speed has no grade to adjust for.
+    if (r.gapSpeedMmps == 0 || mModel.getTrackData().treadmill) {
+        lv_label_set_text(mGapPace, Strings::kNoValue);
+    } else {
+        Fmt::pace(buf, sizeof(buf), Fmt::paceUnits(1000.0f / static_cast<float>(r.gapSpeedMmps), mIsImperial));
+        lv_label_set_text(mGapPace, buf);
+    }
+    RunVo2::StatsText::drift(buf, sizeof(buf), r);
+    lv_label_set_text(mDrift, buf);
+    const char* why = RunVo2::StatsText::driftReason(r.driftStatus);
+    lv_label_set_text(mDriftNote, why[0] ? why : "after the warm-up");
 }
 
 void TrackSummaryScreen::fillLapRows()
@@ -326,7 +544,7 @@ void TrackSummaryScreen::onKey(uint8_t code)
                     fillLapRows();
                     updateIndicator();
                 }
-            } else if (mFaceId < FACE_VO2 || mLapPages > 0) {
+            } else if (mFaceId < FACE_PACING || mLapPages > 0) {
                 showFace(mFaceId + 1);
             }
             break;

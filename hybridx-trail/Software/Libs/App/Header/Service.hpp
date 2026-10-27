@@ -168,6 +168,10 @@ private:
     void startVo2(std::time_t utc);
     void feedVo2();
     void saveVo2Windows();
+    // -- HybridX Trail: the activity link (docs/NOTES.md "Activity link") ----------
+    // Each saved run, in ../SharedData/HybridX/act_trail.json, for HybridX Streak.
+    void writeActivityLink(const ActivityWriter::TrackData& track);
+    std::time_t            mStartUtc       = 0;   ///< the run's start, UTC: the one the .fit is named from
     SDK::Metric::GpsSpeedFilter<skVo2SpeedSmoothTicks,
                                 skVo2SpeedScaleTau,
                                 skVo2SpeedChordTicks>   mVo2Speed;     ///< ticked beside mSpeedSmoother; only the VO2 feed reads it

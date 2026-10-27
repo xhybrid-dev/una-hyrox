@@ -67,6 +67,7 @@ const char* outcomeName(WindowOutcome o)
     case WindowOutcome::Unsteady: return "unsteady";
     case WindowOutcome::Grade:    return "grade";
     case WindowOutcome::Overflow: return "overflow";
+    case WindowOutcome::Lagged:   return "lagged";
     }
     return "?";
 }
@@ -120,15 +121,15 @@ size_t contextLine(std::time_t startUtc, const Profile& p, char* buf, size_t cap
 size_t headerLine(char* buf, size_t cap)
 {
     return put(buf, cap,
-               "window,active_s,good_s,outcome,speed_m_min,spread_pct,grade_pct,hr_avg,hr_min,hr_max,cost,scale\n");
+               "window,active_s,good_s,outcome,speed_m_min,spread_pct,grade_pct,hr_avg,hr_min,hr_max,cost,scale,lag\n");
 }
 
 size_t windowLine(const WindowLog& w, char* buf, size_t cap)
 {
-    return put(buf, cap, "%u,%lu,%u,%s,%s,%s,%s,%s,%u,%u,%s,%s\n",
+    return put(buf, cap, "%u,%lu,%u,%s,%s,%s,%s,%s,%u,%u,%s,%s,%u\n",
                w.index, static_cast<unsigned long>(w.activeSec), w.goodSec, outcomeName(w.outcome),
                X10(w.speedMMinX10).s, X10(w.spreadX10).s, X10(w.gradeX10).s, X10(w.hrX10).s,
-               w.hrMin, w.hrMax, X10(w.costX10).s, X1000(w.speedScaleX1000).s);
+               w.hrMin, w.hrMax, X10(w.costX10).s, X1000(w.speedScaleX1000).s, w.afterChange ? 1u : 0u);
 }
 
 size_t resultLine(const RunResult& r, const Profile& p, uint8_t runMaxHr, char* buf, size_t cap)
@@ -140,6 +141,17 @@ size_t resultLine(const RunResult& r, const Profile& p, uint8_t runMaxHr, char* 
                r.tooEasy, r.aboveMax, r.implausible,
                p.maxHr, orNone(Text::maxSourceLabel(p.maxSource)),
                p.restHr, orNone(Text::restSourceLabel(p.restSource)), runMaxHr);
+}
+
+size_t whatIfLine(const RunResult& r, uint16_t shownX10, uint16_t shownWithinX10, char* buf, size_t cap)
+{
+    // 0.0 is "too few windows" for the per-run figures, "no runs" for the shown ones.
+    return put(buf, cap,
+               "# what-if (not used yet) after_change %u, without_lag %s, first_half %s, second_half %s, "
+               "spread %s, shown %s, shown_%ud %s\n",
+               r.afterChange, X10(r.withoutLagX10).s, X10(r.firstHalfX10).s, X10(r.secondHalfX10).s,
+               X10(r.spreadX10).s, X10(shownX10).s, static_cast<unsigned>(Config::kMaxRunAgeDays),
+               X10(shownWithinX10).s);
 }
 
 }  // namespace RunVo2::Log

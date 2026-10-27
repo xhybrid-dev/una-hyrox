@@ -278,6 +278,19 @@ jobs:
           cmake --build ci-build/intervals-core-tests -j"$(nproc)"
           ctest --test-dir ci-build/intervals-core-tests --output-on-failure
 
+      - name: HybridX activity link host tests
+        # The activity summary file apps leave for Streak: format, bounds,
+        # the per-app list, the table of files.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S hybridx-link/Tests/Host -B ci-build/link-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/link-tests -j"$(nproc)"
+          ctest --test-dir ci-build/link-tests --output-on-failure
+
+      - name: Apps' copies of the HybridX activity link
+        # Each app keeps a byte-identical copy of hybridx-link's code; they must not drift.
+        run: hybridx-link/Utilities/check-link-copies.sh
+
       - name: HybridX Trail's copies of Run's window code
         # Trail turns its runs into the same VO2 window records as Run, from
         # copies of Run's builder and file codec; they must not drift.

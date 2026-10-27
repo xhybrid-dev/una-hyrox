@@ -225,6 +225,8 @@ private:
     void requestAccessoryRelease();
     void notifySegment(Race::SegmentType type);
     void notifyNewActivity();
+    /// The saved race, for HybridX Streak (hybridx-link/docs/ACTIVITY_LINK.md).
+    void writeActivityLink(const ActivityWriter::TrackData& track);
     void backlightOn(uint32_t timeoutMs = skBacklightTimeout);
     void playBuzzerPattern(uint16_t beepMs, uint8_t count = 1u, uint16_t silenceMs = 100u,
                            uint16_t pitchHz = 0u);
