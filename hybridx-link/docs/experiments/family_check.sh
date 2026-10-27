@@ -20,6 +20,8 @@
 # Quick (default): about 80 s of recording each, the three at once, with
 # Streak's minimum set to 0 minutes so each short session counts.
 # LONG=1: 11 minutes each, with Streak's default 10-minute minimum.
+# TREADMILL=1: Run records a treadmill run (no GPS; distance from cadence) and
+# keeps its estimate on the distance screen (hybridx-run NOTES, "Treadmill").
 #
 # Needs: the four simulators built (each app's Software/Apps/LVGL-GUI/simulator/
 # build/bin), Xvfb, xdotool, python3 with fitdecode. Exits non-zero on a FAIL.
@@ -69,8 +71,14 @@ gpsfix() { for _ in $(seq 60); do grep -qs "Mock.Buzzer::play" "$OUT/$1.log" && 
 # capture_screens.sh). Keys 1-4 are L1, L2, R1, R2.
 run_app() {   # Run: R1 start; R1 menu; L2 L2 Save; hold R1
     start Run 91 "$(bin hybridx-run HybridXRunSimulator)"; gpsfix Run
+    if [ "${TREADMILL:-0}" = 1 ]; then
+        key 91 2; key 91 3; key 91 1        # L2 to the Treadmill switch, R1 on, L1 back to Start
+    fi
     key 91 3 2; sleep "$SECS"
     key 91 3 1; key 91 2; key 91 2; hold 91 3 3; sleep 4
+    if [ "${TREADMILL:-0}" = 1 ]; then
+        key 91 4 3                          # the distance screen: R2 keeps the estimate
+    fi
     cleanup   # this function runs in a subshell: its own simulator and display
 }
 trail_app() { # Trail: the same as Run

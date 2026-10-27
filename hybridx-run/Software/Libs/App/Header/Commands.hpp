@@ -46,6 +46,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type VO2_UPDATE                = 0x00000019;   // HybridX Run
     constexpr SDK::MessageType::Type VO2_PROFILE_SAVE          = 0x0000001A;   // HybridX Run, GUI -> Service
     constexpr SDK::MessageType::Type RUN_STATS_UPDATE          = 0x0000001B;   // HybridX Run: the run detail page
+    constexpr SDK::MessageType::Type TREADMILL_ASK             = 0x0000001C;   // HybridX Run: the treadmill's distance, please
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -57,6 +58,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type INTERVALS_NEXT_PHASE  = 0x00000011;  ///< R2: next interval phase or workout step
     constexpr SDK::MessageType::Type WORKOUT_DETAILS_REQUEST = 0x00000017;
     constexpr SDK::MessageType::Type WORKOUT_END             = 0x00000018;
+    constexpr SDK::MessageType::Type TREADMILL_DISTANCE      = 0x0000001D;  ///< HybridX Run: the answer to TREADMILL_ASK
 
     // Service <-> GUI
     struct SettingsUpd : public SDK::MessageBase {
@@ -222,6 +224,7 @@ namespace CustomMessage {
         uint8_t  maxHr         = 0;
         uint8_t  maxSource     = 0;   ///< RunVo2::MaxHrSource
         uint8_t  restHr        = 0;
+        bool     runTreadmill  = false; ///< the run was on a treadmill: no estimate (NOTES, "Treadmill")
 
         // The VO2max page: the last runs, newest first, as local dates.
         struct Row {
@@ -270,6 +273,21 @@ namespace CustomMessage {
         {
             this->stats = stats;
         }
+    };
+
+    // HybridX Run: a treadmill run has been stopped and saved up to its session; the service
+    // waits for the distance the treadmill's console shows (NOTES, "Treadmill").
+    struct TreadmillAsk : public SDK::MessageBase {
+        float estimateM = 0.0f;   ///< the distance worked out from cadence
+        TreadmillAsk() : SDK::MessageBase(TREADMILL_ASK) {}
+        explicit TreadmillAsk(float estimateM) : TreadmillAsk() { this->estimateM = estimateM; }
+    };
+
+    // HybridX Run: the answer. 0 keeps the estimate (Skip, or the app closing).
+    struct TreadmillDistance : public SDK::MessageBase {
+        float metres = 0.0f;
+        TreadmillDistance() : SDK::MessageBase(TREADMILL_DISTANCE) {}
+        explicit TreadmillDistance(float metres) : TreadmillDistance() { this->metres = metres; }
     };
 
     // HybridX Run: the athlete's numbers set on the watch (0 = not set /

@@ -16,6 +16,8 @@
 #include "SDK/Filters/SimpleLPF.hpp"
 
 #include "SDK/Calibration/OutdoorStrideCalibrator.hpp"
+#include "SDK/Calibration/CadenceStrideModel.hpp"      // HybridX Run: treadmill mode
+#include "SDK/Calibration/TreadmillSpeedEstimator.hpp"
 
 #include "SDK/Fit/FitWorkoutReader.hpp"
 #include "SDK/Workout/Intervals.hpp"
@@ -242,6 +244,21 @@ private:
 
     SDK::Calibration::OutdoorStrideCalibrator mCalibrator;
 
+    // -- HybridX Run: treadmill mode (docs/NOTES.md "Treadmill") -------------
+    // The SDK's method, as its Treadmill example: cadence -> stride (from the shared outdoor
+    // stride table, plus a treadmill correction learned in this app's folder) -> speed and
+    // distance; after Save the athlete may enter the console's distance, which corrects the
+    // session and teaches the correction. No GPS, no VO2max.
+    SDK::Calibration::CadenceStrideModel      mTreadModel;
+    SDK::Calibration::TreadmillSpeedEstimator mTreadEstimator;
+    float        mHeightM          = 1.70f;   ///< the UNA profile's height, for the stride before any calibration
+    bool         mTreadmill        = false;   ///< this track is a treadmill run (latched at start)
+    bool         mAwaitingDistance = false;   ///< saved up to its session; waiting for the console's distance
+    std::time_t  mLastTreadUtc     = 0;
+    float        mTreadEstimateM   = 0.0f;    ///< the distance worked out from cadence, at the stop
+    float        mTreadSteps[SDK::Calibration::StrideLut::kBinCount] {};   ///< steps per cadence bin, for the learning
+    ActivityWriter::TrackData mPendingTrack {};   ///< the session, held until the distance is known
+
     // HybridX Run: the VO2max estimate (docs/NOTES.md).
     RunVo2::Vo2Run         mVo2Run;
     RunVo2::Vo2History     mVo2History;
@@ -302,6 +319,9 @@ private:
     void sendRunStats();         ///< the run detail page's numbers to the GUI (start, pause, save)
     void updateForm();           ///< cadence and step length for this tick: screen, record and averages
     void writeActivityLink(const ActivityWriter::TrackData& track);   ///< the saved run, for Streak (hybridx-link)
+    bool closeActivity(const ActivityWriter::TrackData& track);       ///< finish the .fit, tell the watch and Streak
+    void handleEvent(const CustomMessage::TreadmillDistance& event);  ///< HybridX Run: the console's distance
+    void finishTreadmill(float metres);                               ///< 0 keeps the estimate
     void sendVo2Info();
     void fillVo2Page();
     void handleEvent(const CustomMessage::Vo2ProfileSave& event);

@@ -42,6 +42,7 @@ public:
             BATTERY      = 1u << 4,
             CADENCE      = 1u << 5,
             STEP_LENGTH  = 1u << 6,
+            DISTANCE     = 1u << 7,   // HybridX Run: a treadmill run's distance so far (records without GPS)
         };
 
         void set(Field f)                 { mFlags |= mask(f); }
@@ -63,6 +64,7 @@ public:
         uint16_t    batteryVoltage = 0;     // mV
         float       cadenceSpm     = 0.0f;  // steps/min
         float       stepLengthM    = 0.0f;  // single-step distance, m
+        float       distance       = 0.0f;  // m, the activity's distance so far (DISTANCE)
 
     private:
         static constexpr uint8_t mask(Field f)
@@ -115,6 +117,10 @@ public:
         // fields, and the recent figure also as the standard max_met_data.
         uint16_t    vo2maxX10       = 0;   // this run's estimate x 10; 0 = none
         uint16_t    vo2maxRecentX10 = 0;   // the figure shown (latest runs) x 10; 0 = none
+        // HybridX Run (NOTES, "Treadmill"): sub_sport treadmill, and the distance worked out
+        // from cadence before the athlete's correction, as a developer field; 0 = none.
+        bool        treadmill          = false;
+        float       distanceEstimateM  = 0.0f;
     };
 
     ActivityWriter(const SDK::Kernel& kernel, const char* pathToDir);
@@ -174,6 +180,7 @@ private:
         DF_HR_EXTERNAL     = 6,
         DF_VO2MAX          = 7,   // HybridX Run: session, float32 ml/kg/min
         DF_VO2MAX_RECENT   = 8,   // HybridX Run: session, float32 ml/kg/min
+        DF_DISTANCE_EST    = 9,   // HybridX Run: session, float32 m; a treadmill run's distance before correction
     };
 
     /// Flush + marker-refresh cadence during recording (seconds of record time).

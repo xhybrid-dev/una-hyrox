@@ -146,6 +146,8 @@ simulator's heart rate is not steady running, so there are usually none).
   minimum set to 0 minutes so the short sessions count.
 - **`LONG=1`** (about 14 minutes): 11 minutes each, with Streak's default 10-minute
   minimum.
+- `TREADMILL=1`: Run records a treadmill run (hybridx-run NOTES, "Treadmill"), which Streak
+  must count as a Run like any other. Passed on 27 October 2026.
 - `SHOTS=<dir>` saves Streak's screen after each open.
 
 It needs the four simulators built, Xvfb, xdotool and fitdecode. It prints a PASS/FAIL

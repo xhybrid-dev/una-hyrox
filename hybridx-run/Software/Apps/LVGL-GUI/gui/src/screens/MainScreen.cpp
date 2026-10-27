@@ -27,6 +27,8 @@ using Style = WheelMenu::Item::Style;
 const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
     // ID_START: a Tip naming the workout when one is armed (onWorkoutList)
     { Style::Simple, "Start", nullptr, &poppins_semibold_35 },
+    // ID_TREADMILL (HybridX Run): on, Start records a treadmill run (no GPS)
+    { Style::Toggle, "Treadmill", nullptr, &poppins_semibold_25 },   // the intervals menu's switches' face
     // ID_WORKOUTS
     { Style::Simple, "Workouts" },
     // ID_INTERVALS: icon beside left-aligned text, in both slots
@@ -77,14 +79,34 @@ void MainScreen::onShow()
     onWorkoutList();
 }
 
+void MainScreen::onSettings(const Settings& /*settings*/)
+{
+    onWorkoutList();   // the switch and Start's hint follow the setting
+    onGpsFix(mGpsFix);
+}
+
+void MainScreen::toggleTreadmill()
+{
+    Settings sett  = mModel.getSettings();
+    sett.treadmill = !sett.treadmill;
+    mModel.saveSettings(sett);
+    onSettings(sett);
+}
+
 void MainScreen::onWorkoutList()
 {
     // The armed workout's name under Start, shown when Start is selected.
     const SDK::Workout::Library* lib = mModel.getWorkoutLibrary();
     const int16_t armed = mModel.getArmedWorkout();
     mArmed = lib != nullptr && armed >= 0 && static_cast<size_t>(armed) < lib->size();
+    mItems[Menu::ID_TREADMILL].toggleState = treadmill();
     WheelMenu::Item& start = mItems[Menu::ID_START];
-    if (mArmed) {
+    if (treadmill()) {
+        // HybridX Run: Start records a plain treadmill run; an armed workout waits.
+        start.style   = Style::Tip;
+        start.tip     = "Treadmill";
+        start.itemTip = "";
+    } else if (mArmed) {
         WorkoutUi::toText(lib->entry(static_cast<size_t>(armed)).name, mArmedName, sizeof(mArmedName));
         WorkoutUi::fitWidth(mArmedName, sizeof(mArmedName), Theme::font(Theme::Font::Italic18), 180);
         start.style   = Style::Tip;
@@ -128,7 +150,11 @@ void MainScreen::confirm()
 {
     switch (mMenu->selected()) {
         case Menu::ID_START:
-            if (mGpsFix && mArmed) {
+            if (treadmill()) {
+                // HybridX Run: indoors there is no GPS to wait for.
+                mModel.trackStart(false);
+                ScreenManager::instance().goTo(ScreenId::Track);
+            } else if (mGpsFix && mArmed) {
                 // A workout starts with the countdown, as Intervals do.
                 mModel.setPendingIntervalsMode(false);
                 ScreenManager::instance().goTo(ScreenId::TrackIntervalsCountdown);
@@ -139,6 +165,9 @@ void MainScreen::confirm()
                 mModel.setPendingIntervalsMode(false);
                 ScreenManager::instance().goTo(ScreenId::TrackStartConfirm);
             }
+            break;
+        case Menu::ID_TREADMILL:
+            toggleTreadmill();
             break;
         case Menu::ID_WORKOUTS:
             ScreenManager::instance().goTo(ScreenId::WorkoutList);
@@ -162,7 +191,8 @@ void MainScreen::confirm()
 void MainScreen::updateBackground()
 {
     // Start without a fix is greyed out and R1 hidden; everything else is live.
-    const bool startBlocked = mMenu->selected() == Menu::ID_START && !mGpsFix;
+    // HybridX Run: a treadmill run needs no fix.
+    const bool startBlocked = mMenu->selected() == Menu::ID_START && !mGpsFix && !treadmill();
     mMenu->setBackground(startBlocked ? Color::GRAY_DARK : Color::TEAL_DARK);
     mButtons->setR1(startBlocked ? Widgets::Buttons::NONE : Widgets::Buttons::AMBER);
 }
@@ -177,7 +207,8 @@ void MainScreen::onIdleTimeout()
 void MainScreen::onGpsFix(bool acquired)
 {
     mGpsFix = acquired;
-    mSensorRow->setGps(Widgets::SensorStatusRow::gpsState(acquired));
+    mSensorRow->setGps(treadmill() ? Widgets::SensorStatusRow::State::Absent
+                                   : Widgets::SensorStatusRow::gpsState(acquired));
     updateBackground();
 }
 

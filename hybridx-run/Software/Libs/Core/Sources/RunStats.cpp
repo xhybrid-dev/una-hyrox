@@ -39,6 +39,7 @@ void RunStats::reset(const uint8_t* thresholds, uint8_t count)
 
     std::memset(mZoneSec, 0, sizeof(mZoneSec));
     mZoneCount = 0;
+    mTreadmill = false;
     if (thresholds != nullptr) {
         mZoneCount = std::min<uint8_t>(count, StatsConfig::kZones);
         std::memcpy(mThreshold, thresholds, mZoneCount);
@@ -227,7 +228,12 @@ RunStatsResult RunStats::result() const
         }
     }
 
-    // Drift: the halves after the warm-up.
+    // Drift: the halves after the warm-up. Not for a treadmill run: its speed comes
+    // from the cadence, so the speed per heartbeat cannot drift independently.
+    if (mTreadmill) {
+        r.driftStatus = DriftStatus::Treadmill;
+        return r;
+    }
     const uint32_t warm = Config::kWarmUpSec;
     if (mNow.sec <= warm || mNow.sec - warm < StatsConfig::kMinDriftSec) {
         r.driftStatus = DriftStatus::TooShort;

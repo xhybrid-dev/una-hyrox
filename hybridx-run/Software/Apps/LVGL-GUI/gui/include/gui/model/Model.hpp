@@ -125,6 +125,10 @@ public:
     const CustomMessage::Vo2Info& getVo2Info() const { return mVo2Info; }
     /// HybridX Run: the run detail page's numbers (all zero until the service sends them).
     const RunVo2::RunStatsResult& getRunStats() const { return mRunStats; }
+    /// HybridX Run: a treadmill run waits for the console's distance after Save. The estimate
+    /// comes from the service (0 until it has); send the answer, 0 to keep the estimate.
+    float treadmillEstimateM() const { return mTreadEstimateM; }
+    void  sendTreadmillDistance(float metres);
     /// The athlete's numbers set on the watch (R5): sent to the service, which
     /// saves them and answers with a fresh Vo2Info.
     void saveVo2Profile(uint16_t birthYear, uint8_t birthMonth, uint8_t maxHr, uint8_t restHr, bool tuningLog);
@@ -239,6 +243,7 @@ private:
     Track::Data            mTrackData             {};
     CustomMessage::Vo2Info mVo2Info              {};   ///< HybridX Run
     RunVo2::RunStatsResult mRunStats             {};   ///< HybridX Run: the run detail page
+    float                  mTreadEstimateM       = 0.0f;   ///< HybridX Run: the treadmill run's estimate, metres
 
     // Structured workouts
     const SDK::Workout::Library* mWorkoutLibrary = nullptr;

@@ -127,6 +127,7 @@ struct Data {
 
     bool intervalsMode = false; ///< true when the track was started in intervals mode
     bool workoutMode   = false; ///< true while a structured workout runs; WORKOUT_DATA carries its face
+    bool treadmill     = false; ///< HybridX Run: a treadmill run (speed and distance from cadence, no GPS)
 
     // Interval training (populated only when intervalsMode == true)
     IntervalsData intervals {};

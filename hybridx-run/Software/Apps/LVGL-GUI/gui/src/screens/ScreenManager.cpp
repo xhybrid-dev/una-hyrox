@@ -34,6 +34,7 @@
 #include "gui/screens/TrackLapScreen.hpp"
 #include "gui/screens/TrackResultScreen.hpp"
 #include "gui/screens/TrackSummaryScreen.hpp"
+#include "gui/screens/TreadmillDistanceScreen.hpp"   // HybridX Run
 #include "gui/screens/Vo2Screen.hpp"
 #include "gui/screens/MenuVo2ProfileScreen.hpp"
 #include "gui/screens/Vo2PickerScreen.hpp"
@@ -177,6 +178,7 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::TrackSaved:                return new TrackResultScreen(m, TrackResultScreen::Result::Saved);
         case ScreenId::TrackDiscarded:            return new TrackResultScreen(m, TrackResultScreen::Result::Discarded);
         case ScreenId::TrackSummary:              return new TrackSummaryScreen(m);
+        case ScreenId::TreadmillDistance:         return new TreadmillDistanceScreen(m);
 
         case ScreenId::Vo2:                       return new Vo2Screen(m);
         case ScreenId::MenuVo2Profile:            return new MenuVo2ProfileScreen(m);

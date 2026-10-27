@@ -165,11 +165,16 @@ void Model::trackStart(bool intervalsMode)
 {
     // An armed workout is followed unless Intervals were chosen; either way
     // it is used up by this run.
-    const int16_t workout = intervalsMode ? kNoWorkout : mArmedWorkout;
+    // HybridX Run: a treadmill run is a plain run for now (NOTES, "Treadmill"), so it follows
+    // no workout; the service reads the same setting.
+    const bool    treadmill = mSettings.treadmill && !intervalsMode;
+    const int16_t workout   = (intervalsMode || treadmill) ? kNoWorkout : mArmedWorkout;
     mArmedWorkout = kNoWorkout;
 
     mTrackData.intervalsMode = intervalsMode;
     mTrackData.workoutMode   = workout != kNoWorkout;
+    mTrackData.treadmill     = treadmill;
+    mTreadEstimateM          = 0.0f;
     if (mTrackData.workoutMode) {
         mMenu.track.set(App::MenuNav::TrackView::ID_WORKOUT_GAUGE);
     } else if (intervalsMode) {
@@ -259,6 +264,11 @@ void Model::saveTrack()
 void Model::discardTrack()
 {
     SDK::send_msg<CustomMessage::TrackStop>(mKernel, true);
+}
+
+void Model::sendTreadmillDistance(float metres)
+{
+    SDK::send_msg<CustomMessage::TreadmillDistance>(mKernel, metres);
 }
 
 bool Model::isTrackSummaryAvailable() const
@@ -515,6 +525,11 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
         case CustomMessage::RUN_STATS_UPDATE: {   // HybridX Run
             mRunStats = static_cast<CustomMessage::RunStatsUpd*>(message)->stats;
             modelListener->onRunStats(mRunStats);
+        } break;
+
+        case CustomMessage::TREADMILL_ASK: {   // HybridX Run
+            mTreadEstimateM = static_cast<CustomMessage::TreadmillAsk*>(message)->estimateM;
+            modelListener->onTreadmillAsk(mTreadEstimateM);
         } break;
 
         case CustomMessage::WORKOUT_LIST: {

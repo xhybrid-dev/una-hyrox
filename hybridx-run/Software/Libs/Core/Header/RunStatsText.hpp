@@ -48,6 +48,7 @@ inline const char* driftReason(DriftStatus s)
         case DriftStatus::TooShort:    return "Needs 30+ min";
         case DriftStatus::NoHeartRate: return "No steady HR";
         case DriftStatus::NotSteady:   return "Pace not steady";
+        case DriftStatus::Treadmill:   return "Not on treadmill";
     }
     return "";
 }

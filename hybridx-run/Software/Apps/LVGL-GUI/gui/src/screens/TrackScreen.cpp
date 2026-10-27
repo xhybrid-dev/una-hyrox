@@ -536,7 +536,9 @@ void TrackScreen::onIntervalsWorkoutCompleted()
 
 void TrackScreen::onGpsFix(bool acquired)
 {
-    mSensorRow->setGps(Widgets::SensorStatusRow::gpsState(acquired));
+    // HybridX Run: a treadmill run takes no GPS, so the icon shows it absent.
+    mSensorRow->setGps(mModel.getTrackData().treadmill ? Widgets::SensorStatusRow::State::Absent
+                                                       : Widgets::SensorStatusRow::gpsState(acquired));
 }
 
 void TrackScreen::onAccessoryStatus(uint8_t state, const char* /*name*/)

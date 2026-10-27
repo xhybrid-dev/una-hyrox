@@ -94,6 +94,12 @@ void TrackSummaryScreen::buildFaceMap()
     mMapUnits    = Theme::label(f, F::Medium18, Strings::kKm, 178, 73, 45, LV_TEXT_ALIGN_LEFT);
     mMapDistance = Theme::label(f, F::SemiBold40, Strings::kNoValue, 60, 51, 120);
     Theme::image(f, &img_runningman_30x30, 33, 62);
+    if (mModel.getTrackData().treadmill) {
+        // HybridX Run: a treadmill run has no route to draw.
+        Theme::label(f, F::Medium18, "No map on a\ntreadmill", 45, 120, 150, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+        mTitle = std::make_unique<Widgets::Title>(f, "TREADMILL");
+        return;
+    }
     mMap = std::make_unique<Widgets::Map>(f, 45, 90);
     mTitle = std::make_unique<Widgets::Title>(f, "MAP");
 }
@@ -302,7 +308,13 @@ void TrackSummaryScreen::fillFace()
     if (mFaceId == FACE_VO2) {   // HybridX Run
         const CustomMessage::Vo2Info& info = mModel.getVo2Info();
         char v[8];
-        if (!info.hasRun) {
+        if (mModel.getTrackData().treadmill) {
+            // HybridX Run: no VO2max from a treadmill run (NOTES, "Treadmill"); the recent
+            // figure below is still the outdoor runs'.
+            lv_label_set_text(mVo2Run, Strings::kNoValue);
+            lv_label_set_text(mVo2RunLabel, "Not on treadmill");
+            lv_obj_set_style_text_font(mVo2RunLabel, Theme::font(F::Regular16), 0);
+        } else if (!info.hasRun) {
             // Paused: the estimate is made when the run is saved.
             lv_label_set_text(mVo2Run, Strings::kNoValue);
             lv_label_set_text(mVo2RunLabel, "After saving");
@@ -362,7 +374,9 @@ void TrackSummaryScreen::fillFace()
             if (mFaceId == FACE_MAP) {
                 lv_label_set_text(mMapDistance, buf);
                 lv_label_set_text(mMapUnits, Fmt::units(mIsImperial));
-                mMap->setMap(s.map);
+                if (mMap) {
+                    mMap->setMap(s.map);
+                }
             } else {
                 lv_label_set_text(mOverviewDistance, buf);
                 lv_label_set_text(mOverviewUnits, Fmt::units(mIsImperial));
@@ -464,8 +478,8 @@ void TrackSummaryScreen::fillDetail()
         return;
     }
 
-    // FACE_PACING
-    if (r.gapSpeedMmps == 0) {
+    // FACE_PACING. HybridX Run: a treadmill run's speed has no grade to adjust for.
+    if (r.gapSpeedMmps == 0 || mModel.getTrackData().treadmill) {
         lv_label_set_text(mGapPace, Strings::kNoValue);
     } else {
         Fmt::pace(buf, sizeof(buf), Fmt::paceUnits(1000.0f / static_cast<float>(r.gapSpeedMmps), mIsImperial));

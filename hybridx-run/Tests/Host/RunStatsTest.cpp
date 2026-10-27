@@ -335,6 +335,29 @@ TEST(RunStatsDrift, HeartRateRisingForTheSameSpeedIsDrift)
     EXPECT_NEAR(x.driftX10, 47.6, 0.5);
 }
 
+TEST(RunStatsDrift, ATreadmillRunHasNoneButKeepsItsOtherNumbers)
+{
+    // The same run as above, on a treadmill: zones, splits and halves stand; drift does not.
+    RunStats st;
+    st.reset(kZones, 6);
+    st.setTreadmill(true);
+    float d = 0.0f;
+    feed(st, d, 300, 3.0f, 120);
+    feed(st, d, 1050, 3.0f, 140);
+    feed(st, d, 1050, 3.0f, 147);
+    const RunStatsResult r = st.result();
+    EXPECT_EQ(r.driftStatus, DriftStatus::Treadmill);
+    EXPECT_EQ(r.driftX10, 0);
+    EXPECT_GT(r.bestMs[0], 0u);
+    EXPECT_GT(r.halfPace[0], 0.0f);
+    EXPECT_GT(r.zoneCount, 0u);
+
+    st.reset(kZones, 6);   // a new run is outdoors again unless told
+    float e = 0.0f;
+    feed(st, e, 2400, 3.0f, 140);
+    EXPECT_NE(st.result().driftStatus, DriftStatus::Treadmill);
+}
+
 TEST(RunStatsDrift, AFlatRunHasNoDrift)
 {
     RunStats st;
@@ -518,7 +541,8 @@ TEST(RunStatsText, DriftIsAPercentageToOneDecimal)
 TEST(RunStatsText, NoDriftReadsAsNone)
 {
     char b[12];
-    for (const DriftStatus st : {DriftStatus::TooShort, DriftStatus::NoHeartRate, DriftStatus::NotSteady}) {
+    for (const DriftStatus st : {DriftStatus::TooShort, DriftStatus::NoHeartRate, DriftStatus::NotSteady,
+                                 DriftStatus::Treadmill}) {
         StatsText::drift(b, sizeof(b), withDrift(st, 48));   // a stale number is never shown
         EXPECT_STREQ(b, "---");
     }
@@ -527,7 +551,8 @@ TEST(RunStatsText, NoDriftReadsAsNone)
 TEST(RunStatsText, TheReasonsFitTheirLine)
 {
     EXPECT_STREQ(StatsText::driftReason(DriftStatus::Ok), "");
-    for (const DriftStatus st : {DriftStatus::TooShort, DriftStatus::NoHeartRate, DriftStatus::NotSteady}) {
+    for (const DriftStatus st : {DriftStatus::TooShort, DriftStatus::NoHeartRate, DriftStatus::NotSteady,
+                                 DriftStatus::Treadmill}) {
         const char* why = StatsText::driftReason(st);
         EXPECT_GT(std::strlen(why), 0u);
         EXPECT_LE(std::strlen(why), 16u);   // one line of Regular16 inside the round face

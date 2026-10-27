@@ -79,6 +79,7 @@ enum class DriftStatus : uint8_t {
     TooShort,      ///< under kMinDriftSec after the warm-up
     NoHeartRate,   ///< too few seconds with a good heart rate or a moving speed
     NotSteady,     ///< the halves were run at speeds more than kMaxHalfSpeedDiffPct apart
+    Treadmill,     ///< a treadmill run: its speed is worked out from cadence, so drift says nothing
 };
 
 /// What the screens show. Plain data so it can travel in a message.
@@ -103,6 +104,9 @@ public:
     /// A new run. @p thresholds are the watch's zone thresholds (bpm), @p count of them;
     /// the first five are used (threshold i is the entry to zone i + 1).
     void reset(const uint8_t* thresholds = nullptr, uint8_t count = 0);
+
+    /// A treadmill run (after reset()): no drift is given for it (DriftStatus::Treadmill).
+    void setTreadmill(bool on) { mTreadmill = on; }
 
     /// One second. @p distanceM is the run's distance so far (the active distance counter).
     void addSecond(const Sample& s, float distanceM);
@@ -140,6 +144,7 @@ private:
     uint32_t mZoneSec[StatsConfig::kZones + 1] {};
     uint8_t  mThreshold[StatsConfig::kZones] {};
     uint8_t  mZoneCount = 0;
+    bool     mTreadmill = false;
 
     // Splits
     uint32_t mCross[StatsConfig::kRingCount] {};   ///< ms at which boundary n was crossed (n % kRingCount)

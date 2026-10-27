@@ -95,7 +95,7 @@ Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
   - the family check (Run, Race and Trail save into one shared folder, then Streak opens
     twice and must count each once): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
     (about 3 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
-    needs the four simulators built).
+    `TREADMILL=1` for a treadmill Run; needs the four simulators built).
 
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You
@@ -182,7 +182,8 @@ apps.
   - host tests: `cmake -S hybridx-run/Tests/Host -B hybridx-run/build-tests && cmake --build hybridx-run/build-tests && hybridx-run/build-tests/hybridx-run-host-tests`;
   - simulator: `hybridx-run/Software/Apps/LVGL-GUI/simulator`;
   - a run in the simulator: `docs/experiments/sim_run.sh [seconds] [shots]
-    [app_config.json]` (`SEED=1` for a history); the VO2max screens:
+    [app_config.json]` (`SEED=1` for a history; `DISCARD=1` discards; `TREADMILL=1` a treadmill
+    run, with `TREAD_TENTHS`/`TREAD_FINE` for the entry, `TREAD_SKIP=1` or `TREAD_CLOSE=1`); the VO2max screens:
     `docs/experiments/capture_vo2.sh [out-dir]` (into `docs/screens/`);
   - Trail's runs counted by Run (synthetic files): `docs/experiments/sim_trail_ingest.sh`
     (needs the simulator and `build-tests/make_trail_run`);
@@ -195,6 +196,10 @@ apps.
   - a run's FIT: `docs/experiments/fit_vo2_report.py <file.fit>`; a tuning
     log: `docs/experiments/vo2_log_report.py [--max-hr N] <vo2_*.csv>` (also shows
     what the raw GPS speed would have given, from the `scale` column).
+- **Treadmill mode** (NOTES "Treadmill"): a main-menu switch; the SDK's cadence-to-stride model
+  (`CadenceStrideModel`, `TreadmillSpeedEstimator`) gives speed and distance, the console's distance
+  is asked for after Save (`TreadmillDistanceScreen`), no VO2max. A treadmill `.fit`:
+  `docs/experiments/fit_treadmill_report.py <file.fit> [--entered M] [--link act_run.json]`.
 - **Activity link:** on each saved run, `Service::writeActivityLink` adds the run to
   `../SharedData/HybridX/act_run.json` for Streak (`hybridx-link/docs/ACTIVITY_LINK.md`;
   Run NOTES "Activity link"). `Software/Libs/Link` is a **copy** of `hybridx-link`'s code:

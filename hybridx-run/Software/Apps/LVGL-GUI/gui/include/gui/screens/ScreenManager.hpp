@@ -56,6 +56,7 @@ enum class ScreenId : uint8_t {
     TrackSaved,
     TrackDiscarded,
     TrackSummary,
+    TreadmillDistance,   // HybridX Run: the console's distance after a treadmill run
     // HybridX Run: VO2max (R5)
     Vo2,
     MenuVo2Profile,

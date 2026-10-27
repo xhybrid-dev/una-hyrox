@@ -903,3 +903,132 @@ and Jon's 14 October run (45.1 from 34 windows) are unchanged.
   runs); the age limit, and how long; whether the drift between halves should limit which minutes count.
   Each tuning log now says, per run, what each would have done.
 
+
+## Treadmill: a treadmill mode that counts towards Streak (27 October 2026)
+
+Jon asked for treadmill runs to be recorded in Run and counted by HybridX Streak; Hike is
+left for later. His decisions:
+- **No VO2max from a treadmill run.** Its speed is worked out from cadence and its
+  incline is unknown, so it never moves the estimate, the history or the glance.
+- **The console's distance is asked for after every run, and can be skipped.**
+- **Plain runs only for now.** Workouts and intervals indoors are a later phase.
+
+**The method is the SDK's**, as in its Treadmill example (`una-sdk/Examples/Apps/Treadmill`,
+the base of UNA's Treadmill app), not ours:
+- `SDK::Calibration::CadenceStrideModel` turns cadence into stride length. It reads the
+  shared outdoor stride table `../SharedData/stride.json`, which Run's outdoor runs
+  already teach through `OutdoorStrideCalibrator`.
+- It keeps a treadmill correction table, `treadmill_delta.json`, in Run's own folder. UNA's
+  own Treadmill app learns in its folder, so the two apps learn separately.
+- **Tiers.** The tier is fixed at the start of each run:
+  1. not enough outdoor data: a stride from the UNA profile's height;
+  2. stride from the outdoor table;
+  3. outdoor table plus the learned treadmill correction.
+- **Learning.** The correction learns from an entered distance only in tier 3 and only on a
+  run of 2 km or more (the SDK's `kDeltaLearnMinDistanceM`).
+- `TreadmillSpeedEstimator` integrates speed and distance at 1 Hz. It holds the last speed
+  for 5 s when the cadence drops out.
+
+**What changed:**
+- **The switch.**
+  - The main menu has a **Treadmill** on/off switch under Start, saved in `settings.json`
+    (`"treadmill"`, absent = off).
+  - On, Start's hint reads "Treadmill", and Start needs no GPS fix. An armed workout
+    waits, and intervals ignore the switch.
+  - The GPS icon shows absent, on the main menu and on the live status face.
+- **The service** (`Service.cpp`; `mTreadmill` is latched at the start):
+  - **Sensors.** No GPS speed, distance, pressure or grade, and the GPS is let go. The
+    distance and speed counters are fed from the estimator, with the cadence counting only
+    while fresh, as for the Form face. Pause and resume halt and restart the integration.
+  - **Step length** (Form face and records) is the model's stride ÷ 2.
+  - **Not fed:** `OutdoorStrideCalibrator`, which must learn from GPS only.
+  - **VO2max and the detail page.** No VO2max, no window log and no tuning log. The detail
+    page still counts zones, best splits and halves. Drift is not given (new
+    `DriftStatus::Treadmill`: "Not on treadmill"), because indoors the speed comes from the
+    cadence, so speed per heartbeat cannot drift independently.
+- **After Save:**
+  - **Held back.** The lap and summary are saved, but the session is held
+    (`mPendingTrack`), and `TREADMILL_ASK` (0x1C) sends the estimate to the GUI.
+  - **The distance screen** (`TreadmillDistanceScreen`, after "Saved") offers the estimate
+    in km or miles to two decimals. L1 and L2 step by 0.10; R1 moves on to 0.01; R1 saves;
+    R2 on the first stage keeps the estimate.
+  - **Bounded entries.** The picker stops at the band the SDK's model accepts (0.5× to 2×
+    the estimate, `kDActualRatioMin`/`Max`), so no entry is silently dropped. It was first
+    built without the band: an entry of 2.1× was rejected and the estimate kept, without a
+    word.
+  - **Finishing.** `TREADMILL_DISTANCE` (0x1D) answers, and `finishTreadmill()` takes it to
+    `applyPostRunCalibration`. `RunVo2::Treadmill::correct` then sets the session: the
+    distance as decided, average speed = distance ÷ timer time, and maximum × k. The summary
+    is re-saved, the `.fit` is closed, and Streak is told with the corrected distance.
+  - **Records and laps keep the estimate**, as the SDK's example does (the usual
+    convention).
+- **The app closing on that screen keeps the estimate.** This covers both the
+  `COMMAND_APP_STOP` path and the GUI stopping on its own. **Found in the simulator:** the
+  GUI exiting sends the service only "GUI stopped", and it then exits without an APP_STOP.
+  The run was left unfinished (crash recovery would have closed it at the next open, but
+  Streak would never have heard). `onStopGUI` now finishes it.
+- **FIT:**
+  - session `sub_sport` treadmill (1, the SDK's `fit::SubSport::Treadmill`);
+  - a session developer field `distance_estimate` (9, float32 m), invalid outdoors;
+  - the records without GPS now also carry `distance` (field 5, `uint32` × 100, as
+    fitdecode's profile and the SDK's `FitProfile.hpp` give it). It is invalid outdoors,
+    when a second has no fix.
+- **Activity link:** unchanged. A treadmill run is a Run (sport 1) in `act_run.json`, with
+  the corrected distance, so Streak counts it with no change.
+- **The summary:**
+  - the map face says "No map on a treadmill" under the title TREADMILL;
+  - the VO2 face says "Not on treadmill" (the recent figure below is still the outdoor
+    runs');
+  - the pacing face shows no adjusted pace.
+- **Code:**
+  - `Core/Header/Treadmill.hpp` (header-only, as the GUI uses it): `correct`, the entry's
+    hundredths, `range` and `text`;
+  - `RunStats::setTreadmill`;
+  - `Settings::treadmill`;
+  - `Track::Data::treadmill`;
+  - `Vo2Info::runTreadmill`;
+  - `ActivityWriter`'s `TrackData::treadmill` and `distanceEstimateM`, and
+    `RecordData::DISTANCE`.
+
+### Treadmill verified
+- Host tests: **183** (8 new: `TreadmillTest`, and the treadmill drift case), also under
+  ASan and UBSan. `SettingsSerializer` has no host test (it uses the SDK's file classes, as
+  before).
+- **Simulator** (`sim_run.sh` with `TREADMILL=1`; the cadence mock gives 170 spm; tier 1,
+  170 cm, 1.14 m steps):
+  - **Corrected:** estimate 314 m, entry 620 m (the 2× limit), accepted. The FIT's session
+    has 620 m with treadmill as its sub-sport, `distance_estimate` 313.7 m, and records
+    running from 0 to 313.7 m with no position. `act_run.json` holds 620 m, sport 1.
+  - **Skipped:** the estimate (217 m) kept everywhere.
+  - **App closed on the distance screen** (`TREAD_CLOSE=1`): the estimate kept, and the file
+    finished and read.
+  - **Discard** (`DISCARD=1`): no `.fit`, and `act_run.json` byte for byte unchanged.
+  - **Outdoor run unchanged:** sub-sport generic, no estimate field, the VO2 path run, and
+    the cadence averages match the records (`fit_form_report.py`).
+  - All checked by `docs/experiments/fit_treadmill_report.py`.
+- **Screens checked by eye** (round-face captures):
+  - the switch, and Start with its hint;
+  - the distance screen in both stages;
+  - the summary's map, VO2 and pacing faces;
+  - the live Form face (170 spm, 1.14 m).
+  Two layout faults were found and fixed: the switch's text was clipped in the 30 px face,
+  and the hint overlapped the title.
+- LVGL pool peak 78%.
+- **The family check with `TREADMILL=1`:** every check passed. Streak counted Run's
+  treadmill run as a Run, once.
+- **Builds:** the watch target compiles (511,420 B, compile check only) and so does the
+  glance. Trail's Vo2Link copies and the activity-link copies are unchanged.
+- **Not checked:** anything on a watch. Above all, how well wrist cadence works on a
+  treadmill (holding the rails will undercount), and how close tiers 2 and 3 come to the
+  console.
+
+### For Jon on the watch
+1. Run outdoors a few times first if Run is new to the watch: the outdoor table is what
+   lifts the treadmill out of tier 1. The service log line "Treadmill run: stride tier N"
+   says which tier a run used.
+2. Turn **Treadmill** on, then run 15 to 30 minutes at a steady speed without holding the
+   rails. Save, and enter the console's distance.
+3. Do a second run: its estimate should land nearer the console (learning needs tier 3
+   and 2 km or more).
+4. Open Streak and look for "+1 Run". In Strava or Garmin Connect, the run should show as
+   a treadmill run with the corrected distance.

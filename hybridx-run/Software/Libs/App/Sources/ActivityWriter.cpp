@@ -138,6 +138,7 @@ void ActivityWriter::start(const AppInfo& info)
     // HybridX Run: float32 so any reader shows 52.3 with no scale to know.
     writeFieldDescription(DF_VO2MAX, "vo2max", "ml/kg/min", fit::BaseType::Float32);
     writeFieldDescription(DF_VO2MAX_RECENT, "vo2max_recent", "ml/kg/min", fit::BaseType::Float32);
+    writeFieldDescription(DF_DISTANCE_EST, "distance_estimate", "m", fit::BaseType::Float32);
 
     // event
     mFit->defineMessage(L_EVENT, fit::mesgNum(fit::MesgNum::Event),
@@ -167,7 +168,7 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Session::SubSport, fit::field::Session::AvgHeartRate,
          fit::field::Session::MaxHeartRate,
          kSessionAvgCadence, kSessionAvgFractionalCadence, kSessionAvgStepLength},   // HybridX Run
-        {{DF_VO2MAX, 4, 0}, {DF_VO2MAX_RECENT, 4, 0}});   // HybridX Run
+        {{DF_VO2MAX, 4, 0}, {DF_VO2MAX_RECENT, 4, 0}, {DF_DISTANCE_EST, 4, 0}});   // HybridX Run
     mFit->defineMessage(L_MAX_MET, kMesgMaxMetData,
         {kMaxMetUpdateTime, kMaxMetVo2Max, kMaxMetSport, kMaxMetSubSport});
     mFit->defineMessage(L_ACTIVITY, fit::mesgNum(fit::MesgNum::Activity),
@@ -197,9 +198,11 @@ void ActivityWriter::defineRecordMessages()
         {DF_HR_SOURCE, 1, 0}, {DF_HR_OPTICAL, 1, 0}, {DF_HR_EXTERNAL, 1, 0},
     };
 
-    // Plain record (HR/cadence only) + 3 HR developer fields.
+    // Plain record (HR/cadence only) + 3 HR developer fields. HybridX Run: the records
+    // without GPS also carry the distance so far, which a treadmill run has (invalid when
+    // an outdoor second has no fix).
     mFit->defineMessage(L_RECORD, fit::mesgNum(fit::MesgNum::Record),
-        {fit::field::Record::Timestamp,
+        {fit::field::Record::Timestamp, fit::field::Record::Distance,
          kRecordCommonTail[0], kRecordCommonTail[1], kRecordCommonTail[2],
          kRecordCommonTail[3], kRecordCommonTail[4], kRecordCommonTail[5]},
         {hr3[0], hr3[1], hr3[2]});
@@ -214,7 +217,7 @@ void ActivityWriter::defineRecordMessages()
 
     // + battery (5 developer fields).
     mFit->defineMessage(L_RECORD_B, fit::mesgNum(fit::MesgNum::Record),
-        {fit::field::Record::Timestamp,
+        {fit::field::Record::Timestamp, fit::field::Record::Distance,
          kRecordCommonTail[0], kRecordCommonTail[1], kRecordCommonTail[2],
          kRecordCommonTail[3], kRecordCommonTail[4], kRecordCommonTail[5]},
         {batt5[0], batt5[1], batt5[2], batt5[3], batt5[4]});
@@ -281,6 +284,11 @@ void ActivityWriter::addRecord(const RecordData& record)
     if (gps) {
         d.i32(record.has(RecordData::Field::COORDS) ? degreesToSemicircles(record.latitude) : 0)
          .i32(degreesToSemicircles(record.longitude));
+    } else {
+        // distance (100 * m), HybridX Run
+        d.u32(record.has(RecordData::Field::DISTANCE) && record.distance >= 0.0f
+                  ? static_cast<uint32_t>(record.distance * 100.0f + 0.5f)
+                  : static_cast<uint32_t>(fit::baseTypeInvalid(fit::BaseType::UInt32)));
     }
     // enhanced_altitude (5 * m + 500), enhanced_speed (1000 * m/s)
     d.u32(record.has(RecordData::Field::ALTITUDE)
@@ -402,7 +410,7 @@ bool ActivityWriter::stop(const TrackData& track)
         .u16(static_cast<uint16_t>(track.descent))
         .u16(mLapCounter)
         .u8(static_cast<uint8_t>(fit::Sport::Running))
-        .u8(static_cast<uint8_t>(fit::SubSport::Generic))
+        .u8(static_cast<uint8_t>(track.treadmill ? fit::SubSport::Treadmill : fit::SubSport::Generic))
         .u8(static_cast<uint8_t>(track.hrAvg))
         .u8(static_cast<uint8_t>(track.hrMax));
     // HybridX Run: the cadence and step length averages (native fields, before the developer ones).
@@ -415,6 +423,11 @@ bool ActivityWriter::stop(const TrackData& track)
         } else {
             session.invalid(fit::BaseType::Float32);
         }
+    }
+    if (track.treadmill && track.distanceEstimateM > 0.0f) {
+        session.f32(track.distanceEstimateM);
+    } else {
+        session.invalid(fit::BaseType::Float32);
     }
     ok = session.write() && ok;
 
