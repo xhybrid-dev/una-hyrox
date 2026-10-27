@@ -46,6 +46,7 @@ promo/scratch/
 promo/audio/out/
 # The unboxing reel's raw phone clips: each is over GitHub's 100 MB limit.
 promo/unbooxing/*.mp4
+hybridx-link/build-tests/
 hybridx-run/build/
 hybridx-run/build-tests/
 hybridx-run/Output/

@@ -71,6 +71,21 @@ the watch records, from any app. It is independent of HybridX Race.
     - demo: `RECORD=1 capture_screens.sh`, `walkthrough.sh`;
     - glance mock-up: `glance_preview.py build-tests/glance_preview <out.png>`.
 
+## HybridX Activity Link (`hybridx-link/`)
+How our activity apps tell Streak what you did on a real watch, where Streak cannot
+read other apps' `Activity/` folders (Streak NOTES, Gate 0). Each app leaves its last
+16 activities in its own `../SharedData/HybridX/act_<slot>.json`; Streak reads them.
+It is not an app. It counts our own apps only, not UNA's built-in ones.
+- **Docs:** the format, the rules and how to add an app: `hybridx-link/docs/ACTIVITY_LINK.md`.
+  Read it at the start of each link phase (phases 1-4 in its table).
+- **Rules:** the same standing rules as Race apply. One writer per file; the reader opens
+  the fixed names in `kSlotPaths` and never lists the folder.
+- **Layout:** the original is `Software/Libs/Link` (pure, no file I/O). Each app keeps a
+  byte-identical copy in its own `Software/Libs/Link`; `Utilities/check-link-copies.sh`
+  checks it (`--sync` copies the original over), and CI runs it. Change the original,
+  never a copy.
+- **Commands:** host tests: `cmake -S hybridx-link/Tests/Host -B hybridx-link/build-tests && cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-host-tests`.
+
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You
 load a GPX, follow the line, and get a buzz when you go off course. It is
