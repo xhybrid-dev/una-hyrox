@@ -937,3 +937,55 @@ right edge.
 The SDK released v1.6.0 (structured workouts, GPS speed filter, buzzer pitch, shared `:/Workouts`). Our pin is unchanged (`a7a995a1`); ABI 3 / kernel 1.4.0 at both. What it means for this app, and the plan to move the pin, are in `hybridx-race/docs/NOTES.md`, "Amendment — UNA SDK v1.6.0 reviewed" (5.21-5.24).
 
 **Decision (14 October 2026):** no change for v1.6: it needs to see every activity and v1.6 does not widen that. See `hybridx-race/docs/NOTES.md` 5.25.
+
+---
+
+## Activity link: Streak reads the HybridX apps' summaries (27 October 2026)
+
+Phase 3 of the HybridX activity link (`hybridx-link/docs/ACTIVITY_LINK.md`): the
+route PLAN §3 called option B, after Gate 0 closed NOT GO. Each HybridX activity
+app leaves its last 16 activities in its own `../SharedData/HybridX/act_<slot>.json`;
+Streak reads them on open and credits them like any other activity. Run writes
+its file already (Run NOTES, "Activity link"). Race, Trail, and the bike and
+workout apps to come are later phases.
+
+- **`LinkReader`** (`Core`): opens each of the fixed names in
+  `HybridXLink::kSlotPaths` (run, race, trail, ride, workout; the last two are
+  reserved for apps that do not exist yet, so a Streak already released reads
+  them), the primary if it decodes, else its `.bak`. It never lists the folder.
+  It keeps entries whose local day is in the scan window and that the model has
+  not counted, and merges them into the scanner's list oldest first (the model
+  needs that order). A full list keeps the oldest and leaves the newest for the
+  next open, which see them because they were never remembered.
+- **Same activity, two routes.** The simulator can read the `.fit` as well as the
+  summary, so a run can arrive twice with the same key (the app folder's hash and
+  the local start). `StreakModel::update` credits the first and skips the second,
+  because `credit` remembers the key. A host test pins this; no extra code.
+- **Minutes** are whole minutes, rounded down, as the FIT reader does. **Kind**
+  comes from the summary's sport code; the code table mirrors Streak's kinds.
+- **No state change.** Streak keeps no distance or heart rate, so `StateCodec`
+  is unchanged (still version 1) and nobody's saved streak is lost.
+- **Where**: the app's `open()` between the scan and `update()`; the glance's
+  projection too (`Glance/Sources/Service.cpp`), with room for 16 found where the
+  scan alone reads 4 `.fit` files (the summaries are small files, so there is no
+  reason to hold them to 4). `Software/Libs/Link` is a byte-identical copy of
+  `hybridx-link`'s code (CI checks it); `libs.cmake` adds it to Core's lists.
+- **Not on a watch yet.** The scan still finds nothing on a real watch (it cannot
+  list `..`); the summaries are what Streak counts there, **for the HybridX apps
+  only**. UNA's own Running, Walking and the rest stay uncounted until UNA
+  answers `UNA_ACTIVITY_REQUEST.md` (still a draft, not sent).
+- **Verified.** Host tests: 133 (18 new: `LinkReaderTest`, 13 on the reader and 5
+  with the model), also under ASan + UBSan; they run over `TreeFileSystem` with
+  listing and parent access blocked, as on the watch. Simulator, on a pretend
+  watch of summaries only (`docs/experiments/sim_fixtures_link.sh`, files written
+  by hand from the spec): the scan found 0 new, `Summaries: 4 files, 5 entries, 5
+  new`; the week counted Run, Run, Hybrid and Ride (a made-up bike app in the
+  reserved slot); the 5-minute Workout was listed but not counted; the broken
+  `act_trail.json` was skipped; `streak.json` was rewritten. The screen showed
+  "Your first week", three dots and "+1 Run · 30 min". Watch targets compile
+  (app 280,200 B, glance 41,256 B; compile checks only, not for a watch).
+- **Not checked.** Anything on a watch; the glance's projection of summaries
+  (the simulator cannot run glances; its code is the app's two lines, compiled);
+  a non-zero time zone end to end (the container is UTC; the reader's zone maths
+  is covered by host tests).
+

@@ -12,7 +12,7 @@ FROM="$ROOT/hybridx-link/Software/Libs/Link"
 
 APPS=(
     hybridx-run
-    # hybridx-streak
+    hybridx-streak
 )
 
 FILES=(

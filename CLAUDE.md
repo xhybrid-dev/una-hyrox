@@ -66,6 +66,9 @@ the watch records, from any app. It is independent of HybridX Race.
     <dir>` (real FIT files from `build-tests/make_fit`), plus
     `build-tests/make_state` for a history. Run the simulator from
     `<dir>/a/b/c/d/e`.
+  - a pretend watch as a real one is, with only the HybridX apps' summaries (no
+    Activity folders): `docs/experiments/sim_fixtures_link.sh <dir>` (see
+    `hybridx-link/docs/ACTIVITY_LINK.md`; `LinkReader` reads them on open);
   - captures:
     - real app: `docs/experiments/capture_real.sh`, `walkthrough_real.sh`;
     - demo: `RECORD=1 capture_screens.sh`, `walkthrough.sh`;

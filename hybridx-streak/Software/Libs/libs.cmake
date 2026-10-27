@@ -9,12 +9,17 @@
 # SDK's service entry point includes "Service.hpp" and constructs `Service`.
 # Keeping them in separate directories means each build sees exactly one.
 
-set(STREAK_CORE_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/Core/Header)
+# Link/ is a byte-identical copy of hybridx-link's code (the summaries the HybridX
+# apps leave for Streak; hybridx-link/docs/ACTIVITY_LINK.md), kept so by
+# hybridx-link/Utilities/check-link-copies.sh. LinkReader (Core) uses it, so it
+# joins Core's lists and every build that has Core has it.
+set(STREAK_CORE_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/Core/Header ${CMAKE_CURRENT_LIST_DIR}/Link/Header)
 file(GLOB_RECURSE STREAK_CORE_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_LIST_DIR}/Core/Sources/*.cpp)
 # The FIT reader checks CRCs with the SDK's own function. (The JSON classes the
 # state file uses come with UNA_SDK_SOURCES_SERVICE.)
-list(APPEND STREAK_CORE_SOURCES "$ENV{UNA_SDK}/Libs/Source/Fit/FitCrc.cpp")
+list(APPEND STREAK_CORE_SOURCES "$ENV{UNA_SDK}/Libs/Source/Fit/FitCrc.cpp"
+    ${CMAKE_CURRENT_LIST_DIR}/Link/Sources/ActivityLink.cpp)
 
 file(GLOB_RECURSE STREAK_APP_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_LIST_DIR}/App/Sources/*.cpp)

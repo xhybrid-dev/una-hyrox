@@ -79,6 +79,8 @@ two views.
 3. read the AppConfig goal;
 4. scan — at most 32 new files, the previous week plus the current week,
    stretched back to the week of the last open (at most 8 weeks);
+   then add what the HybridX apps left in `../SharedData/HybridX/act_*.json`
+   (`LinkReader`, the route that works on a real watch);
 5. credit each found session into its own week, then evaluate the boundary;
 6. save `state.json` and the public copy
    `../SharedData/HybridX/streak.json` — the same codec, so the glance can
@@ -88,7 +90,7 @@ two views.
 ### The pure core
 
 `Software/Libs/Core/` — `StreakModel`, `ActivityScanner`, `FitSessionReader`,
-`Classifier`, `WeekMath`, `Summits`, `StateCodec`, `Goal`, `SafeFile`. No SDK
+`Classifier`, `LinkReader`, `WeekMath`, `Summits`, `StateCodec`, `Goal`, `SafeFile`. No SDK
 types beyond the `IFileSystem` interface the scanner and codec are written
 against, no heap, clock and "now" always passed in rather than read — which
 is what lets the host tests simulate months of weeks instantly, with no
@@ -158,8 +160,8 @@ reads this file — it never touches `state.json`.
 `HXStreakGlance` (`APP_TYPE Glance`, its own `APP_ID`, no icon —
 `app_merging.py` only requires `-normal_icon` for non-Glance types).
 
-On `EVENT_GLANCE_START`: read the public copy, scan at most 4 new files,
-project the week to now **without saving** — the single-writer rule means
+On `EVENT_GLANCE_START`: read the public copy, scan at most 4 new files, add the
+HybridX apps' summaries (up to 16 found in all), project the week to now **without saving** — the single-writer rule means
 only the main app's service ever writes state.
 
 `GlanceLayout` (`Software/Libs/Glance/Header/GlanceLayout.hpp`) is a pure

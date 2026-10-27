@@ -14,6 +14,12 @@ Everything below becomes 0.1.0 once it has run on a watch (Gate 6).
 
 ### Added
 
+- **The HybridX apps' summaries.** Each HybridX activity app (Run now; Race,
+  Trail and later apps next) leaves its last 16 activities in the shared folder
+  and Streak counts them on open, in the app and the glance. On a real watch this
+  is the route that works: Streak cannot read other apps' activity folders (Gate
+  0), so until UNA lets it see the built-in apps, only the HybridX apps count
+  there. Slots for a bike app and a workout app are reserved already.
 - **Automatic counting.** Every activity the watch records, from any app, is
   scanned on open and credited to its week — no separate logging step for
   the apps you already use. Manual logging (today or yesterday) covers

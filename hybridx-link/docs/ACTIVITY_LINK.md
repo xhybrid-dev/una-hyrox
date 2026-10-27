@@ -4,9 +4,10 @@ The way our activity apps tell HybridX Streak what you did. Each app leaves a
 small summary in the watch's shared folder; Streak reads them. Built so a bike
 or workout app can join later without touching Streak.
 
-**Status.** Phases 1 (the format, the shared code and its host tests) and 2
-(Run writes its summary) are done. Streak's reader is phase 3 (see "Phases"), so
-nothing reads the summaries yet.
+**Status.** Phases 1 (the format, the shared code and its host tests), 2 (Run
+writes its summary) and 3 (Streak reads the summaries, in the app and the glance)
+are built and checked in the simulator. Nothing has run on a watch yet: that is
+Jon's test, below.
 
 ## Why it exists
 
@@ -111,15 +112,27 @@ cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-
 |---|---|---|
 | 1 | The format, `hybridx-link`, host tests, copy check, CI | Done. Jon to review the format. |
 | 2 | Run writes its summary | Done (simulator-checked; see Run NOTES, "Activity link") |
-| 3 | Streak reads the summaries (app and glance) | Not started |
+| 3 | Streak reads the summaries (app and glance) | Built (simulator-checked; see Streak NOTES, "Activity link"). Jon's watch test next. |
 | 4 | Race, Trail, then the bike and workout apps, one at a time | Later |
 
-## Checks on the watch (phase 3 gate)
+## Checks on the watch (the phase 3 gate: Jon's test)
 
-Nothing here has run on a watch yet. When it has: record a short Run activity
-that meets Streak's minimum minutes, open Streak, and check this week's count went
-up by one. Over USB, check `Apps/SharedData/HybridX/act_run.json` exists and holds
-the run. Check a discarded run leaves no entry.
+Nothing here has run on a watch yet. Install the CI builds of Run and Streak (and
+Streak's glance if you use it), then:
+
+1. Open Streak once, so it has a saved streak. (Its scan will find nothing: it
+   cannot read other apps' folders. That is expected.)
+2. Record a Run of at least Streak's minimum minutes (10 by default) and save it.
+   A short one is fine for the test: set the minimum to 0 in Streak's settings.
+3. Open Streak. This week's count should be up by one, and the toast should say
+   "+1 Run". Open it again: the count must not go up a second time.
+4. Over USB, `Apps/SharedData/HybridX/act_run.json` should exist and hold the run
+   (about 36 bytes per run). Note the start time and the zone: `1440` stored is
+   UTC, `1500` is UTC+1.
+5. Record another Run and discard it. The file must not change.
+6. If you have the glance, check it shows the new count after step 3.
+
+Tell me what the file holds and what Streak showed, whichever way it went.
 
 ## Not known
 
