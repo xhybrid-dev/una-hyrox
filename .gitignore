@@ -9,6 +9,7 @@ hybridx-race/build-tests/
 hybridx-race/Output/
 hybridx-race/Software/Apps/LVGL-GUI/simulator/build/
 hybridx-race/Software/Output/
+hybridx-race/Software/SharedData/
 hybridx-streak/build-*/
 hybridx-streak/Output/
 hybridx-streak/Software/Output/

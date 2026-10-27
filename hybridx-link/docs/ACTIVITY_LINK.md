@@ -5,8 +5,8 @@ small summary in the watch's shared folder; Streak reads them. Built so a bike
 or workout app can join later without touching Streak.
 
 **Status.** Phases 1 (the format, the shared code and its host tests), 2 (Run
-writes its summary) and 3 (Streak reads the summaries, in the app and the glance)
-are built and checked in the simulator. Nothing has run on a watch yet: that is
+writes its summary), 3 (Streak reads the summaries, in the app and the glance) and
+4 for Race (Race writes its summary) are built and checked in the simulator. Nothing has run on a watch yet: that is
 Jon's test, below.
 
 ## Why it exists
@@ -113,7 +113,7 @@ cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-
 | 1 | The format, `hybridx-link`, host tests, copy check, CI | Done. Jon to review the format. |
 | 2 | Run writes its summary | Done (simulator-checked; see Run NOTES, "Activity link") |
 | 3 | Streak reads the summaries (app and glance) | Built (simulator-checked; see Streak NOTES, "Activity link"). Jon's watch test next. |
-| 4 | Race, Trail, then the bike and workout apps, one at a time | Later |
+| 4 | Race, Trail, then the bike and workout apps, one at a time | Race done (simulator-checked; see Race NOTES, "Amendment — Race tells Streak"). Trail, bike and workout later. |
 
 ## Checks on the watch (the phase 3 gate: Jon's test)
 

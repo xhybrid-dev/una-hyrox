@@ -946,8 +946,9 @@ Phase 3 of the HybridX activity link (`hybridx-link/docs/ACTIVITY_LINK.md`): the
 route PLAN §3 called option B, after Gate 0 closed NOT GO. Each HybridX activity
 app leaves its last 16 activities in its own `../SharedData/HybridX/act_<slot>.json`;
 Streak reads them on open and credits them like any other activity. Run writes
-its file already (Run NOTES, "Activity link"). Race, Trail, and the bike and
-workout apps to come are later phases.
+its file already (Run NOTES, "Activity link"), and so does Race (27 October 2026,
+Race NOTES, "Amendment — Race tells Streak"; its bytes are a host-test fixture
+here). Trail, and the bike and workout apps to come, are later phases.
 
 - **`LinkReader`** (`Core`): opens each of the fixed names in
   `HybridXLink::kSlotPaths` (run, race, trail, ride, workout; the last two are

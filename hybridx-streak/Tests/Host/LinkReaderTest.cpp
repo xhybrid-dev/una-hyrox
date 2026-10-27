@@ -403,3 +403,21 @@ TEST(LinkReaderWithModel, ARunTheRealAppWroteIsFound)
     EXPECT_EQ(found[0].minutes, 45);
     EXPECT_STREQ(found[0].app, "HybridXRun");
 }
+
+TEST(LinkReaderWithModel, ARaceTheRealAppWroteIsFoundAsHybrid)
+{
+    // The bytes the Race app's writer made in the simulator (hybridx-race NOTES, "Activity link").
+    Watch w;
+    w.fs.addFile(std::string(kShared) + "act_race.json",
+                 R"({"v":1,"app":"HybridXRace","a":[[1793103288,1440,50,5180,150,157,6],[1793103347,1440,50,5180,141,145,6]]})");
+    LinkReader r;
+    std::vector<Found> found;
+    ASSERT_EQ(read(r, w, Seen(), found), 2u);
+    EXPECT_STREQ(found[0].app, "HybridXRace");
+    EXPECT_EQ(found[0].appKey, Streak::ActivityScanner::appKey("HybridXRace"));
+    EXPECT_EQ(found[0].kind, Kind::Hybrid);
+    EXPECT_EQ(found[0].localDay, kToday);
+    EXPECT_EQ(found[0].localStart % 86400u, 12u * 3600u + 14u * 60u + 48u);
+    EXPECT_LT(found[0].localStart, found[1].localStart);
+}
+

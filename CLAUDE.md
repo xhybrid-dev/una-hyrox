@@ -78,7 +78,9 @@ the watch records, from any app. It is independent of HybridX Race.
 How our activity apps tell Streak what you did on a real watch, where Streak cannot
 read other apps' `Activity/` folders (Streak NOTES, Gate 0). Each app leaves its last
 16 activities in its own `../SharedData/HybridX/act_<slot>.json`; Streak reads them.
-It is not an app. It counts our own apps only, not UNA's built-in ones.
+It is not an app. It counts our own apps only, not UNA's built-in ones. Writers so far:
+Run (`act_run.json`) and Race (`act_race.json`); the reader is Streak. Each writer is
+`Service::writeActivityLink` in its own `Service.cpp`, called once the `.fit` has closed.
 - **Docs:** the format, the rules and how to add an app: `hybridx-link/docs/ACTIVITY_LINK.md`.
   Read it at the start of each link phase (phases 1-4 in its table).
 - **Rules:** the same standing rules as Race apply. One writer per file; the reader opens
