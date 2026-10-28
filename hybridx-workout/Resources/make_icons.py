@@ -16,8 +16,9 @@ TEAL = (0, 170, 170, 255)
 TEAL_DARK = (0, 85, 85, 255)
 WHITE = (255, 255, 255, 255)
 
-# Darkest available grey on a 2-bit-per-channel display.
-GRAY_DARK = (0, 0, 0, 255)
+# Darkest available grey on a 2-bit-per-channel display: level 1 of 4 on
+# each channel, the SDK's SDK::GUI::Color::GRAY_DARK (0x404040 on its scale).
+GRAY_DARK = (85, 85, 85, 255)
 
 OUT = Path(__file__).resolve().parent
 SCALE = 4
