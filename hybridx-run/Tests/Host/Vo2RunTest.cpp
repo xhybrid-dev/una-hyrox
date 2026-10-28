@@ -148,8 +148,10 @@ TEST(Vo2Run, PauseBreaksTheWindow)
     paused.active = false;
     feed(run, paused, 120);
     feed(run, steady(), 60);
-    // The 30 s before the pause are dropped, not merged with what follows.
-    EXPECT_EQ(run.counts().accepted, 2);
+    // The 30 s before the pause are dropped, not merged with what follows. The minute after the
+    // pause does not follow on from the one before it, so the HR-lag guard drops it too.
+    EXPECT_EQ(run.counts().accepted, 1);
+    EXPECT_EQ(run.counts().lagged, 1);
     EXPECT_EQ(run.counts().gaps, 0);
 }
 

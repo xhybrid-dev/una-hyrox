@@ -74,6 +74,17 @@ public:
 
     uint8_t size() const { return mCount; }
 
+    /// Re-scoring (Vo2Rescore): run i judged again. setRun changes its figure; removeAt drops a
+    /// run that no longer has one. Call recomputeShown() after, so the trend follows.
+    void setRun(uint8_t i, uint16_t vo2x10, uint16_t windows);
+    void removeAt(uint8_t i);
+    void recomputeShown();
+
+    /// What the runs were last scored with (Vo2Rescore::profileKey); 0 = never (a file from before
+    /// re-scoring, which is then scored once). Saved in vo2.json as "pk".
+    uint32_t profileKey() const { return mProfileKey; }
+    void     setProfileKey(uint32_t k) { mProfileKey = k; }
+
     /// How many of the runs kept came from this source.
     uint8_t countFrom(RunSource src) const;
 
@@ -131,7 +142,7 @@ public:
     static constexpr size_t kMaxSharedJsonBytes = 96 + Config::kHistoryRuns * 6;
 
     /// Largest toJson() output, for sizing buffers.
-    static constexpr size_t kMaxJsonBytes = 80 + Config::kHistoryRuns * (32 + 10);
+    static constexpr size_t kMaxJsonBytes = 96 + Config::kHistoryRuns * (32 + 10);
 
 private:
     /// The weighted mean of the latest kRollingRuns of the first n runs kept.
@@ -147,6 +158,7 @@ private:
 
     uint8_t   mWatchRestHr = 0;
     uint32_t  mTrailMark   = 0;
+    uint32_t  mProfileKey  = 0;
 };
 
 }  // namespace RunVo2

@@ -38,6 +38,8 @@ void Vo2Run::reset()
     mHavePrev      = false;
     mPrevActiveSec = 0;
     mPrevSpeedX10  = 0;
+    mLagKnownOnly  = false;
+    mLastWindow    = WindowRecord{};
 }
 
 void Vo2Run::addSecond(const Sample& s)
@@ -48,6 +50,7 @@ void Vo2Run::addSecond(const Sample& s)
     if (!mBuilder.popWindow(w)) {
         return;
     }
+    mLastWindow = w;
     uint16_t cost = 0;
     bool     afterChange = false;
     const WindowOutcome outcome = judge(w, cost, afterChange);
@@ -98,8 +101,10 @@ WindowOutcome Vo2Run::judge(const WindowRecord& w, uint16_t& costX10, bool& afte
     // after one ends more than a minute after the last. (A pause exactly on a window's edge is
     // not seen.) Every window judged becomes the next one's "before", whatever its outcome.
     const uint16_t speed = w.goodSec > 0 ? w.speedMMinX10 : 0;
-    afterChange = true;
-    if (mHavePrev && w.activeSec - mPrevActiveSec == Config::kWindowSec && mPrevSpeedX10 > 0 && speed > 0) {
+    const bool contiguous = mHavePrev && w.activeSec - mPrevActiveSec == Config::kWindowSec;
+    // Known only (a kept-minutes file): an unknown minute before is not a change.
+    afterChange = !mLagKnownOnly;
+    if (contiguous && mPrevSpeedX10 > 0 && speed > 0) {
         const float change = std::fabs(static_cast<float>(speed) - static_cast<float>(mPrevSpeedX10)) * 100.0f /
                              static_cast<float>(mPrevSpeedX10);
         afterChange = change > Config::kLagMaxSpeedChangePct;

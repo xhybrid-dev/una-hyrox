@@ -82,6 +82,41 @@ void Vo2History::addSorted(const RunRecord& r)
     }
 }
 
+void Vo2History::setRun(uint8_t i, uint16_t vo2x10, uint16_t windows)
+{
+    if (i < mCount) {
+        RunRecord& r = mRuns[(mFirst + i) % Config::kHistoryRuns];
+        r.vo2x10  = vo2x10;
+        r.windows = windows;
+    }
+}
+
+void Vo2History::removeAt(uint8_t i)
+{
+    if (i >= mCount) {
+        return;
+    }
+    RunRecord tmp[Config::kHistoryRuns];
+    uint8_t   n = 0;
+    for (uint8_t k = 0; k < mCount; ++k) {
+        if (k != i) {
+            tmp[n++] = at(k);
+        }
+    }
+    mFirst = 0;
+    mCount = n;
+    for (uint8_t k = 0; k < n; ++k) {
+        mRuns[k] = tmp[k];
+    }
+}
+
+void Vo2History::recomputeShown()
+{
+    for (uint8_t i = 0; i < mCount; ++i) {
+        mRuns[(mFirst + i) % Config::kHistoryRuns].shownX10 = rollingOver(static_cast<uint8_t>(i + 1));
+    }
+}
+
 uint8_t Vo2History::countFrom(RunSource src) const
 {
     uint8_t n = 0;
@@ -116,10 +151,17 @@ uint16_t Vo2History::rollingOver(uint8_t n, uint32_t notBeforeUtc) const
         n = mCount;
     }
     const uint8_t from = n > Config::kRollingRuns ? n - Config::kRollingRuns : 0;
+    // The age limit, anchored on the latest of these n runs (Vo2Config kMaxRunAgeDays), unless the
+    // caller gave its own (rollingX10Within).
+    if (notBeforeUtc == 0 && Config::kAgeLimitEnabled && n > 0) {
+        const uint32_t span   = static_cast<uint32_t>(Config::kMaxRunAgeDays) * 86400u;
+        const uint32_t latest = at(static_cast<uint8_t>(n - 1)).utc;
+        notBeforeUtc = latest > span ? latest - span : 0;
+    }
     for (uint8_t i = from; i < n; ++i) {
         const RunRecord& r = at(i);
         if (notBeforeUtc != 0 && r.utc < notBeforeUtc) {
-            continue;   // older than the limit (P3, measured only)
+            continue;   // older than the age limit
         }
         const uint32_t w = r.windows < Config::kMaxRunWeight ? r.windows : Config::kMaxRunWeight;
         sum    += static_cast<uint32_t>(r.vo2x10) * w;
@@ -193,6 +235,7 @@ size_t Vo2History::toJson(char* buf, size_t cap) const
     w.add("v", static_cast<uint8_t>(4));
     w.add("restHr", mWatchRestHr);
     w.add("trail", mTrailMark);
+    w.add("pk", mProfileKey);   // read only if present: older files score once
     w.startArray("maxes");
     for (uint8_t i = 0; i < mMaxCount; ++i) {
         w.add(mMaxes[(mMaxFirst + i) % Config::kHistoryRuns]);
@@ -253,6 +296,13 @@ bool Vo2History::fromJson(const char* text, size_t len)
                 return false;
             }
             h.setTrailMarkUtc(static_cast<uint32_t>(v));
+        }
+        int64_t pk = 0;
+        if (r.get("pk", pk)) {   // optional: absent before re-scoring
+            if (pk < 0 || pk > 0xFFFFFFFFll) {
+                return false;
+            }
+            h.setProfileKey(static_cast<uint32_t>(pk));
         }
 
         size_t n = 0;

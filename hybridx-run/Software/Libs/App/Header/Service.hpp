@@ -141,6 +141,10 @@ private:
     /// The run detail page's numbers (about 4 KB, so on the heap, made when a track starts and
     /// freed when it ends). Null if there was no memory: the page then shows nothing.
     std::unique_ptr<RunVo2::RunStats> mRunStats;
+    /// This run's windows as built, for its Runs/ file (re-scoring); allocated at the start of a
+    /// GPS run, never in the 1 Hz path.
+    std::unique_ptr<RunVo2::WindowRecord[]> mRunWin;
+    uint16_t mRunWinCount = 0;
 
     // -- Outdoor stride calibration inputs (latched per stream) ---------
     struct {
@@ -315,6 +319,11 @@ private:
     // HybridX Run
     void loadVo2();
     void ingestTrailRuns();      ///< runs HybridX Trail left in the shared folder (L2)
+    // Re-scoring (NOTES, "VO2max switched on"): each kept run's windows in Runs/<utc>.json.
+    void rescoreIfNeeded();      ///< when the entered numbers or the method changed
+    void writeRunFile(uint32_t utc, const char* text, size_t len);
+    void pruneRunFiles(const uint32_t* before, uint8_t count);   ///< delete runs that left the history
+    uint8_t historyUtcs(uint32_t* out) const;                    ///< the kept runs' times, for pruneRunFiles
     void saveVo2Files();         ///< vo2.json and the public vo2max.json
     void feedVo2();
     void finishVo2(std::time_t endUtc);

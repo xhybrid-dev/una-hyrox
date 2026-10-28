@@ -1074,3 +1074,66 @@ run detail page (P2) already measures inside each run, so no extra memory during
 - Streak's README, CHANGELOG and ARCHITECTURE, and CLAUDE.md, no longer claim that Streak
   counts every activity from any app. On a watch it counts the HybridX apps' sessions and
   manual logs.
+
+## VO2max switched on: the HR-lag guard, the 42-day limit, re-scoring (28 October 2026)
+
+Jon decided to switch on what P3 had measured, without waiting for the Garmin comparison. The
+tuning log still prints the P3 "what-if" line.
+
+- **HR-lag guard on** (`kLagGuardEnabled = true`). A minute after a change of pace of more than
+  10%, or after a pause or a minute with no speed, is not used (outcome `Lagged`).
+  - **Jon's 14 October run:** 2 of its 34 minutes drop out and the figure stays 45.1. The halves
+    of the 32 used read 45.9 and 44.3; it was 44.1 over all 34, because both dropped minutes
+    were in the second half.
+  - **Trail's runs and other kept-minutes files.** These hold only the minutes the other app kept,
+    so a gap between two of them is unknown, not a pause. They are judged on a **known** change
+    only: the minute before was there and was more than 10% off (`Vo2Run::setLagKnownOnly`, set
+    by `judgeWindowFile(…, keptOnly)`). P3 had found that, judged as a live run, many Trail
+    minutes would be dropped for gaps that were not pauses.
+  - `reset()` clears the mode, so the live run that follows on the same object is judged as its
+    own. A host test pins this; without it, Trail's mode would have leaked into the next run.
+- **The 42-day limit on.** The value shown counts only runs within 42 days of the **latest** run
+  kept (`kAgeLimitEnabled`, in `Vo2History::rollingOver`). This covers the main menu, the
+  summary's "Recent", `vo2max.json` (still `"v":2`) and every run's place in the trend.
+  - Anchored on the latest run, not on today, so the app, the glance's file and the trend always
+    agree, and nothing changes with time alone: a runner back after three months sees their last
+    figure.
+  - `rollingX10Within(now)`, the log's measure against today, stays as it was.
+- **Re-scoring** (`Core/Vo2Rescore.*`).
+  - **What is kept.** Each run in the history keeps its windows in `Runs/<utc>.json`, in the
+    window-file format:
+    - a run of Run's own keeps every window it built (the first 120, two hours), collected as
+      the run goes into a 3 KB heap array allocated at the start of a GPS run;
+    - a Trail run's file is copied in when it is counted.
+  - **Pruning.** When a run leaves the 10-run history, its file is deleted.
+  - **When it happens.**
+    - The kept runs are scored again whenever `profileKey` changes. It is a hash of the method
+      version (`kMethodVersion`, 1) and what the athlete entered: birth date, max HR, resting HR.
+      It leaves out the watch's daily resting HR and the auto max.
+    - The key is saved in `vo2.json` as `"pk"`. A file without it (every file before this build)
+      is scored once on the first open.
+    - It runs at start, after Trail's runs are counted, and after the numbers are saved on the
+      watch (only between runs).
+  - **What it does.** Each run with a file is judged again with today's profile. A run whose
+    windows no longer give a figure leaves the history. A run with no file (saved before this
+    build) keeps its figure. The trend is then worked out again and both files are saved.
+  - **Memory:** an 8 KB heap buffer for the re-score.
+
+### Verified
+- Host tests: **200** (10 new: the Trail mode, the anchored limit, `Vo2Rescore`, the history
+  edits and the key in the file). Nine earlier tests were updated deliberately, each because the
+  guard or the limit is now on. Also run under ASan and UBSan.
+- **Simulator** (`docs/experiments/sim_rescore.sh`, three starts):
+  1. Two synthetic Trail runs counted (49.2 and 50.8) and their files copied into `Runs/`.
+     The first open scored everything once (3 old runs kept as they were). The trend left out
+     the run 52 days before the next (`[560,512,519,517,513]`, where 512 stands alone).
+  2. Max HR 200 entered on the phone: both Trail runs scored again (56.3 and 58.0); the shown
+     figure, the trend and the glance's file followed.
+  3. Nothing changed: no re-score.
+- Trail's Vo2Link copies and the link copies are unchanged.
+- **A run of Run's own** (`sim_run.sh 600`, resting HR entered) got an estimate from 5 minutes
+  (the simulator's runner gives a meaningless 86.6) and joined the history. Its
+  `Runs/1793166351.json` holds all 10 windows it built (5 warm-up, 5 used), as a re-score needs.
+- **Watch target and glance compile** (516,956 B and 28,404 B; compile checks only).
+- **Not verified:** anything on a watch, or a re-score of one of Run's own runs. That path is
+  the Trail path above, with the run's own judging.
