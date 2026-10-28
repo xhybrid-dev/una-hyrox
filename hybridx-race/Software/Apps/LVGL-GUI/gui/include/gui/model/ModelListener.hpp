@@ -66,6 +66,8 @@ public:
     /// Live heart rate while no race is running.
     virtual void onIdleHr(uint8_t bpm) { (void)bpm; }
 
+    virtual void onStreakLine() {}   ///< the Streak line after a save (Model::hasStreakLine)
+
     virtual void onAccessoryStatus(uint8_t state, const char* name)
     {
         (void)state;

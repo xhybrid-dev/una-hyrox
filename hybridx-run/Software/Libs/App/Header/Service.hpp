@@ -42,6 +42,7 @@
 
 #include "FormStats.hpp"
 #include "RunStats.hpp"
+#include "Bests.hpp"
 #include "Vo2History.hpp"
 #include "Vo2Log.hpp"
 #include "Vo2Profile.hpp"
@@ -140,6 +141,10 @@ private:
     /// The run detail page's numbers (about 4 KB, so on the heap, made when a track starts and
     /// freed when it ends). Null if there was no memory: the page then shows nothing.
     std::unique_ptr<RunVo2::RunStats> mRunStats;
+    /// This run's windows as built, for its Runs/ file (re-scoring); allocated at the start of a
+    /// GPS run, never in the 1 Hz path.
+    std::unique_ptr<RunVo2::WindowRecord[]> mRunWin;
+    uint16_t mRunWinCount = 0;
 
     // -- Outdoor stride calibration inputs (latched per stream) ---------
     struct {
@@ -259,6 +264,8 @@ private:
     float        mTreadSteps[SDK::Calibration::StrideLut::kBinCount] {};   ///< steps per cadence bin, for the learning
     ActivityWriter::TrackData mPendingTrack {};   ///< the session, held until the distance is known
 
+    RunVo2::Bests mBests;   ///< HybridX Run: personal bests across runs (docs/NOTES.md "Personal bests")
+
     // HybridX Run: the VO2max estimate (docs/NOTES.md).
     RunVo2::Vo2Run         mVo2Run;
     RunVo2::Vo2History     mVo2History;
@@ -312,6 +319,11 @@ private:
     // HybridX Run
     void loadVo2();
     void ingestTrailRuns();      ///< runs HybridX Trail left in the shared folder (L2)
+    // Re-scoring (NOTES, "VO2max switched on"): each kept run's windows in Runs/<utc>.json.
+    void rescoreIfNeeded();      ///< when the entered numbers or the method changed
+    void writeRunFile(uint32_t utc, const char* text, size_t len);
+    void pruneRunFiles(const uint32_t* before, uint8_t count);   ///< delete runs that left the history
+    uint8_t historyUtcs(uint32_t* out) const;                    ///< the kept runs' times, for pruneRunFiles
     void saveVo2Files();         ///< vo2.json and the public vo2max.json
     void feedVo2();
     void finishVo2(std::time_t endUtc);
@@ -320,8 +332,12 @@ private:
     void updateForm();           ///< cadence and step length for this tick: screen, record and averages
     void writeActivityLink(const ActivityWriter::TrackData& track);   ///< the saved run, for Streak (hybridx-link)
     bool closeActivity(const ActivityWriter::TrackData& track);       ///< finish the .fit, tell the watch and Streak
+    void sendStreakLine();                                            ///< the Streak line, after a save
     void handleEvent(const CustomMessage::TreadmillDistance& event);  ///< HybridX Run: the console's distance
     void finishTreadmill(float metres);                               ///< 0 keeps the estimate
+    void loadBests();                                                 ///< HybridX Run: bests.json, at start
+    void updateBests(uint32_t runUtc);                                ///< offer the saved run's splits
+    void sendBests(uint8_t newMask);
     void sendVo2Info();
     void fillVo2Page();
     void handleEvent(const CustomMessage::Vo2ProfileSave& event);

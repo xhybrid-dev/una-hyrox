@@ -20,9 +20,10 @@ Everything below becomes 0.1.0 once it has run on a watch (Gate 6).
   is the route that works: Streak cannot read other apps' activity folders (Gate
   0), so until UNA lets it see the built-in apps, only the HybridX apps count
   there. Slots for a bike app and a workout app are reserved already.
-- **Automatic counting.** Every activity the watch records, from any app, is
-  scanned on open and credited to its week — no separate logging step for
-  the apps you already use. Manual logging (today or yesterday) covers
+- **Automatic counting.** Activities are scanned on open and credited to their
+  week. On a real watch that means the HybridX apps' summaries (above): Streak
+  cannot read other apps' activity folders there, so the folder scan finds
+  activities only in the simulator. Manual logging (today or yesterday) covers
   anything the watch never recorded.
 - **A weekly target**, default 3 sessions from a Monday, adjustable, with an
   optional minimum duration (10 minutes by default, 0 = off) and an optional

@@ -120,29 +120,69 @@ cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-
 | 1 | The format, `hybridx-link`, host tests, copy check, CI | Done. Jon to review the format. |
 | 2 | Run writes its summary | Done (simulator-checked; see Run NOTES, "Activity link") |
 | 3 | Streak reads the summaries (app and glance) | Built (simulator-checked; see Streak NOTES, "Activity link"). Jon's watch test next. |
-| 4 | Race, Trail, then the bike and workout apps, one at a time | Race and Trail done (simulator-checked; Race NOTES "Amendment — Race tells Streak", Trail NOTES "Activity link"), and the family check passes. Bike and workout later. |
+| 4 | Race, Trail, then the bike and workout apps, one at a time | Race, Trail and Workout done (simulator-checked; Race NOTES "Amendment — Race tells Streak", Trail NOTES "Activity link", Workout NOTES "W0"), and the family check passes with all four. Bike later (it waits on UNA's sensors: hybridx-ride NOTES). |
+
+## The Streak line (28 October 2026)
+
+After a save, Run, Race, Trail and Workout show "3 of 4 this week" and "8-week streak" on their Saved
+screen, in amber, in place of "…has been saved". Streak's PLAN §9 had this for Race.
+
+Streak only works its numbers out when it is opened. So:
+- **Streak writes the summary.** Each time it saves, it also writes
+  `../SharedData/HybridX/streak_now.json` (`StreakNow`, in this library). The file holds this
+  week's first day, the goal (target, minimum minutes, scope, one per day, whether a change
+  waits), the sessions counting, the days that have one, the streak before this week, and the
+  `[appKey, localStart]` of every session Streak already has this week.
+- **The app projects the line.** After writing its own summary, the app reads that file and
+  every `act_*.json`, then adds what Streak has not seen, by Streak's own rules
+  (`StreakModel::status`): whole minutes at or over the minimum, in scope (Sport → Kind, as
+  `LinkReader` maps it), and a new day if one per day is on.
+- **What it shows when:**
+  - the same week: the count, target and streak;
+  - the next week with last week met: the same, the streak carried on;
+  - otherwise: only "N this week", because misses and shields are Streak's to decide when it
+    opens;
+  - with no summary (Streak not installed, or never opened): no line, and "…has been saved" as
+    before.
+- `appKey` (FNV-1a) moved into this library, so Streak and the apps cannot disagree on it.
+  Streak's `ActivityScanner::appKey` now calls it.
+- **In the apps:** `Service::sendStreakLine()` runs after `writeActivityLink`, and the
+  `StreakLineUpd` message carries the two lines of text. The GUI keeps the line on screen for
+  3.5 s, not 2.
+- **Not on a treadmill run in Run:** its save finishes after the distance screen, by when the
+  Saved screen has gone; the line is worked out and logged but not shown. Race shows it on its
+  Saved screen rather than the Finished one, which is the same place as the other two.
+- **Checked:**
+  - host tests: 11 in `StreakNowTest`;
+  - `family_check.sh` now opens Streak first, then saves Run, Race and Trail one after another.
+    Their lines must read "1 of 7", "2 of 7", "3 of 7", and Streak must then count the same
+    three. Passed on 28 October 2026;
+  - screenshots in all three apps, with a summary holding a 7-week streak and 3 of 4 done:
+    "4 of 4 this week, 8-week streak".
 
 ## Family check (the simulator)
 
 `hybridx-link/docs/experiments/family_check.sh [out-dir]` puts the whole family on one
 pretend watch:
-- Run, Race and Trail each record and save an activity in their own simulator, at the
-  same time, each from its own app folder;
-- all three share **one** `SharedData` folder (each app's `../SharedData` is a symlink
+- Run, Race, Trail and Workout each record and save an activity in their own simulator,
+  each from its own app folder;
+- all four share **one** `SharedData` folder (each app's `../SharedData` is a symlink
   to it, as on a watch every app's is the same folder);
 - then Streak opens twice, from its own folder in the same tree.
 
-It checks, with the apps' real writers and Streak's real reader:
+Quick mode opens Streak first, so it leaves its `streak_now.json`, and then records the four
+apps one after another; `LONG=1` records them at once. It checks, with the apps' real writers and
+Streak's real reader:
 1. each app left one entry, under its own name and sport;
 2. each entry has its `.fit` session's start and timer time;
-3. Streak's first open finds all three (`Summaries: 3 files, 3 entries, 3 new`);
-4. its saved state counts each once (Run, Hybrid, Run);
+3. Streak's first open finds all four (`Summaries: 4 files, 4 entries, 4 new`);
+4. its saved state counts each once (Run, Hybrid, Run, Workout);
 5. the second open finds nothing new and still holds three.
 
 It also reports whether Trail left minutes for Run's VO2max (for information: the
 simulator's heart rate is not steady running, so there are usually none).
 
-- **Quick mode** (the default, about 3 minutes): about 80 s each, with Streak's
+- **Quick mode** (the default, about 7 minutes): about 80 s each, with Streak's
   minimum set to 0 minutes so the short sessions count.
 - **`LONG=1`** (about 14 minutes): 11 minutes each, with Streak's default 10-minute
   minimum.
@@ -150,11 +190,14 @@ simulator's heart rate is not steady running, so there are usually none).
   must count as a Run like any other. Passed on 27 October 2026.
 - `SHOTS=<dir>` saves Streak's screen after each open.
 
-It needs the four simulators built, Xvfb, xdotool and fitdecode. It prints a PASS/FAIL
+It needs the five simulators built, Xvfb, xdotool and fitdecode. It prints a PASS/FAIL
 table and exits non-zero on any FAIL. Run it after any change to a writer, the
 library or Streak's reader. It runs by hand, not in CI: CI has no simulators.
 
-Last run (27 October 2026): every check passed in both modes. Streak showed 3 of its 7
+HybridX Workout joined on 28 October 2026 (Workout NOTES "W0"): the quick mode passed with
+four apps, the lines reading "1 of 7" to "4 of 7", and Streak counting the workout as Workout.
+
+Earlier run (27 October 2026): every check passed in both modes. Streak showed 3 of its 7
 dots after the first open, and the same after the second. In `LONG=1`, the 11-minute
 sessions counted under Streak's default 10-minute minimum, and Trail also left
 `trail_vo2_0.json` for Run's VO2max. Run recorded at the same time, so it had not yet

@@ -204,6 +204,7 @@ TEST(Vo2Window, NoHeartRateIsNeededForTheAverage)
 TEST(Vo2Link, AWindowFromElsewhereIsJudgedLikeOneOfOurOwn)
 {
     Vo2Run run;
+    run.setLagKnownOnly(true);   // windows from elsewhere: only a known change of pace flags one
     for (int i = 0; i < 5; ++i) {
         EXPECT_EQ(run.addWindow(goodWindow(600 + 60 * i)), WindowOutcome::Kept);
     }
@@ -226,6 +227,7 @@ TEST(Vo2Link, TheWarmUpAndGapsAreStillDropped)
 TEST(Vo2Link, OneStraySecondDoesNotCostALevelMinute)
 {
     Vo2Run run;
+    run.setLagKnownOnly(true);   // windows from elsewhere: only a known change of pace flags one
     WindowRecord w = goodWindow();
     w.steepSec = 1;
     EXPECT_EQ(run.addWindow(w), WindowOutcome::Kept);
@@ -238,6 +240,7 @@ TEST(Vo2Link, OneStraySecondDoesNotCostALevelMinute)
 TEST(Vo2Link, AMeanOutsideTheLimitsIsSteepWhateverTheSeconds)
 {
     Vo2Run run;
+    run.setLagKnownOnly(true);   // windows from elsewhere: only a known change of pace flags one
     WindowRecord w = goodWindow();
     w.gradeX10 = 101;    // 10.1%
     EXPECT_EQ(run.addWindow(w), WindowOutcome::Grade);
@@ -252,6 +255,7 @@ TEST(Vo2Link, AMeanOutsideTheLimitsIsSteepWhateverTheSeconds)
 TEST(Vo2Link, TheHeartRateRangeLimitIsTwelve)
 {
     Vo2Run run;
+    run.setLagKnownOnly(true);   // windows from elsewhere: only a known change of pace flags one
     WindowRecord w = goodWindow();
     w.hrMin = 156;
     w.hrMax = 168;   // 12
@@ -368,22 +372,22 @@ TEST(Vo2Link, JonsRunUnderTheNewRules)
         w.hrMax        = r.hmax;
         run.addWindow(w);
     }
-    EXPECT_EQ(run.counts().accepted, 34);
+    // P3 measured it, and Jon switched the HR-lag guard on (28 October 2026): two of the 34
+    // minutes followed a change of pace and are now not used. The estimate is the same, 45.1,
+    // as the P3 what-if said (and an independent Python reading of the same rules).
+    EXPECT_EQ(run.counts().accepted, 32);
+    EXPECT_EQ(run.counts().lagged, 2);
+    EXPECT_EQ(run.counts().afterChange, 0);   // none used after a change
     const RunResult r = run.estimate(profile(182, 41));
     ASSERT_EQ(r.status, RunStatus::Ok);
-    EXPECT_EQ(r.windowsUsed, 34);
+    EXPECT_EQ(r.windowsUsed, 32);
     EXPECT_NEAR(r.vo2x10, 451, 2);
-
-    // P3, measured first (the figures from an independent Python reading of the same rules):
-    // two of the 34 minutes followed a change of pace, and without them the estimate is the same;
-    // the first half of the minutes reads 45.9 and the second 44.1 (cardiac drift); a typical minute
-    // sits 1.2 from the middle.
-    EXPECT_EQ(run.counts().afterChange, 2);
-    EXPECT_EQ(run.counts().lagged, 0);   // the guard is off: they were used
-    EXPECT_EQ(r.afterChange, 2);
-    EXPECT_NEAR(r.withoutLagX10, 451, 1);
+    EXPECT_EQ(r.afterChange, 0);
+    EXPECT_EQ(r.withoutLagX10, r.vo2x10);
+    // The halves of the 32 used: 45.9 and 44.3 (44.1 over all 34; the two dropped were in the
+    // second half). A typical minute sits about 1.2 from the middle.
     EXPECT_NEAR(r.firstHalfX10, 459, 1);
-    EXPECT_NEAR(r.secondHalfX10, 441, 1);
+    EXPECT_NEAR(r.secondHalfX10, 443, 1);
     EXPECT_NEAR(r.spreadX10, 12, 1);
 }
 

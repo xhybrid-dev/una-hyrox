@@ -11,7 +11,7 @@ namespace RunVo2
 {
 
 IngestStatus judgeWindowFile(const char* text, size_t len, uint32_t markUtc,
-                             Vo2Run& run, WindowFileInfo& info)
+                             Vo2Run& run, WindowFileInfo& info, bool keptOnly)
 {
     info = WindowFileInfo{};
     if (text == nullptr || len == 0) {
@@ -26,6 +26,7 @@ IngestStatus judgeWindowFile(const char* text, size_t len, uint32_t markUtc,
         return IngestStatus::AlreadyCounted;
     }
     run.reset();
+    run.setLagKnownOnly(keptOnly);
     for (uint16_t i = 0; i < info.count; ++i) {
         WindowRecord w;
         if (!reader.window(i, w)) {

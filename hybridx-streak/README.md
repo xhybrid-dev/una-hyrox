@@ -2,13 +2,16 @@
 
 A weekly training-streak tracker for the [UNA Watch](https://unawatch.com).
 
-Every activity your watch records — from any app — counts automatically
-towards a weekly target. Hit it, and the climber steps up a mountain; miss
+Your HybridX sessions (Run, Race, Trail) count automatically towards a
+weekly target, and anything else you log by hand on the watch. Hit it, and the climber steps up a mountain; miss
 it and a shield can save the streak before it resets. It's independent of
 HybridX Race, which lives alongside it in this same repository.
 
-- **Automatic counting.** No separate logging step for the apps you already
-  use — the app scans on open and credits what qualifies.
+- **Automatic counting.** No separate logging step for the HybridX apps:
+  each leaves a summary of what you did in the watch's shared folder, and
+  Streak credits what qualifies when it opens. On a real watch it cannot read
+  other apps' activity folders (UNA's built-in apps included), so those count
+  only through manual logging until UNA opens them up.
 - **A weekly target**, default 3 sessions from Monday, adjustable, with an
   optional minimum duration and a "one per day" cap.
 - **Live achievement.** The week is won the moment it hits target, not at
