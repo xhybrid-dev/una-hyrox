@@ -29,6 +29,7 @@ public:
     void onActivitySummary(const ActivitySummary& summary) override;
     void onVo2Info(const CustomMessage::Vo2Info& info) override;   // HybridX Run
     void onRunStats(const RunVo2::RunStatsResult& stats) override;  // HybridX Run: the detail faces
+    void onBests() override;                                         // HybridX Run: the PB tags
 
 protected:
     void build() override;
@@ -100,6 +101,7 @@ private:
     lv_obj_t* mZoneTime[kZoneRows] = {};
     lv_obj_t* mZoneBelow           = nullptr;
     lv_obj_t* mBestTime[3]         = {};
+    lv_obj_t* mBestTag[3]          = {};   ///< HybridX Run: "PB" when this run set the personal best
     lv_obj_t* mHalfPace[2]         = {};
     lv_obj_t* mGapPace             = nullptr;
     lv_obj_t* mDrift               = nullptr;

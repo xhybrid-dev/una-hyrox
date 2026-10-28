@@ -1032,3 +1032,45 @@ the base of UNA's Treadmill app), not ours:
    and 2 km or more).
 4. Open Streak and look for "+1 Run". In Strava or Garmin Connect, the run should show as
    a treadmill run with the corrected distance.
+
+## Personal bests (28 October 2026)
+
+Jon asked for the fastest 1 km, 1 mile and 5 km to be kept across runs: the distances the
+run detail page (P2) already measures inside each run, so no extra memory during the run.
+
+- **Core:** `Bests` (`Core/Header/Bests.hpp`).
+  - It keeps the fastest of each distance and the run it came from, as `bests.json` in the
+    app's folder: `{"v":1,"b":[[ms,utc],[ms,utc],[ms,utc]]}`, with `[0,0]` meaning none.
+  - A time faster than 7 m/s or slower than 0.5 m/s over the distance is a measuring fault,
+    never a best. A file holding one does not read, and the backup is tried.
+- **Service:**
+  - At save, a GPS run's splits (`RunStats` `bestMs`) are offered to `Bests::update`, and
+    the file is saved only when one improved. Treadmill runs are left out, since their
+    distance is an estimate.
+  - `BestsUpd` (0x1E) carries the three bests, their local dates and a bit for each one this
+    run set. It is sent when the app opens, when a run starts (no new bits) and at save.
+  - The log line "Personal bests: a/b/c ms, new N" records each update.
+- **Screens:**
+  - **On the summary's BEST SPLITS face**, an amber "PB" beside the distance this run set.
+  - **On the VO2max screen**, a **BESTS** page after the overview: each distance's best
+    time and date ("PERSONAL BESTS" did not fit the title).
+  - `capture_vo2.sh` now seeds a `bests.json`, photographs the page, and steps past the
+    main menu's Treadmill row (it was a row short).
+  - `sim_run.sh` takes `KEEP=1`, which keeps the app's folder for a second run on the same
+    pretend watch.
+
+### Personal bests verified
+- Host tests: **190** (7 new), also under ASan and UBSan.
+- **Simulator, run 1** (388 s): 1 km 3:07 and 1 mile 5:02 set, 5 km none.
+  `bests.json` written; "PB" on both rows.
+- **Run 2** on a folder seeded with 3:41 / 6:08: the 1 km fell to 3:09 and was tagged; the
+  mile was not run, so it stayed and the file kept it.
+- Screens checked by eye. Two fit faults were fixed: "PB" touching "1 km", and the times
+  near the amber arc.
+- Watch target compiles (514,020 B, compile check only).
+
+**Also fixed in this phase:**
+- the summary's "Below Z1" buffer, whose compiler warning had been there since P2;
+- Streak's README, CHANGELOG and ARCHITECTURE, and CLAUDE.md, no longer claim that Streak
+  counts every activity from any app. On a watch it counts the HybridX apps' sessions and
+  manual logs.

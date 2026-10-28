@@ -34,8 +34,9 @@ LOG=${SIM_LOG:-/tmp/hybridx-run-sim.log}
 
 [ -x "$BIN/HybridXRunSimulator" ] || { echo "Build the simulator first ($BIN)" >&2; exit 1; }
 
-# A clean pretend watch, with the athlete's numbers if given.
-rm -rf "$SOFT/Output"
+# A clean pretend watch, with the athlete's numbers if given. KEEP=1 keeps the app's folder
+# from the last run (its history, bests and settings), for a second run on the same watch.
+[ "${KEEP:-0}" = 1 ] || rm -rf "$SOFT/Output"
 mkdir -p "$SOFT/Output"
 if [ -n "$CONFIG" ]; then
     cp "$CONFIG" "$SOFT/Output/app_config.json"

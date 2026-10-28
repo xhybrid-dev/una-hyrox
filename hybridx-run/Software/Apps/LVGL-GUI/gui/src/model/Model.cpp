@@ -527,6 +527,16 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             modelListener->onRunStats(mRunStats);
         } break;
 
+        case CustomMessage::BESTS_UPDATE: {   // HybridX Run
+            const auto* b = static_cast<CustomMessage::BestsUpd*>(message);
+            std::memcpy(mBests.ms, b->ms, sizeof(mBests.ms));
+            std::memcpy(mBests.utc, b->utc, sizeof(mBests.utc));
+            std::memcpy(mBests.day, b->day, sizeof(mBests.day));
+            std::memcpy(mBests.month, b->month, sizeof(mBests.month));
+            mBests.newMask = b->newMask;
+            modelListener->onBests();
+        } break;
+
         case CustomMessage::TREADMILL_ASK: {   // HybridX Run
             mTreadEstimateM = static_cast<CustomMessage::TreadmillAsk*>(message)->estimateM;
             modelListener->onTreadmillAsk(mTreadEstimateM);

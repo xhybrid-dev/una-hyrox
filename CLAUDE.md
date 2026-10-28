@@ -36,8 +36,9 @@ firmware-compatibility work.
 Chartered engineer, runs HybridX (Hyrox coaching platform). Comfortable with TypeScript/Next.js, new to embedded C++. Explain build or toolchain steps he must do himself clearly and one at a time.
 
 ## HybridX Streak (`hybridx-streak/`)
-A second app in this repo: a weekly-target streak that counts every activity
-the watch records, from any app. It is independent of HybridX Race.
+A second app in this repo: a weekly-target streak. On a watch it counts the
+HybridX apps' sessions (through the activity link, below) and manual logs; it
+cannot read other apps' activity folders there. It is independent of HybridX Race.
 - **Docs:**
   - brief: `hybridx-streak/docs/UNA_STREAK_TRACKER_BRIEF.md`;
   - plan and phases: `PLAN.md`, §11 (S0-S6);

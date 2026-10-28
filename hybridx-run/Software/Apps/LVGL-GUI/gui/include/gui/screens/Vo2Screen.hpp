@@ -28,6 +28,7 @@ public:
     void onShow() override;
     void onKey(uint8_t code) override;
     void onVo2Info(const CustomMessage::Vo2Info& info) override;
+    void onBests() override;   ///< HybridX Run: the personal bests page
     /// Idle on a menu screen leaves the app, as RunLVGL's menus do.
     void onIdleTimeout() override { mModel.exitApp(); }
 
@@ -41,6 +42,7 @@ private:
     void    showPage(uint8_t page);
     void    buildOverview(lv_obj_t* f);
     void    buildRuns(lv_obj_t* f, uint8_t listPage);
+    void    buildBests(lv_obj_t* f);   ///< page 1: personal bests
 
     lv_obj_t* mPage   = nullptr;   ///< the one page built
     uint8_t   mPageId = 0;         ///< 0 = overview, 1.. = run pages

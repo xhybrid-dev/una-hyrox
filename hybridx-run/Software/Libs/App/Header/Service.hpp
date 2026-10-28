@@ -42,6 +42,7 @@
 
 #include "FormStats.hpp"
 #include "RunStats.hpp"
+#include "Bests.hpp"
 #include "Vo2History.hpp"
 #include "Vo2Log.hpp"
 #include "Vo2Profile.hpp"
@@ -259,6 +260,8 @@ private:
     float        mTreadSteps[SDK::Calibration::StrideLut::kBinCount] {};   ///< steps per cadence bin, for the learning
     ActivityWriter::TrackData mPendingTrack {};   ///< the session, held until the distance is known
 
+    RunVo2::Bests mBests;   ///< HybridX Run: personal bests across runs (docs/NOTES.md "Personal bests")
+
     // HybridX Run: the VO2max estimate (docs/NOTES.md).
     RunVo2::Vo2Run         mVo2Run;
     RunVo2::Vo2History     mVo2History;
@@ -322,6 +325,9 @@ private:
     bool closeActivity(const ActivityWriter::TrackData& track);       ///< finish the .fit, tell the watch and Streak
     void handleEvent(const CustomMessage::TreadmillDistance& event);  ///< HybridX Run: the console's distance
     void finishTreadmill(float metres);                               ///< 0 keeps the estimate
+    void loadBests();                                                 ///< HybridX Run: bests.json, at start
+    void updateBests(uint32_t runUtc);                                ///< offer the saved run's splits
+    void sendBests(uint8_t newMask);
     void sendVo2Info();
     void fillVo2Page();
     void handleEvent(const CustomMessage::Vo2ProfileSave& event);

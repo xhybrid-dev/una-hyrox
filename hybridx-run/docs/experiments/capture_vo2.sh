@@ -27,6 +27,8 @@ printf '{"schema":1,"values":{"birthYear":1986,"birthMonth":5,"maxHr":0,"resting
     > "$SOFT/Output/app_config.json"
 printf '{"v":2,"restHr":52,"maxes":[],"runs":[[1790200000,508,22],[1790500000,512,22],[1790900000,524,30],[1791100000,519,25],[1791300000,531,18],[1791500000,527,28],[1791700000,535,30]]}' \
     > "$SOFT/Output/vo2.json"
+# Personal bests (NOTES, "Personal bests"): a 1 km and a 1 mile, no 5 km yet.
+printf '{"v":1,"b":[[221000,1791500000],[368000,1791700000],[0,0]]}' > "$SOFT/Output/bests.json"
 
 Xvfb $DISP -screen 0 800x800x24 >/dev/null 2>&1 & XPID=$!
 sleep 2
@@ -41,13 +43,14 @@ WID=$(DISPLAY=$DISP xdotool search --name 'HybridX Run' | head -1)
 key()  { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-1}"; }
 snap() { DISPLAY=$DISP timeout 10 import -window "$WID" "$OUT/$1.png" 2>/dev/null; return 0; }
 
-key 2; key 2                 # wheel: Start -> Intervals -> VO2max
+key 2; key 2; key 2; key 2   # wheel: Start -> Treadmill -> Workouts -> Intervals -> VO2max
 snap vo2-01-start-menu
 key 3                        # R1: the VO2max page
 snap vo2-02-overview
+key 2; snap vo2-02b-bests     # L2: the personal bests
 key 2; snap vo2-03-runs-1    # L2: the run list
 key 2; snap vo2-04-runs-2
-key 1; key 1                 # back to the overview
+key 1; key 1; key 1          # back to the overview
 key 3                        # R1: the profile menu
 snap vo2-05-profile-menu
 key 3                        # R1: Birth date

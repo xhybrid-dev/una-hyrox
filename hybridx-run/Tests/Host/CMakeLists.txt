@@ -53,6 +53,7 @@ add_executable(hybridx-run-host-tests
     FormStatsTest.cpp
     TreadmillTest.cpp
     RunStatsTest.cpp
+    BestsTest.cpp
     Vo2GuardTest.cpp
     "${CORE_LIBS}/Sources/Vo2Profile.cpp"
     "${CORE_LIBS}/Sources/Vo2Window.cpp"
@@ -60,6 +61,7 @@ add_executable(hybridx-run-host-tests
     "${CORE_LIBS}/Sources/Vo2TrailIngest.cpp"
     "${CORE_LIBS}/Sources/FormStats.cpp"
     "${CORE_LIBS}/Sources/RunStats.cpp"
+    "${CORE_LIBS}/Sources/Bests.cpp"
     "${CORE_LIBS}/Sources/Vo2Run.cpp"
     "${CORE_LIBS}/Sources/Vo2History.cpp"
     "${CORE_LIBS}/Sources/Vo2Text.cpp"

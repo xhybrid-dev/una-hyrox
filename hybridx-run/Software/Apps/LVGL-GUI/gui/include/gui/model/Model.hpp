@@ -128,6 +128,8 @@ public:
     /// HybridX Run: a treadmill run waits for the console's distance after Save. The estimate
     /// comes from the service (0 until it has); send the answer, 0 to keep the estimate.
     float treadmillEstimateM() const { return mTreadEstimateM; }
+    /// HybridX Run: the personal bests (all zero until the service sends them).
+    const CustomMessage::BestsUpd& getBests() const { return mBests; }
     void  sendTreadmillDistance(float metres);
     /// The athlete's numbers set on the watch (R5): sent to the service, which
     /// saves them and answers with a fresh Vo2Info.
@@ -244,6 +246,7 @@ private:
     CustomMessage::Vo2Info mVo2Info              {};   ///< HybridX Run
     RunVo2::RunStatsResult mRunStats             {};   ///< HybridX Run: the run detail page
     float                  mTreadEstimateM       = 0.0f;   ///< HybridX Run: the treadmill run's estimate, metres
+    CustomMessage::BestsUpd mBests               {};       ///< HybridX Run: personal bests
 
     // Structured workouts
     const SDK::Workout::Library* mWorkoutLibrary = nullptr;

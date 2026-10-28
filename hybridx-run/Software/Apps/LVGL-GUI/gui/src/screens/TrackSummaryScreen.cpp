@@ -198,8 +198,10 @@ void TrackSummaryScreen::buildFaceSplits()
     static const char* const kLabel[3] = {"1 km", "1 mi", "5 km"};
     for (uint8_t i = 0; i < 3; ++i) {
         const int32_t y = 46 + i * 34;
-        Theme::label(f, F::Medium18, kLabel[i], 40, y + 5, 60, LV_TEXT_ALIGN_LEFT);
-        mBestTime[i] = Theme::label(f, F::SemiBold25, Strings::kNoValue, 96, y, 100, LV_TEXT_ALIGN_RIGHT);
+        Theme::label(f, F::Medium18, kLabel[i], 34, y + 5, 46, LV_TEXT_ALIGN_LEFT);
+        // HybridX Run: "PB" beside the distance when this run set the personal best.
+        mBestTag[i]  = Theme::label(f, F::Medium18, "", 88, y + 5, 30, LV_TEXT_ALIGN_LEFT, Color::YELLOW_DARK);
+        mBestTime[i] = Theme::label(f, F::SemiBold25, Strings::kNoValue, 106, y, 90, LV_TEXT_ALIGN_RIGHT);
     }
     Theme::hline(f, 35, 150, 170);
     Theme::label(f, F::Regular14, "HALF PACE", 20, 156, 200, LV_TEXT_ALIGN_CENTER, Color::GRAY);
@@ -278,6 +280,13 @@ void TrackSummaryScreen::onActivitySummary(const ActivitySummary& summary)
 void TrackSummaryScreen::onRunStats(const RunVo2::RunStatsResult& /*stats*/)
 {
     if (mFaceId == FACE_ZONES || mFaceId == FACE_SPLITS || mFaceId == FACE_PACING) {
+        fillFace();
+    }
+}
+
+void TrackSummaryScreen::onBests()
+{
+    if (mFaceId == FACE_SPLITS) {
         fillFace();
     }
 }
@@ -450,7 +459,7 @@ void TrackSummaryScreen::fillDetail()
         if (r.zoneCount == 0 || r.zoneSec[0] == 0) {
             lv_label_set_text(mZoneBelow, "");
         } else {
-            char t[16];
+            char t[12];   // "h:mm" or "m:ss" (shortTime); "Below Z1  " + 11 fits the 24-byte buf
             Fmt::shortTime(t, sizeof(t), static_cast<std::time_t>(r.zoneSec[0]));
             snprintf(buf, sizeof(buf), "Below Z1  %s", t);
             lv_label_set_text(mZoneBelow, buf);
@@ -459,7 +468,9 @@ void TrackSummaryScreen::fillDetail()
     }
 
     if (mFaceId == FACE_SPLITS) {
+        const uint8_t newMask = mModel.getBests().newMask;
         for (uint8_t i = 0; i < 3; ++i) {
+            lv_label_set_text(mBestTag[i], (newMask & (1u << i)) ? "PB" : "");
             if (r.bestMs[i] == 0) {
                 lv_label_set_text(mBestTime[i], Strings::kNoValue);
             } else {

@@ -69,6 +69,7 @@ static float speedFromTotals(float distanceM, float activeTimeS)
 
 // HybridX Run: where the VO2max history and its public copy live.
 constexpr const char* kVo2File    = "vo2.json";
+constexpr const char* kBestsFile  = "bests.json";   // HybridX Run: personal bests
 constexpr const char* kSharedDir  = "../SharedData/HybridX";
 constexpr const char* kSharedFile = "../SharedData/HybridX/vo2max.json";
 
@@ -154,8 +155,9 @@ void Service::run()
         LOG_WARNING("Failed to load activity summary\n");
     }
 
-    // HybridX Run: the athlete's numbers and the VO2max history.
+    // HybridX Run: the athlete's numbers and the VO2max history, and the personal bests.
     loadVo2();
+    loadBests();
 
     // Recover any activity a previous boot left unfinished (power loss /
     // crash mid-recording), before any new track can start.
@@ -904,6 +906,7 @@ void Service::sendInitialInfoToGui()
     SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
     SDK::send_msg<CustomMessage::Battery>(mKernel, static_cast<uint8_t>(mBatterySoc.get()));
     sendVo2Info();
+    sendBests(0);
 }
 
 void Service::startTrack(std::time_t utc)
@@ -943,6 +946,7 @@ void Service::startTrack(std::time_t utc)
         mRunStats->setTreadmill(mTreadmill);
     }
     sendRunStats();   // a new run: the page starts from nothing
+    sendBests(0);     // HybridX Run: and no best is this run's yet
 
     // Outdoor stride calibrator: reset latched inputs and load the stored LUT
     // for this session.
@@ -1448,6 +1452,10 @@ void Service::stopTrack(bool discard)
             finishVo2(endUtc);
             fitTrack.vo2maxX10       = mVo2Info.runX10;
             fitTrack.vo2maxRecentX10 = mVo2Info.rollingX10;
+            // HybridX Run: personal bests, from a GPS run only (a treadmill's distance is an
+            // estimate). Offered before the file closes, as the splits are this run's whatever
+            // the file does; mRunStats still holds them here.
+            updateBests(static_cast<uint32_t>(mStartUtc));
             closeActivity(fitTrack);
         }
     } else {
@@ -1542,6 +1550,61 @@ void Service::finishTreadmill(float metres)
              static_cast<unsigned long>(t.distanceM + 0.5f), static_cast<unsigned long>(mTreadEstimateM + 0.5f),
              static_cast<unsigned long>(metres > 0.0f ? metres + 0.5f : 0.0f),
              res.dActualAccepted ? 1u : 0u, res.deltaLutUpdated ? 1u : 0u);
+}
+
+// -- HybridX Run: personal bests (docs/NOTES.md "Personal bests") ---------------------------
+
+void Service::loadBests()
+{
+    char buf[RunVo2::Bests::kMaxJsonBytes];
+    size_t len = RunVo2::SafeFile::read(mKernel.fs, kBestsFile, false, buf, sizeof(buf));
+    if (len == 0 || !mBests.fromJson(buf, len)) {
+        len = RunVo2::SafeFile::read(mKernel.fs, kBestsFile, true, buf, sizeof(buf));
+        if (len == 0 || !mBests.fromJson(buf, len)) {
+            mBests.clear();
+            LOG_INFO("No personal bests yet\n");
+        } else {
+            LOG_WARNING("bests.json unreadable: using the backup\n");
+        }
+    }
+}
+
+void Service::updateBests(uint32_t runUtc)
+{
+    if (!mRunStats) {
+        return;
+    }
+    const RunVo2::RunStatsResult r = mRunStats->result();
+    const uint8_t improved = mBests.update(r.bestMs, runUtc);
+    if (improved != 0) {
+        char buf[RunVo2::Bests::kMaxJsonBytes];
+        const size_t len = mBests.toJson(buf, sizeof(buf));
+        if (len == 0 || !RunVo2::SafeFile::write(mKernel.fs, kBestsFile, buf, len)) {
+            LOG_WARNING("Could not save bests.json\n");
+        }
+    }
+    // Integers only. Read back by the simulator checks.
+    LOG_INFO("Personal bests: %lu/%lu/%lu ms, new %u\n", static_cast<unsigned long>(mBests.at(0).ms),
+             static_cast<unsigned long>(mBests.at(1).ms), static_cast<unsigned long>(mBests.at(2).ms),
+             static_cast<unsigned>(improved));
+    sendBests(improved);
+}
+
+void Service::sendBests(uint8_t newMask)
+{
+    if (auto msg = SDK::make_msg<CustomMessage::BestsUpd>(mKernel)) {
+        for (uint8_t i = 0; i < RunVo2::Bests::kCount && i < 3; ++i) {
+            msg->ms[i]  = mBests.at(i).ms;
+            msg->utc[i] = mBests.at(i).utc;
+            if (msg->ms[i] != 0) {
+                const std::tm t = mTimeTracker.getLocalTime(static_cast<std::time_t>(msg->utc[i]));
+                msg->day[i]   = static_cast<uint8_t>(t.tm_mday);
+                msg->month[i] = static_cast<uint8_t>(t.tm_mon + 1);
+            }
+        }
+        msg->newMask = newMask;
+        msg.send();
+    }
 }
 
 void Service::pauseTrack(bool pause)
