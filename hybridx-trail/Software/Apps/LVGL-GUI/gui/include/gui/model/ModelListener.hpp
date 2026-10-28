@@ -51,6 +51,7 @@ public:
     virtual void onIntervalsWorkoutCompleted() {}
     virtual void onActivitySummary(const ActivitySummary& summary) { (void)summary; }
     virtual void onAccessoryStatus(uint8_t state, const char* name) { (void)state; (void)name; }
+    virtual void onStreakLine() {}   ///< the Streak line after a save (Model::hasStreakLine)
 
     // HybridX Trail
     virtual void onRoutes() {}                                       ///< the route list changed

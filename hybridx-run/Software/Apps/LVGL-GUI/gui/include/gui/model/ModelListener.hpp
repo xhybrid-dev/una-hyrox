@@ -50,6 +50,7 @@ public:
     virtual void onIntervalsWorkoutCompleted() {}
     virtual void onActivitySummary(const ActivitySummary& summary) { (void)summary; }
     virtual void onAccessoryStatus(uint8_t state, const char* name) { (void)state; (void)name; }
+    virtual void onStreakLine() {}   ///< the Streak line after a save (Model::hasStreakLine)
     virtual void onVo2Info(const CustomMessage::Vo2Info& info) { (void)info; }   ///< HybridX Run
     virtual void onRunStats(const RunVo2::RunStatsResult& stats) { (void)stats; }   ///< HybridX Run: the detail page
     virtual void onTreadmillAsk(float estimateM) { (void)estimateM; }   ///< HybridX Run: the treadmill's distance, please

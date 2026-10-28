@@ -754,3 +754,13 @@ so the Streak already built reads it: no Streak change is needed.
 - Watch target compile check (not for a watch; CI builds the real one): 455,260 B, no
   new warnings. The simulator builds.
 - Not checked: anything on a watch.
+
+## The Streak line (28 October 2026)
+
+Streak now leaves `../SharedData/HybridX/streak_now.json` each time it saves. After a save, Run,
+Race and Trail read it and every app's activity summary, and show "3 of 4 this week" and
+"8-week streak" on their Saved screen, worked out by Streak's own rules. The design, its limits
+(the streak is left out when only Streak can know it; no line on a treadmill run) and the checks
+are in `hybridx-link/docs/ACTIVITY_LINK.md`, "The Streak line". The code is the link library's
+`StreakNow` (copied into each app), and `Service::sendStreakLine()` in each app (in Streak,
+`Service::saveStreakNow()`).

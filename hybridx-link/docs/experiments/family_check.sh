@@ -96,10 +96,6 @@ race_app() {  # Race: R1 Start race, R1 confirm, 16 splits on R2 (a Full race), 
     cleanup
 }
 
-echo "Recording: Run, Race and Trail at once, about $SECS s each..."
-run_app & A=$!; trail_app & B=$!; race_app & C=$!
-wait $A $B $C
-
 if [ "$LONG" = 1 ]; then
     printf '{"schema":1,"values":{"weeklyTarget":7}}' > "$OUT/Streak/Output/app_config.json"
 else
@@ -116,6 +112,21 @@ open_streak() {   # open_streak <log name>: open, let the "+1" toasts play, clos
     cleanup; PIDS=()
     sleep 1
 }
+# Streak first, so it has left streak_now.json: each app then shows the Streak line after its
+# save (hybridx-link StreakNow), counting what the apps before it saved.
+echo "Opening Streak, to leave its summary of the week..."
+open_streak Streak-0
+
+if [ "$LONG" = 1 ]; then
+    echo "Recording: Run, Race and Trail at once, about $SECS s each..."
+    run_app & A=$!; trail_app & B=$!; race_app & C=$!
+    wait $A $B $C
+else
+    # One after another, so each Streak line counts the sessions saved before it.
+    echo "Recording: Run, then Race, then Trail, about $SECS s each..."
+    run_app; race_app; trail_app
+fi
+
 echo "Opening Streak twice..."
 open_streak Streak-1
 cp "$OUT/SharedData/HybridX/streak.json" "$OUT/streak-1.json" 2>/dev/null
@@ -159,6 +170,24 @@ def summaries(log):
         return None
     m = re.search(r"Summaries: (\d+) files, (\d+) entries, (\d+) new, (\d+) counted", text)
     return tuple(map(int, m.groups())) if m else None
+
+# The Streak line each app showed after its save (hybridx-link StreakNow). One after another (quick
+# mode), each counts the sessions saved before it; at once (LONG=1), only its own is certain.
+def streak_line(log):
+    try:
+        text = open(f"{out}/{log}.log", errors="replace").read()
+    except OSError:
+        return None
+    m = re.findall(r'Streak line: "([^"]*)" "([^"]*)"', text)
+    return m[-1] if m else None
+for n, app in enumerate(("Run", "Race", "Trail"), start=1):
+    got = streak_line(app)
+    if long_run:
+        m = re.match(r"(\d) of 7 this week$", got[0]) if got else None
+        check(f"{app}'s Streak line", m is not None and 1 <= int(m.group(1)) <= 3, f"{got}")
+    else:
+        check(f"{app}'s Streak line", got is not None and got[0] == f"{n} of 7 this week" and got[1] == "",
+              f"{got}")
 
 first, second = summaries("Streak-1"), summaries("Streak-2")
 check("Streak, first open", first is not None and first[:3] == (3, 3, 3), f"files, entries, new = {first[:3] if first else None}")

@@ -122,6 +122,44 @@ cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-
 | 3 | Streak reads the summaries (app and glance) | Built (simulator-checked; see Streak NOTES, "Activity link"). Jon's watch test next. |
 | 4 | Race, Trail, then the bike and workout apps, one at a time | Race and Trail done (simulator-checked; Race NOTES "Amendment — Race tells Streak", Trail NOTES "Activity link"), and the family check passes. Bike and workout later. |
 
+## The Streak line (28 October 2026)
+
+After a save, Run, Race and Trail show "3 of 4 this week" and "8-week streak" on their Saved
+screen, in amber, in place of "…has been saved". Streak's PLAN §9 had this for Race.
+
+Streak only works its numbers out when it is opened. So:
+- **Streak writes the summary.** Each time it saves, it also writes
+  `../SharedData/HybridX/streak_now.json` (`StreakNow`, in this library). The file holds this
+  week's first day, the goal (target, minimum minutes, scope, one per day, whether a change
+  waits), the sessions counting, the days that have one, the streak before this week, and the
+  `[appKey, localStart]` of every session Streak already has this week.
+- **The app projects the line.** After writing its own summary, the app reads that file and
+  every `act_*.json`, then adds what Streak has not seen, by Streak's own rules
+  (`StreakModel::status`): whole minutes at or over the minimum, in scope (Sport → Kind, as
+  `LinkReader` maps it), and a new day if one per day is on.
+- **What it shows when:**
+  - the same week: the count, target and streak;
+  - the next week with last week met: the same, the streak carried on;
+  - otherwise: only "N this week", because misses and shields are Streak's to decide when it
+    opens;
+  - with no summary (Streak not installed, or never opened): no line, and "…has been saved" as
+    before.
+- `appKey` (FNV-1a) moved into this library, so Streak and the apps cannot disagree on it.
+  Streak's `ActivityScanner::appKey` now calls it.
+- **In the apps:** `Service::sendStreakLine()` runs after `writeActivityLink`, and the
+  `StreakLineUpd` message carries the two lines of text. The GUI keeps the line on screen for
+  3.5 s, not 2.
+- **Not on a treadmill run in Run:** its save finishes after the distance screen, by when the
+  Saved screen has gone; the line is worked out and logged but not shown. Race shows it on its
+  Saved screen rather than the Finished one, which is the same place as the other two.
+- **Checked:**
+  - host tests: 11 in `StreakNowTest`;
+  - `family_check.sh` now opens Streak first, then saves Run, Race and Trail one after another.
+    Their lines must read "1 of 7", "2 of 7", "3 of 7", and Streak must then count the same
+    three. Passed on 28 October 2026;
+  - screenshots in all three apps, with a summary holding a 7-week streak and 3 of 4 done:
+    "4 of 4 this week, 8-week streak".
+
 ## Family check (the simulator)
 
 `hybridx-link/docs/experiments/family_check.sh [out-dir]` puts the whole family on one
@@ -132,7 +170,9 @@ pretend watch:
   to it, as on a watch every app's is the same folder);
 - then Streak opens twice, from its own folder in the same tree.
 
-It checks, with the apps' real writers and Streak's real reader:
+Quick mode opens Streak first, so it leaves its `streak_now.json`, and then records the three
+apps one after another; `LONG=1` records them at once. It checks, with the apps' real writers and
+Streak's real reader:
 1. each app left one entry, under its own name and sport;
 2. each entry has its `.fit` session's start and timer time;
 3. Streak's first open finds all three (`Summaries: 3 files, 3 entries, 3 new`);

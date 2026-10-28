@@ -97,7 +97,9 @@ if [ "${DISCARD:-0}" = 1 ]; then
 fi
 key 2; key 2                              # L2 twice: Save
 hold 3 3                                  # hold R1: save
-sleep 3
+sleep 1
+snap 05-saved-screen                      # "Saved", or the Streak line if Streak has left its summary
+sleep 2
 if [ "${TREADMILL:-0}" = 1 ]; then
     snap 05a-distance                     # the treadmill's distance, the estimate offered
     if [ "${TREAD_CLOSE:-0}" = 1 ]; then

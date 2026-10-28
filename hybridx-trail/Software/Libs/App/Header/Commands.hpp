@@ -38,6 +38,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type INTERVALS_PHASE_ALERT      = 0x00000009;
     constexpr SDK::MessageType::Type INTERVALS_WORKOUT_COMPLETED = 0x00000010;
     constexpr SDK::MessageType::Type ACCESSORY_STATUS          = 0x00000012;
+    constexpr SDK::MessageType::Type STREAK_LINE               = 0x00000013;   // the Streak line after a save
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -60,6 +61,15 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type TURN_CUE              = 0x00000026;
 
     // Service <-> GUI
+    // The Streak line after a save (hybridx-link StreakNow): two lines of text; show is false when
+    // there is none (HybridX Streak not installed, or never opened).
+    struct StreakLineUpd : public SDK::MessageBase {
+        bool show      = false;
+        char line1[24] = {};   ///< "3 of 4 this week"
+        char line2[20] = {};   ///< "8-week streak", or empty
+        StreakLineUpd() : SDK::MessageBase(STREAK_LINE) {}
+    };
+
     struct SettingsUpd : public SDK::MessageBase {
         // Application settings
         Settings settings;

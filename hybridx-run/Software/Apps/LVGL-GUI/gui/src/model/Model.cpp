@@ -163,6 +163,9 @@ const Track::IntervalsData& Model::getPendingAlertIntervals() const
 // Service (~1 s after start). Mirrors Service::startTrack().
 void Model::trackStart(bool intervalsMode)
 {
+    mStreakShow     = false;   // a new activity: the last one's Streak line goes
+    mStreakLine1[0] = '\0';
+    mStreakLine2[0] = '\0';
     // An armed workout is followed unless Intervals were chosen; either way
     // it is used up by this run.
     // HybridX Run: a treadmill run is a plain run for now (NOTES, "Treadmill"), so it follows
@@ -596,6 +599,16 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
                 mStepCard = true;   // the card shows once the Track screen sees it
             }
             modelListener->onWorkoutStep(msg->next);
+        } break;
+
+        case CustomMessage::STREAK_LINE: {   // the Streak line after a save
+            const auto* msg = static_cast<CustomMessage::StreakLineUpd*>(message);
+            mStreakShow = msg->show;
+            std::memcpy(mStreakLine1, msg->line1, sizeof(mStreakLine1));
+            std::memcpy(mStreakLine2, msg->line2, sizeof(mStreakLine2));
+            mStreakLine1[sizeof(mStreakLine1) - 1] = '\0';
+            mStreakLine2[sizeof(mStreakLine2) - 1] = '\0';
+            modelListener->onStreakLine();
         } break;
 
         case CustomMessage::ACCESSORY_STATUS: {

@@ -83,6 +83,9 @@ It is not an app. It counts our own apps only, not UNA's built-in ones. Writers 
 Run (`act_run.json`), Race (`act_race.json`) and Trail (`act_trail.json`); the reader is
 Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
 `Service::writeActivityLink` in its own `Service.cpp`, called once the `.fit` has closed.
+The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
+`Service::sendStreakLine()` shows "3 of 4 this week / 8-week streak" on its Saved screen
+(ACTIVITY_LINK.md, "The Streak line").
 - **Docs:** the format, the rules and how to add an app: `hybridx-link/docs/ACTIVITY_LINK.md`.
   Read it at the start of each link phase (phases 1-4 in its table).
 - **Rules:** the same standing rules as Race apply. One writer per file; the reader opens

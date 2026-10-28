@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "Classifier.hpp"
+#include "StreakNow.hpp"   // HybridXLink::appKey (hybridx-link)
 #include "WeekMath.hpp"
 
 namespace Streak
@@ -58,12 +59,8 @@ const char* baseName(const char* path)
 
 uint32_t ActivityScanner::appKey(const char* folder)
 {
-    uint32_t h = 2166136261u;
-    for (const char* p = folder; p && *p; ++p) {
-        h ^= static_cast<uint8_t>(*p);
-        h *= 16777619u;
-    }
-    return h;
+    // One definition for Streak and the apps that project its line (hybridx-link, StreakNow).
+    return HybridXLink::appKey(folder);
 }
 
 bool ActivityScanner::parseName(const char* name, uint32_t& localStart)

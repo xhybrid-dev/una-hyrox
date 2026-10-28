@@ -20,6 +20,8 @@ APPS=(
 FILES=(
     Header/ActivityLink.hpp
     Sources/ActivityLink.cpp
+    Header/StreakNow.hpp
+    Sources/StreakNow.cpp
 )
 
 bad=0

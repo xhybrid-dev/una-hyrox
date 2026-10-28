@@ -38,6 +38,7 @@
 #include "AppConfigFields.hpp"
 #include "SafeFile.hpp"
 #include "ActivityLink.hpp"
+#include "StreakNow.hpp"
 #include "Vo2TrailIngest.hpp"
 #include "Treadmill.hpp"
 #include "Vo2Rescore.hpp"
@@ -1497,6 +1498,47 @@ void Service::stopTrack(bool discard)
     disconnect();
 }
 
+void Service::sendStreakLine()
+{
+    // The Streak line (hybridx-link StreakNow): this week as HybridX Streak last saved it, plus
+    // what the HybridX apps saved since, this one included, by Streak's own rules. Once, after a
+    // save; the buffer is on the heap (the service stack is small).
+    using namespace HybridXLink;
+    auto msg = SDK::make_msg<CustomMessage::StreakLineUpd>(mKernel);
+    if (!msg) {
+        return;
+    }
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[kMaxBytes]);
+    StreakNow now;
+    bool have = false;
+    for (int backup = 0; buf && backup < 2 && !have; ++backup) {
+        const size_t len = RunVo2::SafeFile::read(mKernel.fs, kStreakNowPath, backup != 0, buf.get(), kMaxBytes);
+        have = len > 0 && decodeStreakNow(buf.get(), len, now);
+    }
+    if (have) {
+        const std::tm t = mTimeTracker.getLocalTime(std::time(nullptr));
+        const int32_t today = static_cast<int32_t>(
+            calendarSeconds(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, 0, 0, 0) / 86400);
+        StreakProjector projector(now, today);
+        ActivityFile file;
+        for (uint8_t s = 0; s < kSlotCount; ++s) {
+            for (int backup = 0; backup < 2; ++backup) {
+                const size_t len = RunVo2::SafeFile::read(mKernel.fs, kSlotPaths[s], backup != 0, buf.get(), kMaxBytes);
+                if (len > 0 && decode(buf.get(), len, file)) {
+                    projector.add(file);
+                    break;
+                }
+            }
+        }
+        msg->show = formatStreakLine(projector.result(), msg->line1, sizeof(msg->line1), msg->line2,
+                                     sizeof(msg->line2));
+        LOG_INFO("Streak line: \"%s\" \"%s\"\n", msg->line1, msg->line2);
+    } else {
+        LOG_INFO("Streak line: none (no streak_now.json)\n");
+    }
+    msg.send();
+}
+
 bool Service::closeActivity(const ActivityWriter::TrackData& track)
 {
     if (!mActivityWriter.stop(track)) {
@@ -1507,6 +1549,7 @@ bool Service::closeActivity(const ActivityWriter::TrackData& track)
     }
     notifyNewActivity();
     writeActivityLink(track);   // only for a run whose .fit is safely saved
+    sendStreakLine();
     // A scheduled workout counts as done only once its activity is
     // saved, and only if completion was reached. started() again
     // first: if the record could not be saved when the run began,

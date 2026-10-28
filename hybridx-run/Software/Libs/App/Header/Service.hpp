@@ -332,6 +332,7 @@ private:
     void updateForm();           ///< cadence and step length for this tick: screen, record and averages
     void writeActivityLink(const ActivityWriter::TrackData& track);   ///< the saved run, for Streak (hybridx-link)
     bool closeActivity(const ActivityWriter::TrackData& track);       ///< finish the .fit, tell the watch and Streak
+    void sendStreakLine();                                            ///< the Streak line, after a save
     void handleEvent(const CustomMessage::TreadmillDistance& event);  ///< HybridX Run: the console's distance
     void finishTreadmill(float metres);                               ///< 0 keeps the estimate
     void loadBests();                                                 ///< HybridX Run: bests.json, at start

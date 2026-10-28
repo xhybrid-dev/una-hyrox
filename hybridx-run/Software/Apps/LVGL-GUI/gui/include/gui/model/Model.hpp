@@ -109,6 +109,10 @@ public:
     bool isPendingIntervalsMode() const;
     const Track::IntervalsData& getPendingAlertIntervals() const;
     void trackStart(bool intervalsMode);
+    /// The Streak line after a save (hybridx-link StreakNow); empty until one comes.
+    bool        hasStreakLine() const { return mStreakShow; }
+    const char* streakLine1() const { return mStreakLine1; }
+    const char* streakLine2() const { return mStreakLine2; }
     void intervalsNextPhase();
     bool isTrackActive() const;
     void trackPause();
@@ -200,6 +204,9 @@ public:
     bool hasStepCard() const { return mStepCard; }
 
 private:
+    bool mStreakShow      = false;   ///< the Streak line (STREAK_LINE)
+    char mStreakLine1[24] = {};
+    char mStreakLine2[20] = {};
     // Fields required for GUI <-> Service communication
     ModelListener*           modelListener;
     const SDK::Kernel&       mKernel;

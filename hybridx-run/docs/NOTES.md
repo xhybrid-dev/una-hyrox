@@ -1137,3 +1137,13 @@ tuning log still prints the P3 "what-if" line.
 - **Watch target and glance compile** (516,956 B and 28,404 B; compile checks only).
 - **Not verified:** anything on a watch, or a re-score of one of Run's own runs. That path is
   the Trail path above, with the run's own judging.
+
+## The Streak line (28 October 2026)
+
+Streak now leaves `../SharedData/HybridX/streak_now.json` each time it saves. After a save, Run,
+Race and Trail read it and every app's activity summary, and show "3 of 4 this week" and
+"8-week streak" on their Saved screen, worked out by Streak's own rules. The design, its limits
+(the streak is left out when only Streak can know it; no line on a treadmill run) and the checks
+are in `hybridx-link/docs/ACTIVITY_LINK.md`, "The Streak line". The code is the link library's
+`StreakNow` (copied into each app), and `Service::sendStreakLine()` in each app (in Streak,
+`Service::saveStreakNow()`).
