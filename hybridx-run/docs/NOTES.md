@@ -1032,3 +1032,18 @@ the base of UNA's Treadmill app), not ours:
    and 2 km or more).
 4. Open Streak and look for "+1 Run". In Strava or Garmin Connect, the run should show as
    a treadmill run with the corrected distance.
+
+## Race-time predictions: research (28 October 2026)
+
+Research only, no code: `docs/RACE_PREDICTIONS.md` compares the published methods (Riegel,
+Vickers and Vertosick, Daniels' VDOT, Tanda, critical speed from training, and others) against
+what the app has. The recommendation:
+- Riegel (b = 1.06) from the best 5 km of the last 42 days, for 10 km and the half;
+- the marathon blank, or shown as a lower bound ("3:31+"): Riegel is too fast there for
+  recreational runners;
+- no predictions from VO2max. The app's ACSM-based figure is on a different scale from
+  Daniels' VDOT: 21% more oxygen cost at 5:00 /km, so a marathon about 30 minutes too fast.
+
+The open questions for Jon are in its §6. The first is that the journal sites were blocked in
+the session, so the Vickers and Vertosick coefficients must be read from the paper before any
+build.
