@@ -88,3 +88,9 @@ x-sauna/build-tests/
 x-sauna/Output/
 x-sauna/Software/Output/
 x-sauna/Software/Apps/LVGL-GUI/simulator/build/
+hybridx-workout/build/
+hybridx-workout/build-tests/
+hybridx-workout/Output/
+hybridx-workout/Software/Output/
+hybridx-workout/Software/SharedData/
+hybridx-workout/Software/Apps/LVGL-GUI/simulator/build/

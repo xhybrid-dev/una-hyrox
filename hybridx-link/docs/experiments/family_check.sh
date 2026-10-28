@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# The HybridX family on one pretend watch: Run, Race and Trail each record and
-# save an activity in their own simulator, all three leaving their summaries in
-# ONE shared folder, then HybridX Streak opens (twice) and must find every one,
+# The HybridX family on one pretend watch: Run, Race, Trail and Workout each
+# record and save an activity in their own simulator, all four leaving their
+# summaries in ONE shared folder, then HybridX Streak opens (twice) and must find every one,
 # once. It checks the activity link end to end with the apps' real writers and
 # Streak's real reader (docs/ACTIVITY_LINK.md, "Family check").
 #
@@ -17,13 +17,13 @@
 # Streak cannot list other apps' folders on a watch, and here it finds none
 # either (no app folder is its sibling), so it sees only the summaries.
 #
-# Quick (default): about 80 s of recording each, the three at once, with
+# Quick (default): about 80 s of recording each, one after another, with
 # Streak's minimum set to 0 minutes so each short session counts.
 # LONG=1: 11 minutes each, with Streak's default 10-minute minimum.
 # TREADMILL=1: Run records a treadmill run (no GPS; distance from cadence) and
 # keeps its estimate on the distance screen (hybridx-run NOTES, "Treadmill").
 #
-# Needs: the four simulators built (each app's Software/Apps/LVGL-GUI/simulator/
+# Needs: the five simulators built (each app's Software/Apps/LVGL-GUI/simulator/
 # build/bin), Xvfb, xdotool, python3 with fitdecode. Exits non-zero on a FAIL.
 # Usage:  family_check.sh [out-dir]
 set -u
@@ -34,13 +34,14 @@ if [ "$LONG" = 1 ]; then SECS=660; else SECS=80; fi
 
 bin() { echo "$ROOT/$1/Software/Apps/LVGL-GUI/simulator/build/bin/$2"; }
 for pair in hybridx-run:HybridXRunSimulator hybridx-race:HybridXRaceSimulator \
-            hybridx-trail:HybridXTrailSimulator hybridx-streak:HybridXStreakSimulator; do
+            hybridx-trail:HybridXTrailSimulator hybridx-workout:HybridXWorkoutSimulator \
+            hybridx-streak:HybridXStreakSimulator; do
     [ -x "$(bin "${pair%%:*}" "${pair##*:}")" ] || { echo "Build the simulator first: $(bin "${pair%%:*}" "${pair##*:}")" >&2; exit 1; }
 done
 
 rm -rf "$OUT"
 mkdir -p "$OUT/SharedData/HybridX"
-for app in Run Race Trail Streak; do
+for app in Run Race Trail Workout Streak; do
     mkdir -p "$OUT/$app/Output" "$OUT/$app/a/b/c/d/e"
     ln -s ../SharedData "$OUT/$app/SharedData"
 done
@@ -67,8 +68,8 @@ hold() { DISPLAY=":$1" xdotool keydown "$2"; sleep "$3"; DISPLAY=":$1" xdotool k
 # pressed before it opens the "no GPS" question instead.
 gpsfix() { for _ in $(seq 60); do grep -qs "Mock.Buzzer::play" "$OUT/$1.log" && break; sleep 1; done; sleep 2; }
 
-# The key flows are the apps' own scripts' (Run and Trail sim_run.sh, Race
-# capture_screens.sh). Keys 1-4 are L1, L2, R1, R2.
+# The key flows are the apps' own scripts' (Run and Trail sim_run.sh, Race and
+# Workout capture_screens.sh). Keys 1-4 are L1, L2, R1, R2.
 run_app() {   # Run: R1 start; R1 menu; L2 L2 Save; hold R1
     start Run 91 "$(bin hybridx-run HybridXRunSimulator)"; gpsfix Run
     if [ "${TREADMILL:-0}" = 1 ]; then
@@ -96,6 +97,14 @@ race_app() {  # Race: R1 Start race, R1 confirm, 16 splits on R2 (a Full race), 
     cleanup
 }
 
+workout_app() {  # Workout: R1 Start; a lap on R2 halfway; R1 menu, L2 L2 End, hold R1
+    start Workout 96 "$(bin hybridx-workout HybridXWorkoutSimulator)"; sleep 5
+    key 96 3 2; sleep $(( SECS / 2 ))
+    key 96 4 1; sleep $(( SECS / 2 ))
+    key 96 3 1; key 96 2; key 96 2; hold 96 3 3; sleep 4
+    cleanup
+}
+
 if [ "$LONG" = 1 ]; then
     printf '{"schema":1,"values":{"weeklyTarget":7}}' > "$OUT/Streak/Output/app_config.json"
 else
@@ -118,13 +127,13 @@ echo "Opening Streak, to leave its summary of the week..."
 open_streak Streak-0
 
 if [ "$LONG" = 1 ]; then
-    echo "Recording: Run, Race and Trail at once, about $SECS s each..."
-    run_app & A=$!; trail_app & B=$!; race_app & C=$!
-    wait $A $B $C
+    echo "Recording: Run, Race, Trail and Workout at once, about $SECS s each..."
+    run_app & A=$!; trail_app & B=$!; race_app & C=$!; workout_app & D=$!
+    wait $A $B $C $D
 else
     # One after another, so each Streak line counts the sessions saved before it.
-    echo "Recording: Run, then Race, then Trail, about $SECS s each..."
-    run_app; race_app; trail_app
+    echo "Recording: Run, then Race, then Trail, then Workout, about $SECS s each..."
+    run_app; race_app; trail_app; workout_app
 fi
 
 echo "Opening Streak twice..."
@@ -145,7 +154,7 @@ def check(name, passed, detail):
     rows.append(("PASS" if passed else "FAIL", name, detail))
 
 # Each writer: one entry, its own name and sport, the .fit's start and timer time.
-for app, slot, sport in (("Run", "run", 1), ("Race", "race", 6), ("Trail", "trail", 1)):
+for app, slot, sport in (("Run", "run", 1), ("Race", "race", 6), ("Trail", "trail", 1), ("Workout", "workout", 5)):
     fits = glob.glob(f"{out}/{app}/Output/Activity/*/*.fit") + glob.glob(f"{out}/{app}/Output/Activity/*.fit")
     path = f"{out}/SharedData/HybridX/act_{slot}.json"
     if not fits or not os.path.exists(path):
@@ -180,18 +189,18 @@ def streak_line(log):
         return None
     m = re.findall(r'Streak line: "([^"]*)" "([^"]*)"', text)
     return m[-1] if m else None
-for n, app in enumerate(("Run", "Race", "Trail"), start=1):
+for n, app in enumerate(("Run", "Race", "Trail", "Workout"), start=1):
     got = streak_line(app)
     if long_run:
         m = re.match(r"(\d) of 7 this week$", got[0]) if got else None
-        check(f"{app}'s Streak line", m is not None and 1 <= int(m.group(1)) <= 3, f"{got}")
+        check(f"{app}'s Streak line", m is not None and 1 <= int(m.group(1)) <= 4, f"{got}")
     else:
         check(f"{app}'s Streak line", got is not None and got[0] == f"{n} of 7 this week" and got[1] == "",
               f"{got}")
 
 first, second = summaries("Streak-1"), summaries("Streak-2")
-check("Streak, first open", first is not None and first[:3] == (3, 3, 3), f"files, entries, new = {first[:3] if first else None}")
-check("Streak, second open", second is not None and second[2] == 0 and second[3] == 3,
+check("Streak, first open", first is not None and first[:3] == (4, 4, 4), f"files, entries, new = {first[:3] if first else None}")
+check("Streak, second open", second is not None and second[2] == 0 and second[3] == 4,
       f"new {second[2] if second else None}, already counted {second[3] if second else None}")
 
 # What Streak counts, from its public state (StateCodec): goal "g" = [target, week
@@ -211,7 +220,8 @@ def counted(name):
             continue
         got.append((st["a"][app] if app < len(st["a"]) else "?", KINDS[kind] if kind < len(KINDS) else "?"))
     return sorted(got)
-want = sorted([("HybridXRace", "Hybrid"), ("HybridXRun", "Run"), ("HybridXTrail", "Run")])
+want = sorted([("HybridXRace", "Hybrid"), ("HybridXRun", "Run"), ("HybridXTrail", "Run"),
+               ("HybridXWorkout", "Workout")])
 c1, c2 = counted("streak-1.json"), counted("streak-2.json")
 check("Streak counts each", c1 == want, ", ".join(f"{a} {k}" for a, k in c1) if c1 else "no state")
 check("Streak, still once each", c2 == want, f"{len(c2) if c2 else 0} sessions after the second open")

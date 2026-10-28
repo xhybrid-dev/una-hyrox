@@ -80,8 +80,8 @@ How our activity apps tell Streak what you did on a real watch, where Streak can
 read other apps' `Activity/` folders (Streak NOTES, Gate 0). Each app leaves its last
 16 activities in its own `../SharedData/HybridX/act_<slot>.json`; Streak reads them.
 It is not an app. It counts our own apps only, not UNA's built-in ones. Writers so far:
-Run (`act_run.json`), Race (`act_race.json`) and Trail (`act_trail.json`); the reader is
-Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
+Run (`act_run.json`), Race (`act_race.json`), Trail (`act_trail.json`) and Workout
+(`act_workout.json`); the reader is Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
 `Service::writeActivityLink` in its own `Service.cpp`, called once the `.fit` has closed.
 The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
 `Service::sendStreakLine()` shows "3 of 4 this week / 8-week streak" on its Saved screen
@@ -96,10 +96,10 @@ The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
   never a copy.
 - **Commands:**
   - host tests: `cmake -S hybridx-link/Tests/Host -B hybridx-link/build-tests && cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-host-tests`;
-  - the family check (Run, Race and Trail save into one shared folder, then Streak opens
-    twice and must count each once): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
-    (about 3 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
-    `TREADMILL=1` for a treadmill Run; needs the four simulators built).
+  - the family check (Run, Race, Trail and Workout save into one shared folder, then Streak
+    opens twice and must count each once): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
+    (about 7 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
+    `TREADMILL=1` for a treadmill Run; needs the five simulators built).
 
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You
@@ -413,3 +413,37 @@ independent of the other apps.
   - probe simulator: `hybridx-ride/Tools/Probe/Software/Apps/LVGL-GUI/simulator`
     (keys 1-4 are L1, L2, R1, R2). Its mock kernel never answers accessory
     requests, so only a watch shows the states.
+
+## HybridX Workout (`hybridx-workout/`)
+A twelfth app: gym and HIIT sessions that count in HybridX Streak. It builds on the SDK's
+Workout example (`una-sdk/Examples/Apps/Workout`: laps, heart-rate zones, calories, the
+time-alert auto lap) and adds the activity link and the Streak line. Planned next: strength
+sets, HIIT timers (EMOM, AMRAP, Tabata, custom) and Hyrox-style circuits (W1), the real FIT
+sport per type and `set` messages (W2), their screens (W3), and training load (W4). It is
+independent of the other apps.
+- **Docs:** findings, decisions and phases (W0-W4): `hybridx-workout/docs/NOTES.md`. Read it
+  at the start of each Workout phase, and work only on that phase.
+- **Rules:** the same standing rules as Race apply.
+- **Layout:** from X Sauna's (its newer layout and watch-proven FIT writer), with Race's strap
+  request, activity link and Streak line: the pure core `Software/Libs/Core` (header-only where
+  the GUI uses it; `WorkoutSettings` is the service's), the service and messages
+  `Software/Libs/App`, the GUI `Software/Apps/LVGL-GUI` (screens build only what is on show),
+  the watch build `Software/Apps/HybridXWorkout-CMake`. `Software/Libs/Link` is a **copy** of
+  `hybridx-link`'s code (edit the original, then `hybridx-link/Utilities/check-link-copies.sh --sync`).
+- **Activity link:** on each saved workout, `Service::writeActivityLink` adds it to
+  `../SharedData/HybridX/act_workout.json` (Sport::Workout), then `sendStreakLine()`.
+- **Watch builds come from CI**, as for the others. Tags `workout-vX.Y.Z`. Development APP_ID
+  `A294992CFC56DBE9` (md5 of `HybridXWorkout`); the portal issues the real one at release.
+- **Commands:**
+  - host tests: `cmake -S hybridx-workout/Tests/Host -B hybridx-workout/build-tests && cmake --build hybridx-workout/build-tests && hybridx-workout/build-tests/hybridx-workout-host-tests`;
+  - simulator: `hybridx-workout/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its
+    `build/`; run `build/bin/HybridXWorkoutSimulator`; keys 1-4 are L1, L2, R1, R2);
+  - every screen by key presses, with a pretend Streak summary, then the file, the sidecar,
+    `act_workout.json` and the Streak line checked: `docs/experiments/capture_screens.sh [out-dir]`
+    (about 2.5 minutes, into `docs/screens/w0-*.png`; needs Xvfb, xdotool, ImageMagick, fitdecode);
+  - the text-fit audit: `docs/experiments/audit.sh` (about 10 seconds; after any change to a
+    screen's text or layout);
+  - the FIT file from the real writer in four scenarios (full, autolap, nohr, crash), decoded,
+    with the calories worked out again from the records: `docs/experiments/fit_check.sh [work-dir]`;
+  - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"), using
+    `hybridx-workout/Software/Apps/HybridXWorkout-CMake`.
