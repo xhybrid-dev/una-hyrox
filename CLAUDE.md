@@ -390,3 +390,26 @@ and file on `claude/x-sauna-sa2`; the SA3 screens on `claude/x-sauna-sa3`.
     `docs/experiments/fit_check.sh [work-dir]`;
   - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"),
     using `x-sauna/Software/Apps/Sauna-CMake`; icons: `python3 x-sauna/Resources/make_icons.py`.
+
+## HybridX Ride (`hybridx-ride/`)
+An eleventh app, at the probe stage: a future bike app. SDK v1.6.2 connects
+heart-rate straps only (`Kind::HRM`; cadence and power bits are reserved, and no
+sensor type carries bike data), so the Gate B0 probe asks the kernel for each
+reserved kind and logs what it answers, as evidence for a request to UNA. It is
+independent of the other apps.
+- **Docs:** findings and decisions: `hybridx-ride/docs/NOTES.md`; Jon's test steps
+  (strap, smart trainer, bike sensors, BikeErg): `PROBE.md`; the draft request to
+  UNA: `UNA_BIKE_SENSORS_REQUEST.md`. Read `NOTES.md` at the start of each Ride phase.
+- **Rules:** the same standing rules as Race apply. Never name the reserved bits as
+  SDK kinds: they are sent as raw numbers until the SDK defines them.
+- **Layout:** the probe `Tools/Probe` (its own CMake project, from Knitting's
+  skeleton): header-only text and CSV formatting in `Software/Libs/Core`, the
+  service in `Software/Libs/App`, the GUI in `Software/Apps/LVGL-GUI`, the watch
+  build `Software/Apps/RideProbe-CMake` (app folder `RideProbe`, development
+  APP_ID `10808682C0E2ED6A`). It writes `Logs/probe_<utc>.csv` in the app folder.
+- **Watch builds come from CI**, as for the others (`RideProbe_0.1.0.uapp` in `watch-apps`).
+- **Commands:**
+  - host tests: `cmake -S hybridx-ride/Tests/Host -B hybridx-ride/build-tests && cmake --build hybridx-ride/build-tests && hybridx-ride/build-tests/hybridx-ride-host-tests`;
+  - probe simulator: `hybridx-ride/Tools/Probe/Software/Apps/LVGL-GUI/simulator`
+    (keys 1-4 are L1, L2, R1, R2). Its mock kernel never answers accessory
+    requests, so only a watch shows the states.

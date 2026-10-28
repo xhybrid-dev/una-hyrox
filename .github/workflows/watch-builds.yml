@@ -95,6 +95,9 @@ jobs:
           # X Sauna: a sauna and cold-plunge tracker; at Gate SA0 the heat probe
           # -- see x-sauna/docs/NOTES.md.
           build x-sauna/Software/Apps/Sauna-CMake sauna
+          # HybridX Ride: the bike probe (what the kernel says to the accessory
+          # kinds) -- see hybridx-ride/docs/PROBE.md.
+          build hybridx-ride/Tools/Probe/Software/Apps/RideProbe-CMake ride-probe
 
       - name: Collect
         run: |
@@ -114,6 +117,7 @@ jobs:
           cp trailquest/Output/*.uapp watch-apps/
           cp knitting/Output/*.uapp watch-apps/
           cp x-sauna/Output/*.uapp watch-apps/
+          cp hybridx-ride/Tools/Probe/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -359,3 +363,10 @@ jobs:
           cmake -S x-sauna/Tests/Host -B ci-build/x-sauna-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/x-sauna-tests -j"$(nproc)"
           ctest --test-dir ci-build/x-sauna-tests --output-on-failure
+      - name: HybridX Ride host tests
+        # The bike probe's lines and CSV rows.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S hybridx-ride/Tests/Host -B ci-build/ride-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/ride-tests -j"$(nproc)"
+          ctest --test-dir ci-build/ride-tests --output-on-failure
