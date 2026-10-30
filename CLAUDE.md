@@ -392,27 +392,54 @@ and file on `claude/x-sauna-sa2`; the SA3 screens on `claude/x-sauna-sa3`.
     using `x-sauna/Software/Apps/Sauna-CMake`; icons: `python3 x-sauna/Resources/make_icons.py`.
 
 ## HybridX Ride (`hybridx-ride/`)
-An eleventh app, at the probe stage: a future bike app. SDK v1.6.2 connects
-heart-rate straps only (`Kind::HRM`; cadence and power bits are reserved, and no
-sensor type carries bike data), so the Gate B0 probe asks the kernel for each
-reserved kind and logs what it answers, as evidence for a request to UNA. It is
-independent of the other apps.
-- **Docs:** findings and decisions: `hybridx-ride/docs/NOTES.md`; Jon's test steps
-  (strap, smart trainer, bike sensors, BikeErg): `PROBE.md`; the draft request to
-  UNA: `UNA_BIKE_SENSORS_REQUEST.md`. Read `NOTES.md` at the start of each Ride phase.
+An eleventh app: rides that count in HybridX Streak. SDK v1.6.2 connects heart-rate
+straps only (`Kind::HRM`; the cadence and power bits are reserved and ignored, and no
+sensor type carries bike data: the Gate B0 probe confirmed it on Jon's watch), so the
+app is **heart rate plus GPS outdoors, and time plus heart rate indoors**, to be extended
+when UNA adds sensors. A main-menu switch chooses Outdoor or Indoor. It saves a cycling
+FIT file (outdoor sub_sport Generic, indoor IndoorCycling), writes the activity link
+(`act_ride.json`, `Sport::Ride`) and shows the Streak line. It is independent of the other
+apps. The Gate B0 probe stays in `Tools/Probe`.
+- **Docs:** findings, decisions, phases (B0 probe, R1 the app) and Jon's test steps:
+  `hybridx-ride/docs/NOTES.md`; the probe's steps `PROBE.md`; the draft request to
+  UNA `UNA_BIKE_SENSORS_REQUEST.md`. Read `NOTES.md` at the start of each Ride phase.
 - **Rules:** the same standing rules as Race apply. Never name the reserved bits as
-  SDK kinds: they are sent as raw numbers until the SDK defines them.
-- **Layout:** the probe `Tools/Probe` (its own CMake project, from Knitting's
-  skeleton): header-only text and CSV formatting in `Software/Libs/Core`, the
-  service in `Software/Libs/App`, the GUI in `Software/Apps/LVGL-GUI`, the watch
-  build `Software/Apps/RideProbe-CMake` (app folder `RideProbe`, development
-  APP_ID `10808682C0E2ED6A`). It writes `Logs/probe_<utc>.csv` in the app folder.
-- **Watch builds come from CI**, as for the others (`RideProbe_0.1.0.uapp` in `watch-apps`).
+  SDK kinds: they are sent as raw numbers until the SDK defines them. No FIT numbers
+  beyond the SDK's `FitProfile.hpp` (road and mountain sub-sports need verified ones).
+  Distance and climb are integer centimetres, speed integer mm/s, in the model.
+- **Layout:** from HybridX Workout's, plus the Cycling example's GPS: the pure core
+  `Software/Libs/Core` (header-only where the GUI uses it; `RideSettings` is the
+  service's), the service and messages `Software/Libs/App`, the GUI
+  `Software/Apps/LVGL-GUI` (screens build only what is on show), the watch build
+  `Software/Apps/HybridXRide-CMake` (app folder `HybridXRide`, which Streak keys sessions
+  by). `Software/Libs/Link` is a **copy** of `hybridx-link`'s code (edit the original,
+  then `hybridx-link/Utilities/check-link-copies.sh --sync`). The probe is
+  `Tools/Probe` (app folder `RideProbe`, APP_ID `10808682C0E2ED6A`; it writes
+  `Logs/probe_<utc>.csv`).
+- **Activity link:** on each saved ride, `Service::writeActivityLink` adds it to
+  `../SharedData/HybridX/act_ride.json` (distance outdoors, 0 indoors), then `sendStreakLine()`.
+- **Watch builds come from CI**, as for the others (`HybridXRide_<version>.uapp` and
+  `RideProbe_0.1.0.uapp` in `watch-apps`). Tags `ride-vX.Y.Z`. Development APP_ID
+  `250009C2B1049597` (md5 of `HybridXRide`); the portal issues the real one at release.
 - **Commands:**
-  - host tests: `cmake -S hybridx-ride/Tests/Host -B hybridx-ride/build-tests && cmake --build hybridx-ride/build-tests && hybridx-ride/build-tests/hybridx-ride-host-tests`;
-  - probe simulator: `hybridx-ride/Tools/Probe/Software/Apps/LVGL-GUI/simulator`
-    (keys 1-4 are L1, L2, R1, R2). Its mock kernel never answers accessory
-    requests, so only a watch shows the states.
+  - host tests: `cmake -S hybridx-ride/Tests/Host -B hybridx-ride/build-tests && cmake --build hybridx-ride/build-tests && hybridx-ride/build-tests/hybridx-ride-host-tests`
+    (the probe's three tests are in the same binary);
+  - simulator: `hybridx-ride/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its
+    `build/`; run `build/bin/HybridXRideSimulator`; keys 1-4 are L1, L2, R1, R2). It has a
+    GPS (a fix after about 4 s, then 20 to 30 km/h round a loop) and a constant barometer;
+  - every screen by key presses (an outdoor ride with an auto lap and a pause, a discarded
+    one, an indoor one), then both files, the sidecars, `act_ride.json` and the Streak line
+    checked: `docs/experiments/capture_screens.sh [out-dir]` (about 3 minutes, into
+    `docs/screens/r1-*.png`; needs Xvfb, xdotool, ImageMagick, fitdecode);
+  - the text-fit audit: `docs/experiments/audit.sh` (about 10 seconds; after any change to a
+    screen's text or layout; the wheel menu is the SDK's widget and is not audited);
+  - the FIT file from the real writer in five scenarios (full, outdoor, autolap, nohr, crash),
+    decoded: `docs/experiments/fit_check.sh [work-dir]`;
+  - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"), using
+    `hybridx-ride/Software/Apps/HybridXRide-CMake` (needs `gcc-arm-none-eabi`, `pyelftools`, `Pillow`);
+    icons: `python3 hybridx-ride/Resources/make_icons.py`;
+  - probe simulator: `hybridx-ride/Tools/Probe/Software/Apps/LVGL-GUI/simulator`. Its mock
+    kernel never answers accessory requests, so only a watch shows the states.
 
 ## HybridX Workout (`hybridx-workout/`)
 A twelfth app: gym and HIIT sessions that count in HybridX Streak. It builds on the SDK's

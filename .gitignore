@@ -36,7 +36,12 @@ hybridx-trail/Tools/Probe/build/
 hybridx-trail/Tools/Probe/Output/
 hybridx-trail/Tools/Probe/Software/Output/
 hybridx-trail/Tools/Probe/Software/Apps/Probe-GUI/simulator/build/
+hybridx-ride/build/
 hybridx-ride/build-tests/
+hybridx-ride/Output/
+hybridx-ride/Software/Output/
+hybridx-ride/Software/SharedData/
+hybridx-ride/Software/Apps/LVGL-GUI/simulator/build/
 hybridx-ride/Tools/Probe/build/
 hybridx-ride/Tools/Probe/Output/
 hybridx-ride/Tools/Probe/Software/Output/

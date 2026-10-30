@@ -98,6 +98,9 @@ jobs:
           # HybridX Ride: the bike probe (what the kernel says to the accessory
           # kinds) -- see hybridx-ride/docs/PROBE.md.
           build hybridx-ride/Tools/Probe/Software/Apps/RideProbe-CMake ride-probe
+          # HybridX Ride: heart rate and GPS rides that count in HybridX Streak
+          # -- see hybridx-ride/docs/NOTES.md.
+          build hybridx-ride/Software/Apps/HybridXRide-CMake ride
           # HybridX Workout: gym and HIIT sessions that count in HybridX Streak
           # -- see hybridx-workout/docs/NOTES.md.
           build hybridx-workout/Software/Apps/HybridXWorkout-CMake workout
@@ -121,6 +124,7 @@ jobs:
           cp knitting/Output/*.uapp watch-apps/
           cp x-sauna/Output/*.uapp watch-apps/
           cp hybridx-ride/Tools/Probe/Output/*.uapp watch-apps/
+          cp hybridx-ride/Output/*.uapp watch-apps/
           cp hybridx-workout/Output/*.uapp watch-apps/
           ls -l watch-apps
 
@@ -368,7 +372,7 @@ jobs:
           cmake --build ci-build/x-sauna-tests -j"$(nproc)"
           ctest --test-dir ci-build/x-sauna-tests --output-on-failure
       - name: HybridX Ride host tests
-        # The bike probe's lines and CSV rows.
+        # The ride model (laps, zones, calories, GPS totals), its FIT values, text and settings, and the bike probe's lines and CSV rows.
         run: |
           export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
           cmake -S hybridx-ride/Tests/Host -B ci-build/ride-tests -DCMAKE_BUILD_TYPE=Debug

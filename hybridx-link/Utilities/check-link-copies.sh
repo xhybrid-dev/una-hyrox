@@ -16,6 +16,7 @@ APPS=(
     hybridx-race
     hybridx-trail
     hybridx-workout
+    hybridx-ride
 )
 
 FILES=(
