@@ -230,10 +230,14 @@ Streak." Plan approved the same day.
   saved `.fit` files decoded; `act_ride.json` holds two entries with each file's start and
   timer time, the outdoor one's distance (530 m) and the indoor one's 0; the Streak line read
   "3 of 4 this week" and "7-week streak", then "4 of 4" after the second save.
-- **Text-fit audit** (`audit.sh`): 0 problems across about 40 cases, outdoor and indoor,
+- **Text-fit audit** (`audit.sh`): 0 problems across 34 cases, outdoor and indoor,
   metric and imperial. It found one real overflow on the way (a 9999.99 km distance), so the
   display is capped at 999.99, as the activity link holds at most 1000 km. The wheel menu is
   the SDK's widget and is not audited: its hints were checked by eye in the captures.
+- **Family check** (`hybridx-link/docs/experiments/family_check.sh`, now five apps): Run,
+  Race, Trail, Workout and Ride saved one after another; their lines read "1 of 7" to "5 of 7";
+  Streak's first open found five new and counted the ride as **Ride**; the second open found
+  none new and still held five.
 - **Watch target, local compile check:** both processes link, `HybridXRide_0.0.0-dev.uapp`
   326,208 bytes, no warnings from our code. Not installable: CI makes the one to install.
 
@@ -247,7 +251,6 @@ Streak." Plan approved the same day.
   IndoorCycling one as expected, and what they show for calories; the LVGL pool on the watch.
 - **Imperial units** have been audited for fit and unit-tested, not driven end to end in the
   simulator (it reports the profile as metric).
-- **The family check** with Ride: see below.
 
 ### For Jon at Gate R1
 

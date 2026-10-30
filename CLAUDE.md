@@ -80,8 +80,8 @@ How our activity apps tell Streak what you did on a real watch, where Streak can
 read other apps' `Activity/` folders (Streak NOTES, Gate 0). Each app leaves its last
 16 activities in its own `../SharedData/HybridX/act_<slot>.json`; Streak reads them.
 It is not an app. It counts our own apps only, not UNA's built-in ones. Writers so far:
-Run (`act_run.json`), Race (`act_race.json`), Trail (`act_trail.json`) and Workout
-(`act_workout.json`); the reader is Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
+Run (`act_run.json`), Race (`act_race.json`), Trail (`act_trail.json`), Workout
+(`act_workout.json`) and Ride (`act_ride.json`); the reader is Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
 `Service::writeActivityLink` in its own `Service.cpp`, called once the `.fit` has closed.
 The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
 `Service::sendStreakLine()` shows "3 of 4 this week / 8-week streak" on its Saved screen
@@ -96,10 +96,10 @@ The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
   never a copy.
 - **Commands:**
   - host tests: `cmake -S hybridx-link/Tests/Host -B hybridx-link/build-tests && cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-host-tests`;
-  - the family check (Run, Race, Trail and Workout save into one shared folder, then Streak
+  - the family check (Run, Race, Trail, Workout and Ride save into one shared folder, then Streak
     opens twice and must count each once): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
-    (about 7 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
-    `TREADMILL=1` for a treadmill Run; needs the five simulators built).
+    (about 9 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
+    `TREADMILL=1` for a treadmill Run; needs the six simulators built).
 
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You
