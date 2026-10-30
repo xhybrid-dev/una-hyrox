@@ -107,12 +107,14 @@ Logs: `probe-logs/b0_run1_no_strap.csv`, `probe-logs/b0_run2_strap.csv`.
   released); nothing for bits 1 or 2. Round two repeated `0x1` and `0x2` with the
   same result.
 - **Meaning:** on this firmware the kernel ignores the reserved bits, as the SDK
-  says: heart rate only. Not yet tested with this probe: the trainer, bike
-  sensors and BikeErg with external HR on and the strap off (the kernel looks for
-  a *remembered* heart-rate device, so a trainer will only show if it can be
-  paired in Settings as one). The firmware version is not yet noted.
-- **Still to note from Jon:** firmware version; whether the watch's Settings or
-  the UNA app list any cycling sensor, trainer or speed/cadence/power option.
+  says: heart rate only.
+- **Jon's report (30 October 2026):** the watch sees and connects an external
+  heart-rate device only. No other sensor type is supported, and it does not see
+  any (his turbo trainer, which sends power, cadence and speed over Bluetooth,
+  never appeared). This is Jon's account of the watch's Settings and the trainer
+  test; no probe log of a trainer run with a working control exists, and the
+  bike sensors and BikeErg were not tried. The firmware version is not noted.
+- **Gate B0 is closed: heart rate only.**
 
 ## 4. Decisions
 
@@ -120,3 +122,8 @@ Logs: `probe-logs/b0_run1_no_strap.csv`, `probe-logs/b0_run2_strap.csv`.
   is planned until the probe's result is in.
 - If a bike app comes before UNA adds sensors, it can only be GPS and heart
   rate outdoors, or time and heart rate indoors.
+- **Gate B0 result** (Jon, 30 October 2026): for now a bike app can only monitor
+  heart rate, plus GPS when riding outside. No power, cadence or speed
+  sensors, and nothing from a trainer or BikeErg. The next step is the request
+  to UNA (`UNA_BIKE_SENSORS_REQUEST.md`, still a draft for Jon to check and
+  send); whether to build the GPS and heart-rate app meanwhile is Jon's call.

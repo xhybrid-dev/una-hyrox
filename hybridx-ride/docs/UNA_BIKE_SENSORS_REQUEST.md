@@ -1,8 +1,8 @@
 # Draft request to UNA: cycling sensors for watch apps
 
-Status: **draft, not sent.** It waits for Jon's Gate B0 result (`PROBE.md`);
-fill in the evidence section from the probe's logs, then Jon checks it before
-sending. It sits alongside `UNA_ECOSYSTEM_REQUEST.md` (at the repository
+Status: **draft, not sent.** The evidence section is filled in from Jon's Gate B0
+result (30 October 2026; `NOTES.md` section 3), with the open items marked in
+it; Jon checks it before sending. It sits alongside `UNA_ECOSYSTEM_REQUEST.md` (at the repository
 root), which covers app-to-app data; this one is about sensors only.
 
 ---
@@ -28,16 +28,24 @@ and `POWER = 1 << 2` "as cycling cadence/power profiles are added later", and
 **What I tested**
 
 A small probe app asked the kernel for each kind in turn (HRM, bit 1, bit 2,
-both, all three) and logged every `EventStatus`, with:
+both, all three) and logged every `EventStatus`, with a heart-rate strap (the
+control) and a smart turbo trainer that broadcasts power, cadence and speed
+over Bluetooth.
 
-1. a heart-rate strap (the control);
-2. a smart trainer;
-3. bike speed, cadence and power sensors;
-4. a Concept2 BikeErg (PM5, Bluetooth on).
+Results:
 
-Results: *[from the probe's CSV logs: the state each request reached with
-each device, the firmware version, and whether the watch's settings or the
-UNA app offer any cycling-sensor pairing]*.
+- **Heart-rate strap:** works. Request `0x1` went SEARCHING, CONNECTING,
+  CONNECTED in 6.6 s, and `HEART_RATE_EX` reported the external source.
+- **Reserved bits:** requests for bit 1, bit 2, both, and all three drew no
+  status for any kind but HRM (no SEARCHING, and not even UNAVAILABLE). The
+  kernel ignores them.
+- **Watch settings:** the watch sees and connects external heart-rate
+  devices only; the trainer never appeared.
+- *[Still to add before sending: the watch's firmware version; whether the UNA
+  phone app offers any cycling-sensor pairing; the bike sensors and BikeErg,
+  if Jon tries them.]*
+
+Probe logs are available if useful.
 
 **What I'm asking for**
 
