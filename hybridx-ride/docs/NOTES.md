@@ -241,6 +241,24 @@ Streak." Plan approved the same day.
 - **Watch target, local compile check:** both processes link, `HybridXRide_0.0.0-dev.uapp`
   326,208 bytes, no warnings from our code. Not installable: CI makes the one to install.
 
+### Barometer readings and NaN (31 October 2026)
+
+Altitude and climb come from the **barometer** (the PRESSURE sensor), not the GPS, and only
+on an outdoor ride (indoors the sensor is not subscribed: on a turbo the only pressure
+changes would be weather and air conditioning, shown as made-up climb). Altitude is the SDK's
+ISA formula from the station pressure and the sea-level pressure (QNH) the kernel sends with
+it; the climb is the sum of rises and falls above 2 m of the smoothed altitude (as the Cycling
+example), so it does not depend on the QNH being right; the altitude on each FIT record does,
+and where the kernel gets its QNH is not known.
+
+The SDK returns NaN when either pressure is missing, and the Cycling example feeds that
+straight into its filter and counter, where one NaN would spoil both for the ride. Ride drops
+such a reading first (`Core/Header/RideAltitude.hpp`: both pressures finite and above zero,
+the altitude finite and within -1000 to 10000 m). The first good reading sets the ride's
+sea-level reference; unusable ones are counted and logged when the ride saves. Three host
+tests (94 now); the simulator ride still records altitude on every record after the first
+few seconds, so its readings pass the check.
+
 ### Not verified
 
 - **Anything on a watch.** In particular: the GPS fix time and the "GPS ready" hint; the

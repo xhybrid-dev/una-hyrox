@@ -16,6 +16,7 @@
 #include "ActivityLink.hpp"
 #include "SafeFile.hpp"
 #include "StreakNow.hpp"
+#include "RideAltitude.hpp"
 #include "RideFit.hpp"
 #include "RideText.hpp"
 
@@ -254,6 +255,7 @@ void Service::startSession()
     mAltitude.reset();
     mAltitudeFilter.reset();
     mSentDistCm = mSentAscentCm = mSentDescentCm = 0;
+    mBadAltitude = 0;
     mSpeedNowMmS = 0;
     mSpeedValid  = false;
 
@@ -401,6 +403,9 @@ void Service::finish(bool save, bool bank)
         notifyNewActivity();
         LOG_INFO("Ride saved: %u laps, %u kcal%s\n", static_cast<unsigned>(n), static_cast<unsigned>(fs.kcal),
                  bank ? " (banked: the app was stopped)" : "");
+        if (mBadAltitude > 0) {
+            LOG_WARNING("%lu barometer readings were unusable and ignored\n", static_cast<unsigned long>(mBadAltitude));
+        }
         writeActivityLink(fs);   // only for a ride whose .fit is safely saved
         sendStreakLine();
     } else {
@@ -604,10 +609,25 @@ void Service::onSensorData(uint16_t handle, SDK::Sensor::DataBatch &batch)
     } else if (mPressure.matchesDriver(handle)) {
         SDK::SensorDataParser::Pressure p(batch[0]);
         if (p.isDataValid()) {
-            if (!mAltitude.isValid()) {
-                mSeaLevelPa = p.getP0();   // the first reading sets the ride's zero
+            // The first good reading sets the ride's zero (its sea-level pressure). A reading
+            // with no usable pressure or sea-level pressure is dropped before it can reach the
+            // filter or the climb counter (NaN would spoil both for the whole ride).
+            const bool first = !mAltitude.isValid();
+            const float p0   = first ? p.getP0() : mSeaLevelPa;
+            const float pa   = p.getPressure();
+            if (Ride::usablePressurePa(pa) && Ride::usablePressurePa(p0)) {
+                const float alt = SDK::SensorDataParser::Pressure::getAltitude(pa, p0);
+                if (Ride::usableAltitudeM(alt)) {
+                    if (first) {
+                        mSeaLevelPa = p0;
+                    }
+                    mAltitude.add(mAltitudeFilter.execute(alt));
+                } else {
+                    ++mBadAltitude;
+                }
+            } else {
+                ++mBadAltitude;
             }
-            mAltitude.add(mAltitudeFilter.execute(p.getAltitude(p.getPressure(), mSeaLevelPa)));
         }
     } else if (mWristSensor.matchesDriver(handle)) {
         SDK::SensorDataParser::WristMotion p(batch[0]);

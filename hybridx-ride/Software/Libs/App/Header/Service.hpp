@@ -170,6 +170,7 @@ private:
     uint32_t mSpeedAtMs = 0;
     uint32_t mSpeedNowMmS = 0;     ///< The speed the last sample used
     float    mSeaLevelPa = 0.0f;
+    uint32_t mBadAltitude = 0;     ///< Barometer readings dropped as unusable, this ride
     uint32_t mSentDistCm = 0;      ///< What the model has been given so far
     uint32_t mSentAscentCm = 0;
     uint32_t mSentDescentCm = 0;
