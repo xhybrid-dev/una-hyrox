@@ -171,6 +171,7 @@ private:
     // -- HybridX Trail: the activity link (docs/NOTES.md "Activity link") ----------
     // Each saved run, in ../SharedData/HybridX/act_trail.json, for HybridX Streak.
     void writeActivityLink(const ActivityWriter::TrackData& track);
+    void sendStreakLine();   ///< the Streak line, after a save (hybridx-link StreakNow)
     std::time_t            mStartUtc       = 0;   ///< the run's start, UTC: the one the .fit is named from
     SDK::Metric::GpsSpeedFilter<skVo2SpeedSmoothTicks,
                                 skVo2SpeedScaleTau,

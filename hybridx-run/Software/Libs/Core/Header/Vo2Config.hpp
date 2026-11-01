@@ -79,14 +79,19 @@ inline constexpr uint16_t kMaxRunWeight = 30;
 inline constexpr float kLagMaxSpeedChangePct = 10.0f;
 /// When true, a window after a change is not used (outcome Lagged). While false it is used and
 /// flagged, and RunResult::withoutLagX10 says what the estimate would have been without it.
-inline constexpr bool kLagGuardEnabled = false;
+/// Switched on by Jon on 28 October 2026 (NOTES, "VO2max switched on"). A Trail run's windows
+/// are judged on a known change only (Vo2Run::setLagKnownOnly).
+inline constexpr bool kLagGuardEnabled = true;
 
 /// Drift: the halves of a run's windows each need this many for their own median.
 inline constexpr uint16_t kMinHalfWindows = 3;
 
-/// The shown value's age limit, measured only (Vo2History::rollingX10Within): runs older than this
-/// would not count. Not switched on: doing that also changes the glance's file and the trend.
+/// The shown value's age limit: a run more than this many days before the latest run kept does not
+/// count towards the value shown, nor towards any run's place in the trend (Vo2History). Anchored
+/// on the latest run, not on today, so the app, the glance's file and the trend always agree and
+/// nothing changes with time alone. Switched on by Jon on 28 October 2026.
 inline constexpr uint16_t kMaxRunAgeDays = 42;
+inline constexpr bool     kAgeLimitEnabled = true;
 
 }  // namespace RunVo2::Config
 

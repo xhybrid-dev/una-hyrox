@@ -18,6 +18,8 @@
 #include "LinkReader.hpp"
 #include "StateCodec.hpp"
 #include "StreakModel.hpp"
+#include "StreakNow.hpp"   // the Streak line the HybridX apps show (hybridx-link)
+#include "SafeFile.hpp"
 #include "WeekMath.hpp"
 
 #define LOG_MODULE_PRX   "Service"
@@ -157,11 +159,51 @@ void Service::save()
     if (!Streak::StateCodec::save(mKernel.fs, kStateFile, sModel->state(), sScratch, sizeof(sScratch))) {
         LOG_ERROR("Could not save state.json\n");
     }
-    // The public copy, for the glance (and HybridX Race later, PLAN 9).
+    // The public copy, for the glance.
     if (!mKernel.fs.mkdir(kSharedDir)
         || !Streak::StateCodec::save(mKernel.fs, kPublicFile, sModel->state(), sScratch, sizeof(sScratch))) {
         LOG_WARNING("Could not save the public streak.json\n");
     }
+    saveStreakNow();
+}
+
+void Service::saveStreakNow()
+{
+    // This week in brief, for the line HybridX Run, Race and Trail show after a save (PLAN 9;
+    // hybridx-link StreakNow). They add what they saved since, by this file's own rules.
+    const Streak::StreakModel& m = *sModel;
+    const Streak::State&       st = m.state();
+    if (!mClockOk || st.period == Streak::State::kNoPeriod) {
+        return;   // no week judged yet: no line rather than a wrong one
+    }
+    HybridXLink::StreakNow n;
+    n.day        = st.lastDay;
+    n.weekStart  = st.weekStartDay;
+    n.target     = st.goal.target;
+    n.minMinutes = st.goal.minMinutes;
+    n.scope      = st.goal.scope;
+    n.onePerDay  = st.goal.onePerDay;
+    n.pending    = st.hasPending;
+    n.counted    = m.qualifying();
+    n.streak     = static_cast<uint16_t>(m.liveStreak() - (m.weekMet() ? 1 : 0));
+    for (uint8_t i = 0; i < st.sessionCount; ++i) {
+        const Streak::Session& x = st.sessions[i];
+        const int32_t d = static_cast<int32_t>(x.localStart / 86400u) - st.weekStartDay;
+        if (m.status(i) == Streak::Status::Counts && d >= 0 && d < 7) {
+            n.daysMask = static_cast<uint8_t>(n.daysMask | (1u << d));
+        }
+        if (x.appKey != 0 && n.keyCount < HybridXLink::kMaxKeys) {   // 0: a manual log
+            n.keys[n.keyCount++] = HybridXLink::StreakKey{x.appKey, x.localStart};
+        }
+    }
+    char buf[HybridXLink::kStreakNowMaxBytes];
+    const size_t len = HybridXLink::encodeStreakNow(n, buf, sizeof(buf));
+    if (len == 0 || !Streak::SafeFile::write(mKernel.fs, HybridXLink::kStreakNowPath, buf, len)) {
+        LOG_WARNING("Could not save streak_now.json\n");
+        return;
+    }
+    LOG_INFO("Streak line: %u of %u this week, streak %u before it (%lu bytes)\n", n.counted, n.target,
+             n.streak, static_cast<unsigned long>(len));
 }
 
 // -- Views ----------------------------------------------------------------------------------

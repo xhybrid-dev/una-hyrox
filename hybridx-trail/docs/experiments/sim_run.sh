@@ -56,6 +56,8 @@ if [ "${DISCARD:-0}" = 1 ]; then
 else
     key 2; key 2                           # L2 twice: Save
     hold 3 3                               # hold R1: save
+    sleep 0.5
+    snap 03b-saved-screen                  # "Saved", or the Streak line if Streak has left its summary
 fi
 sleep 3
 snap 04-saved

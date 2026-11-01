@@ -8,7 +8,9 @@ measurements, dead ends, every place the SDK and the brief disagree — read
 ## Overview
 
 A streak is a weekly target — 3 sessions a week by default — kept
-automatically from whatever the watch already records, from any app. Open
+automatically from what the HybridX apps leave in the shared folder (on a real
+watch Streak cannot read other apps' activity folders: NOTES, Gate 0; the
+folder scan below works only in the simulator). Open
 the app and it has already scanned the last two weeks of activity folders,
 credited what qualifies, and judged whether the week is achieved. There is
 also manual logging, for activity the watch never recorded at all.

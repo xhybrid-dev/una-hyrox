@@ -25,6 +25,7 @@ public:
     ~TrackResultScreen() override;
 
     void onShow() override;
+    void onStreakLine() override;   // the Streak line after a save
 
 protected:
     void build() override;
@@ -34,6 +35,7 @@ private:
 
     Result      mResult;
     lv_timer_t* mDismiss = nullptr;
+    lv_obj_t*   mText    = nullptr;   ///< the confirmation's text; the Streak line replaces it
     std::unique_ptr<Widgets::Title> mTitle;
 };
 

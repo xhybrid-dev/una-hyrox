@@ -27,6 +27,7 @@ public:
     ~TrackResultScreen() override;
 
     void onShow() override;
+    void onStreakLine() override;   // the Streak line after a save
     void onKey(uint8_t code) override;
     void onIdleTimeout() override;
 
@@ -42,6 +43,7 @@ private:
     bool        mCanUndo = false;
     uint32_t    mAutoSaveTicks = 0;
     lv_timer_t* mDismiss = nullptr;
+    lv_obj_t*   mText    = nullptr;   ///< the confirmation's text; the Streak line replaces it
     std::unique_ptr<Widgets::Title>   mTitle;
     std::unique_ptr<Widgets::Buttons> mButtons;
 };

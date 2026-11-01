@@ -84,7 +84,7 @@ TEST(Vo2History, JsonRoundTrip)
     char buf[Vo2History::kMaxJsonBytes];
     const size_t n = h.toJson(buf, sizeof(buf));
     ASSERT_GT(n, 0u);
-    EXPECT_STREQ(buf, "{\"v\":4,\"restHr\":52,\"trail\":1791100000,\"maxes\":[186,184],"
+    EXPECT_STREQ(buf, "{\"v\":4,\"restHr\":52,\"trail\":1791100000,\"pk\":0,\"maxes\":[186,184],"
                       "\"runs\":[[1791000000,523,24,0,523],[1791100000,531,18,1,526]]}");
 
     Vo2History back;

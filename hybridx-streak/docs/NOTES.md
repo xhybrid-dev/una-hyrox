@@ -995,3 +995,13 @@ once (ACTIVITY_LINK.md, "Family check").
   a non-zero time zone end to end (the container is UTC; the reader's zone maths
   is covered by host tests).
 
+
+## The Streak line (28 October 2026)
+
+Streak now leaves `../SharedData/HybridX/streak_now.json` each time it saves. After a save, Run,
+Race and Trail read it and every app's activity summary, and show "3 of 4 this week" and
+"8-week streak" on their Saved screen, worked out by Streak's own rules. The design, its limits
+(the streak is left out when only Streak can know it; no line on a treadmill run) and the checks
+are in `hybridx-link/docs/ACTIVITY_LINK.md`, "The Streak line". The code is the link library's
+`StreakNow` (copied into each app), and `Service::sendStreakLine()` in each app (in Streak,
+`Service::saveStreakNow()`).

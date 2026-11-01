@@ -109,6 +109,10 @@ public:
     bool isPendingIntervalsMode() const;
     const Track::IntervalsData& getPendingAlertIntervals() const;
     void trackStart(bool intervalsMode);
+    /// The Streak line after a save (hybridx-link StreakNow); empty until one comes.
+    bool        hasStreakLine() const { return mStreakShow; }
+    const char* streakLine1() const { return mStreakLine1; }
+    const char* streakLine2() const { return mStreakLine2; }
     void intervalsNextPhase();
     bool isTrackActive() const;
     void trackPause();
@@ -128,6 +132,8 @@ public:
     /// HybridX Run: a treadmill run waits for the console's distance after Save. The estimate
     /// comes from the service (0 until it has); send the answer, 0 to keep the estimate.
     float treadmillEstimateM() const { return mTreadEstimateM; }
+    /// HybridX Run: the personal bests (all zero until the service sends them).
+    const CustomMessage::BestsUpd& getBests() const { return mBests; }
     void  sendTreadmillDistance(float metres);
     /// The athlete's numbers set on the watch (R5): sent to the service, which
     /// saves them and answers with a fresh Vo2Info.
@@ -198,6 +204,9 @@ public:
     bool hasStepCard() const { return mStepCard; }
 
 private:
+    bool mStreakShow      = false;   ///< the Streak line (STREAK_LINE)
+    char mStreakLine1[24] = {};
+    char mStreakLine2[20] = {};
     // Fields required for GUI <-> Service communication
     ModelListener*           modelListener;
     const SDK::Kernel&       mKernel;
@@ -244,6 +253,7 @@ private:
     CustomMessage::Vo2Info mVo2Info              {};   ///< HybridX Run
     RunVo2::RunStatsResult mRunStats             {};   ///< HybridX Run: the run detail page
     float                  mTreadEstimateM       = 0.0f;   ///< HybridX Run: the treadmill run's estimate, metres
+    CustomMessage::BestsUpd mBests               {};       ///< HybridX Run: personal bests
 
     // Structured workouts
     const SDK::Workout::Library* mWorkoutLibrary = nullptr;

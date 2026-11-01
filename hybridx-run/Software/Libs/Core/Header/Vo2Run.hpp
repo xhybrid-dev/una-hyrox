@@ -122,6 +122,17 @@ public:
     /// through addWindow().
     void noteSustainedMax(uint8_t bpm) { mNotedMax = std::max(mNotedMax, bpm); }
 
+    /// Windows from a file that holds only the minutes another app kept (HybridX Trail's, or a
+    /// stored run's): a gap between two of them is unknown, not a pause, so only a known change
+    /// of pace (the minute before was there and was off by more than kLagMaxSpeedChangePct)
+    /// flags a window. reset() clears it (so a live run that follows is judged as its own); set
+    /// it after reset() and before the windows go in.
+    void setLagKnownOnly(bool on) { mLagKnownOnly = on; }
+
+    /// The window that closed on the last addSecond() that closed one (popWindowLog() says
+    /// when), as built: what a stored run keeps, so it can be judged again later.
+    const WindowRecord& lastWindow() const { return mLastWindow; }
+
     const WindowCounts& counts() const { return mCounts; }
 
     /// The window that closed since the last call, for the tuning log; false
@@ -155,6 +166,9 @@ private:
     bool     mHavePrev      = false;
     uint32_t mPrevActiveSec = 0;
     uint16_t mPrevSpeedX10  = 0;   ///< 0 = it had no speed
+    bool     mLagKnownOnly  = false;
+
+    WindowRecord mLastWindow {};
 };
 
 }  // namespace RunVo2

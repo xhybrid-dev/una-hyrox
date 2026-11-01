@@ -58,6 +58,7 @@ constexpr SDK::MessageType::Type RACE_FINISHED     = 0x00000008;
 constexpr SDK::MessageType::Type SUMMARY_META      = 0x00000009;
 constexpr SDK::MessageType::Type SUMMARY_PAGE      = 0x0000000A;
 constexpr SDK::MessageType::Type ACCESSORY_STATUS  = 0x0000000B;
+constexpr SDK::MessageType::Type STREAK_LINE       = 0x0000000C;   // the Streak line after a save
 
 // -- GUI -> Service ------------------------------------------------------------
 constexpr SDK::MessageType::Type SETTINGS_SAVE     = 0x00000080;
@@ -234,6 +235,16 @@ struct AccessoryStatusUpd : public SDK::MessageBase
 // =============================================================================
 
 /// Persist edited settings.
+// The Streak line after a save (hybridx-link StreakNow): two lines of text; show is false when
+// there is none (HybridX Streak not installed, or never opened).
+struct StreakLineUpd : public SDK::MessageBase
+{
+    bool show      = false;
+    char line1[24] = {};   ///< "3 of 4 this week"
+    char line2[20] = {};   ///< "8-week streak", or empty
+    StreakLineUpd() : SDK::MessageBase(STREAK_LINE) {}
+};
+
 struct SettingsSave : public SDK::MessageBase
 {
     Settings settings;

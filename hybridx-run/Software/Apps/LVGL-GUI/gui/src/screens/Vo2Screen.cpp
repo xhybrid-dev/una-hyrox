@@ -12,6 +12,7 @@
 #include <cstdio>
 
 #include "Vo2Text.hpp"
+#include "gui/Format.hpp"
 
 using namespace SDK::GUI;
 using F = Theme::Font;
@@ -32,7 +33,8 @@ void Vo2Screen::build()
 uint8_t Vo2Screen::pageCount() const
 {
     const uint8_t rows = mModel.getVo2Info().rowCount;
-    return static_cast<uint8_t>(1 + (rows + kRowsPerPage - 1) / kRowsPerPage);
+    // The overview, the personal bests, then the runs.
+    return static_cast<uint8_t>(2 + (rows + kRowsPerPage - 1) / kRowsPerPage);
 }
 
 void Vo2Screen::onShow()
@@ -47,6 +49,13 @@ void Vo2Screen::onVo2Info(const CustomMessage::Vo2Info& /*info*/)
     showPage(mPageId < n ? mPageId : static_cast<uint8_t>(n - 1));
 }
 
+void Vo2Screen::onBests()
+{
+    if (mPageId == 1) {
+        showPage(1);
+    }
+}
+
 void Vo2Screen::showPage(uint8_t page)
 {
     mTitle.reset();
@@ -58,8 +67,10 @@ void Vo2Screen::showPage(uint8_t page)
     mPage   = Theme::container(mRoot, 0, 0, 240, 240);
     if (page == 0) {
         buildOverview(mPage);
+    } else if (page == 1) {
+        buildBests(mPage);
     } else {
-        buildRuns(mPage, static_cast<uint8_t>(page - 1));
+        buildRuns(mPage, static_cast<uint8_t>(page - 2));
     }
     // Behind the scroll indicator and the button hints.
     lv_obj_move_background(mPage);
@@ -102,6 +113,28 @@ void Vo2Screen::buildOverview(lv_obj_t* f)
     // meet the round edge.
     std::snprintf(line, sizeof(line), "Rest HR %u (%s)", v.nowRestHr, restFrom);
     Theme::label(f, F::Regular16, line, 20, 180, 200);
+}
+
+// HybridX Run: the fastest 1 km, 1 mile and 5 km of any outdoor run, and when (NOTES, "Personal bests").
+void Vo2Screen::buildBests(lv_obj_t* f)
+{
+    const CustomMessage::BestsUpd& b = mModel.getBests();
+    mTitle = std::make_unique<Widgets::Title>(f, "BESTS");
+    static const char* const kLabel[3] = {"1 km", "1 mile", "5 km"};
+    char t[16];
+    char date[12];
+    for (uint8_t i = 0; i < 3; ++i) {
+        const int32_t y = 54 + i * 44;
+        Theme::label(f, F::Regular18, kLabel[i], 40, y, 80, LV_TEXT_ALIGN_LEFT);
+        if (b.ms[i] == 0) {
+            Theme::label(f, F::SemiBold20, "---", 106, y, 80, LV_TEXT_ALIGN_RIGHT);
+            continue;
+        }
+        Fmt::shortTime(t, sizeof(t), static_cast<std::time_t>((b.ms[i] + 500u) / 1000u));
+        Theme::label(f, F::SemiBold20, t, 106, y, 80, LV_TEXT_ALIGN_RIGHT);
+        Theme::label(f, F::Regular14, RunVo2::Text::shortDate(b.day[i], b.month[i], date, sizeof(date)),
+                     40, y + 22, 160, LV_TEXT_ALIGN_LEFT, Color::GRAY);
+    }
 }
 
 void Vo2Screen::buildRuns(lv_obj_t* f, uint8_t listPage)

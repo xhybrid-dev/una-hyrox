@@ -14,6 +14,7 @@
 namespace
 {
 constexpr uint32_t kDismissMs = 2000;
+constexpr uint32_t kStreakLineMs = 3500;   ///< with the Streak line, time to read it
 } // namespace
 
 TrackResultScreen::TrackResultScreen(Model& model, Result result)
@@ -35,7 +36,7 @@ void TrackResultScreen::build()
     Theme::label(mRoot, Theme::Font::SemiBold30, saved ? "Saved" : "Discarded", 41, 47, 159);
     Theme::imageTinted(mRoot, saved ? &img_circletick_50x50 : &img_circlecross_50x50, 95, 95,
                        SDK::GUI::Color::YELLOW_DARK);
-    Theme::label(mRoot, Theme::Font::Medium18,
+    mText = Theme::label(mRoot, Theme::Font::Medium18,
                  saved ? "Activity has\nbeen saved" : "Activity has\nbeen deleted", 48, 156, 144);
     mTitle = std::make_unique<Widgets::Title>(mRoot, Strings::kAppNameUc);
 }
@@ -60,5 +61,28 @@ void TrackResultScreen::dismissCb(lv_timer_t* t)
         ScreenManager::instance().goTo(ScreenId::TrackSummary);
     } else {
         self->mModel.exitApp();
+    }
+}
+
+void TrackResultScreen::onStreakLine()
+{
+    // The Streak line (hybridx-link StreakNow) in place of the confirmation's text, held a
+    // little longer to be read.
+    if (mText == nullptr || !mModel.hasStreakLine()) {
+        return;
+    }
+    if (mModel.streakLine2()[0] != '\0') {
+        lv_label_set_text_fmt(mText, "%s\n%s", mModel.streakLine1(), mModel.streakLine2());
+    } else {
+        lv_label_set_text(mText, mModel.streakLine1());
+    }
+    lv_obj_set_style_text_color(mText, lv_color_hex(SDK::GUI::Color::YELLOW_DARK), 0);
+    // Wider than the confirmation's 144 px, for "12 of 7 this week"; still inside the round face
+    // (its chord at y = 200 is 179 px).
+    lv_obj_set_x(mText, 35);
+    lv_obj_set_width(mText, 170);
+    if (mDismiss) {
+        lv_timer_set_period(mDismiss, kStreakLineMs);
+        lv_timer_reset(mDismiss);
     }
 }

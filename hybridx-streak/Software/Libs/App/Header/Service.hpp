@@ -53,6 +53,7 @@ private:
     Now          now() const;
     void         open();
     void         save();
+    void         saveStreakNow();   ///< streak_now.json, for the line the HybridX apps show
     Streak::Goal goalFromConfig() const;
     void         goalToConfig(const Streak::Goal& goal);
     void         sendViews();

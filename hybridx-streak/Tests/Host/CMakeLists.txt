@@ -61,7 +61,7 @@ add_executable(hybridx-streak-host-tests
     support/TreeFileSystem.cpp
     support/FitFixture.cpp
     ${STREAK_CORE_TEST_SOURCES}
-    "${STREAK_LINK}/Sources/ActivityLink.cpp"
+    "${STREAK_LINK}/Sources/ActivityLink.cpp" "${STREAK_LINK}/Sources/StreakNow.cpp"
     ${SDK_FIT_SOURCES}
     ${SDK_JSON_SOURCES}
     "${STREAK_GUI}/src/summit/SummitGeometry.cpp"
@@ -95,7 +95,7 @@ enable_testing()
 add_test(NAME hybridx-streak-host-tests COMMAND hybridx-streak-host-tests)
 
 # make_state: a saved history for the simulator (walkthrough, shield and summit flows).
-add_executable(make_state tools/make_state.cpp ${STREAK_CORE_TEST_SOURCES} "${STREAK_LINK}/Sources/ActivityLink.cpp"
+add_executable(make_state tools/make_state.cpp ${STREAK_CORE_TEST_SOURCES} "${STREAK_LINK}/Sources/ActivityLink.cpp" "${STREAK_LINK}/Sources/StreakNow.cpp"
     ${SDK_FIT_SOURCES} ${SDK_JSON_SOURCES})
 target_include_directories(make_state PRIVATE
     "${STREAK_SOFTWARE}/Libs/Core/Header"

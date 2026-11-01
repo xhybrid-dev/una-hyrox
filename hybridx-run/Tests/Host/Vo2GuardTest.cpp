@@ -59,7 +59,7 @@ int feedCountingFlags(Vo2Run& run, const Sample& s, int seconds)
 
 }  // namespace
 
-static_assert(!Config::kLagGuardEnabled, "P3: the lag guard stays off until Jon has compared with his Garmin");
+static_assert(Config::kLagGuardEnabled, "switched on by Jon, 28 October 2026 (NOTES, \"VO2max switched on\")");
 
 TEST(Vo2Guard, ASteadyRunHasNoMinuteAfterAChange)
 {
@@ -73,7 +73,7 @@ TEST(Vo2Guard, ASteadyRunHasNoMinuteAfterAChange)
     EXPECT_EQ(r.spreadX10, 0);   // every minute the same
 }
 
-TEST(Vo2Guard, TheMinuteAfterAPaceChangeIsFlaggedButStillUsed)
+TEST(Vo2Guard, TheMinuteAfterAPaceChangeIsFlaggedAndNotUsed)
 {
     // Ten minutes easy, then twenty a fifth faster. In the first faster minute the heart rate has
     // not caught up (it reads as the old rate), so that minute alone reads high.
@@ -81,17 +81,15 @@ TEST(Vo2Guard, TheMinuteAfterAPaceChangeIsFlaggedButStillUsed)
     feed(run, steady(3.0f, 150), 10 * 60);
     int flagged = feedCountingFlags(run, steady(3.6f, 150), 60);   // HR lagging
     flagged += feedCountingFlags(run, steady(3.6f, 170), 19 * 60);
-    EXPECT_EQ(flagged, 1);
-    EXPECT_EQ(run.counts().afterChange, 1);
-    EXPECT_EQ(run.counts().lagged, 0);
+    EXPECT_EQ(flagged, 1);                     // still flagged in the tuning log
+    EXPECT_EQ(run.counts().lagged, 1);         // and, with the guard on, not used
+    EXPECT_EQ(run.counts().afterChange, 0);
 
     const RunResult r = run.estimate(profile());
     ASSERT_EQ(r.status, RunStatus::Ok);
-    EXPECT_EQ(r.afterChange, 1);
-    // The estimate is the median over all 25 minutes, the lagging one included; without it, 24.
-    EXPECT_EQ(r.windowsUsed, 25);
-    EXPECT_GT(r.withoutLagX10, 0);
-    EXPECT_LE(r.withoutLagX10, r.vo2x10);   // dropping a high minute can only lower the median
+    EXPECT_EQ(r.afterChange, 0);
+    EXPECT_EQ(r.windowsUsed, 24);              // the lagging minute is out
+    EXPECT_EQ(r.withoutLagX10, r.vo2x10);
 }
 
 TEST(Vo2Guard, ASmallChangeOfPaceIsNotAChange)
@@ -162,19 +160,40 @@ TEST(Vo2Guard, TooFewMinutesForHalvesGiveNone)
     EXPECT_EQ(r.secondHalfX10, 0);
 }
 
-TEST(Vo2Guard, WithoutLagNeedsEnoughCleanMinutes)
+TEST(Vo2Guard, ThreeChangesLeaveTooFewCleanMinutes)
 {
-    // Seven used minutes, three of them after changes of pace: four clean ones are too few.
+    // Seven minutes, three of them after changes of pace: with those dropped, four clean ones are
+    // too few for an estimate.
     Vo2Run run;
     feed(run, steady(3.0f, 150), 6 * 60);   // warm-up + 1 used
     feed(run, steady(3.6f, 168), 60);       // change
     feed(run, steady(3.0f, 150), 60);       // change
     feed(run, steady(3.6f, 168), 60);       // change
     feed(run, steady(3.6f, 168), 3 * 60);   // three clean
+    EXPECT_EQ(run.counts().lagged, 3);
     const RunResult r = run.estimate(profile());
-    ASSERT_EQ(r.status, RunStatus::Ok);
-    EXPECT_EQ(r.afterChange, 3);
-    EXPECT_EQ(r.withoutLagX10, 0);
+    EXPECT_NE(r.status, RunStatus::Ok);
+    EXPECT_EQ(r.vo2x10, 0);
+}
+
+TEST(Vo2Guard, KeptMinutesFromElsewhereFlagOnlyAKnownChange)
+{
+    // A file of the minutes another app kept (Trail's): gaps between them are unknown, not pauses.
+    WindowRecord a;
+    a.activeSec = 600; a.goodSec = 60; a.speedMMinX10 = 1800; a.hrX10 = 1600; a.hrMin = 158; a.hrMax = 162;
+    WindowRecord b = a;   b.activeSec = 900;                       // three minutes later: unknown
+    WindowRecord c = b;   c.activeSec = 960; c.speedMMinX10 = 2200; // the minute after, 22% faster
+    Vo2Run kept;
+    kept.setLagKnownOnly(true);
+    EXPECT_EQ(kept.addWindow(a), WindowOutcome::Kept);     // nothing before: unknown, kept
+    EXPECT_EQ(kept.addWindow(b), WindowOutcome::Kept);     // a gap: unknown, kept
+    EXPECT_EQ(kept.addWindow(c), WindowOutcome::Lagged);   // a known change: dropped
+    kept.reset();
+    EXPECT_EQ(kept.addWindow(a), WindowOutcome::Lagged);   // reset() clears the mode: live rules again
+
+    Vo2Run own;   // the run's own windows: a gap is a pause
+    EXPECT_EQ(own.addWindow(a), WindowOutcome::Lagged);
+    EXPECT_EQ(own.addWindow(b), WindowOutcome::Lagged);
 }
 
 // ---- the shown value's age limit, measured only --------------------------------------------
@@ -188,8 +207,27 @@ TEST(Vo2Guard, TheAgeLimitedShownValueCountsOnlyRecentRuns)
     h.add(RunRecord{now - 60 * day, 420, 30});   // two months old
     h.add(RunRecord{now - 10 * day, 500, 30});
     h.add(RunRecord{now - 2 * day, 520, 30});
-    EXPECT_EQ(h.rollingX10(), (400 + 420 + 500 + 520) / 4);   // all four: unchanged
-    EXPECT_EQ(h.rollingX10Within(now), 510);                  // the last 42 days only
+    // Switched on (28 October 2026): only runs within 42 days of the latest run count.
+    EXPECT_EQ(h.rollingX10(), 510);
+    EXPECT_EQ(h.rollingX10Within(now), 510);
+    // The trend: each run's shown value used the same rule when it was added.
+    EXPECT_EQ(h.at(0).shownX10, 400);
+    EXPECT_EQ(h.at(1).shownX10, 410);   // 30 days apart: both count
+    EXPECT_EQ(h.at(2).shownX10, 500);   // 50 days after the second: alone
+    EXPECT_EQ(h.at(3).shownX10, 510);
+    EXPECT_EQ(h.rollingX10Before(), 500);
+}
+
+TEST(Vo2Guard, TheAgeLimitIsAnchoredOnTheLatestRunNotOnToday)
+{
+    // A runner who stops for three months still sees their last figure: nothing ages out with time
+    // alone, so the app and the glance's file never disagree.
+    const uint32_t day = 86400u;
+    Vo2History h;
+    h.add(RunRecord{1793000000u - 20 * day, 480, 30});
+    h.add(RunRecord{1793000000u, 500, 30});
+    EXPECT_EQ(h.rollingX10(), 490);
+    EXPECT_EQ(h.rollingX10Within(1793000000u + 120 * day), 0);   // the log's measure, against today
 }
 
 TEST(Vo2Guard, NoRecentRunMeansNoAgeLimitedValue)

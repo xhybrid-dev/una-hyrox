@@ -34,8 +34,11 @@ enum class IngestStatus : uint8_t {
 /// Judge one file. On Judged the run has been reset and holds the file's
 /// windows and sustained max HR. @p info is filled whenever the header read
 /// (so a Corrupt run's ID can still be marked, and never retried).
+/// @p keptOnly: the file holds only the minutes that were kept (Trail's, and a stored Trail run),
+/// so the HR-lag guard flags only a known change of pace (Vo2Run::setLagKnownOnly). A stored run
+/// of Run's own holds every minute it built, and is judged as it was live.
 IngestStatus judgeWindowFile(const char* text, size_t len, uint32_t markUtc,
-                             Vo2Run& run, WindowFileInfo& info);
+                             Vo2Run& run, WindowFileInfo& info, bool keptOnly = true);
 
 /// Which slot to read next: the one with the smallest run ID above the mark.
 /// ids[i] = 0 means slot i holds no readable file. -1 when there is none.

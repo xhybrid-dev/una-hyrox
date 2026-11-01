@@ -33,7 +33,9 @@ set(SDK_JSON_SOURCES
 
 add_executable(hybridx-link-host-tests
     ActivityLinkTest.cpp
+    StreakNowTest.cpp
     "${LINK_LIBS}/Sources/ActivityLink.cpp"
+    "${LINK_LIBS}/Sources/StreakNow.cpp"
     ${SDK_JSON_SOURCES}
 )
 target_include_directories(hybridx-link-host-tests PRIVATE

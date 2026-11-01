@@ -47,6 +47,8 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type VO2_PROFILE_SAVE          = 0x0000001A;   // HybridX Run, GUI -> Service
     constexpr SDK::MessageType::Type RUN_STATS_UPDATE          = 0x0000001B;   // HybridX Run: the run detail page
     constexpr SDK::MessageType::Type TREADMILL_ASK             = 0x0000001C;   // HybridX Run: the treadmill's distance, please
+    constexpr SDK::MessageType::Type BESTS_UPDATE              = 0x0000001E;   // HybridX Run: personal bests
+    constexpr SDK::MessageType::Type STREAK_LINE               = 0x0000001F;   // the Streak line after a save
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -273,6 +275,26 @@ namespace CustomMessage {
         {
             this->stats = stats;
         }
+    };
+
+    // The Streak line after a save (hybridx-link StreakNow): two lines of text; show is false when
+    // there is none (HybridX Streak not installed, or never opened).
+    struct StreakLineUpd : public SDK::MessageBase {
+        bool show      = false;
+        char line1[24] = {};   ///< "3 of 4 this week"
+        char line2[20] = {};   ///< "8-week streak", or empty
+        StreakLineUpd() : SDK::MessageBase(STREAK_LINE) {}
+    };
+
+    // HybridX Run: the personal bests over 1 km, 1 mile and 5 km (RunVo2::Bests), sent when the
+    // app opens and after each saved run. newMask bit i: the run just saved set best i.
+    struct BestsUpd : public SDK::MessageBase {
+        uint32_t ms[3]   = {};   ///< 0 = none yet
+        uint32_t utc[3]  = {};   ///< the run each came from
+        uint8_t  day[3]  = {};   ///< its local date, for the screen (0 = none)
+        uint8_t  month[3] = {};
+        uint8_t  newMask = 0;
+        BestsUpd() : SDK::MessageBase(BESTS_UPDATE) {}
     };
 
     // HybridX Run: a treadmill run has been stopped and saved up to its session; the service

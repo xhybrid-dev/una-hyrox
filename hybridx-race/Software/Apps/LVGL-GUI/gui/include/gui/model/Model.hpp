@@ -116,6 +116,10 @@ public:
 
     // -- Race control ----------------------------------------------------------
     void raceStart();
+    /// The Streak line after a save (hybridx-link StreakNow); empty until one comes.
+    bool        hasStreakLine() const { return mStreakShow; }
+    const char* streakLine1() const { return mStreakLine1; }
+    const char* streakLine2() const { return mStreakLine2; }
     void raceSplit();
     void raceUndoSplit();
     void racePause();
@@ -146,6 +150,9 @@ public:
     HoldConfirmMode getHoldConfirmMode() const { return mHoldConfirmMode; }
 
 private:
+    bool mStreakShow      = false;   ///< the Streak line (STREAK_LINE)
+    char mStreakLine1[24] = {};
+    char mStreakLine2[20] = {};
     ModelListener     *modelListener;
     const SDK::Kernel &mKernel;
 

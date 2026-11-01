@@ -15,11 +15,15 @@ APPS=(
     hybridx-streak
     hybridx-race
     hybridx-trail
+    hybridx-workout
+    hybridx-ride
 )
 
 FILES=(
     Header/ActivityLink.hpp
     Sources/ActivityLink.cpp
+    Header/StreakNow.hpp
+    Sources/StreakNow.cpp
 )
 
 bad=0
