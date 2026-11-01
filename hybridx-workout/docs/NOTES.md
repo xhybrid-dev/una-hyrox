@@ -302,3 +302,27 @@ Jon agreed the rules at the end of Phase A ("Yes looks great"), as proposed:
   Strength and a circuit as Hybrid (its `LinkReader` already mapped both; a new Streak test,
   `WorkoutsKindsComeFromTheSportNotTheApp`, pins it). A host test ties the codes to
   `HybridXLink::Sport`.
+
+### W2 verified (1 November 2026)
+
+- **Host tests:** Workout **104** (3 new: each kind's sport and profile name, the link codes
+  against `HybridXLink::Sport`, laps carrying their step kind; and the runner tests now pin
+  the last lap's trigger), also under ASan and UBSan. Streak **137** (1 new).
+- **The FIT file from the real writer** (`fit_check.sh`, ten scenarios, decoded by
+  fitdecode): the four W0 scenarios unchanged, and one per kind through the real
+  `PlanRunner`, each checked for its sport and sub_sport by name, profile name, every lap's
+  timer time, trigger and intensity, the timer stopping at the plan's end (the 10 s before
+  End are the last lap's pause), and for strength five set messages matching the laps
+  (types, durations, start and end, no repetitions). All pass.
+- **The real service in the simulator** (`sim_plan.sh`, all six kinds, the plan written into
+  `settings.json`, driven by keys): each plan ran to its end and paused, a Resume afterwards
+  was refused, End saved the file with its sport (Strength 10/20, EMOM 62/74, AMRAP 62/73,
+  Tabata 62/75, Intervals 62/70, Circuit 10/26), its laps and intensity, start and stop
+  events paired, sets for strength only, and `act_workout.json` had sport 4, 5, 5, 5, 5, 6
+  with the `.fit`'s timer time. ALL PLANS PASSED.
+- **No change to a plain workout:** W0's capture (`capture_screens.sh`, into a scratch folder)
+  passes every check, Streak line included; the family check (five apps) passes 19 of 19.
+- **The simulator builds** with no warnings from our code. The watch target is CI's.
+- **Not checked:** anything on a watch, in particular whether the buzzes are distinct on the
+  wrist, and whether the UNA app and Strava take the new sports and sub-sports (and what they
+  call them), and the set messages. The screens still show every workout as a plain one: W3.
