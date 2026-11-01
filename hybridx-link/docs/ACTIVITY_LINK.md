@@ -201,6 +201,14 @@ HybridX Ride joined on 30 October 2026 (Ride NOTES section 5): the quick mode pa
 apps, the lines reading "1 of 7" to "5 of 7", and Streak counting the ride as Ride, once each
 after the second open too. Streak itself needed no change.
 
+Workout's kinds joined on 1 November 2026 (Workout NOTES "W2" and "The family draft"): Workout
+saves three sessions in turn, a Free workout, a strength plan and a circuit, each set up through
+its `settings.json` and driven by keys. The quick mode passed all 23 checks: Workout's summary
+holds three entries with sports 5, 4 and 6, each the start and timer time of its own `.fit`; the
+lines read "1 of 7" to "7 of 7", and the seventh, meeting the target, "1-week streak"; Streak's
+first open found 7 new in the five files, the second none, and it counted the three Workout
+sessions as Workout, Strength and Hybrid, once each.
+
 Earlier run (27 October 2026): every check passed in both modes. Streak showed 3 of its 7
 dots after the first open, and the same after the second. In `LONG=1`, the 11-minute
 sessions counted under Streak's default 10-minute minimum, and Trail also left

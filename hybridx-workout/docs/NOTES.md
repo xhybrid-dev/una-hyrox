@@ -422,3 +422,19 @@ Jon agreed the rules at the end of Phase A ("Yes looks great"), as proposed:
 - **Not checked:** anything on a watch, in particular the LVGL pool there (the screens still build
   only the face on show), how the colours and the 3 s amber read in daylight, and whether the
   buzzes are distinct on the wrist.
+
+## The family draft: phases E and F (1 November 2026)
+
+- **E, the family check** (`hybridx-link/docs/experiments/family_check.sh`): Workout now saves
+  three sessions in turn (Free, Strength, Circuit), so Streak must count seven. All 23 checks
+  passed: Workout's `act_workout.json` held sports 5, 4 and 6, each matching its own `.fit`;
+  the Streak lines read "1 of 7" to "7 of 7", the seventh with "1-week streak"; Streak counted
+  the three as Workout, Strength and Hybrid, once each, and again none new on its second open.
+  CI is green on every W1 to W3 commit (runs 252 to 258): every app builds for the watch with
+  ST's toolchain, and the host-test job passes.
+- **F, the watch test:** `hybridx-link/docs/FAMILY_WATCH_TEST.md`, Jon's step-by-step test of
+  the whole family on a watch (install from one CI run, a session of each kind with what each
+  screen should say, the files to copy, a phone sync, X Sauna staying out). Waiting on Jon.
+- **The draft family as built:** Streak (reader); Run, Race, Trail, Workout (Free and six plan
+  kinds) and Ride (writers); X Sauna installed alongside but outside the streak. No tags and no
+  portal uploads: Workout, Ride and X Sauna still have development App IDs.
