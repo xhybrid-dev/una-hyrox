@@ -414,6 +414,8 @@ Jon agreed the rules at the end of Phase A ("Yes looks great"), as proposed:
   training / strength_training, five laps active, rest, active, rest, active, five sets;
   Circuit: training / cardio_training, two laps), and `act_workout.json` held sports 4 and 6.
   The captures were looked at by eye; they read as meant.
+- **Each kind through the real service again** (`sim_plan.sh`, ending from the done menu): all
+  six pass, with the same sports, laps and link codes as in W2.
 - **No change to a Free workout:** W0's capture passes every check, Streak line included (its
   screenshots are refreshed for the Type row).
 - **The simulator builds** with no warnings from our code. The watch target is CI's.
