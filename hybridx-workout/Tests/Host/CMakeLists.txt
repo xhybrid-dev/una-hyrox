@@ -38,6 +38,8 @@ set(SDK_JSON_SOURCES
 
 add_executable(hybridx-workout-host-tests
     WorkoutModelTest.cpp
+    SessionPlanTest.cpp
+    PlanRunnerTest.cpp
     WorkoutTextTest.cpp
     WorkoutFitTest.cpp
     WorkoutSettingsTest.cpp

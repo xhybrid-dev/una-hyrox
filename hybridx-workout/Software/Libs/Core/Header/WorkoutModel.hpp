@@ -22,7 +22,7 @@
  * Bounds. At most kMaxLaps laps; the next lap is refused (LapResult::Full)
  * and nothing changes. Sums are 32 or 64 bit and counters saturate.
  *
- * Size. The laps make the model about 3.6 KB: keep one in static storage, not
+ * Size. The laps make the model about 3.1 KB: keep one in static storage, not
  * on a stack.
  ******************************************************************************
  */
@@ -58,7 +58,10 @@ struct LapStats {
     uint32_t hrSum = 0;
     uint32_t hrCount = 0;
     uint16_t hrMax = 0;
-    bool     autoEnded = false;       ///< Ended by the auto lap, not the button
+    bool     autoEnded = false;       ///< Ended by time (the auto lap or a timed step), not the button
+    uint8_t  kind = 0;                ///< StepKind (SessionPlan.hpp); 0 Work for a plain workout
+    uint8_t  round = 0;               ///< The plan's set, round or minute, from 1; 0 for a plain workout
+    uint8_t  station = 0;             ///< Circuit station, from 1; 0 none
     uint32_t zoneMs[kZoneCount] = {}; ///< Active time in each zone (0: below zone 1 or no HR)
 
     /// Mean heart rate, rounded; 0 with no samples.
@@ -106,6 +109,24 @@ public:
     LapResult lap(uint32_t nowMs)
     {
         return endLap(nowMs, false);
+    }
+
+    /// End this lap by time (a timed step of a plan) and begin the next.
+    LapResult lapTimed(uint32_t nowMs)
+    {
+        return endLap(nowMs, true);
+    }
+
+    /// Label the current lap with the plan step it records.
+    void setLapInfo(uint8_t kind, uint8_t round, uint8_t station)
+    {
+        if (mLapCount == 0) {
+            return;
+        }
+        LapStats &cur = mLaps[mLapCount - 1];
+        cur.kind    = kind;
+        cur.round   = round;
+        cur.station = station;
     }
 
     bool pause(uint32_t nowMs)

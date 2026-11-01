@@ -18,7 +18,7 @@ Workout". From his answers (28 October 2026):
 | Phase | Work | Status |
 |---|---|---|
 | **W0** | Scaffold: the SDK example's plain workout (laps, zones, calories, auto lap) on X Sauna's base, with the strap, `act_workout.json` and the Streak line | **Done (28 October 2026)**, simulator-checked. Gate: Jon's watch test (below) |
-| W1 | The session core, pure and host-tested: strength sets with rest; HIIT as EMOM, AMRAP, Tabata (8 x 20/10) and custom; Hyrox-style circuits from Race's stations | |
+| W1 | The session core, pure and host-tested: strength sets with rest; HIIT as EMOM, AMRAP, Tabata (8 x 20/10) and custom; Hyrox-style circuits from Race's stations | **Done (1 November 2026)**, host-tested. Gate: Jon agreed the rules |
 | W2 | Service and FIT per type: sport and sub_sport (strength: training 10 / strength_training 20; HIIT: hiit 62 / hiit 70, amrap 73, emom 74, tabata 75; circuit: training 10 / cardio_training 26 or generic), FIT `set` messages as the rep hook; link sports Strength, Workout, Hybrid | |
 | W3 | Screens: the type and its settings, live faces per type, the rest countdown, the summary | |
 | W4 | Training load (Edwards' TRIMP on the watch's zones, a 7-day total); the rep-counter hook documented | |
@@ -175,3 +175,65 @@ watch-test script (`hybridx-link/docs/FAMILY_WATCH_TEST.md`). Each ends at a gat
 - **Not run here:** the watch targets (CI's job) and the `LONG=1` family check.
 - **Container setup needed:** `apt-get install libsdl2-dev xdotool` and `pip install
   fitdecode` (a fresh container has none of them).
+
+## W1: the session core (1 November 2026)
+
+Jon agreed the rules at the end of Phase A ("Yes looks great"), as proposed:
+
+| Type | The rule |
+|---|---|
+| Strength | Sets (default 3) of open work, each followed by a timed rest (default 60 s), except the last. The button ends a set (the rest begins) or skips a rest. A set ends by itself at its cap (default 5 min). |
+| EMOM | N timed minutes (default 10). A cue at each minute and a warning 3 s before it. |
+| AMRAP | One timed step, the cap (default 12 min). The button counts a round, and each round is a lap. |
+| Tabata | 8 rounds of 20 s work and 10 s rest, fixed. |
+| Custom | Work, rest and rounds (default 40 s, 20 s, 6). |
+| Circuit | Rounds (default 8) of a run (default 1 km) then a station, in Race's order. The button moves to the next segment. |
+
+### What was built
+
+- **`SessionPlan.hpp`** (header-only; the GUI will use it): `SessionType`, `StepKind`, `PlanConfig`
+  with each setting's range and default, `clamp()`, and `stepCount()` / `stepAt()`, which work
+  each step out from the numbers, so there is no step array to hold or overflow. The ranges
+  keep every plan within the model's 64 laps (the largest is EMOM at 60 minutes;
+  `static_assert`s check each type). `kCircuitStations` is a **copy** of Race's `kStations`
+  (`hybridx-race/Software/Libs/Header/RaceData.hpp`), so the apps stay independent at build
+  time; a host test includes Race's header and checks the two match.
+- **`PlanRunner.hpp`** (header-only, but the **service** runs it, so the timers keep going if
+  the screen closes): `start()` starts the model and the plan, `press()` is the lap button,
+  `tick()` follows each sample, and each returns a `Cue` (Work, Rest, Run, Station, Warning,
+  Round, Done) for the service to buzz. `view()` gives the screens a `PlanView`.
+- **`WorkoutModel`**: each lap now carries its step (`kind`, `round`, `station`), and
+  `lapTimed()` ends a lap by time (`autoEnded`, so the FIT lap trigger is time as for the auto
+  lap). 48 bytes a lap; the model is about 3.1 KB, still in static storage.
+- **`WorkoutSettings`** version 2 holds the type and every number (`kMaxJsonBytes` 256, on the
+  10 KB service stack as before). A version 1 file still reads: its auto lap is kept and the
+  plan takes the defaults. A missing key keeps its default; every value is clamped.
+
+### Choices made while building (for Jon to overrule)
+
+- **The plan's clock is the active time,** so a pause stops it.
+- **A timed step's end is anchored to its planned time, not to the tick that saw it.** A tick
+  up to a second late makes that lap up to a second long and the next as much short, so the
+  plan never drifts: ten EMOM minutes end at 10:00 of active time to within a tick.
+- **The timers (EMOM, Tabata, custom) ignore the button.** Their clock is the point; a press
+  does nothing (the screen will say so in W3).
+- **At the end of a plan the workout pauses itself** and the last lap is the last step. The
+  service will offer End and Discard, not Resume (W2), so nothing saves by surprise and no
+  empty lap is added.
+- **No rest after the last set or interval**, so Tabata is 3:50, not 4:00.
+- **AMRAP's last lap is the part round** cut off by the cap; the rounds counted are the
+  presses.
+- **A plan switches the auto lap off**; it stays for a plain workout.
+- **No warning before a strength set's cap**, only before timed steps longer than 3 s.
+- **Undo is not in W1.** W0 has none, and nothing in the rules needs it.
+
+### W1 verified (1 November 2026)
+
+- **Host tests: 101** (74 before, 27 new: `SessionPlanTest` 11, `PlanRunnerTest` 12 and 4 more
+  in `WorkoutSettingsTest`), also under ASan and UBSan. They cover every type's steps and
+  cues, starts on either side of the 32-bit clock wrap, a pause in a timed step, a tick every
+  1.3 s (no drift), a gap that crosses three steps, a strength set ending at its cap, the
+  circuit's stations against Race's, clamping, the v1 file, and a second workout after a plan.
+- **The simulator still builds** (the model's lap struct changed). Nothing uses the plan yet:
+  that is W2 (the service and the file) and W3 (the screens).
+- **Not checked:** anything on a watch.
