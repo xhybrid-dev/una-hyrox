@@ -286,3 +286,7 @@ few seconds, so its readings pass the check.
    right against a bike computer or phone; whether the climb is sensible; whether calories
    look reasonable (they are rough); whether "Strap connected" showed with your strap on
    (external HR on in Settings); and anything that was awkward on the wrist.
+
+### On the watch (Jon, 1 November 2026)
+
+Works well; the saved session was counted by HybridX Streak (first watch result for the link, `hybridx-link/docs/ACTIVITY_LINK.md`). Details still to come: see `FAMILY_WATCH_TEST.md` section 5.

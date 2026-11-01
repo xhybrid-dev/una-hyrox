@@ -254,3 +254,10 @@ Tell me what the file holds and what Streak showed, whichever way it went.
   its window and are not counted. Its folder scan has the same limit.
 - A file in the format is a promise: once apps in the field write `v:1`, a change
   needs `v:2` and a reader that takes both.
+
+## First result on a watch (Jon, 1 November 2026)
+
+HybridX Ride and HybridX Workout, from the CI build, each saved a session on Jon's watch and
+Streak counted it: the first time the link has worked on a watch. Not yet reported: which of
+Workout's kinds were used, the Streak lines and toasts word for word, the files, the phone sync,
+and the other apps (FAMILY_WATCH_TEST.md has the full list).

@@ -438,3 +438,7 @@ Jon agreed the rules at the end of Phase A ("Yes looks great"), as proposed:
 - **The draft family as built:** Streak (reader); Run, Race, Trail, Workout (Free and six plan
   kinds) and Ride (writers); X Sauna installed alongside but outside the streak. No tags and no
   portal uploads: Workout, Ride and X Sauna still have development App IDs.
+
+### On the watch (Jon, 1 November 2026)
+
+Works well; the saved session was counted by HybridX Streak (first watch result for the link, `hybridx-link/docs/ACTIVITY_LINK.md`). Details still to come: see `FAMILY_WATCH_TEST.md` section 5.
