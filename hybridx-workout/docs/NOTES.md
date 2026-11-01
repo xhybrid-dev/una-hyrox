@@ -147,3 +147,31 @@ made; W2 decodes each back before relying on it.
    (title, calories, laps, heart rate); then open Streak: "+1 Workout", counted once.
 5. **Tell me:** whether Start said "Strap connected" with your strap on (external HR on in
    Settings), and whether the calories look like the built-in Workout's for a similar session.
+
+## The family draft: the plan and its baseline (1 November 2026)
+
+Jon asked (1 November 2026) for the activity apps that count in Streak to be built as an
+installable draft family, even with today's limits, with a plan for building and testing
+them. Decisions: **X Sauna stays out of the link** (his 27 October decision, confirmed);
+**Workout is finished through W1 to W3** (strength sets, HIIT timers, Hyrox-style circuits,
+their FIT output and screens) first; W4 (training load) is not part of the draft. No tags
+and no portal uploads: the three development App IDs (Ride, Workout, Sauna) are still
+development ones, and those steps are Jon's.
+
+Phases: **A** baseline (this section); **B** W1, the session core; **C** W2, service and FIT
+per type; **D** W3, the screens; **E** the family check extended and CI; **F** the family
+watch-test script (`hybridx-link/docs/FAMILY_WATCH_TEST.md`). Each ends at a gate.
+
+### Phase A baseline (1 November 2026, HEAD `bd7bea1`)
+
+- **Host tests, all passing:** Link 40, Race 145, Streak 136, Trail 149, Run 200, Ride 94,
+  Workout 74, Sauna 115.
+- **Simulators:** Run, Race, Trail, Workout, Ride and Streak all build (Ninja, Debug) with
+  exit 0.
+- **Family check** (`family_check.sh`, quick mode, five writers): every line PASS. Each
+  summary matches its `.fit` (start and duration). The Streak lines read 1 to 5 of 7. Streak
+  found five new on the first open and none on the second, and counted Run, Hybrid, Run
+  (Trail), Workout and Ride once each.
+- **Not run here:** the watch targets (CI's job) and the `LONG=1` family check.
+- **Container setup needed:** `apt-get install libsdl2-dev xdotool` and `pip install
+  fitdecode` (a fresh container has none of them).
