@@ -96,10 +96,12 @@ The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
   never a copy.
 - **Commands:**
   - host tests: `cmake -S hybridx-link/Tests/Host -B hybridx-link/build-tests && cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-host-tests`;
-  - the family check (Run, Race, Trail, Workout and Ride save into one shared folder, then Streak
-    opens twice and must count each once): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
-    (about 9 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
-    `TREADMILL=1` for a treadmill Run; needs the six simulators built).
+  - the family check (Run, Race, Trail, Workout and Ride save into one shared folder, Workout
+    three times, as Free, Strength and Circuit, then Streak opens twice and must count each of the
+    seven once, as its own kind): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
+    (about 12 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
+    `TREADMILL=1` for a treadmill Run; needs the six simulators built);
+  - the family on a watch, Jon's step-by-step test: `hybridx-link/docs/FAMILY_WATCH_TEST.md`.
 
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You

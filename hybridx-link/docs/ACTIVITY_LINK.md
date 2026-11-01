@@ -209,6 +209,11 @@ opened to read the file.
 
 ## Checks on the watch (the phase 3 gate: Jon's test)
 
+**The whole family at once: `FAMILY_WATCH_TEST.md`** (1 November 2026). It installs every app
+from one CI run and goes through a session of each kind, with the Saved screen and Streak's
+toast to expect at each step, the files to copy off, a phone sync, and X Sauna staying out.
+It covers everything below; the steps below are the first, smaller version (Run and Streak).
+
 Nothing here has run on a watch yet. Install the CI builds of Run and Streak (and
 Streak's glance if you use it), then:
 

@@ -3,7 +3,9 @@
 # The HybridX family on one pretend watch: Run, Race, Trail, Workout and Ride each
 # record and save an activity in their own simulator, all five leaving their
 # summaries in ONE shared folder, then HybridX Streak opens (twice) and must find every one,
-# once. It checks the activity link end to end with the apps' real writers and
+# once. Workout saves three, one of each link sport it writes: a Free workout (Workout),
+# a strength plan (Strength) and a circuit (Hybrid), so Streak must count seven, each as
+# its own kind, and the seventh save's Streak line meets the target of 7 ("1-week streak"). It checks the activity link end to end with the apps' real writers and
 # Streak's real reader (docs/ACTIVITY_LINK.md, "Family check").
 #
 # The simulators keep their files in <cwd>/../../../../../Output, so each app
@@ -18,7 +20,7 @@
 # either (no app folder is its sibling), so it sees only the summaries.
 #
 # Quick (default): about 80 s of recording each, one after another, with
-# Streak's minimum set to 0 minutes so each short session counts.
+# Streak's minimum set to 0 minutes so each short session counts (about 12 minutes).
 # LONG=1: 11 minutes each, with Streak's default 10-minute minimum.
 # TREADMILL=1: Run records a treadmill run (no GPS; distance from cadence) and
 # keeps its estimate on the distance screen (hybridx-run NOTES, "Treadmill").
@@ -97,12 +99,34 @@ race_app() {  # Race: R1 Start race, R1 confirm, 16 splits on R2 (a Full race), 
     cleanup
 }
 
-workout_app() {  # Workout: R1 Start; a lap on R2 halfway; R1 menu, L2 L2 End, hold R1
-    start Workout 96 "$(bin hybridx-workout HybridXWorkoutSimulator)"; sleep 5
-    key 96 3 2; sleep $(( SECS / 2 ))
-    key 96 4 1; sleep $(( SECS / 2 ))
-    key 96 3 1; key 96 2; key 96 2; hold 96 3 3; sleep 4
-    cleanup
+workout_one() {  # workout_one <free|strength|circuit>: one Workout session of that kind
+    # The kind and its numbers go in the app's settings.json (version 2) before it opens, as
+    # Workout's own sim_plan.sh does; the main menu opens on Start either way.
+    local base='"v":2,"autolap":0,"sets":2,"srest":15,"scap":900,"emom":10,"amrap":12,"work":40,"rest":20,"rounds":6,"crounds":1,"run":100'
+    case $1 in
+        free)     printf '{%s,"type":0}' "$base" > "$OUT/Workout/Output/settings.json" ;;
+        strength) printf '{%s,"type":1}' "$base" > "$OUT/Workout/Output/settings.json" ;;
+        circuit)  printf '{%s,"type":6}' "$base" > "$OUT/Workout/Output/settings.json" ;;
+    esac
+    start Workout 96 "$(bin hybridx-workout HybridXWorkoutSimulator)" "Workout-$1"; sleep 5
+    key 96 3 2
+    case $1 in
+        free)      # a lap on R2 halfway; R1 menu, L2 L2 End, hold R1
+            sleep $(( SECS / 2 )); key 96 4 1; sleep $(( SECS / 2 ))
+            key 96 3 1; key 96 2; key 96 2 ;;
+        strength)  # 2 sets: R2 halfway (a 15 s rest, which runs out), R2 to end set 2: Done
+            local rest=$(( SECS / 2 - 15 )); [ "$rest" -lt 5 ] && rest=5
+            sleep $(( SECS / 2 )); key 96 4 1; sleep 15; sleep "$rest"; key 96 4 3
+            key 96 3 1 ;;          # the done menu opens on End
+        circuit)   # 1 round of 100 m: R2 halfway (the SkiErg), R2 again: Done
+            sleep $(( SECS / 2 )); key 96 4 1; sleep $(( SECS / 2 )); key 96 4 3
+            key 96 3 1 ;;
+    esac
+    hold 96 3 3; sleep 4
+    cleanup; PIDS=()
+}
+workout_app() {  # Workout three times, one after another (they share one act_workout.json)
+    workout_one free; workout_one strength; workout_one circuit
 }
 
 ride_app() {  # Ride (outdoor, the default): wait for the simulated GPS fix, R1 Start, R1 menu, L2 L2 End, hold R1
@@ -134,12 +158,12 @@ echo "Opening Streak, to leave its summary of the week..."
 open_streak Streak-0
 
 if [ "$LONG" = 1 ]; then
-    echo "Recording: Run, Race, Trail, Workout and Ride at once, about $SECS s each..."
+    echo "Recording: Run, Race, Trail, Workout (three in turn) and Ride at once, about $SECS s each..."
     run_app & A=$!; trail_app & B=$!; race_app & C=$!; workout_app & D=$!; ride_app & E=$!
     wait $A $B $C $D $E
 else
     # One after another, so each Streak line counts the sessions saved before it.
-    echo "Recording: Run, then Race, then Trail, then Workout, then Ride, about $SECS s each..."
+    echo "Recording: Run, then Race, then Trail, then Workout (Free, Strength, Circuit), then Ride, about $SECS s each..."
     run_app; race_app; trail_app; workout_app; ride_app
 fi
 
@@ -160,25 +184,31 @@ def check(name, passed, detail):
     ok &= passed
     rows.append(("PASS" if passed else "FAIL", name, detail))
 
-# Each writer: one entry, its own name and sport, the .fit's start and timer time.
-for app, slot, sport in (("Run", "run", 1), ("Race", "race", 6), ("Trail", "trail", 1), ("Workout", "workout", 5),
-                         ("Ride", "ride", 2)):
-    fits = glob.glob(f"{out}/{app}/Output/Activity/*/*.fit") + glob.glob(f"{out}/{app}/Output/Activity/*.fit")
+# Each writer: its entries, its own name and sports, each the start and timer time of its .fit.
+# Workout saves three (Free, Strength, Circuit), each with its own link sport: Workout 5,
+# Strength 4, Hybrid 6 (Workout NOTES "W2"); the others one each.
+for app, slot, sports in (("Run", "run", [1]), ("Race", "race", [6]), ("Trail", "trail", [1]),
+                          ("Workout", "workout", [5, 4, 6]), ("Ride", "ride", [2])):
+    fits = sorted(glob.glob(f"{out}/{app}/Output/Activity/*/*.fit") + glob.glob(f"{out}/{app}/Output/Activity/*.fit"))
     path = f"{out}/SharedData/HybridX/act_{slot}.json"
     if not fits or not os.path.exists(path):
         check(f"{app} saved", False, f"{len(fits)} .fit, act_{slot}.json {'there' if os.path.exists(path) else 'missing'}")
         continue
-    with fitdecode.FitReader(fits[0]) as r:
-        sess = next(f for f in r if isinstance(f, fitdecode.FitDataMessage) and f.name == "session")
-    start = int(sess.get_value("start_time").timestamp())
-    timer = sess.get_value("total_timer_time")
     doc = json.load(open(path))
     entries = doc.get("a", [])
-    e = entries[0] if entries else [0] * 7
-    check(f"{app} summary", doc.get("v") == 1 and doc.get("app") == f"HybridX{app}" and len(entries) == 1
-          and e[6] == sport, f"{doc.get('app')}, {len(entries)} entry, sport {e[6]}")
-    check(f"{app} = its .fit", e[0] == start and abs(e[2] - timer) <= 1,
-          f"start {e[0]} vs {start}, {e[2]} s vs {timer:.0f} s")
+    check(f"{app} summary", doc.get("v") == 1 and doc.get("app") == f"HybridX{app}" and len(entries) == len(sports)
+          and [e[6] for e in entries] == sports,
+          f"{doc.get('app')}, {len(entries)} entr{'y' if len(entries) == 1 else 'ies'}, sport {[e[6] for e in entries]}")
+    if len(fits) != len(entries):
+        check(f"{app} = its .fit", False, f"{len(fits)} .fit files, {len(entries)} entries")
+        continue
+    for n, (fit, e) in enumerate(zip(fits, entries), start=1):
+        with fitdecode.FitReader(fit) as r:
+            sess = next(f for f in r if isinstance(f, fitdecode.FitDataMessage) and f.name == "session")
+        start = int(sess.get_value("start_time").timestamp())
+        timer = sess.get_value("total_timer_time")
+        label = f"{app} = its .fit" if len(entries) == 1 else f"{app} {n} = its .fit ({sess.get_value('sport')})"
+        check(label, e[0] == start and abs(e[2] - timer) <= 1, f"start {e[0]} vs {start}, {e[2]} s vs {timer:.0f} s")
 
 def summaries(log):
     try:
@@ -197,18 +227,20 @@ def streak_line(log):
         return None
     m = re.findall(r'Streak line: "([^"]*)" "([^"]*)"', text)
     return m[-1] if m else None
-for n, app in enumerate(("Run", "Race", "Trail", "Workout", "Ride"), start=1):
+# The seventh session meets the target of 7, so its line also starts the streak: "1-week streak".
+for n, app in enumerate(("Run", "Race", "Trail", "Workout-free", "Workout-strength", "Workout-circuit", "Ride"),
+                        start=1):
     got = streak_line(app)
     if long_run:
         m = re.match(r"(\d) of 7 this week$", got[0]) if got else None
-        check(f"{app}'s Streak line", m is not None and 1 <= int(m.group(1)) <= 5, f"{got}")
+        check(f"{app}'s Streak line", m is not None and 1 <= int(m.group(1)) <= 7, f"{got}")
     else:
-        check(f"{app}'s Streak line", got is not None and got[0] == f"{n} of 7 this week" and got[1] == "",
-              f"{got}")
+        want_line = (f"{n} of 7 this week", "1-week streak" if n == 7 else "")
+        check(f"{app}'s Streak line", got == want_line, f"{got}")
 
 first, second = summaries("Streak-1"), summaries("Streak-2")
-check("Streak, first open", first is not None and first[:3] == (5, 5, 5), f"files, entries, new = {first[:3] if first else None}")
-check("Streak, second open", second is not None and second[2] == 0 and second[3] == 5,
+check("Streak, first open", first is not None and first[:3] == (5, 7, 7), f"files, entries, new = {first[:3] if first else None}")
+check("Streak, second open", second is not None and second[2] == 0 and second[3] == 7,
       f"new {second[2] if second else None}, already counted {second[3] if second else None}")
 
 # What Streak counts, from its public state (StateCodec): goal "g" = [target, week
@@ -229,7 +261,8 @@ def counted(name):
         got.append((st["a"][app] if app < len(st["a"]) else "?", KINDS[kind] if kind < len(KINDS) else "?"))
     return sorted(got)
 want = sorted([("HybridXRace", "Hybrid"), ("HybridXRide", "Ride"), ("HybridXRun", "Run"),
-               ("HybridXTrail", "Run"), ("HybridXWorkout", "Workout")])
+               ("HybridXTrail", "Run"), ("HybridXWorkout", "Workout"), ("HybridXWorkout", "Strength"),
+               ("HybridXWorkout", "Hybrid")])
 c1, c2 = counted("streak-1.json"), counted("streak-2.json")
 check("Streak counts each", c1 == want, ", ".join(f"{a} {k}" for a, k in c1) if c1 else "no state")
 check("Streak, still once each", c2 == want, f"{len(c2) if c2 else 0} sessions after the second open")
