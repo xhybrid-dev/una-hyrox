@@ -7,8 +7,9 @@
  * The service owns the session and tells the screens about it (Commands.hpp).
  * The model keeps the latest of each message so a screen built later can draw
  * at once, forwards each to the screen on display, runs the idle timer, and
- * remembers the menu position and the live face. The settings (the auto lap)
- * are the service's, which remembers them between workouts. What a button
+ * remembers the menu position and the live face. The settings (the auto lap,
+ * the kind of workout and its numbers) are the service's, which remembers
+ * them between workouts. What a button
  * does to the session is a request to the service; a screen only ever shows
  * what the service last said.
  ******************************************************************************
@@ -25,6 +26,7 @@
 
 #include "Commands.hpp"
 #include "LapLockout.hpp"
+#include "PlanText.hpp"
 
 class ModelListener;
 
@@ -66,6 +68,10 @@ public:
     void requestLaps(uint8_t first);
     /// Step the auto lap to its next choice (the service saves it and answers).
     void nextAutoLap();
+    /// Step the kind of workout round to the next (the service saves it and answers).
+    void nextKind();
+    /// Step one of the plan's numbers to its next choice.
+    void stepPlanField(Workout::PlanField field);
 
     // What the service last said
     const Workout::SessionSnapshot& snapshot() const { return mSnapshot; }
@@ -79,6 +85,8 @@ public:
     const Workout::LapsPageData& lapsPage() const { return mLapsPage; }
     /// The remembered auto lap, minutes (0: off).
     uint8_t autoLapMin() const { return mAutoLapMin; }
+    /// The remembered kind of workout and its numbers (for the next workout).
+    const Workout::PlanConfig& plan() const { return mPlan; }
     /// The strap's state (SDK::Accessory::State), kStrapUnknown before the kernel says.
     static constexpr uint8_t kStrapUnknown = 0xFF;
     uint8_t strapState() const { return mStrapState; }
@@ -118,6 +126,7 @@ protected:
     bool     mDiscarded = false;
 
     uint8_t  mAutoLapMin = 0;
+    Workout::PlanConfig mPlan {};
     uint8_t  mStrapState = kStrapUnknown;
     char     mStrapName[24] = {};
     bool     mStreakShow = false;

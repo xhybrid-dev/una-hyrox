@@ -19,6 +19,8 @@ constexpr const char* kNoValue    = "--";
 // The main menu
 constexpr const char* kStart      = "Start";
 constexpr const char* kAutoLap    = "Auto lap";
+constexpr const char* kType       = "Type";
+constexpr const char* kSettings   = "Settings";
 
 // The heart-rate source, under Start (SDK::Accessory::State)
 constexpr const char* kStrapConnected = "Strap connected";
@@ -33,6 +35,7 @@ constexpr const char* kPause       = "Pause";
 constexpr const char* kResumeTimer = "Resume\ntimer";
 constexpr const char* kEnd         = "End\nworkout";
 constexpr const char* kDiscard     = "Discard";
+constexpr const char* kBack        = "Back";
 
 // The live screen
 constexpr const char* kPaused     = "Paused";
@@ -44,6 +47,8 @@ constexpr const char* kLapsRow    = "Laps";
 constexpr const char* kAutoLapRow = "Auto";
 constexpr const char* kClock      = "Time";
 constexpr const char* kFileTrouble = "File error";
+constexpr const char* kTypeRow     = "Type";
+constexpr const char* kPlanDone    = "R1 to end";   ///< Under "Done": End or Discard from the menu
 
 // Hold to confirm
 constexpr const char* kHoldEnd     = "Hold to\nend";

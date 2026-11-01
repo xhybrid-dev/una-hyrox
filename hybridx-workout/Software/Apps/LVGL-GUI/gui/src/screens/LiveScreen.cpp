@@ -13,6 +13,7 @@
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
+#include "PlanText.hpp"
 #include "WorkoutText.hpp"
 
 using namespace SDK::GUI;
@@ -29,6 +30,18 @@ constexpr uint8_t kTotals     = 4;     // rows on the totals face
 
 constexpr int32_t kRingRadius = 113;   // under the bezel arcs, which share it
 constexpr int32_t kRingWidth  = 6;
+
+bool planDone(const Workout::SessionSnapshot& s)
+{
+    return s.plan.steps > 0 && s.plan.done;
+}
+
+/// R2 does something now: not paused, not done, and not a timer kind.
+bool lapButtonLive(const Workout::SessionSnapshot& s)
+{
+    return s.state == static_cast<uint8_t>(Workout::RunState::Running) && !planDone(s) &&
+           Workout::buttonCounts(s.plan.type);
+}
 
 uint32_t ringColor(const Workout::SessionSnapshot& s)
 {
@@ -175,8 +188,9 @@ void LiveScreen::onKey(uint8_t code)
             break;
 
         case Btn::R2:
-            // A paused workout has no lap to end; the model drops a double tap.
-            if (!mModel.paused()) {
+            // A paused or finished workout has no lap to end, and a timer takes
+            // no button; the model drops a double tap.
+            if (lapButtonLive(mModel.snapshot())) {
                 mModel.lap();
             }
             break;
@@ -201,7 +215,7 @@ void LiveScreen::redraw()
     const Workout::SessionSnapshot& s = mModel.snapshot();
 
     Theme::setArcColor(mRing, ringColor(s));
-    mButtons->setR2(mModel.paused() ? Widgets::Buttons::NONE : Widgets::Buttons::AMBER);
+    mButtons->setR2(lapButtonLive(s) ? Widgets::Buttons::AMBER : Widgets::Buttons::NONE);
 
     switch (mFace) {
         case FaceMain:   redrawMain(s); break;
@@ -213,7 +227,13 @@ void LiveScreen::redraw()
 
 void LiveScreen::redrawMain(const Workout::SessionSnapshot& s)
 {
+    if (s.plan.steps > 0) {
+        redrawPlanMain(s);
+        return;
+    }
     char buf[40];
+    lv_obj_set_style_text_font(mLapNo, Theme::font(Theme::Font::SemiBold25), LV_PART_MAIN);
+    lv_obj_set_style_text_color(mLapNo, Theme::rgb(Color::WHITE), LV_PART_MAIN);
     const bool paused = s.state == static_cast<uint8_t>(Workout::RunState::Paused);
 
     std::snprintf(buf, sizeof(buf), "Lap %u", static_cast<unsigned>(s.laps));
@@ -253,14 +273,87 @@ void LiveScreen::redrawMain(const Workout::SessionSnapshot& s)
     }
 }
 
+void LiveScreen::redrawPlanMain(const Workout::SessionSnapshot& s)
+{
+    const Workout::PlanView& v = s.plan;
+    const bool paused = s.state == static_cast<uint8_t>(Workout::RunState::Paused) && !v.done;
+    char buf[40];
+
+    // The step, smaller than a Free workout's lap number: the face is narrow up there.
+    Workout::formatStepHeading(buf, sizeof(buf), v);
+    lv_obj_set_style_text_font(mLapNo, Theme::font(Theme::Font::Medium18), LV_PART_MAIN);
+    Theme::setText(mLapNo, buf, v.done ? Color::GREEN : Theme::stepColor(v.kind));
+
+    // The step's time: down for a timed step, up for an open one; the total once done.
+    const bool down = Workout::countsDown(v);
+    uint32_t ms = v.done ? s.activeMs : v.stepMs;
+    if (down) {
+        Workout::formatCountdown(buf, sizeof(buf), v.remainingMs);
+    } else {
+        Workout::formatClock(buf, sizeof(buf), ms);
+    }
+    if (down) {
+        ms = v.remainingMs;
+    }
+    const lv_font_t* big  = Theme::font(Theme::Font::Light60);
+    const lv_font_t* font = ms >= 3600000u ? Theme::font(Theme::Font::SemiBold40) : big;
+    lv_obj_set_style_text_font(mLapTime, font, LV_PART_MAIN);
+    lv_obj_set_y(mLapTime, kLapTimeY + (lv_font_get_line_height(big) - lv_font_get_line_height(font)) / 2);
+    uint32_t color = Color::WHITE;
+    if (paused) {
+        color = Color::GRAY;
+    } else if (down && v.remainingMs <= Workout::kWarnMs) {
+        color = Color::YELLOW_DARK;   // the countdown buzz's three seconds
+    } else if (v.kind == static_cast<uint8_t>(Workout::StepKind::Rest) && !v.done) {
+        color = Theme::stepColor(v.kind);
+    }
+    Theme::setText(mLapTime, buf, color);
+
+    if (!s.logOk) {
+        Theme::setText(mInfo, Strings::kFileTrouble, Color::RED);
+    } else if (v.done) {
+        Theme::setText(mInfo, Strings::kPlanDone, Color::YELLOW_DARK);
+    } else if (paused) {
+        Theme::setText(mInfo, Strings::kPaused, Color::YELLOW_DARK);
+    } else if (v.kind == static_cast<uint8_t>(Workout::StepKind::Station)) {
+        Theme::setText(mInfo, Workout::circuitStation(v.station).work, Color::YELLOW_DARK);
+    } else if (v.kind == static_cast<uint8_t>(Workout::StepKind::Run)) {
+        Workout::formatRunM(buf, sizeof(buf), v.distanceM);
+        Theme::setText(mInfo, buf, Color::GRAY);
+    } else {
+        char total[16];
+        Workout::formatClock(total, sizeof(total), s.activeMs);
+        std::snprintf(buf, sizeof(buf), "Total %s", total);
+        Theme::setText(mInfo, buf, Color::GRAY);
+    }
+
+    char bpm[8];
+    Workout::formatBpm(bpm, sizeof(bpm), s.hr);
+    std::snprintf(buf, sizeof(buf), "%s bpm", bpm);
+    Theme::assign(mHr, buf);
+    if (s.zone >= 1) {
+        std::snprintf(buf, sizeof(buf), "Zone %u", static_cast<unsigned>(s.zone > 5 ? 5 : s.zone));
+        Theme::setText(mZone, buf, Theme::zoneColor(s.zone));
+    } else {
+        Theme::assign(mZone, "");
+    }
+}
+
 void LiveScreen::redrawTotals(const Workout::SessionSnapshot& s)
 {
     char value[kTotals][16];
     Workout::formatClock(value[0], sizeof(value[0]), s.activeMs);
     Workout::formatKcal(value[1], sizeof(value[1]), s.kcalX10);
     std::snprintf(value[2], sizeof(value[2]), "%u", static_cast<unsigned>(s.laps));
-    Workout::formatAutoLap(value[3], sizeof(value[3]), s.autoLapMin);
-    const char* names[kTotals] = {Strings::kTotal, Strings::kCalories, Strings::kLapsRow, Strings::kAutoLapRow};
+    const bool plan = s.plan.steps > 0;
+    if (plan) {
+        std::snprintf(value[3], sizeof(value[3]), "%s",
+                      Workout::kindName(static_cast<Workout::SessionType>(s.plan.type)));
+    } else {
+        Workout::formatAutoLap(value[3], sizeof(value[3]), s.autoLapMin);
+    }
+    const char* names[kTotals] = {Strings::kTotal, Strings::kCalories, Strings::kLapsRow,
+                                  plan ? Strings::kTypeRow : Strings::kAutoLapRow};
     for (uint8_t i = 0; i < kTotals; ++i) {
         Theme::assign(mRowName[i], names[i]);
         Theme::assign(mRowValue[i], value[i]);
@@ -306,7 +399,16 @@ void LiveScreen::showToast(const Workout::LapEventData& e)
     char buf[40];
     char clock[16];
 
-    const uint32_t color = Color::YELLOW_DARK;   // the lap button's amber
+    // The running workout's kind (a Free workout's is Plain: its laps read as before).
+    const uint8_t type = mModel.snapshot().plan.type;
+    uint32_t color = Color::YELLOW_DARK;   // the lap button's amber
+    switch (static_cast<Workout::Cue>(e.cue)) {
+        case Workout::Cue::Done:    color = Color::GREEN; break;
+        case Workout::Cue::Rest:    color = Theme::stepColor(static_cast<uint8_t>(Workout::StepKind::Rest)); break;
+        case Workout::Cue::Work:    color = Theme::stepColor(static_cast<uint8_t>(Workout::StepKind::Work)); break;
+        case Workout::Cue::Run:     color = Theme::stepColor(static_cast<uint8_t>(Workout::StepKind::Run)); break;
+        default: break;
+    }
 
     if (mToast) {
         lv_obj_delete(mToast);
@@ -316,17 +418,15 @@ void LiveScreen::showToast(const Workout::LapEventData& e)
     lv_obj_move_to_index(mToast, static_cast<int32_t>(lv_obj_get_child_count(mRoot)) - 1 - 4);
 
     Theme::arc(mToast, Widgets::kCx, Widgets::kCy, kRingRadius, kRingWidth, 0, 360, color);
-    // The lap now begun ("Auto lap" when the auto lap ended the last), then the
-    // one just finished: how long, and its heart rate.
-    if (e.autoEnded) {
-        std::snprintf(buf, sizeof(buf), "Auto lap");
-    } else {
-        std::snprintf(buf, sizeof(buf), "Lap %u", static_cast<unsigned>(e.finishedLap + 1u));
-    }
+    // What begins now ("Rest", "Set 3", "Auto lap"...), then the lap just
+    // finished: what it was, how long, and its heart rate.
+    Workout::formatCueHeading(buf, sizeof(buf), type, e);
     Theme::label(mToast, F::SemiBold30, buf, 0, 52, 240, LV_TEXT_ALIGN_CENTER, color);
 
+    char name[24];
     Workout::formatClock(clock, sizeof(clock), e.durationMs);
-    std::snprintf(buf, sizeof(buf), "Lap %u %s", static_cast<unsigned>(e.finishedLap), clock);
+    Workout::formatStepName(name, sizeof(name), type, e.kind, e.round, e.station, e.finishedLap, e.autoEnded != 0);
+    std::snprintf(buf, sizeof(buf), "%s %s", name, clock);
     Theme::label(mToast, F::Medium18, buf, 0, 106, 240);
 
     if (e.hrAvg == 0) {

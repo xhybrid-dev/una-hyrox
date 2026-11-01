@@ -40,6 +40,7 @@ add_executable(hybridx-workout-host-tests
     WorkoutModelTest.cpp
     SessionPlanTest.cpp
     PlanRunnerTest.cpp
+    PlanTextTest.cpp
     WorkoutTextTest.cpp
     WorkoutFitTest.cpp
     WorkoutSettingsTest.cpp

@@ -6,13 +6,19 @@
  *
  * Faces (L1 back, L2 forward, round the four):
  *   - Main:   the lap number, the lap time (large), the total time, heart
- *             rate, and its zone;
- *   - Totals: total time, calories, laps and the auto lap;
+ *             rate, and its zone. For a plan (W3) the top line is the step
+ *             ("Set 2/3", "Min 4/10", "Sled push") in the step's colour, the
+ *             large time counts down a timed step (amber in its last 3 s) or
+ *             counts up an open one, and the line under it is the station's
+ *             work, the run's length, or the total; when the plan is over it
+ *             says "Done" over the total time, and "R1 to end";
+ *   - Totals: total time, calories, laps and the auto lap (a plan: its type);
  *   - Zones:  time so far in each heart-rate zone;
  *   - Clock:  the time of day and the battery.
  * R2 is the lap button (a 3 s lockout stops a double tap), R1 opens the action
- * menu. The toast shows for about 2 s after a lap (R2 or the auto lap), over
- * any face; any click dismisses it, and R2 still works through it. This screen
+ * menu. The timers (EMOM, Tabata, Intervals) take no R2, so its hint goes; so
+ * it does when paused or done. The toast shows for about 2 s after a lap (R2,
+ * the auto lap, or a plan's step), over any face, and says what begins now; any click dismisses it, and R2 still works through it. This screen
  * never exits the app on idle: a workout is not abandoned because nobody
  * pressed anything.
  ******************************************************************************
@@ -59,6 +65,7 @@ private:
     void buildClock();
     void redraw();
     void redrawMain(const Workout::SessionSnapshot& s);
+    void redrawPlanMain(const Workout::SessionSnapshot& s);
     void redrawTotals(const Workout::SessionSnapshot& s);
     void redrawZones(const Workout::SessionSnapshot& s);
     void redrawClock(const Workout::SessionSnapshot& s);

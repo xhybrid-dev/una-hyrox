@@ -19,7 +19,8 @@ class Model;
 class Screen;
 
 enum class ScreenId : uint8_t {
-    Main,          ///< Start, mode, rest
+    Main,          ///< Start, the kind of workout, its settings
+    PlanSettings,  ///< The kind's numbers
     Live,          ///< The session: faces, ring, lap toast
     Action,        ///< R1 on the live screen
     HoldConfirm,   ///< End or discard, R1 held

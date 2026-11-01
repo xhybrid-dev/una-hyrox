@@ -111,6 +111,80 @@ Workout::LapEventData worstLapEvent()
     return e;
 }
 
+using Workout::SessionType;
+using Workout::StepKind;
+
+/// The worst snapshot, on a plan's step.
+Workout::SessionSnapshot planSnapshot(SessionType t, StepKind k, uint8_t round, uint8_t rounds, uint8_t station,
+                                      uint32_t stepMs, uint32_t remainingMs, bool done = false)
+{
+    Workout::SessionSnapshot s = worstSnapshot();
+    Workout::PlanView& v = s.plan;
+    v.type        = static_cast<uint8_t>(t);
+    v.kind        = static_cast<uint8_t>(k);
+    v.step        = 1;
+    v.steps       = Workout::kMaxLaps;
+    v.round       = round;
+    v.rounds      = rounds;
+    v.station     = station;
+    v.done        = done ? 1u : 0u;
+    v.amrapRounds = 65535;
+    v.distanceM   = station > 0 ? Workout::circuitStation(station).distanceM : 1000;
+    v.stepMs      = stepMs;
+    v.remainingMs = remainingMs;
+    if (done) {
+        s.state = static_cast<uint8_t>(Workout::RunState::Paused);
+    }
+    return s;
+}
+
+Workout::LapEventData planLapEvent(Workout::Cue cue, StepKind finished, uint8_t round, uint8_t station)
+{
+    Workout::LapEventData e = worstLapEvent();
+    e.autoEnded = 0;
+    e.cue       = static_cast<uint8_t>(cue);
+    e.kind      = static_cast<uint8_t>(finished);
+    e.round     = round;
+    e.station   = station;
+    return e;
+}
+
+Workout::SavedSession planSaved(SessionType t)
+{
+    Workout::SavedSession s = worstSaved(true);
+    s.type        = static_cast<uint8_t>(t);
+    s.planDone    = 1;
+    s.amrapRounds = 65535;
+    return s;
+}
+
+/// Laps 61 to 63 of a plan: the widest names its kind can give.
+Workout::LapsPageData planLaps(SessionType t)
+{
+    Workout::LapsPageData p = worstLaps(60);
+    for (uint8_t i = 0; i < Workout::kLapsPerPage; ++i) {
+        Workout::LapRow& r = p.rows[i];
+        r.autoEnded = 0;
+        r.round     = t == SessionType::Amrap ? 255 : 60;
+        switch (t) {
+            case SessionType::Circuit:
+                r.kind    = static_cast<uint8_t>(i == 1 ? StepKind::Run : StepKind::Station);
+                r.station = i == 0 ? 8 : 2;   // "Wall balls", then a run, then "Sled push"
+                r.round   = 8;
+                break;
+            case SessionType::Strength:
+            case SessionType::Tabata:
+            case SessionType::Custom:
+                r.kind = static_cast<uint8_t>(i == 1 ? StepKind::Rest : StepKind::Work);
+                break;
+            default:
+                r.kind = static_cast<uint8_t>(StepKind::Work);
+                break;
+        }
+    }
+    return p;
+}
+
 void key(uint8_t code)
 {
     Screen* s = ScreenManager::instance().current();
@@ -181,6 +255,83 @@ const Step kSteps[] = {
     { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
     { nullptr, [] { key(Btn::L1); key(Btn::L1); sModel->injectLapsPage(worstLaps(60)); } },
     { "summary, laps 61 to 63", nullptr },
+
+    // -- The kinds of workout (W3) --------------------------------------------
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Live); } },
+    { nullptr, [] { key(Btn::L2); key(Btn::L2); key(Btn::L2); /* round to the main face */
+                    sModel->injectSnapshot(planSnapshot(SessionType::Strength, StepKind::Work, 20, 20, 0, 3599000u, 0)); } },
+    { "plan: strength set 20/20, 59:59", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Strength, StepKind::Rest, 19, 20, 0, 1000u, 299000u)); } },
+    { "plan: strength rest", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Emom, StepKind::Work, 60, 60, 0, 1000u, 59000u)); } },
+    { "plan: EMOM min 60/60", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Amrap, StepKind::Work, 255, 1, 0, 1000u, 3600000u)); } },
+    { "plan: AMRAP round 255, 1:00:00 left", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Tabata, StepKind::Rest, 8, 8, 0, 8000u, 2000u)); } },
+    { "plan: Tabata rest 8/8, last seconds", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Custom, StepKind::Work, 30, 30, 0, 1000u, 299000u)); } },
+    { "plan: intervals work 30/30", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Circuit, StepKind::Station, 8, 8, 8, kMax32, 0)); } },
+    { "plan: circuit Wall balls, 100 reps", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Circuit, StepKind::Station, 4, 8, 4, 1000u, 0)); } },
+    { "plan: circuit Burpees", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Circuit, StepKind::Run, 8, 8, 0, kMax32, 0)); } },
+    { "plan: circuit run 8/8, 1 km", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Custom, StepKind::Work, 30, 30, 0, 1000u, 0, true)); } },
+    { "plan: done, 99:59:59", nullptr },
+    { nullptr, [] {
+          Workout::SessionSnapshot s = planSnapshot(SessionType::Emom, StepKind::Work, 60, 60, 0, 1000u, 59000u);
+          s.state = static_cast<uint8_t>(Workout::RunState::Paused);
+          sModel->injectSnapshot(s);
+      } },
+    { "plan: EMOM paused", nullptr },
+    // The toasts
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Circuit, StepKind::Run, 8, 8, 0, 1000u, 0)); } },
+    { nullptr, [] { sModel->injectLapEvent(planLapEvent(Workout::Cue::Station, StepKind::Run, 8, 0)); } },
+    { "toast: circuit, Wall balls begins", nullptr },
+    { nullptr, [] { sModel->injectLapEvent(planLapEvent(Workout::Cue::Run, StepKind::Station, 7, 8)); } },
+    { "toast: circuit, Run 8 after Wall balls", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Emom, StepKind::Work, 60, 60, 0, 1000u, 59000u)); } },
+    { nullptr, [] { sModel->injectLapEvent(planLapEvent(Workout::Cue::Work, StepKind::Work, 59, 0)); } },
+    { "toast: EMOM, Minute 60", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Amrap, StepKind::Work, 255, 1, 0, 1000u, 1000u)); } },
+    { nullptr, [] { sModel->injectLapEvent(planLapEvent(Workout::Cue::Round, StepKind::Work, 254, 0)); } },
+    { "toast: AMRAP, Round 255", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Strength, StepKind::Work, 20, 20, 0, 1000u, 0)); } },
+    { nullptr, [] { sModel->injectLapEvent(planLapEvent(Workout::Cue::Rest, StepKind::Work, 20, 0)); } },
+    { "toast: strength, Rest after Set 20", nullptr },
+    { nullptr, [] { sModel->injectLapEvent(planLapEvent(Workout::Cue::Done, StepKind::Work, 20, 0)); } },
+    { "toast: Done", nullptr },
+    // Totals on a plan: the type in place of the auto lap
+    { nullptr, [] { key(Btn::R1); /* dismiss the toast */ } },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Live); } },
+    { nullptr, [] { key(Btn::L2); sModel->injectSnapshot(planSnapshot(SessionType::Custom, StepKind::Work, 30, 30, 0, 1000u, 1000u)); } },
+    { "plan: totals, Type Intervals", nullptr },
+    // The action menu once a plan is done (the SDK's wheel: built, not measured)
+    { nullptr, [] { key(Btn::L1); sModel->injectSnapshot(planSnapshot(SessionType::Custom, StepKind::Work, 30, 30, 0, 1000u, 0, true)); } },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Action); } },
+    { nullptr, [] {} },
+    { "action menu, plan done", nullptr },
+    // The summary of each kind: its line, then laps 61 to 63 of its widest names
+    { nullptr, [] { sModel->injectSaved(planSaved(SessionType::Amrap)); ScreenManager::instance().goTo(ScreenId::Summary); } },
+    { nullptr, [] {} },
+    { "summary: AMRAP, 65535 rounds", nullptr },
+    { nullptr, [] { sModel->injectSaved(planSaved(SessionType::Tabata)); ScreenManager::instance().goTo(ScreenId::Main); } },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
+    { nullptr, [] {} },
+    { "summary: Tabata, of 8 rounds", nullptr },
+    { nullptr, [] { sModel->injectSaved(planSaved(SessionType::Circuit)); ScreenManager::instance().goTo(ScreenId::Main); } },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
+    { nullptr, [] { key(Btn::L1); key(Btn::L1); sModel->injectLapsPage(planLaps(SessionType::Circuit)); } },
+    { "summary: circuit laps, Wall balls", nullptr },
+    { nullptr, [] { sModel->injectSaved(planSaved(SessionType::Amrap)); ScreenManager::instance().goTo(ScreenId::Main); } },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
+    { nullptr, [] { key(Btn::L1); key(Btn::L1); sModel->injectLapsPage(planLaps(SessionType::Amrap)); } },
+    { "summary: AMRAP laps, Round 255", nullptr },
+    { nullptr, [] { sModel->injectSaved(planSaved(SessionType::Custom)); ScreenManager::instance().goTo(ScreenId::Main); } },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
+    { nullptr, [] { key(Btn::L1); key(Btn::L1); sModel->injectLapsPage(planLaps(SessionType::Custom)); } },
+    { "summary: intervals laps, Work 60 / Rest 60", nullptr },
 };
 constexpr int kStepCount = static_cast<int>(sizeof(kSteps) / sizeof(kSteps[0]));
 

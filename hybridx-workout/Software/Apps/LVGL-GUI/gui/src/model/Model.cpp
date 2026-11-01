@@ -121,6 +121,18 @@ void Model::nextAutoLap()
     SDK::send_msg<CustomMessage::SetAutoLap>(mKernel, Workout::kAutoLapMinutes[next]);
 }
 
+void Model::nextKind()
+{
+    Workout::PlanConfig p = mPlan;
+    p.type = Workout::nextKind(p.type);
+    SDK::send_msg<CustomMessage::SetPlan>(mKernel, p);
+}
+
+void Model::stepPlanField(Workout::PlanField field)
+{
+    SDK::send_msg<CustomMessage::SetPlan>(mKernel, Workout::stepField(mPlan, field));
+}
+
 void Model::onStart()
 {
     LOG_INFO("called\n");
@@ -196,6 +208,7 @@ bool Model::customMessageHandler(SDK::MessageBase* msg)
         case CustomMessage::SETTINGS_UPDATE: {
             auto* m = static_cast<CustomMessage::SettingsUpdate*>(msg);
             mAutoLapMin = m->autoLapMin;
+            mPlan       = Workout::clamp(m->plan);
             if (modelListener) {
                 modelListener->onSettings();
             }

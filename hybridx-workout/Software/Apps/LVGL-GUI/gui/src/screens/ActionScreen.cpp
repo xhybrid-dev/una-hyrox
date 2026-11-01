@@ -24,6 +24,13 @@ WheelMenu::Item kItems[4] = {
     { Style::Simple, Strings::kEnd },
     { Style::Simple, Strings::kDiscard },
 };
+
+// A finished plan: End, Discard, and Back to the live screen.
+const WheelMenu::Item kDoneItems[3] = {
+    { Style::Simple, Strings::kEnd },
+    { Style::Simple, Strings::kDiscard },
+    { Style::Simple, Strings::kBack },
+};
 } // namespace
 
 ActionScreen::ActionScreen(Model& model)
@@ -33,7 +40,13 @@ ActionScreen::ActionScreen(Model& model)
 
 void ActionScreen::build()
 {
-    mMenu    = std::make_unique<WheelMenu>(mRoot, kItems, RowCount);
+    const Workout::SessionSnapshot& s = mModel.snapshot();
+    mDone = s.plan.steps > 0 && s.plan.done;
+    if (mDone) {
+        mMenu = std::make_unique<WheelMenu>(mRoot, kDoneItems, 3);
+    } else {
+        mMenu = std::make_unique<WheelMenu>(mRoot, kItems, RowCount);
+    }
     mButtons = std::make_unique<Widgets::Buttons>(mRoot);
     mTitle   = std::make_unique<Widgets::Title>(mRoot, Strings::kActionTitle);
 
@@ -45,14 +58,28 @@ void ActionScreen::onShow()
 {
     // Deliberately no pause on entry: the clock runs while the menu is open.
     mModel.setIdleTimeout(Model::kActionTimeoutSteps);
-    // Always opens on Resume, so what R1 then does is the same every time.
-    mMenu->select(RowResume);
+    // Always opens on Resume, so what R1 then does is the same every time; a
+    // finished plan opens on End.
+    mMenu->select(0);
     mMenu->setBackground(Color::TEAL_DARK);
     refreshItems();
 }
 
+ActionScreen::Row ActionScreen::selectedRow() const
+{
+    const uint16_t i = mMenu->selected();
+    if (mDone) {
+        static constexpr Row kDoneRows[3] = {RowEnd, RowDiscard, RowResume};
+        return kDoneRows[i < 3 ? i : 2];
+    }
+    return i < RowCount ? static_cast<Row>(i) : RowResume;
+}
+
 void ActionScreen::refreshItems()
 {
+    if (mDone) {
+        return;   // nothing in the done menu changes
+    }
     kItems[RowPause].text = mModel.paused() ? Strings::kResumeTimer : Strings::kPause;
     mMenu->refresh();
 }
@@ -68,10 +95,10 @@ void ActionScreen::onKey(uint8_t code)
         // a wet hand produces by accident. The press opens the hold screen; a
         // release before it completes comes back here.
         case Btn::R1_PRESS:
-            if (mMenu->selected() == RowEnd) {
+            if (selectedRow() == RowEnd) {
                 mModel.setHoldMode(Model::HoldMode::End);
                 ScreenManager::instance().goTo(ScreenId::HoldConfirm);
-            } else if (mMenu->selected() == RowDiscard) {
+            } else if (selectedRow() == RowDiscard) {
                 mModel.setHoldMode(Model::HoldMode::Discard);
                 ScreenManager::instance().goTo(ScreenId::HoldConfirm);
             }
@@ -90,7 +117,7 @@ void ActionScreen::onKey(uint8_t code)
 
 void ActionScreen::confirm()
 {
-    switch (mMenu->selected()) {
+    switch (selectedRow()) {
         case RowResume:
             ScreenManager::instance().goTo(ScreenId::Live);
             break;

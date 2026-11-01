@@ -51,6 +51,18 @@ inline uint32_t zoneColor(uint8_t zone)
     return zone >= 1 && zone <= 5 ? kZone[zone - 1] : SDK::GUI::Color::GRAY;
 }
 
+/// A plan step's colour (StepKind): work lime, rest sky, a circuit's run
+/// white and its station amber, all on the display's grid.
+inline uint32_t stepColor(uint8_t kind)
+{
+    switch (kind) {
+        case 1:  return SDK::GUI::Color::SKY;           // Rest
+        case 2:  return SDK::GUI::Color::WHITE;         // Run
+        case 3:  return SDK::GUI::Color::YELLOW_DARK;   // Station
+        default: return SDK::GUI::Color::LIME;          // Work
+    }
+}
+
 // The SDK's drawing helpers, under the app's name for them.
 using SDK::LVGL::Draw::rgb;
 using SDK::LVGL::Draw::init;

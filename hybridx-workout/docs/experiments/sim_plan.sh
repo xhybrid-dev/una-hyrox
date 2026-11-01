@@ -4,7 +4,9 @@
 # before the screens can choose one (W3): the plan is written into the app's
 # settings.json (version 2) before each start, the workout is started and
 # driven by key presses (R2 at the scripted seconds), and once the plan is done
-# a Resume is tried (it must be refused) and the workout is ended by holding R1.
+# the action menu (W3: End, Discard, Back, opening on End) ends it by a held R1.
+# The service also refuses a Resume after the plan (logged "Resume refused"),
+# but the screens no longer offer one, so it is not driven here.
 # Then: the log's cues, the .fit decoded (structure as fit_check.py's "sim",
 # plus the sport, sub_sport, profile name, lap intensity and, for strength, the
 # set messages), and act_workout.json's sport code for HybridX Streak.
@@ -84,9 +86,7 @@ for T in $TYPES; do
         key 4 0.2                               # R2
     done
     python3 -c "import time; time.sleep(max(0, $T0 + $(runfor "$T") + 3 - time.time()))"
-    key 3 1; key 2; key 3 1                     # the action menu, the Pause row (resumes when paused): refused
-    key 4 1                                     # close the menu
-    key 3 1; key 2; key 2                       # the menu again, down to End workout
+    key 3 1                                     # the done menu opens on End workout
     down 3; sleep 1.8; up 3                     # hold R1 to end
     sleep 4
     kill -9 $SIMPID 2>/dev/null; wait $SIMPID 2>/dev/null; SIMPID=""
@@ -96,7 +96,6 @@ for T in $TYPES; do
     if [ -z "$FIT" ]; then echo "  FAIL no .fit"; rc=1; continue; fi
     python3 -I "$HERE/fit_check.py" "$FIT" "sim-$T" > "$LOG.check" 2>&1 || { rc=1; grep FAIL "$LOG.check"; }
     grep -q "Plan done" "$LOG" && echo "  ok   the plan ran to its end" || { echo "  FAIL the plan did not end"; rc=1; }
-    grep -q "Resume refused" "$LOG" && echo "  ok   Resume refused after the plan" || { echo "  FAIL Resume was not refused"; rc=1; }
     python3 -I - "$FIT" "$SHARED/act_workout.json" $(expect "$T") <<'EOF' || rc=1
 import json, sys, fitdecode
 fit, act, name, sport, sub, link, nlaps, inten = sys.argv[1:9]

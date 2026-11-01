@@ -23,11 +23,12 @@ using Style = WheelMenu::Item::Style;
 
 // Mutable: the hint lines are rewritten as the choices change, then the wheel
 // is refreshed (the SDK widget reads the items, it has no setters).
-WheelMenu::Item kItems[2] = {
+WheelMenu::Item kItems[3] = {
     { Style::Tip, Strings::kStart },
+    { Style::Tip, Strings::kType },
     { Style::Tip, Strings::kAutoLap },
 };
-char sAutoLapTip[12];
+char sThirdTip[40];
 
 /// Where the heart rate will come from, as the kernel last said.
 const char* strapTip(uint8_t state, uint32_t& color)
@@ -103,10 +104,21 @@ void MainScreen::confirm()
             ScreenManager::instance().goTo(ScreenId::Live);
             break;
 
-        case RowAutoLap:
+        case RowType:
             // The service saves it and answers with the new value (onSettings).
-            mModel.nextAutoLap();
+            mModel.nextKind();
             break;
+
+        case RowThird: {
+            const Workout::SessionType t = mModel.plan().type;
+            Workout::PlanField fields[3];
+            if (t == Workout::SessionType::Plain) {
+                mModel.nextAutoLap();
+            } else if (Workout::planFields(t, fields) > 0) {
+                ScreenManager::instance().goTo(ScreenId::PlanSettings);
+            }
+            // Tabata: nothing to set.
+        } break;
 
         default:
             break;
@@ -119,9 +131,20 @@ void MainScreen::refresh()
     kItems[RowStart].tip      = strapTip(mModel.strapState(), color);
     kItems[RowStart].tipColor = color;
 
-    Workout::formatAutoLap(sAutoLapTip, sizeof(sAutoLapTip), mModel.autoLapMin());
-    kItems[RowAutoLap].tip      = sAutoLapTip;
-    kItems[RowAutoLap].tipColor = Color::WHITE;
+    const Workout::SessionType t = mModel.plan().type;
+    kItems[RowType].tip      = Workout::kindName(t);
+    kItems[RowType].tipColor = Color::WHITE;
+
+    if (t == Workout::SessionType::Plain) {
+        kItems[RowThird].text = Strings::kAutoLap;
+        Workout::formatAutoLap(sThirdTip, sizeof(sThirdTip), mModel.autoLapMin());
+    } else {
+        // Tabata has nothing to set: its hint says what the fixed plan is.
+        kItems[RowThird].text = Strings::kSettings;
+        Workout::formatPlanSummary(sThirdTip, sizeof(sThirdTip), mModel.plan());
+    }
+    kItems[RowThird].tip      = sThirdTip;
+    kItems[RowThird].tipColor = Color::WHITE;
 
     mMenu->setBackground(Color::TEAL_DARK);
     mMenu->refresh();

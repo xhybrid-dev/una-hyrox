@@ -8,6 +8,10 @@
  * choice. End and Discard are unrecoverable, so they are not a click: R1
  * pressed on either opens the hold-to-confirm screen. It closes itself after
  * ten seconds and never exits the app on idle.
+ *
+ * Once a plan is done (the service has paused it and refuses Resume), the menu
+ * is End workout, Discard and Back, and opens on End: Pause has no meaning,
+ * and ending is what is left to do.
  ******************************************************************************
  */
 
@@ -38,6 +42,10 @@ private:
 
     void confirm();
     void refreshItems();
+    /// The row under the wheel's selection (the done menu has its own order).
+    Row selectedRow() const;
+
+    bool mDone = false;   ///< Built as the done menu
 
     std::unique_ptr<Widgets::Title>   mTitle;
     std::unique_ptr<Widgets::Buttons> mButtons;

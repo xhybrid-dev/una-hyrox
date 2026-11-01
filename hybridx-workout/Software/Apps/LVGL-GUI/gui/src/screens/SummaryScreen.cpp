@@ -13,6 +13,7 @@
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
+#include "PlanText.hpp"
 #include "WorkoutText.hpp"
 
 using namespace SDK::GUI;
@@ -67,10 +68,13 @@ void SummaryScreen::showPage(uint8_t page)
 
     char title[24];
     switch (page) {
-        case 0:
-            std::snprintf(title, sizeof(title), "%s", Strings::kSummary);
+        case 0: {
+            // A plan's summary is titled with its kind; a Free workout's is "Summary".
+            const auto t = static_cast<Workout::SessionType>(mModel.saved().type);
+            std::snprintf(title, sizeof(title), "%s",
+                          t == Workout::SessionType::Plain ? Strings::kSummary : Workout::kindName(t));
             buildOverview();
-            break;
+        } break;
         case 1:
             std::snprintf(title, sizeof(title), "%s", Strings::kZones);
             buildZones();
@@ -102,8 +106,8 @@ void SummaryScreen::buildOverview()
     Workout::formatClock(buf, sizeof(buf), saved.activeMs);
     Theme::label(mPageRoot, F::SemiBold40, buf, 0, 64, 240);
 
-    std::snprintf(buf, sizeof(buf), "%u %s", static_cast<unsigned>(saved.summary.laps),
-                  saved.summary.laps == 1 ? "lap" : "laps");
+    // "4 laps", "3 sets", "7 rounds", "8 stations"...
+    Workout::formatSummaryLine(buf, sizeof(buf), saved.type, saved.summary.laps, saved.amrapRounds);
     Theme::label(mPageRoot, F::Medium18, buf, 0, 130, 240);
 
     Workout::formatKcal(kcal, sizeof(kcal), saved.summary.kcalX10);
@@ -151,10 +155,13 @@ void SummaryScreen::buildHeart()
 void SummaryScreen::buildLaps()
 {
     using F = Theme::Font;
+    // A plan's step names ("Wall balls", "Round 255") need the whole line, so
+    // its rows are "Wall balls" over "4:12" | "avg 150"; a Free workout's stay
+    // "Auto 64" | "99:59:59" over "avg 255" | "65535 kcal".
+    const bool plan = mModel.saved().type != static_cast<uint8_t>(Workout::SessionType::Plain);
     for (uint8_t i = 0; i < kLapsPerScreen; ++i) {
         const int32_t y = 46 + static_cast<int32_t>(i) * 50;
-        // "Auto 64" | "99:59:59" over "avg 255" | "65535 kcal".
-        mLapName[i] = Theme::label(mPageRoot, F::Medium18, "", kColX, y, 76, LV_TEXT_ALIGN_LEFT);
+        mLapName[i] = Theme::label(mPageRoot, F::Medium18, "", kColX, y, plan ? kColW : 76, LV_TEXT_ALIGN_LEFT);
         mLapTime[i] = Theme::label(mPageRoot, F::Medium18, "", kColX + 76, y, kColW - 76, LV_TEXT_ALIGN_RIGHT);
         mLapAvg[i]  = Theme::label(mPageRoot, F::Regular14, "", kColX, y + 25, 80, LV_TEXT_ALIGN_LEFT, Color::GRAY);
         mLapRec[i]  = Theme::label(mPageRoot, F::Regular14, "", kColX + 80, y + 25, kColW - 80,
@@ -200,19 +207,29 @@ void SummaryScreen::fillLaps(const Workout::LapsPageData& page)
         char buf[32];
         char part[16];
 
-        // "Lap 3", or "Auto 3" for one the auto lap ended ("Lap 3 auto" does not fit).
-        std::snprintf(buf, sizeof(buf), "%s %u", row.autoEnded ? "Auto" : "Lap",
-                      static_cast<unsigned>(page.first + i + 1u));
-        Theme::assign(mLapName[i], buf);
+        // "Lap 3", or "Auto 3" for one the auto lap ended ("Lap 3 auto" does not
+        // fit); a plan's rows are its steps: "Set 2", "Rest 2", "Sled push".
+        const uint8_t type = mModel.saved().type;
+        Workout::formatStepName(buf, sizeof(buf), type, row.kind, row.round, row.station,
+                                static_cast<uint8_t>(page.first + i + 1u), row.autoEnded != 0);
+        const uint32_t nameColor = type == static_cast<uint8_t>(Workout::SessionType::Plain)
+                                       ? Color::WHITE : Theme::stepColor(row.kind);
+        Theme::setText(mLapName[i], buf, nameColor);
 
-        Workout::formatClock(buf, sizeof(buf), row.durationMs);
-        Theme::assign(mLapTime[i], buf);
-
+        char time[16];
+        Workout::formatClock(time, sizeof(time), row.durationMs);
         Workout::formatBpm(part, sizeof(part), row.hrAvg);
         std::snprintf(buf, sizeof(buf), "avg %s", part);
-        Theme::assign(mLapAvg[i], buf);
-
-        std::snprintf(buf, sizeof(buf), "%u kcal", static_cast<unsigned>(row.kcal));
-        Theme::assign(mLapRec[i], buf);
+        if (type == static_cast<uint8_t>(Workout::SessionType::Plain)) {
+            Theme::assign(mLapTime[i], time);
+            Theme::assign(mLapAvg[i], buf);
+            std::snprintf(buf, sizeof(buf), "%u kcal", static_cast<unsigned>(row.kcal));
+            Theme::assign(mLapRec[i], buf);
+        } else {
+            // The name has the whole line (buildLaps): the time goes under it.
+            Theme::assign(mLapTime[i], "");
+            Theme::setText(mLapAvg[i], time, Color::WHITE);
+            Theme::assign(mLapRec[i], buf);
+        }
     }
 }

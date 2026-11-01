@@ -16,6 +16,7 @@
 #include "gui/model/Model.hpp"
 #include "gui/screens/Screen.hpp"
 #include "gui/screens/MainScreen.hpp"
+#include "gui/screens/PlanSettingsScreen.hpp"
 #include "gui/screens/LiveScreen.hpp"
 #include "gui/screens/ActionScreen.hpp"
 #include "gui/screens/HoldConfirmScreen.hpp"
@@ -101,6 +102,7 @@ Screen* ScreenManager::create(ScreenId id)
 
     switch (id) {
         case ScreenId::Main:        return new MainScreen(m);
+        case ScreenId::PlanSettings: return new PlanSettingsScreen(m);
         case ScreenId::Live:        return new LiveScreen(m);
         case ScreenId::Action:      return new ActionScreen(m);
         case ScreenId::HoldConfirm: return new HoldConfirmScreen(m);

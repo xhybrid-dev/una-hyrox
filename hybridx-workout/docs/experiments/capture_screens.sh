@@ -66,9 +66,9 @@ up()   { DISPLAY=$DISP xdotool keyup "$1"; sleep 0.6; }
 
 # -- Workout 1 ---------------------------------------------------------------
 snap 01-main-start
-key 2; snap 02-main-autolap-off
+key 2; key 2; snap 02-main-autolap-off  # past Type (Free) to Auto lap (W3 added the Type row)
 key 3; snap 03-main-autolap-1min        # R1 on Auto lap: 1 min (saved)
-key 1
+key 1; key 1
 key 3 1.5                               # start
 sleep 3
 snap 04-live-main

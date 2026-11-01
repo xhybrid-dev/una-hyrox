@@ -446,9 +446,10 @@ A twelfth app: gym and HIIT sessions that count in HybridX Streak. It builds on 
 Workout example (`una-sdk/Examples/Apps/Workout`: laps, heart-rate zones, calories, the
 time-alert auto lap) and adds the activity link and the Streak line. Built: strength sets,
 HIIT timers (EMOM, AMRAP, Tabata, custom) and Hyrox-style circuits in the core (W1:
-`SessionPlan`, `PlanRunner`, which the service runs), and the FIT sport per kind and `set`
-messages (W2). Next: their screens (W3); later, training load (W4). It is independent of the
-other apps.
+`SessionPlan`, `PlanRunner`, which the service runs), the FIT sport per kind and `set`
+messages (W2), and their screens (W3: Type and Settings on the main menu, a live face per kind,
+the done menu, the summary; their words in `PlanText.hpp`). Later: training load (W4). It is
+independent of the other apps.
 - **Docs:** findings, decisions and phases (W0-W4): `hybridx-workout/docs/NOTES.md`. Read it
   at the start of each Workout phase, and work only on that phase.
 - **Rules:** the same standing rules as Race apply.
@@ -459,7 +460,8 @@ other apps.
   the watch build `Software/Apps/HybridXWorkout-CMake`. `Software/Libs/Link` is a **copy** of
   `hybridx-link`'s code (edit the original, then `hybridx-link/Utilities/check-link-copies.sh --sync`).
 - **Activity link:** on each saved workout, `Service::writeActivityLink` adds it to
-  `../SharedData/HybridX/act_workout.json` (Sport::Workout), then `sendStreakLine()`.
+  `../SharedData/HybridX/act_workout.json` (Strength for strength, Hybrid for a circuit, Workout
+  for the rest), then `sendStreakLine()`.
 - **Watch builds come from CI**, as for the others. Tags `workout-vX.Y.Z`. Development APP_ID
   `A294992CFC56DBE9` (md5 of `HybridXWorkout`); the portal issues the real one at release.
 - **Commands:**
@@ -468,7 +470,12 @@ other apps.
     `build/`; run `build/bin/HybridXWorkoutSimulator`; keys 1-4 are L1, L2, R1, R2);
   - every screen by key presses, with a pretend Streak summary, then the file, the sidecar,
     `act_workout.json` and the Streak line checked: `docs/experiments/capture_screens.sh [out-dir]`
-    (about 2.5 minutes, into `docs/screens/w0-*.png`; needs Xvfb, xdotool, ImageMagick, fitdecode);
+    (a Free workout; about 2.5 minutes, into `docs/screens/w0-*.png`; needs Xvfb, xdotool,
+    ImageMagick, fitdecode);
+  - the kinds' screens by key presses (the kind and settings chosen on screen, a whole strength
+    workout and circuit, a look at EMOM, AMRAP and Tabata), then both files and
+    `act_workout.json` checked: `docs/experiments/capture_plans.sh [out-dir]` (about 4 minutes,
+    into `docs/screens/w3-*.png`);
   - the text-fit audit: `docs/experiments/audit.sh` (about 10 seconds; after any change to a
     screen's text or layout);
   - the FIT file from the real writer in ten scenarios (full, autolap, nohr, crash, and one per

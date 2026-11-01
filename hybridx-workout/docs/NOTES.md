@@ -20,7 +20,7 @@ Workout". From his answers (28 October 2026):
 | **W0** | Scaffold: the SDK example's plain workout (laps, zones, calories, auto lap) on X Sauna's base, with the strap, `act_workout.json` and the Streak line | **Done (28 October 2026)**, simulator-checked. Gate: Jon's watch test (below) |
 | W1 | The session core, pure and host-tested: strength sets with rest; HIIT as EMOM, AMRAP, Tabata (8 x 20/10) and custom; Hyrox-style circuits from Race's stations | **Done (1 November 2026)**, host-tested. Gate: Jon agreed the rules |
 | W2 | Service and FIT per type: sport and sub_sport (strength: training 10 / strength_training 20; HIIT: hiit 62 / hiit 70, amrap 73, emom 74, tabata 75; circuit: training 10 / cardio_training 26 or generic), FIT `set` messages as the rep hook; link sports Strength, Workout, Hybrid | **Done (1 November 2026)**, simulator- and decode-checked. Gate: the files decode; Jon's watch test after W3 |
-| W3 | Screens: the type and its settings, live faces per type, the rest countdown, the summary | |
+| W3 | Screens: the type and its settings, live faces per type, the rest countdown, the summary | **Done (1 November 2026)**, simulator-checked. Gate: Jon reviews the captures (`docs/screens/w3-*.png`) |
 | W4 | Training load (Edwards' TRIMP on the watch's zones, a 7-day total); the rep-counter hook documented | |
 
 The FIT numbers above were read from Garmin's profile in fitdecode when the plan was
@@ -326,3 +326,97 @@ Jon agreed the rules at the end of Phase A ("Yes looks great"), as proposed:
 - **Not checked:** anything on a watch, in particular whether the buzzes are distinct on the
   wrist, and whether the UNA app and Strava take the new sports and sub-sports (and what they
   call them), and the set messages. The screens still show every workout as a plain one: W3.
+
+## W3: the screens for each kind of workout (1 November 2026)
+
+### What there is
+
+- **Main menu** (`w3-01` to `w3-09`): Start, **Type** and a third row. R1 on Type steps round
+  the kinds (Free, Strength, EMOM, AMRAP, Tabata, Intervals, Circuit) and the service remembers
+  it. The third row is the kind's: **Auto lap** for Free (as in W0), or **Settings** with the
+  plan in a line as its hint ("3 sets, 60 s rest", "10 min", "12 min cap", "8 x 20 s / 10 s",
+  "40 s / 20 s x 6", "8 rounds, 1 km").
+- **Settings** (`PlanSettingsScreen`, new): the kind's numbers on the wheel, each with its value
+  as the hint. R1 steps a value to its next choice, R2 goes back. Free and Tabata have nothing to
+  set (Tabata's hint says what its fixed plan is). The choices (`PlanText.hpp`, `choicesOf`):
+
+  | Setting | Choices |
+  |---|---|
+  | Sets | 1-6, 8, 10, 12, 15, 20 |
+  | Rest (strength) | 15, 30, 45, 60, 90 s, 2, 3, 4, 5 min |
+  | Set cap | 1, 2, 3, 5, 10, 15 min |
+  | Minutes (EMOM), Time cap (AMRAP) | 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 45, 60 |
+  | Work (intervals) | 10, 15, 20, 30, 40, 45, 60, 90 s, 2-5 min |
+  | Rest (intervals) | 5, 10, 15, 20, 30, 45, 60, 90 s, 2 min |
+  | Rounds (intervals) | 1-6, 8, 10, 12, 15, 20, 25, 30 |
+  | Rounds (circuit) | 1-8 |
+  | Run (circuit) | 100 m to 1 km in 100s |
+
+  A value from an older file that is not in the list steps to the next one up.
+- **The live main face for a plan** (`w3-10` to `w3-17`, `w3-23` to `w3-31`):
+  - **The heading** is the step, in its colour: "Set 2/3" and "Work 3/8" lime, "Rest" and
+    "Rest 3/8" sky, "Run 2/8" white, a station ("SkiErg", "Wall balls") amber, "Min 4/10",
+    "Round 4". It is Medium 18, not the Free lap number's SemiBold 25: the face is narrow
+    at the top.
+  - **The big time** counts down a timed step (sky in a rest, amber in its last 3 s, with the
+    countdown buzz) and counts up an open one (a strength set: its cap is a backstop, not a
+    target; a circuit's run or station).
+  - **The line under it:** the station's work ("1000 m", "100 reps"), the run's length, or
+    the total.
+  - **When the plan is over:** "Done" in green over the total time, and "R1 to end" in amber.
+- **R2's hint** goes when R2 does nothing: the timers (EMOM, Tabata, Intervals), a pause, or
+  a finished plan. The screen does not send the lap then.
+- **The lap toast** says what begins now ("Rest", "Set 3", "Minute 5", "Work 4", "Round 4",
+  "Run 3", "Sled push", "Done") in its colour, then the step just finished and its time ("Set 2
+  00:45"). It is worked out from the cue and the finished lap (`formatCueHeading`), because the
+  toast arrives before the snapshot of the new step.
+- **The totals face** shows the Type in place of the auto lap for a plan.
+- **The action menu once a plan is done** (`w3-18`) is End workout, Discard and Back, and opens
+  on End: one R1 and a hold ends it. Pause has gone (the service refuses Resume anyway, W2).
+- **The summary** (`w3-21`, `w3-22`, `w3-32`, `w3-33`) is titled with the kind. Its line says
+  "3 sets", "10 minutes", "7 rounds" (AMRAP: the rounds counted), "8 of 8 rounds" (Tabata),
+  "6 rounds", "8 stations" or "4 laps". A plan's lap rows are its steps ("Set 1", "Rest 1",
+  "SkiErg", "Round 3") in their colours. The name takes the whole line and the time goes under
+  it beside the heart rate: "Wall balls" and "Round 255" do not fit the 76 px a Free workout's
+  "Auto 64" uses. A plan's rows leave out the lap's calories.
+
+### Code
+
+- `Core/Header/PlanText.hpp` (header-only, host-tested): the kind names, the station short
+  names (mixed case: "Sled push", not Race's "SLED PUSH"), the settings and their choices
+  (`planFields`, `choicesOf`, `nextChoice`, `stepField`, `formatField`), and the plan summary.
+  Also every step label (`formatStepName`, `formatStepHeading`, `formatCueHeading`), the
+  countdown (rounded up: 00:01 until the step ends), `countsDown`, `buttonCounts`, and the
+  summary line.
+- GUI: `Model` keeps the plan from `SettingsUpdate` and sends `SetPlan` (`nextKind`,
+  `stepPlanField`); `MainScreen` (three rows); `PlanSettingsScreen` (new); `LiveScreen`
+  (`redrawPlanMain`, the toast); `ActionScreen` (the done menu); `SummaryScreen` (title, line,
+  rows); `Theme::stepColor`.
+- `capture_screens.sh` (W0) steps past the new Type row to reach Auto lap; `sim_plan.sh` ends
+  from the done menu.
+
+### W3 verified (1 November 2026)
+
+- **Host tests: 116** (12 new in `PlanTextTest`: every choice list rises, has at most 20 and
+  is inside its range, every label, the countdown's rounding, buffers), also under ASan and
+  UBSan.
+- **Text-fit audit** (`audit.sh`): **0 problems** in 39 checks. The 16 W0 checks are unchanged;
+  23 new ones give each kind its widest text: "Set 20/20" at 59:59, "Min 60/60", "Round 255"
+  with 1:00:00 left, "Rest 8/8" amber, "Work 30/30", "Wall balls" with "100 reps", "Burpees",
+  "Run 8/8" at 99:59:59, Done at 99:59:59, a paused plan, five toasts, the plan's totals, the
+  done menu, and the summaries with 65535 AMRAP rounds and laps 61-63 of each kind's widest
+  names. It found the lap rows' names too wide on the way (89-100 px in a 76 px box), hence
+  the plan row layout above.
+- **Every screen by key presses** (`capture_plans.sh`, into `docs/screens/w3-*.png`): the kind
+  and its settings chosen on screen (Sets stepped from 2 to 3); a whole strength workout (a rest
+  that ran out, one skipped, the end, the done menu, End, the summary and its laps); EMOM, AMRAP
+  and Tabata looked at and discarded; and a whole circuit. Then both files decoded (Strength:
+  training / strength_training, five laps active, rest, active, rest, active, five sets;
+  Circuit: training / cardio_training, two laps), and `act_workout.json` held sports 4 and 6.
+  The captures were looked at by eye; they read as meant.
+- **No change to a Free workout:** W0's capture passes every check, Streak line included (its
+  screenshots are refreshed for the Type row).
+- **The simulator builds** with no warnings from our code. The watch target is CI's.
+- **Not checked:** anything on a watch, in particular the LVGL pool there (the screens still build
+  only the face on show), how the colours and the 3 s amber read in daylight, and whether the
+  buzzes are distinct on the wrist.
