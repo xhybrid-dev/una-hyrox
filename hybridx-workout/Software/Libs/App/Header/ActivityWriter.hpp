@@ -9,13 +9,19 @@
  * SDK's Workout example (Examples/Apps/Workout, ActivityWriter.cpp):
  *   - record: heart rate;
  *   - lap: times, average and maximum heart rate, total_calories (field 11),
- *     lap_trigger (field 24: manual 0, time 1 for an auto lap; public profile,
- *     checked in fitdecode), and the lap's resting calories as the example's
- *     developer field "resting_calories" (kcal; the public profile has no lap
- *     field for it);
+ *     lap_trigger (field 24: manual 0, time 1 for an auto lap or a timed
+ *     step; public profile, checked in fitdecode), intensity (FitProfile.hpp's
+ *     field 23: active, or rest for a plan's rest), and the lap's resting
+ *     calories as the example's developer field "resting_calories" (kcal; the
+ *     public profile has no lap field for it);
+ *   - set (W2, strength only): one per set and one per rest, from the laps:
+ *     timestamp, duration, set_type (rest 0, active 1), start_time and
+ *     message_index. The message (225) and its fields are the public profile's,
+ *     from fitdecode (SDK/Fit/FitProfile.hpp declares none of them), checked by
+ *     decoding the file back. No repetitions: nothing counts them yet;
  *   - session: total_calories and metabolic_calories (FitProfile.hpp's 196,
- *     as the example writes it), sport and sub_sport (generic in W0, as the
- *     example), and sport_profile_name.
+ *     as the example writes it), sport and sub_sport per kind of workout
+ *     (WorkoutFit.hpp, fitSportOf), and sport_profile_name.
  *
  * Laps and the session are written at stop(), not as they happen (X Sauna's
  * design, kept). A crash therefore recovers the per-second records but not the
@@ -68,6 +74,15 @@ public:
         uint16_t    kcal = 0;           // whole kcal
         uint16_t    restingKcal = 0;
         bool        autoEnded = false;  // lap_trigger time, else manual
+        bool        rest = false;       // intensity rest, else active
+    };
+
+    /// One FIT set message (strength workouts): a set or the rest after it.
+    struct SetData {
+        std::time_t timeStart = 0;      // UTC
+        std::time_t timestamp = 0;      // UTC, end
+        uint32_t    durationMs = 0;     // the set's timer time
+        bool        rest = false;       // set_type rest, else active
     };
 
     struct TrackData {
@@ -79,10 +94,10 @@ public:
         uint8_t     hrMax = 0;
         uint16_t    kcal = 0;
         uint16_t    metabolicKcal = 0;  // the resting part
-        // Generic / generic, as the SDK's Workout example writes it. W2 sets the
-        // sport per workout type, from numbers checked in the public profile.
-        uint8_t     sport = 0;          // FIT sport: generic
-        uint8_t     subSport = 0;       // FIT sub_sport: generic
+        // Generic / generic, as the SDK's Workout example writes it, for a plain
+        // workout; per kind of workout from WorkoutFit.hpp's fitSportOf.
+        uint8_t     sport = 0;          // FIT sport
+        uint8_t     subSport = 0;       // FIT sub_sport
     };
 
     ActivityWriter(const SDK::Kernel& kernel, const char* pathToDir);
@@ -93,6 +108,8 @@ public:
     /// False when the record could not be written (the screen says so).
     bool addRecord(const RecordData& record);
     void addLap(const LapData& lap);
+    /// A strength set (or its rest), written at stop with the laps.
+    void addSet(const SetData& set);
     /// Finalize the current activity. True iff the FIT stream and its
     /// finish/flush/close succeeded, so the .fit is safely on disk (the kernel
     /// registers it when it closes, and recoverInterrupted() re-registers after
@@ -116,6 +133,7 @@ private:
         L_LAP,
         L_SESSION,
         L_ACTIVITY,
+        L_SET,
     };
 
     /// Developer field definition numbers (this app's own).
@@ -133,6 +151,11 @@ private:
     std::unique_ptr<SDK::Fit::FitWriter>   mFit  = nullptr;
     SDK::Fit::RecordingMarker              mMarker;
     uint16_t    mLapCounter   = 0;
+    uint16_t    mSetCounter   = 0;
+    /// The FIT timer is running (start or resume), so stop() closes it; after a
+    /// pause it is already stopped, and a second stop would break the pairs.
+    bool        mTimerRunning = false;
+    bool        mSetDefined   = false;
     std::string mProfileName;
     std::time_t mLastFlushUtc = 0;
 

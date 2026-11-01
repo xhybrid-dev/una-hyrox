@@ -11,6 +11,7 @@
 
 #include <cstdint>
 
+#include "PlanRunner.hpp"
 #include "WorkoutModel.hpp"
 
 namespace Workout {
@@ -33,19 +34,27 @@ struct SessionSnapshot {
     uint32_t elapsedMs = 0;
     uint32_t kcalX10 = 0;         ///< Calories so far, tenths of a kcal
     uint32_t zoneMs[kZoneCount] = {};   ///< Active time so far in each zone
+    PlanView plan;                ///< The plan's step (plan.steps 0: a plain workout)
 };
 
 /// What a finished workout came to, for the summary screen.
 struct SavedSession {
     uint8_t        saved = 0;     ///< 1 when the activity file was written
+    uint8_t        type = 0;      ///< SessionType
+    uint8_t        planDone = 0;  ///< 1 when the plan ran to its end
+    uint16_t       amrapRounds = 0;
     uint32_t       activeMs = 0;
     SessionSummary summary;
 };
 
-/// A lap just ended (R2, or the auto lap): what it was, for the lap toast.
+/// A lap just ended (R2, the auto lap or a plan's step): what it was, for the lap toast.
 struct LapEventData {
     uint8_t  finishedLap = 1;     ///< Its number, from 1
     uint8_t  autoEnded = 0;
+    uint8_t  cue = 0;             ///< Cue: what begins now (Done: the plan is over)
+    uint8_t  kind = 0;            ///< The finished lap's StepKind
+    uint8_t  round = 0;           ///< Its set, round or minute (0: a plain workout)
+    uint8_t  station = 0;         ///< Its circuit station, from 1 (0 none)
     uint16_t hrAvg = 0;           ///< bpm, 0 none
     uint32_t durationMs = 0;
 };
@@ -53,6 +62,9 @@ struct LapEventData {
 /// One lap of a finished workout, for the summary's lap pages.
 struct LapRow {
     uint8_t  autoEnded = 0;
+    uint8_t  kind = 0;            ///< StepKind
+    uint8_t  round = 0;           ///< Set, round or minute (0: a plain workout)
+    uint8_t  station = 0;         ///< Circuit station, from 1 (0 none)
     uint16_t hrAvg = 0;
     uint16_t hrMax = 0;
     uint16_t kcal = 0;

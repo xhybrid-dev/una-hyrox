@@ -3,6 +3,7 @@
 says what the app means it to say.
 
     fit_check.py <file.fit> <scenario>      scenario: full | autolap | nohr | crash | sim
+                                            or a plan: strength | emom | amrap | tabata | custom | circuit
 
 Checks: valid header and CRC; file_id; the one developer field
 (resting_calories, as the SDK's Workout example); timer events in pairs; one
@@ -14,6 +15,10 @@ watch's default thresholds, 80 kg, the example's MET table); session sport
 generic and profile name Workout; and for `crash`, that the records survive
 with no laps. `sim` is a file from the PC simulator (random heart rate, its own
 weight): structure is checked, exact numbers are not.
+A plan scenario (W2) is checked against PLAN below: the sport and sub_sport by
+the public profile's names, the profile name, each lap's timer time, trigger and
+intensity, the strength workout's set messages, and the plan's end (the timer
+stops when the plan does, and the 10 s before End are the last lap's pause).
 Exit status 1 if any check fails.
 """
 import sys
@@ -21,6 +26,30 @@ import fitdecode
 
 path, scenario = sys.argv[1], sys.argv[2]
 failures = []
+
+# What make_fit's plan scenarios write (Tests/Host/tools/make_fit.cpp).
+A, R = "active", "rest"
+PLAN = {
+    "strength": dict(sport="training", sub="strength_training", name="Strength",
+                     timer=[40, 30, 45, 10, 35], trig=["manual", "time", "manual", "manual", "manual"],
+                     inten=[A, R, A, R, A], records=160),
+    "emom":     dict(sport="hiit", sub="emom", name="EMOM",
+                     timer=[60, 60, 60], trig=["time"] * 3, inten=[A] * 3, records=180),
+    "amrap":    dict(sport="hiit", sub="amrap", name="AMRAP",
+                     timer=[40, 45, 35], trig=["manual", "manual", "time"], inten=[A] * 3, records=120),
+    "tabata":   dict(sport="hiit", sub="tabata", name="Tabata",
+                     timer=[20, 10] * 7 + [20], trig=["time"] * 15, inten=[A, R] * 7 + [A], records=230),
+    "custom":   dict(sport="hiit", sub="hiit", name="Intervals",
+                     timer=[30, 15, 30, 15, 30], trig=["time"] * 5, inten=[A, R, A, R, A], records=120),
+    "circuit":  dict(sport="training", sub="cardio_training", name="Circuit",
+                     timer=[120, 80, 130, 70], trig=["manual"] * 4, inten=[A] * 4, records=400),
+}
+plan = PLAN.get(scenario)
+# sim-<plan>: a simulator file of that kind; structure as "sim", plus its sport and name.
+sim_plan = None
+if scenario.startswith("sim-"):
+    sim_plan = PLAN[scenario[4:]]
+    scenario = "sim"
 
 
 def check(cond, what):
@@ -62,7 +91,7 @@ check(kinds and kinds[0] == "start", "first event is a timer start")
 if scenario != "crash":
     check(kinds[-1] == "stop", "last event is a timer stop")
     check(all(kinds[i] != kinds[i + 1] for i in range(len(kinds) - 1)), "timer events alternate start/stop")
-    want_events = {"full": 4, "nohr": 4, "autolap": 2}.get(scenario)
+    want_events = {"full": 4, "nohr": 4, "autolap": 2}.get(scenario, 2 if plan else None)
     if want_events is not None:
         check(len(kinds) == want_events, f"{len(kinds)} timer events, want {want_events}")
 
@@ -77,6 +106,8 @@ if scenario in ("full", "nohr"):
     check(len(big) == 1 and big[0] == 21.0, f"one gap, at the pause ({big})")
 elif scenario == "autolap":
     check(len(recs) == 150 and not big, "150 records, no gaps")
+elif plan:
+    check(len(recs) == plan["records"] and not big, f"{plan['records']} records, no gaps ({len(recs)}, {big})")
 check(all(g > 0 for g in gaps), "record timestamps strictly increase")
 hrs = [r.get("heart_rate") for r in recs]
 if scenario == "nohr":
@@ -95,12 +126,14 @@ if scenario == "crash":
 # --- laps
 laps = by.get("lap", [])
 sess = by["session"][0]
-want_laps = {"full": 4, "nohr": 4, "autolap": 3}.get(scenario)
+want_laps = {"full": 4, "nohr": 4, "autolap": 3}.get(scenario, len(plan["timer"]) if plan else None)
 if want_laps is not None:
     check(len(laps) == want_laps, f"{want_laps} laps (got {len(laps)})")
 check([l.get("message_index") for l in laps] == list(range(len(laps))), "lap message_index 0..n-1")
 triggers = [l.get("lap_trigger") for l in laps]
 want_t = {"autolap": ["time", "time", "manual"]}.get(scenario, ["manual"] * len(laps) if scenario != "sim" else None)
+if plan:
+    want_t = plan["trig"]
 if want_t is not None:
     check(triggers == want_t, f"lap triggers {triggers} == {want_t}")
 if scenario == "autolap":
@@ -153,11 +186,44 @@ if scenario == "nohr":
     check(all(l.get("avg_heart_rate") is None for l in laps), "no lap heart rate without HR")
     check(s_kcal == s_meta, "with no heart rate every second is resting")
 
+# --- lap intensity: active, or rest for a plan's rests
+inten = [l.get("intensity") for l in laps]
+want_i = plan["inten"] if plan else (["active"] * len(laps) if scenario != "sim" else None)
+if sim_plan and not set(sim_plan["inten"]) - {"active"}:
+    want_i = ["active"] * len(laps)
+if want_i is not None:
+    check(inten == want_i, f"lap intensity {inten} == {want_i}")
+
+# --- a plan: its laps' times, its end, and the strength sets
+sets = by.get("set", [])
+if plan:
+    timers = [l["total_timer_time"] for l in laps]
+    check(timers == plan["timer"], f"lap timer times {timers} == {plan['timer']}")
+    check(sess["total_elapsed_time"] - sess["total_timer_time"] == 10,
+          f"the 10 s on the Done screen are a pause, not active time ({sess['total_elapsed_time']} - {sess['total_timer_time']})")
+    check(laps[-1]["total_elapsed_time"] - laps[-1]["total_timer_time"] == 10, "... and they are the last lap's")
+if scenario == "strength":
+    check(len(sets) == len(laps), f"one set message a lap ({len(sets)} sets, {len(laps)} laps)")
+    check([x.get("set_type") for x in sets] == plan["inten"], f"set types {[x.get('set_type') for x in sets]}")
+    check([x.get("duration") for x in sets] == plan["timer"], f"set durations {[x.get('duration') for x in sets]} s")
+    check([x.get("message_index") for x in sets] == list(range(len(sets))), "set message_index 0..n-1")
+    check(all(x.get("repetitions") is None for x in sets), "no repetitions (nothing counts them yet)")
+    check([x.get("start_time") for x in sets] == [l["start_time"] for l in laps], "each set starts with its lap")
+    check([x.get("timestamp") for x in sets] == [l["timestamp"] for l in laps], "... and ends with it")
+elif not (sim_plan and sim_plan["name"] == "Strength"):
+    check(not sets, "no set messages (strength only)")
+
 # --- session
-check(sess.get("sport") in ("generic", 0), f"session sport generic ({sess.get('sport')}), as the SDK's Workout example")
-check(sess.get("sub_sport") in ("generic", 0), "sub_sport generic")
+named = plan or sim_plan
+want_sport = named["sport"] if named else "generic"
+want_sub = named["sub"] if named else "generic"
+want_name = named["name"] if named else "Workout"
+check(sess.get("sport") == want_sport or (want_sport == "generic" and sess.get("sport") == 0),
+      f"session sport {sess.get('sport')} == {want_sport}")
+check(sess.get("sub_sport") == want_sub or (want_sub == "generic" and sess.get("sub_sport") == 0),
+      f"session sub_sport {sess.get('sub_sport')} == {want_sub}")
 check(sess.get("num_laps") == len(laps), "session num_laps")
-check(sess.get("sport_profile_name") == "Workout", f"sport_profile_name is Workout ({sess.get('sport_profile_name')})")
+check(sess.get("sport_profile_name") == want_name, f"sport_profile_name is {want_name} ({sess.get('sport_profile_name')})")
 act = by["activity"][0]
 check(act.get("num_sessions") == 1, "activity num_sessions")
 

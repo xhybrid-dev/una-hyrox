@@ -62,7 +62,7 @@ them (draft request: `hybridx-streak/docs/UNA_ACTIVITY_REQUEST.md`, not sent).
 | `a[i][2]` | Timer time in seconds (up to 48 hours). This is what Streak counts. |
 | `a[i][3]` | Distance in metres, 0 if none (up to 1000 km). |
 | `a[i][4]`, `[5]` | Average and maximum heart rate, 0 if none. Average is never above the maximum. |
-| `a[i][6]` | Sport: 1 run, 2 ride, 3 walk, 4 strength, 5 workout, 6 hybrid, 7 row, 9 other. Our codes, not FIT's. An unknown code reads as other. |
+| `a[i][6]` | Sport: 1 run, 2 ride, 3 walk, 4 strength, 5 workout, 6 hybrid, 7 row, 9 other. Our codes, not FIT's. An unknown code reads as other. One app may write more than one: HybridX Workout writes 4 for strength, 6 for a circuit and 5 for the rest (Workout NOTES "W2"). |
 
 Local start (what Streak's dedupe uses) is `startUtc + (a[i][1] - 1440) * 60`.
 

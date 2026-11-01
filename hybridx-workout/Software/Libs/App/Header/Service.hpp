@@ -12,9 +12,16 @@
  * first (ActivityWriter::recoverInterrupted).
  *
  * Once a second (each new UTC second, not "a second since the last": see
- * SecondGate.hpp) while a workout runs: one FIT record (heart rate) and one
- * sample into the WorkoutModel, which may end the lap by the auto lap. Laps and
- * the session are written when it ends.
+ * SecondGate.hpp) while a workout runs: one FIT record (heart rate), one
+ * sample into the WorkoutModel, which may end the lap by the auto lap, and a
+ * tick of the PlanRunner, which ends a plan's timed steps. Each step the runner
+ * begins or ends comes back as a Cue, which the service buzzes (onCue). Laps,
+ * strength sets and the session are written when it ends, with the sport of
+ * the kind of workout (WorkoutFit.hpp, fitSportOf).
+ *
+ * The plan runs here, not in the screen, so its timers keep going if the
+ * screen closes. When a plan ends, the runner pauses the workout; Resume is
+ * refused from then on, so only End or Discard remain.
  *
  * After a save: the workout goes into ../SharedData/HybridX/act_workout.json
  * for HybridX Streak (writeActivityLink), and the Streak line is worked out and
@@ -31,6 +38,7 @@
 #include "ActivityWriter.hpp"
 #include "Commands.hpp"
 #include "HrZones.hpp"
+#include "PlanRunner.hpp"
 #include "SecondGate.hpp"
 #include "WorkoutFit.hpp"
 #include "WorkoutModel.hpp"
@@ -79,8 +87,14 @@ private:
     void connectSensors();
     void disconnectSensors();
     void onSensorData(uint16_t handle, SDK::Sensor::DataBatch &batch);
-    /// The lap toast and buzz for a lap that has just ended (by R2 or the auto lap).
+    /// The lap toast and buzz for a plain workout's lap that has just ended (R2 or the auto lap).
     void lapEnded(uint32_t nowMs, bool autoEnded);
+    /// Buzz and show what the plan runner says has happened.
+    void onCue(Workout::Cue cue, uint32_t nowMs);
+    /// The lap toast for lap @p index (from 0), with what begins now.
+    void sendLapEvent(uint8_t index, Workout::Cue cue);
+    /// The vibration pattern for each cue (a countdown of three ticks for Warning).
+    void buzzCue(Workout::Cue cue);
 
     uint16_t currentHr(uint32_t nowMs) const;
 
@@ -89,6 +103,7 @@ private:
     void loadSettings();
     void saveSettings();
     void setAutoLap(uint8_t minutes);
+    void setPlan(const Workout::PlanConfig &plan);
 
     void requestAccessoryPrepare();
     void requestAccessoryRelease();

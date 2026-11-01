@@ -37,6 +37,7 @@ namespace
 /// The workout and its laps (about 3.6 KB) live in static storage, not on the
 /// service's small stack.
 Workout::WorkoutModel sModel;
+Workout::PlanRunner   sRunner;
 Workout::FitLap       sFitLaps[Workout::kMaxLaps];
 
 /// The app's folder name: what Streak shows and keys sessions by.
@@ -173,6 +174,11 @@ void Service::run()
                 setAutoLap(m->minutes);
             } break;
 
+            case CustomMessage::SET_PLAN: {
+                auto *m = static_cast<CustomMessage::SetPlan *>(msg);
+                setPlan(m->plan);
+            } break;
+
             default:
                 // Unknown messages are ignored, but still released
                 // (Docs/service-lifecycle.md).
@@ -228,20 +234,29 @@ void Service::startSession()
     info.appVersion       = SDK::ParseVersion(BUILD_VERSION).u32;
     info.devID            = DEV_ID;
     info.appID            = APP_ID;
-    info.sportProfileName = "Workout";   // Race 5.28's experiment: whether anything honours it is unknown
+    // Race 5.28's experiment: whether anything honours the profile name is unknown.
+    info.sportProfileName = Workout::fitSportOf(mSettings.plan.type).profileName;
     mWriter.start(info);
     mFitOpen = true;
 
     const uint32_t nowMs = mKernel.sys.getTimeMs();
-    sModel.start(nowMs, cfg);
-    LOG_INFO("Workout started: auto lap %u min, weight %lu g\n", static_cast<unsigned>(mSettings.autoLapMin),
-             static_cast<unsigned long>(mWeightG));
+    sRunner.start(mSettings.plan, sModel, nowMs, cfg);   // starts the model too
+    LOG_INFO("Workout started: %s, %u steps, auto lap %u min, weight %lu g\n",
+             Workout::fitSportOf(sRunner.config().type).profileName,
+             static_cast<unsigned>(Workout::stepCount(sRunner.config())),
+             static_cast<unsigned>(sModel.config().autoLapMs / 60000u), static_cast<unsigned long>(mWeightG));
     sendUpdate();
 }
 
 void Service::lap()
 {
     const uint32_t nowMs = mKernel.sys.getTimeMs();
+    if (sRunner.hasPlan()) {
+        // The plan says what the button does (the timers ignore it).
+        onCue(sRunner.press(sModel, nowMs), nowMs);
+        sendUpdate();
+        return;
+    }
     const Workout::LapResult r = sModel.lap(nowMs);
     if (r == Workout::LapResult::Ok) {
         lapEnded(nowMs, false);
@@ -255,19 +270,96 @@ void Service::lap()
 void Service::lapEnded(uint32_t nowMs, bool autoEnded)
 {
     (void)nowMs;
+    (void)autoEnded;   // the lap itself says so
     if (sModel.lapCount() < 2) {
         return;
     }
-    const uint8_t done = static_cast<uint8_t>(sModel.lapCount() - 2u);
-    const Workout::LapStats &l = sModel.lapAt(done);
-    Workout::LapEventData ev;
-    ev.finishedLap = static_cast<uint8_t>(done + 1u);
-    ev.autoEnded   = autoEnded ? 1u : 0u;
-    ev.durationMs  = l.activeMs;
-    ev.hrAvg       = l.hrAvg();
     buzz(SDK::Message::RequestVibroPlay::STRONG_CLICK_100);
     backlightOn();
+    sendLapEvent(static_cast<uint8_t>(sModel.lapCount() - 2u), Workout::Cue::Round);
+}
+
+void Service::onCue(Workout::Cue cue, uint32_t nowMs)
+{
+    (void)nowMs;
+    switch (cue) {
+    case Workout::Cue::None:
+        return;
+    case Workout::Cue::Warning:
+        buzzCue(cue);
+        backlightOn();
+        return;
+    case Workout::Cue::Done:
+        // The runner has paused the model: the file's timer stops here too.
+        mWriter.pause(mTimeTracker.getExpectedUTC());
+        LOG_INFO("Plan done: %u laps; End or Discard to finish\n", static_cast<unsigned>(sModel.lapCount()));
+        buzzCue(cue);
+        backlightOn();
+        sendLapEvent(static_cast<uint8_t>(sModel.lapCount() - 1u), cue);
+        return;
+    default:
+        // A step began (Work, Rest, Run, Station) or an AMRAP round was counted.
+        buzzCue(cue);
+        backlightOn();
+        if (sModel.lapCount() >= 2) {
+            sendLapEvent(static_cast<uint8_t>(sModel.lapCount() - 2u), cue);
+        }
+        return;
+    }
+}
+
+void Service::sendLapEvent(uint8_t index, Workout::Cue cue)
+{
+    const Workout::LapStats &l = sModel.lapAt(index);
+    Workout::LapEventData ev;
+    ev.finishedLap = static_cast<uint8_t>(index + 1u);
+    ev.autoEnded   = l.autoEnded ? 1u : 0u;
+    ev.cue         = static_cast<uint8_t>(cue);
+    ev.kind        = l.kind;
+    ev.round       = l.round;
+    ev.station     = l.station;
+    ev.durationMs  = l.activeMs;
+    ev.hrAvg       = l.hrAvg();
     SDK::send_msg<CustomMessage::SessionLapEvent>(mKernel, ev);
+}
+
+void Service::buzzCue(Workout::Cue cue)
+{
+    using V = SDK::Message::RequestVibroPlay;
+    auto vibro = SDK::make_msg<V>(mKernel);
+    if (!vibro) {
+        return;
+    }
+    // One pattern per cue, each different to the hand. The warning is a
+    // countdown: three ticks a second apart, 3, 2, 1, before the step ends.
+    uint32_t n = 0;
+    auto note = [&](uint8_t effect, uint32_t pauseMs) {
+        if (n < V::skMaxNotes) {
+            vibro->notes[n].effect = effect;
+            vibro->notes[n].pause  = pauseMs;
+            ++n;
+        }
+    };
+    switch (cue) {
+    case Workout::Cue::Work:    note(V::LONG_DOUBLE_SHARP_CLICK_STRONG_1_100, 0); break;
+    case Workout::Cue::Rest:    note(V::SHORT_DOUBLE_CLICK_MEDIUM_1_100, 0); break;
+    case Workout::Cue::Run:     note(V::STRONG_CLICK_100, 0); break;
+    case Workout::Cue::Station: note(V::DOUBLE_CLICK_100, 0); break;
+    case Workout::Cue::Round:   note(V::STRONG_CLICK_100, 0); break;
+    case Workout::Cue::Done:    note(V::ALERT_1000MS_100, 0); break;
+    case Workout::Cue::Warning:
+        note(V::SHARP_TICK_1_100, 0);
+        note(0, 900);
+        note(V::SHARP_TICK_1_100, 0);
+        note(0, 900);
+        note(V::SHARP_TICK_1_100, 0);
+        break;
+    case Workout::Cue::None:
+    default:
+        return;
+    }
+    vibro->notesCount = n;
+    vibro.send();
 }
 
 void Service::pause()
@@ -280,6 +372,11 @@ void Service::pause()
 
 void Service::resume()
 {
+    if (sRunner.done()) {
+        // The plan is over: resuming would stretch its last step's lap.
+        LOG_INFO("Resume refused: the plan is done\n");
+        return;
+    }
     if (sModel.resume(mKernel.sys.getTimeMs())) {
         mWriter.resume(mTimeTracker.getExpectedUTC());
         sendUpdate();
@@ -317,7 +414,20 @@ void Service::finish(bool save, bool bank)
         lap.kcal        = sFitLaps[i].kcal;
         lap.restingKcal = sFitLaps[i].restingKcal;
         lap.autoEnded   = sFitLaps[i].autoEnded;
+        lap.rest        = sFitLaps[i].kind == static_cast<uint8_t>(Workout::StepKind::Rest);
         mWriter.addLap(lap);
+    }
+    const Workout::SessionType type = sRunner.config().type;
+    if (Workout::writesSets(type)) {
+        // A strength workout's laps are its sets and rests: one FIT set message each.
+        for (uint8_t i = 0; i < n; ++i) {
+            ActivityWriter::SetData set {};
+            set.timeStart  = mStartUtc + static_cast<std::time_t>(sFitLaps[i].startSec);
+            set.timestamp  = mStartUtc + static_cast<std::time_t>(sFitLaps[i].startSec + sFitLaps[i].elapsedSec);
+            set.durationMs = sFitLaps[i].activeSec * 1000u;
+            set.rest       = sFitLaps[i].kind == static_cast<uint8_t>(Workout::StepKind::Rest);
+            mWriter.addSet(set);
+        }
     }
 
     ActivityWriter::TrackData track {};
@@ -329,12 +439,17 @@ void Service::finish(bool save, bool bank)
     track.hrMax         = fs.hrMax;
     track.kcal          = fs.kcal;
     track.metabolicKcal = fs.restingKcal;
+    const Workout::FitSport sport = Workout::fitSportOf(type);
+    track.sport         = sport.sport;
+    track.subSport      = sport.subSport;
 
     const bool ok = mWriter.stop(track);
     mFitOpen = false;
     if (ok) {
         notifyNewActivity();
-        LOG_INFO("Workout saved: %u laps, %u kcal%s\n", static_cast<unsigned>(n), static_cast<unsigned>(fs.kcal),
+        LOG_INFO("Workout saved: %s, sport %u/%u, %u laps, %u kcal%s\n", sport.profileName,
+                 static_cast<unsigned>(sport.sport), static_cast<unsigned>(sport.subSport),
+                 static_cast<unsigned>(n), static_cast<unsigned>(fs.kcal),
                  bank ? " (banked: the app was stopped)" : "");
         writeActivityLink(fs);   // only for a workout whose .fit is safely saved
         sendStreakLine();
@@ -373,6 +488,8 @@ void Service::tick()
             LOG_INFO("Auto lap: lap %u\n", static_cast<unsigned>(sModel.lapCount() - 1u));
             lapEnded(nowMs, true);
         }
+        // A plan's timed steps end here (a plain workout has none).
+        onCue(sRunner.tick(sModel, nowMs), nowMs);
     }
 
     if (mGuiStarted) {
@@ -493,6 +610,14 @@ void Service::saveSettings()
     }
 }
 
+void Service::setPlan(const Workout::PlanConfig &plan)
+{
+    // For the next workout: one running keeps the plan it started with.
+    mSettings.plan = Workout::clamp(plan);
+    saveSettings();
+    sendSettings();
+}
+
 void Service::setAutoLap(uint8_t minutes)
 {
     // Only one of the example's choices; the next workout takes it up.
@@ -540,7 +665,8 @@ void Service::writeActivityLink(const Workout::FitSession &fs)
     const int16_t  tzMin    = tzOffsetMinutes(startUtc, calendarSeconds(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
                                                                        local.tm_hour, local.tm_min, local.tm_sec));
     const Entry e = makeEntry(startUtc, tzMin, static_cast<float>(fs.timerSec), 0.0f, static_cast<float>(fs.hrAvg),
-                              static_cast<float>(fs.hrMax), Sport::Workout);
+                              static_cast<float>(fs.hrMax),
+                              static_cast<Sport>(Workout::linkSportCodeOf(sRunner.config().type)));
     if (!valid(e)) {
         LOG_WARNING("Not telling Streak about this workout: its start (%lu) is not valid\n",
                     static_cast<unsigned long>(e.startUtc));
@@ -633,6 +759,7 @@ void Service::sendUpdate()
     for (uint8_t z = 0; z < Workout::kZoneCount; ++z) {
         s.zoneMs[z] = sum.zoneMs[z];
     }
+    s.plan = sRunner.view(sModel, nowMs);
 
     const std::tm local = mTimeTracker.getExpectedLocalTime();
     s.hour   = static_cast<uint8_t>(local.tm_hour < 0 ? 0 : (local.tm_hour > 23 ? 23 : local.tm_hour));
@@ -642,13 +769,16 @@ void Service::sendUpdate()
 
 void Service::sendSettings()
 {
-    SDK::send_msg<CustomMessage::SettingsUpdate>(mKernel, mSettings.autoLapMin);
+    SDK::send_msg<CustomMessage::SettingsUpdate>(mKernel, mSettings.autoLapMin, mSettings.plan);
 }
 
 void Service::sendSaved(bool saved)
 {
     Workout::SavedSession s;
-    s.saved    = saved ? 1u : 0u;
+    s.saved       = saved ? 1u : 0u;
+    s.type        = static_cast<uint8_t>(sRunner.config().type);
+    s.planDone    = sRunner.done() ? 1u : 0u;
+    s.amrapRounds = sRunner.amrapRounds();
     s.summary  = sModel.summary();
     s.activeMs = sModel.activeMs(mKernel.sys.getTimeMs());
     SDK::send_msg<CustomMessage::SessionSaved>(mKernel, s);
@@ -663,6 +793,9 @@ void Service::sendLaps(uint8_t first)
         const Workout::LapStats &l = sModel.lapAt(i);
         Workout::LapRow &row = page.rows[page.count++];
         row.autoEnded  = l.autoEnded ? 1u : 0u;
+        row.kind       = l.kind;
+        row.round      = l.round;
+        row.station    = l.station;
         row.hrAvg      = l.hrAvg();
         row.hrMax      = l.hrMax;
         row.kcal       = Workout::detail::kcalOf(sModel.lapKcalX10(i));

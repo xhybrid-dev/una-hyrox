@@ -8,7 +8,7 @@ WORK=${1:-$(mktemp -d)}
 mkdir -p "$WORK"
 "$HERE/fit_build.sh" "$WORK/make_fit"
 rc=0
-for sc in full autolap nohr crash; do
+for sc in full autolap nohr crash strength emom amrap tabata custom circuit; do
     echo "== $sc"
     (cd "$WORK" && ./make_fit "$sc.fit" "$sc" | tail -2)
     python3 -I "$HERE/fit_check.py" "$WORK/$sc.fit" "$sc" || rc=1

@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 
 #include "WorkoutFit.hpp"
+#include "PlanRunner.hpp"
+#include "ActivityLink.hpp"
+
+#include <cstring>
 
 using namespace Workout;
 
@@ -147,4 +151,68 @@ TEST(SessionFit, EmptySessionHasNoLaps)
     FitSession session;
     EXPECT_EQ(buildFit(m, laps, 2, session), 0);
     EXPECT_EQ(session.elapsedSec, 0u);
+}
+
+TEST(SessionFit, EachKindOfWorkoutHasItsSport)
+{
+    // The public FIT profile's numbers (fitdecode 0.11.0; WorkoutFit.hpp).
+    struct Want { SessionType t; uint8_t sport, sub; const char *name; };
+    const Want want[] = {
+        {SessionType::Plain,    0,  0,  "Workout"},
+        {SessionType::Strength, 10, 20, "Strength"},
+        {SessionType::Emom,     62, 74, "EMOM"},
+        {SessionType::Amrap,    62, 73, "AMRAP"},
+        {SessionType::Tabata,   62, 75, "Tabata"},
+        {SessionType::Custom,   62, 70, "Intervals"},
+        {SessionType::Circuit,  10, 26, "Circuit"},
+    };
+    for (const Want &w : want) {
+        const FitSport s = fitSportOf(w.t);
+        EXPECT_EQ(s.sport, w.sport) << w.name;
+        EXPECT_EQ(s.subSport, w.sub) << w.name;
+        EXPECT_STREQ(s.profileName, w.name);
+        EXPECT_LE(std::strlen(s.profileName), 15u) << w.name;   // ActivityWriter::kProfileNameMax
+    }
+    EXPECT_TRUE(writesSets(SessionType::Strength));
+    for (SessionType t : {SessionType::Plain, SessionType::Emom, SessionType::Amrap, SessionType::Tabata,
+                          SessionType::Custom, SessionType::Circuit}) {
+        EXPECT_FALSE(writesSets(t)) << int(t);
+    }
+}
+
+TEST(SessionFit, TheLinkSportCodesAreTheLinksOwn)
+{
+    EXPECT_EQ(linkSportCodeOf(SessionType::Strength), uint8_t(HybridXLink::Sport::Strength));
+    EXPECT_EQ(linkSportCodeOf(SessionType::Circuit), uint8_t(HybridXLink::Sport::Hybrid));
+    for (SessionType t : {SessionType::Plain, SessionType::Emom, SessionType::Amrap, SessionType::Tabata,
+                          SessionType::Custom}) {
+        EXPECT_EQ(linkSportCodeOf(t), uint8_t(HybridXLink::Sport::Workout)) << int(t);
+    }
+}
+
+TEST(SessionFit, LapsCarryTheirStepKind)
+{
+    WorkoutModel m;
+    PlanRunner r;
+    PlanConfig plan;
+    plan.type = SessionType::Strength;
+    plan.sets = 2;
+    r.start(plan, m, 0, cfg());
+    m.addSample(30000, 120);
+    r.press(m, 30000);        // set 1 done: rest
+    m.addSample(40000, 120);
+    r.press(m, 40000);        // rest skipped: set 2
+    m.addSample(70000, 120);
+    r.press(m, 70000);        // set 2 done: the end
+    m.stop(80000);
+    FitLap laps[kMaxLaps];
+    FitSession session;
+    ASSERT_EQ(buildFit(m, laps, kMaxLaps, session), 3);
+    EXPECT_EQ(laps[0].kind, uint8_t(StepKind::Work));
+    EXPECT_EQ(laps[1].kind, uint8_t(StepKind::Rest));
+    EXPECT_EQ(laps[2].kind, uint8_t(StepKind::Work));
+    EXPECT_EQ(laps[1].activeSec, 10u);
+    // The plan paused the model at its end; the stop's 10 s is the last lap's pause.
+    EXPECT_EQ(laps[2].activeSec, 30u);
+    EXPECT_EQ(laps[2].elapsedSec, 40u);
 }

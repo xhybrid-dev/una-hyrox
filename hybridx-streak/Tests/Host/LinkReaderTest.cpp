@@ -219,6 +219,26 @@ TEST(LinkReader, EveryAppsFileIsReadAndTheListIsOldestFirst)
     EXPECT_EQ(found[4].kind, Kind::Strength);
 }
 
+TEST(LinkReader, WorkoutsKindsComeFromTheSportNotTheApp)
+{
+    // HybridX Workout (W2) leaves strength as Strength, a circuit as Hybrid and
+    // HIIT as Workout, all in its one file: each is counted as its own kind.
+    Watch w;
+    w.leave("act_workout.json", "HybridXWorkout",
+            {entry(2026, 10, 26, 7, 0, 60, 2700, HybridXLink::Sport::Strength),
+             entry(2026, 10, 26, 18, 0, 60, 1500, HybridXLink::Sport::Workout),
+             entry(2026, 10, 27, 7, 0, 60, 3600, HybridXLink::Sport::Hybrid)});
+    LinkReader r;
+    std::vector<Found> found;
+    ASSERT_EQ(read(r, w, Seen(), found), 3u);
+    EXPECT_EQ(found[0].kind, Kind::Strength);
+    EXPECT_EQ(found[1].kind, Kind::Workout);
+    EXPECT_EQ(found[2].kind, Kind::Hybrid);
+    for (size_t i = 0; i < 3; ++i) {
+        EXPECT_STREQ(found[i].app, "HybridXWorkout");
+    }
+}
+
 TEST(LinkReader, AFileOutsideTheTableIsNotRead)
 {
     Watch w;

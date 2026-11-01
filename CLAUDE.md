@@ -444,10 +444,11 @@ apps. The Gate B0 probe stays in `Tools/Probe`.
 ## HybridX Workout (`hybridx-workout/`)
 A twelfth app: gym and HIIT sessions that count in HybridX Streak. It builds on the SDK's
 Workout example (`una-sdk/Examples/Apps/Workout`: laps, heart-rate zones, calories, the
-time-alert auto lap) and adds the activity link and the Streak line. Planned next: strength
-sets, HIIT timers (EMOM, AMRAP, Tabata, custom) and Hyrox-style circuits (W1), the real FIT
-sport per type and `set` messages (W2), their screens (W3), and training load (W4). It is
-independent of the other apps.
+time-alert auto lap) and adds the activity link and the Streak line. Built: strength sets,
+HIIT timers (EMOM, AMRAP, Tabata, custom) and Hyrox-style circuits in the core (W1:
+`SessionPlan`, `PlanRunner`, which the service runs), and the FIT sport per kind and `set`
+messages (W2). Next: their screens (W3); later, training load (W4). It is independent of the
+other apps.
 - **Docs:** findings, decisions and phases (W0-W4): `hybridx-workout/docs/NOTES.md`. Read it
   at the start of each Workout phase, and work only on that phase.
 - **Rules:** the same standing rules as Race apply.
@@ -470,7 +471,11 @@ independent of the other apps.
     (about 2.5 minutes, into `docs/screens/w0-*.png`; needs Xvfb, xdotool, ImageMagick, fitdecode);
   - the text-fit audit: `docs/experiments/audit.sh` (about 10 seconds; after any change to a
     screen's text or layout);
-  - the FIT file from the real writer in four scenarios (full, autolap, nohr, crash), decoded,
-    with the calories worked out again from the records: `docs/experiments/fit_check.sh [work-dir]`;
+  - the FIT file from the real writer in ten scenarios (full, autolap, nohr, crash, and one per
+    kind of workout: strength, emom, amrap, tabata, custom, circuit), decoded, with the calories
+    worked out again from the records and each kind's sport, laps and sets checked:
+    `docs/experiments/fit_check.sh [work-dir]`;
+  - one workout of each kind through the real service in the simulator (the plan written into
+    `settings.json`; about 9 minutes): `docs/experiments/sim_plan.sh [type ...]`;
   - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"), using
     `hybridx-workout/Software/Apps/HybridXWorkout-CMake`.

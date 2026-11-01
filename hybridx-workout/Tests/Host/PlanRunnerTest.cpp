@@ -114,6 +114,7 @@ TEST(PlanRunner, StrengthSetsRestsAndTheLastSetEndsIt)
         EXPECT_TRUE(f.r.done());
         EXPECT_EQ(f.m.state(), RunState::Paused);
         EXPECT_EQ(f.m.lapCount(), 5);
+        EXPECT_FALSE(f.m.lapAt(4).autoEnded);      // the button ended the last set
         EXPECT_EQ(f.press(160000), Cue::None);
         EXPECT_EQ(f.r.tick(f.m, s0 + 160000), Cue::None);
     }
@@ -154,6 +155,7 @@ TEST(PlanRunner, EmomRunsItsMinutesAndIgnoresTheButton)
         }
         EXPECT_EQ(f.m.state(), RunState::Paused);
         EXPECT_EQ(f.m.activeMs(s0 + 700000), 600000u);
+        EXPECT_TRUE(f.m.lapAt(9).autoEnded);       // the last minute ended by time too
     }
 }
 

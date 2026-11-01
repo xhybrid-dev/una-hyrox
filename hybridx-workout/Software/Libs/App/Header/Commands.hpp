@@ -38,6 +38,7 @@ constexpr SDK::MessageType::Type SESSION_RESUME = 0x00000013;
 constexpr SDK::MessageType::Type SESSION_STOP   = 0x00000014;
 constexpr SDK::MessageType::Type SESSION_LAPS_REQUEST = 0x00000015;
 constexpr SDK::MessageType::Type SET_AUTO_LAP   = 0x00000016;
+constexpr SDK::MessageType::Type SET_PLAN       = 0x00000017;
 
 /// Service --> GUI: the session as it now stands. Sent when the GUI starts, on
 /// every change, and once a second while a session runs.
@@ -83,10 +84,15 @@ struct SessionLapsRequest : public SDK::MessageBase {
 
 /// Service --> GUI: the remembered settings. Sent when the GUI starts and after a change.
 struct SettingsUpdate : public SDK::MessageBase {
-    uint8_t autoLapMin = 0;   ///< One of Workout::kAutoLapMinutes (0: off)
+    uint8_t             autoLapMin = 0;   ///< One of Workout::kAutoLapMinutes (0: off)
+    Workout::PlanConfig plan {};          ///< The kind of workout and its numbers
 
     SettingsUpdate() : SDK::MessageBase(SETTINGS_UPDATE) {}
-    explicit SettingsUpdate(uint8_t m) : SettingsUpdate() { autoLapMin = m; }
+    SettingsUpdate(uint8_t m, const Workout::PlanConfig &p) : SettingsUpdate()
+    {
+        autoLapMin = m;
+        plan       = p;
+    }
 };
 
 /// Service --> GUI: the heart-rate strap's state, as the kernel reports it
@@ -121,6 +127,15 @@ struct SetAutoLap : public SDK::MessageBase {
     explicit SetAutoLap(uint8_t m) : SetAutoLap() { minutes = m; }
 };
 
+/// GUI --> Service: the kind of workout and its numbers, for the next workout;
+/// the service clamps every value (SessionPlan.hpp) and remembers them.
+struct SetPlan : public SDK::MessageBase {
+    Workout::PlanConfig plan {};
+
+    SetPlan() : SDK::MessageBase(SET_PLAN) {}
+    explicit SetPlan(const Workout::PlanConfig &p) : SetPlan() { plan = p; }
+};
+
 /// GUI --> Service: end this lap and begin the next.
 struct SessionLap : public SDK::MessageBase {
     SessionLap() : SDK::MessageBase(SESSION_LAP) {}
@@ -149,6 +164,8 @@ static_assert(sizeof(SessionLapEvent) <= 256u, "SessionLapEvent exceeds the 256-
 static_assert(sizeof(SessionLapsPage) <= 256u, "SessionLapsPage exceeds the 256-byte kernel pool block");
 static_assert(sizeof(AccessoryStatusUpd) <= 256u, "AccessoryStatusUpd exceeds the 256-byte kernel pool block");
 static_assert(sizeof(StreakLineUpd) <= 256u, "StreakLineUpd exceeds the 256-byte kernel pool block");
+static_assert(sizeof(SettingsUpdate) <= 256u, "SettingsUpdate exceeds the 256-byte kernel pool block");
+static_assert(sizeof(SetPlan) <= 256u, "SetPlan exceeds the 256-byte kernel pool block");
 
 } // namespace CustomMessage
 

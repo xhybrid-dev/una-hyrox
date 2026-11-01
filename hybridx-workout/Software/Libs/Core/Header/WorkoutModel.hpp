@@ -117,6 +117,15 @@ public:
         return endLap(nowMs, true);
     }
 
+    /// Mark the current lap as ended by time (a timed plan's last step, which
+    /// ends the workout rather than starting a lap).
+    void markLapTimed()
+    {
+        if (mLapCount > 0) {
+            mLaps[mLapCount - 1].autoEnded = true;
+        }
+    }
+
     /// Label the current lap with the plan step it records.
     void setLapInfo(uint8_t kind, uint8_t round, uint8_t station)
     {

@@ -31,6 +31,18 @@ constexpr uint8_t kLapTriggerTime   = 1u;
 /// sport_profile_name: session field 110, string (public FIT profile, as Race 5.28).
 constexpr uint8_t kSportProfileNameNum = 110;
 
+// The set message (225) and its fields, from the public FIT profile as
+// fitdecode 0.11.0 ships it; SDK/Fit/FitProfile.hpp declares none of them.
+// Note the profile's own numbering: set.timestamp is 254, not the usual 253.
+constexpr uint16_t kMesgSet = 225;
+constexpr fit::FitWriter::Field kSetTimestamp{254, fit::BaseType::UInt32};      // date_time
+constexpr fit::FitWriter::Field kSetDuration{0, fit::BaseType::UInt32};         // ms (scale 1000, s)
+constexpr fit::FitWriter::Field kSetType{5, fit::BaseType::UInt8};              // set_type: rest 0, active 1
+constexpr fit::FitWriter::Field kSetStartTime{6, fit::BaseType::UInt32};        // date_time
+constexpr fit::FitWriter::Field kSetMessageIndex{10, fit::BaseType::UInt16};
+constexpr uint8_t kSetTypeRest   = 0u;
+constexpr uint8_t kSetTypeActive = 1u;
+
 }  // namespace
 
 using DevFieldDef = fit::FitWriter::DevField;
@@ -44,6 +56,8 @@ ActivityWriter::ActivityWriter(const SDK::Kernel& kernel, const char* pathToDir)
 void ActivityWriter::start(const AppInfo& info)
 {
     mLapCounter   = 0;
+    mSetCounter   = 0;
+    mSetDefined   = false;
     mLastFlushUtc = info.timestamp;
     mProfileName  = info.sportProfileName.substr(0, kProfileNameMax);
 
@@ -104,7 +118,7 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Lap::TotalElapsedTime, fit::field::Lap::TotalTimerTime,
          fit::field::Lap::MessageIndex,
          fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate,
-         fit::field::Lap::TotalCalories, kLapTrigger},
+         fit::field::Lap::TotalCalories, kLapTrigger, fit::field::Lap::Intensity},
         {{DF_LAP_RESTING_CAL, 2, 0}});
     if (mProfileName.empty()) {
         mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
@@ -130,6 +144,7 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Activity::LocalTimestamp, fit::field::Activity::NumSessions});
 
     addMessageEvent(info.timestamp, fit::EventType::Start);
+    mTimerRunning = true;
 
     // Header + all definitions are on disk: flush and drop the recovery marker.
     // Only write the marker when begin() succeeded AND the flush is durable.
@@ -162,15 +177,17 @@ void ActivityWriter::writeFieldDescription(uint8_t devFieldNum, const char* name
 
 void ActivityWriter::pause(std::time_t timestamp)
 {
-    if (mFit) {
+    if (mFit && mTimerRunning) {
         addMessageEvent(timestamp, fit::EventType::Stop);
+        mTimerRunning = false;
     }
 }
 
 void ActivityWriter::resume(std::time_t timestamp)
 {
-    if (mFit) {
+    if (mFit && !mTimerRunning) {
         addMessageEvent(timestamp, fit::EventType::Start);
+        mTimerRunning = true;
     }
 }
 
@@ -216,10 +233,31 @@ void ActivityWriter::addLap(const LapData& lap)
     }
     d.u16(lap.kcal)
         .u8(lap.autoEnded ? kLapTriggerTime : kLapTriggerManual)
+        .u8(static_cast<uint8_t>(lap.rest ? fit::Intensity::Rest : fit::Intensity::Active))
         // Developer field.
         .u16(lap.restingKcal)
         .write();
     mLapCounter++;
+}
+
+void ActivityWriter::addSet(const SetData& set)
+{
+    if (!mFit) {
+        return;
+    }
+    if (!mSetDefined) {
+        mFit->defineMessage(L_SET, kMesgSet,
+            {kSetTimestamp, kSetDuration, kSetType, kSetStartTime, kSetMessageIndex});
+        mSetDefined = true;
+    }
+    mFit->data(L_SET)
+        .u32(unixToFitTimestamp(set.timestamp))
+        .u32(set.durationMs)
+        .u8(set.rest ? kSetTypeRest : kSetTypeActive)
+        .u32(unixToFitTimestamp(set.timeStart))
+        .u16(mSetCounter)
+        .write();
+    mSetCounter++;
 }
 
 bool ActivityWriter::stop(const TrackData& track)
@@ -228,8 +266,12 @@ bool ActivityWriter::stop(const TrackData& track)
         return false;
     }
 
-    // The timer started at start(); close the pair before the session.
-    addMessageEvent(track.timestamp, fit::EventType::Stop);
+    // The timer started at start(); close the pair before the session, unless
+    // a pause (or a plan's end) has closed it already.
+    if (mTimerRunning) {
+        addMessageEvent(track.timestamp, fit::EventType::Stop);
+        mTimerRunning = false;
+    }
 
     bool ok = mFit->ok();
 

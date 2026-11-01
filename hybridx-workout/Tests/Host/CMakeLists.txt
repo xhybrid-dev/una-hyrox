@@ -52,6 +52,7 @@ add_executable(hybridx-workout-host-tests
 )
 target_include_directories(hybridx-workout-host-tests PRIVATE
     "${CORE_LIBS}/Header"
+    "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Link/Header"
     "${UNA_SDK_ROOT}/Libs/Header"
     "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/include"
 )

@@ -19,7 +19,7 @@ Workout". From his answers (28 October 2026):
 |---|---|---|
 | **W0** | Scaffold: the SDK example's plain workout (laps, zones, calories, auto lap) on X Sauna's base, with the strap, `act_workout.json` and the Streak line | **Done (28 October 2026)**, simulator-checked. Gate: Jon's watch test (below) |
 | W1 | The session core, pure and host-tested: strength sets with rest; HIIT as EMOM, AMRAP, Tabata (8 x 20/10) and custom; Hyrox-style circuits from Race's stations | **Done (1 November 2026)**, host-tested. Gate: Jon agreed the rules |
-| W2 | Service and FIT per type: sport and sub_sport (strength: training 10 / strength_training 20; HIIT: hiit 62 / hiit 70, amrap 73, emom 74, tabata 75; circuit: training 10 / cardio_training 26 or generic), FIT `set` messages as the rep hook; link sports Strength, Workout, Hybrid | |
+| W2 | Service and FIT per type: sport and sub_sport (strength: training 10 / strength_training 20; HIIT: hiit 62 / hiit 70, amrap 73, emom 74, tabata 75; circuit: training 10 / cardio_training 26 or generic), FIT `set` messages as the rep hook; link sports Strength, Workout, Hybrid | **Done (1 November 2026)**, simulator- and decode-checked. Gate: the files decode; Jon's watch test after W3 |
 | W3 | Screens: the type and its settings, live faces per type, the rest countdown, the summary | |
 | W4 | Training load (Edwards' TRIMP on the watch's zones, a 7-day total); the rep-counter hook documented | |
 
@@ -237,3 +237,68 @@ Jon agreed the rules at the end of Phase A ("Yes looks great"), as proposed:
 - **The simulator still builds** (the model's lap struct changed). Nothing uses the plan yet:
   that is W2 (the service and the file) and W3 (the screens).
 - **Not checked:** anything on a watch.
+
+## W2: the service and the file per kind of workout (1 November 2026)
+
+### What the service does now
+
+- **It runs the plan.** `startSession` starts the `PlanRunner` (which starts the model) with the
+  remembered plan. Each second's tick, after the sample, ticks the runner; R2 goes to the runner
+  when there is a plan (`press`), and to the model as before when there is not. The runner's cue
+  comes back to `onCue`, which buzzes, lights the screen and sends the lap toast.
+- **Each cue has its own buzz** (`buzzCue`; vibration only, so it works on any firmware):
+
+  | Cue | Pattern |
+  |---|---|
+  | Work begins (set, minute, interval) | long double sharp click, strong |
+  | Rest begins | short double click, medium |
+  | Run begins (circuit), AMRAP round, plain lap | strong click |
+  | Station begins (circuit) | double click |
+  | 3 s left in a timed step | three sharp ticks a second apart (3, 2, 1) |
+  | Plan done | 1 s alert |
+
+  Whether they are distinct enough on the wrist is for Jon at the watch test.
+- **The end of a plan.** The runner pauses the model; the service writes the FIT timer stop then,
+  so the file's timer stops when the plan does. **Resume is refused** from then on (logged), so
+  End and Discard are what remain. The screen will say so in W3.
+- **Settings.** `SetPlan` (GUI to service, new) sets the next workout's kind and numbers; the
+  service clamps and saves them. `SettingsUpdate` now carries the plan too. A workout already
+  running keeps the plan it started with: the file, the summary and the link all read
+  `sRunner.config()`, not the settings.
+- **To the screens** (for W3): the snapshot carries a `PlanView` (step, round, station, time left);
+  the lap toast says what began (`cue`) and what the lap was (kind, round, station); the summary's
+  rows carry the same; `SavedSession` has the type, whether the plan ran to its end, and AMRAP's
+  rounds. Every message is still `static_assert`ed under 256 bytes.
+
+### The file
+
+| Kind | sport / sub_sport | Profile name | Link sport |
+|---|---|---|---|
+| Plain | generic 0 / generic 0 | Workout | Workout (5) |
+| Strength | training 10 / strength_training 20 | Strength | Strength (4) |
+| EMOM | hiit 62 / emom 74 | EMOM | Workout (5) |
+| AMRAP | hiit 62 / amrap 73 | AMRAP | Workout (5) |
+| Tabata | hiit 62 / tabata 75 | Tabata | Workout (5) |
+| Custom | hiit 62 / hiit 70 | Intervals | Workout (5) |
+| Circuit | training 10 / cardio_training 26 | Circuit | Hybrid (6) |
+
+- **Where the numbers come from.** `SDK/Fit/FitProfile.hpp` declares only generic and training of
+  these. The rest are the public FIT profile's, read from the tables fitdecode 0.11.0 generates
+  from Garmin's FIT SDK, the way Race 5.11 sourced its sub-sports; `fit_check.py` decodes each
+  back by name ("hiit", "emom", ...). **To log for UNA** with Race 5.11's list: FitProfile.hpp
+  lacks sport hiit (62), these six sub-sports, and the set message.
+- **Lap intensity** (FitProfile.hpp's lap field 23, declared by the SDK): rest for a plan's rest
+  laps, active for the rest. **Lap trigger** time for a step that ended by itself (a timed step,
+  a capped set, the last step of a timed plan), manual for the button.
+- **Set messages** (strength only): message 225 with timestamp (254: the profile's own number for
+  this message), duration, set_type (active 1, rest 0), start_time and message_index, one per lap,
+  each starting and ending with its lap. From fitdecode's profile, proven by decoding. **No
+  repetitions:** nothing counts them yet (X Velocity's counter, later).
+- **A fix on the way:** ending a workout that was paused wrote a second timer stop (stop, stop),
+  which breaks FIT's start/stop pairs; a plan's end (a pause, then End) hit it every time, and so
+  did a W0 workout ended while paused. `ActivityWriter` now tracks whether its timer is running
+  and writes each start and stop once.
+- **The link** (`writeActivityLink`): the sport above, so Streak counts a strength session as
+  Strength and a circuit as Hybrid (its `LinkReader` already mapped both; a new Streak test,
+  `WorkoutsKindsComeFromTheSportNotTheApp`, pins it). A host test ties the codes to
+  `HybridXLink::Sport`.

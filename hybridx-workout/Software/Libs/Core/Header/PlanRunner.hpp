@@ -191,6 +191,9 @@ private:
     {
         if (mStep + 1u >= mCount) {
             mDone = true;
+            if (byTime) {
+                m.markLapTimed();
+            }
             m.pause(nowMs);          // the last lap stays the last step
             return Cue::Done;
         }

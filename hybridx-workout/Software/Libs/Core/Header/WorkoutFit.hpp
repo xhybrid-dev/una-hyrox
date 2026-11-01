@@ -11,6 +11,16 @@
  * its elapsed time their sum, so the file never disagrees with itself.
  *
  * Heart rate 0 means "none"; the writer turns it into FIT's invalid value.
+ *
+ * Sport per kind of workout (W2). SDK/Fit/FitProfile.hpp declares only
+ * Generic (0) and Training (10) of these. The rest are read from the public
+ * FIT profile as fitdecode 0.11.0 ships it (tables generated from Garmin's FIT
+ * SDK), the way HybridX Race sourced its sub_sport values (Race NOTES 5.11):
+ *   sport      training 10, hiit 62;
+ *   sub_sport  strength_training 20, cardio_training 26, hiit 70, amrap 73,
+ *              emom 74, tabata 75.
+ * docs/experiments/fit_check.py decodes each back by name. Whether the UNA app
+ * and Strava honour them is for the watch test.
  ******************************************************************************
  */
 
@@ -20,6 +30,7 @@
 #include <cstdint>
 
 #include "LapTiming.hpp"
+#include "SessionPlan.hpp"
 #include "WorkoutModel.hpp"
 
 namespace Workout {
@@ -32,7 +43,8 @@ struct FitLap {
     uint8_t  hrMax = 0;
     uint16_t kcal = 0;          ///< Calories, whole kcal
     uint16_t restingKcal = 0;   ///< Their resting part
-    bool     autoEnded = false; ///< Ended by the auto lap (lap_trigger time), else manual
+    bool     autoEnded = false; ///< Ended by time (lap_trigger time), else manual
+    uint8_t  kind = 0;          ///< StepKind: a Rest lap is FIT intensity rest, the rest active
 };
 
 struct FitSession {
@@ -44,6 +56,57 @@ struct FitSession {
     uint16_t kcal = 0;          ///< Calories, whole kcal
     uint16_t restingKcal = 0;   ///< Their resting part (FIT metabolic_calories)
 };
+
+/// The public FIT profile's numbers this app writes (see the file comment).
+namespace fitnum {
+constexpr uint8_t kSportGeneric  = 0;
+constexpr uint8_t kSportTraining = 10;
+constexpr uint8_t kSportHiit     = 62;
+constexpr uint8_t kSubGeneric          = 0;
+constexpr uint8_t kSubStrengthTraining = 20;
+constexpr uint8_t kSubCardioTraining   = 26;
+constexpr uint8_t kSubHiit             = 70;
+constexpr uint8_t kSubAmrap            = 73;
+constexpr uint8_t kSubEmom             = 74;
+constexpr uint8_t kSubTabata           = 75;
+// The set message's numbers are the writer's (ActivityWriter.cpp).
+} // namespace fitnum
+
+/// What a workout of each kind is called in its file.
+struct FitSport {
+    uint8_t     sport;
+    uint8_t     subSport;
+    const char *profileName;    ///< session.sport_profile_name, at most 15 characters
+};
+
+constexpr FitSport fitSportOf(SessionType t)
+{
+    switch (t) {
+    case SessionType::Strength: return {fitnum::kSportTraining, fitnum::kSubStrengthTraining, "Strength"};
+    case SessionType::Emom:     return {fitnum::kSportHiit, fitnum::kSubEmom, "EMOM"};
+    case SessionType::Amrap:    return {fitnum::kSportHiit, fitnum::kSubAmrap, "AMRAP"};
+    case SessionType::Tabata:   return {fitnum::kSportHiit, fitnum::kSubTabata, "Tabata"};
+    case SessionType::Custom:   return {fitnum::kSportHiit, fitnum::kSubHiit, "Intervals"};
+    case SessionType::Circuit:  return {fitnum::kSportTraining, fitnum::kSubCardioTraining, "Circuit"};
+    case SessionType::Plain:
+    default:                    return {fitnum::kSportGeneric, fitnum::kSubGeneric, "Workout"};
+    }
+}
+
+/// Only strength writes FIT set messages (one a set and one a rest).
+constexpr bool writesSets(SessionType t) { return t == SessionType::Strength; }
+
+/// The HybridX activity link's sport code (hybridx-link ActivityLink.hpp,
+/// HybridXLink::Sport): Strength 4, Workout 5, Hybrid 6. A host test ties the
+/// numbers to the link's enum.
+constexpr uint8_t linkSportCodeOf(SessionType t)
+{
+    switch (t) {
+    case SessionType::Strength: return 4;
+    case SessionType::Circuit:  return 6;
+    default:                    return 5;
+    }
+}
 
 namespace detail {
 inline uint8_t clampBpm(uint32_t v)
@@ -85,6 +148,7 @@ inline uint8_t buildFit(const WorkoutModel &m, FitLap *out, uint8_t cap, FitSess
         f.kcal        = detail::kcalOf(m.lapKcalX10(i));
         f.restingKcal = detail::kcalOf(m.lapRestingKcalX10(i));
         f.autoEnded   = l.autoEnded;
+        f.kind        = l.kind;
 
         session.elapsedSec += s.elapsedSec;
         session.timerSec   += s.activeSec;
