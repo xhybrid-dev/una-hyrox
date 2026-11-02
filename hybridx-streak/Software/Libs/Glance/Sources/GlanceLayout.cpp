@@ -99,10 +99,10 @@ struct Words {
 void words(const Streak::HomeView& v, State state, Words& w)
 {
     if (state == State::NoStreak) {
-        std::snprintf(w.head, sizeof(w.head), "HybridX Streak");
+        std::snprintf(w.head, sizeof(w.head), "X Streak");
         std::snprintf(w.week, sizeof(w.week), "Open it to start");
         std::snprintf(w.coach, sizeof(w.coach), "Open it to start");
-        std::snprintf(w.tiny, sizeof(w.tiny), "Open HybridX Streak");
+        std::snprintf(w.tiny, sizeof(w.tiny), "Open X Streak");
         w.beads      = false;
         w.weekColour = GLANCE_COLOR_GRAY;
         return;

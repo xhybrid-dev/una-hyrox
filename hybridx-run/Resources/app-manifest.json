@@ -3,7 +3,7 @@
   "type": [
     "activity"
   ],
-  "name": "HybridX Run",
+  "name": "X Run",
   "icon": "icon.png",
   "binary": "HybridXRun.uapp",
   "previews": "previews/",

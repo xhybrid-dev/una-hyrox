@@ -11,7 +11,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
 
 # App configuration
 set(APP_NAME "HybridXRun")
-set(APP_USER_NAME "HybridX Run")        # 11 bytes; app_merging.py truncates at 15
+set(APP_USER_NAME "X Run")              # 5 bytes; app_merging.py truncates at 15
 set(APP_FILE_NAME "HybridXRun")
 set(APP_TYPE "Activity")
 set(DEV_ID "HybridX")

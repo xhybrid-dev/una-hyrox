@@ -14,7 +14,7 @@
  *   compact  two lines of text alone, centred: "7 week streak" and
  *            "2 of 3 this week" (too few controls, or narrow);
  *   tiny     one line: "7 wk streak, 2/3" (a very short area).
- * Special states replace the words: no streak yet ("Open HybridX Streak"),
+ * Special states replace the words: no streak yet ("Open X Streak"),
  * the clock unset ("Set the time"), a shield decision waiting.
  *
  * Colours are the glance's own 16 (GlanceControl.h), which have no lime:

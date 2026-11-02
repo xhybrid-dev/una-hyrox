@@ -25,6 +25,12 @@ firmware-compatibility work.
 - Embedded rules: no MMU (bounds-check everything), no heap churn in the 1 Hz loop, fixed-size message structs, integer formatting (no `%f`), unsigned deltas for the wrapping ms clock.
 - Commit at the end of each phase with a clear message. Tag releases `vX.Y.Z` so the SDK's version script picks them up.
 - UI text is British English.
+- Names on the watch (2 November 2026, Jon): the app list shows `APP_USER_NAME`, at most 15
+  bytes, and the long names spilled over, so they are **X Run, X Trail, X Ride, X Workout and
+  X Streak** (with X Sauna and X Weigh-in). **HybridX Race keeps its name** (on the store). Only
+  the shown name changed: the folder and file names (`HybridXRun`, ...) stay, and Streak keys
+  sessions by the folder, so nobody's data moves. The docs still call the apps by their project
+  names (HybridX Run, ...).
 
 ## Common commands (confirm against `Docs/sdk-setup.md` in Phase 0)
 - Build for the watch: `cmake -G "Unix Makefiles" -S hybridx-race/Software/Apps/HybridXRace-CMake -B hybridx-race/build && cmake --build hybridx-race/build`

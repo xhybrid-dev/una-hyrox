@@ -50,15 +50,15 @@ All the apps come from one place: the **watch-apps** artifact of a green CI run.
 5. For each row below, create the folder on the watch's drive (if it is not there) and copy the
    file into it. Folder names must be exactly as shown.
 
-   | App | File in watch-apps | Folder on the watch |
+   | App (as the watch lists it) | File in watch-apps | Folder on the watch |
    |---|---|---|
-   | HybridX Streak | `HybridXStreak_*.uapp` | `Apps/HybridXStreak/` |
+   | X Streak | `HybridXStreak_*.uapp` | `Apps/HybridXStreak/` |
    | Streak's glance (optional) | `HXStreakGlance_*.uapp` | `Apps/HXStreakGlance/` |
-   | HybridX Run | `HybridXRun_*.uapp` | `Apps/HybridXRun/` |
+   | X Run | `HybridXRun_*.uapp` | `Apps/HybridXRun/` |
    | HybridX Race | `HybridXRace_*.uapp` | `Apps/HybridXRace/` (see the note) |
-   | HybridX Trail | `HybridXTrail_*.uapp` | `Apps/HybridXTrail/` |
-   | HybridX Workout | `HybridXWorkout_*.uapp` | `Apps/HybridXWorkout/` |
-   | HybridX Ride | `HybridXRide_*.uapp` | `Apps/HybridXRide/` |
+   | X Trail | `HybridXTrail_*.uapp` | `Apps/HybridXTrail/` |
+   | X Workout | `HybridXWorkout_*.uapp` | `Apps/HybridXWorkout/` |
+   | X Ride | `HybridXRide_*.uapp` | `Apps/HybridXRide/` |
    | X Sauna | `XSauna_*.uapp` | `Apps/XSauna/` |
 
    **Race:** the store's Race (1.0.0) predates the link, so it neither writes a summary nor
