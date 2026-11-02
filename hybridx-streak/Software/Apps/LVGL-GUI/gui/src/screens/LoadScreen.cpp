@@ -17,6 +17,7 @@ using Style = Widgets::Wheel::Item::Style;
 
 namespace
 {
+constexpr const char* kDot = "\xC2\xB7";   // the middle dot, as the trophy case uses it
 unsigned u(uint32_t v) { return static_cast<unsigned>(v); }
 } // namespace
 
@@ -38,12 +39,12 @@ void LoadScreen::fill()
     mItems[0].tip      = mTip[0];
     mItems[0].tipColor = word == Streak::FormWord::Overreaching ? Palette::kAtRisk : Palette::kText;
 
-    snprintf(mTip[1], sizeof(mTip[1]), "%u, the 6-week level", u(d.fitness));
+    snprintf(mTip[1], sizeof(mTip[1]), "%u %s 6 weeks", u(d.fitness), kDot);
     mItems[1]          = { Style::Tip, "Fitness" };
     mItems[1].tip      = mTip[1];
     mItems[1].tipColor = Palette::kTextSoft;
 
-    snprintf(mTip[2], sizeof(mTip[2]), "%u, the last week", u(d.fatigue));
+    snprintf(mTip[2], sizeof(mTip[2]), "%u %s 7 days", u(d.fatigue), kDot);
     mItems[2]          = { Style::Tip, "Fatigue" };
     mItems[2].tip      = mTip[2];
     mItems[2].tipColor = Palette::kTextSoft;

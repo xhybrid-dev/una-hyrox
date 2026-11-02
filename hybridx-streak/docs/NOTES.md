@@ -1005,3 +1005,82 @@ Race and Trail read it and every app's activity summary, and show "3 of 4 this w
 are in `hybridx-link/docs/ACTIVITY_LINK.md`, "The Streak line". The code is the link library's
 `StreakNow` (copied into each app), and `Service::sendStreakLine()` in each app (in Streak,
 `Service::saveStreakNow()`).
+
+## Training load: fitness, fatigue and form (2 November 2026)
+
+Jon's request: bring the family together with a training load like TrainingPeaks', shown in
+Streak, with form on the glance. Each HybridX app scores its sessions (Edwards' TRIMP from the
+watch's heart-rate zones; `hybridx-link/docs/ACTIVITY_LINK.md` "Training load") and leaves the
+score as the 8th number of its summary. Streak builds the rest.
+
+### The model (`Core/Header/LoadHistory.hpp`)
+
+- **Banister's model**, as TrainingPeaks' Performance Manager uses it. Our own names, not
+  their trademarks (TSS, CTL, ATL, TSB).
+  - **Fitness:** each day, fitness moves 1/42 of the way to that day's load.
+  - **Fatigue:** each day, fatigue moves 1/7 of the way to it.
+  - **Form** = fitness - fatigue.
+  - Integers in hundredths, rounded at each step. A host test holds them within 0.1 of a
+    floating-point model over a year.
+- **Late sessions.** Streak finds a session when it next opens, which can be days later. So the
+  last 14 days stay open as daily loads, and the averages are settled up to the day before
+  them. A session older than that goes on the oldest open day.
+- **The start.** Fitness takes about six weeks to build and fatigue one, so starting both at 0
+  shows a steady athlete as overreaching for weeks. A host test found exactly that. So when the
+  first 14 days are all in the window, both averages are **seeded with those days' mean daily
+  load**, and form starts near zero.
+- **The words** use form as a share of fitness. They are **provisional, for Jon to tune**:
+
+  | Form | Word |
+  |---|---|
+  | above +10 % | Fresh |
+  | −10 % to +10 % | Steady |
+  | −30 % to −10 % | Building |
+  | below −30 % | Overreaching (on the glance, "ease off") |
+
+  Before 14 days of history the word is "Learning: day N of 14". TrainingPeaks' fixed TSB
+  bands are for its own load scale, so they do not carry over.
+- **Every automatic session's load counts**, whatever the streak's rules (kind, minimum
+  minutes, a session left out), because the body did the work. It enters once, through the
+  model's existing dedupe. Manual logs carry none.
+
+### Where it shows
+
+- **Menu:** a "Training load" row, before Settings, with form as its hint ("Form +14
+  fresh").
+- **Training load screen** (`LoadScreen`, a wheel like the trophy case): Form ("+14, Fresh";
+  amber when overreaching), Fitness ("21 · 6 weeks"), Fatigue ("7 · 7 days"), This week's load,
+  and Today's.
+- **Glance:** when on track and past the warm-up, the bottom line is "Form +14 fresh" (or
+  "Form -30 ease off" in amber) in place of the next summit. Shield, banked and at-risk lines
+  keep their place. The number is held to three digits there, and there is no comma: "Form
+  +9999, building" measured 189 px against the 176 px limit.
+
+### The file
+
+The state keeps the load under a new optional key `"L"`, `[1, firstDay, openStart,
+fitnessX100, fatigueX100, seeded, [14 daily loads]]`, with **no version change**. Raising
+`kVersion` discards the whole state, so it was not raised. An older file reads with no load
+history, and a broken `"L"` is dropped while the streak is kept. The new message `LOAD_VIEW`
+makes an update seven messages, still inside the 10-deep queue.
+
+### Verified (2 November 2026)
+
+- **Host tests: 159**, 22 of them new:
+  - `LoadHistoryTest` (11): the model against a floating-point reference; late, old and future
+    sessions; a long gap; the warm-up; the words; a hard block then a taper reading as Steady,
+    then Building or Overreaching, then Fresh.
+  - `StreakLoadTest` (8): loads enter once each and despite the streak's rules; a judged week's
+    late session; the state file with and without `"L"`, and a broken one.
+  - `GlanceLayoutTest` (2): the form line, and its widest case on the full layout.
+  - `LinkReaderTest` (1): a summary with a load.
+- **The simulator** (`capture_real.sh`, which now also captures the Load screen):
+  - a first week shows "Learning: day 1 of 14";
+  - eleven weeks of loads from `make_state` (60, 45 and 90 a week) show the menu's "Form +14
+    fresh" and the screen's "+14, Fresh" and "21 · 6 weeks";
+  - the LVGL pool peak is 62 %, as before.
+- **The family check** (all five apps, 23 of 23): every summary now carries a load (Run 4, Race
+  4, Trail 4, Ride 3, Workout 0, as the simulator's heart rate gives). These match a hand
+  calculation from each session's average heart rate and length.
+- **Not checked:** anything on a watch, and the glance's form line drawn on a watch (its widths
+  are host-tested against the real font widths).

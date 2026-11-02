@@ -45,6 +45,9 @@ Chartered engineer, runs HybridX (Hyrox coaching platform). Comfortable with Typ
 A second app in this repo: a weekly-target streak. On a watch it counts the
 HybridX apps' sessions (through the activity link, below) and manual logs; it
 cannot read other apps' activity folders there. It is independent of HybridX Race.
+It also brings the family's **training load** together: fitness, fatigue and form
+(`Core/Header/LoadHistory.hpp`, the state's optional `"L"`, the Training load screen and
+the glance's form line; NOTES "Training load"; the apps' scores: `hybridx-link` "Training load").
 - **Docs:**
   - brief: `hybridx-streak/docs/UNA_STREAK_TRACKER_BRIEF.md`;
   - plan and phases: `PLAN.md`, §11 (S0-S6);

@@ -59,6 +59,8 @@ key 4; key 4
 key 2; key 3; snap 10-trophy-summits
 key 2; key 2; key 2; key 2; key 2; snap 11-trophy-badges
 key 4
+key 2; key 3; snap 11b-training-load-learning   # a first week: "Learning: day 1 of 14"
+key 4
 key 2; key 3; snap 12-settings
 key 3;      snap 13-weekly-target
 key 4
@@ -77,6 +79,9 @@ key 3 0.8;  snap 22-streak-saved
 sleep 11.2; snap 23-summit-snowdon
 sleep 1.3;  snap 24-summit-confetti
 key 3 1.5;  snap 25-next-ben-nevis
+key 2; key 2; key 2                           # the menu (R1 above opened it), down to Training load
+snap 26-menu-training-load                    # the menu's hint: form
+key 3;      snap 27-training-load              # eleven weeks of loads (make_state)
 stop
 
 kill $XPID 2>/dev/null
