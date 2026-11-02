@@ -238,7 +238,7 @@ const Step kSteps[] = {
     { "result, not saved", nullptr },
     // Result: saved, with the longest Streak line
     { nullptr, [] { sModel->stop(true); ScreenManager::instance().goTo(ScreenId::Result); } },
-    { nullptr, [] { sModel->injectStreakLine(true, "255 of 7 this week", "65535-week streak"); sModel->injectSaved(worstSaved(true)); } },
+    { nullptr, [] { sModel->injectStreakLine(true, "255 of 7 this week", "65535-week streak", 65535); sModel->injectSaved(worstSaved(true)); } },
     { "result, saved, Streak line", nullptr },
     // Summary
     { nullptr, [] { sModel->injectSaved(worstSaved(true)); ScreenManager::instance().goTo(ScreenId::Summary); } },

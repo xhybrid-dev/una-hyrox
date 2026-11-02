@@ -139,6 +139,7 @@ private:
     Workout::WorkoutSettings mSettings;
     Workout::HrZones mZones;
     uint32_t    mWeightG = Workout::kDefaultWeightG;
+    uint16_t    mLastLoad = 0;   ///< The last saved session's training load (0: none)
 
     float    mHrBpm = 0.0f;
     uint8_t  mHrTrust = 0;

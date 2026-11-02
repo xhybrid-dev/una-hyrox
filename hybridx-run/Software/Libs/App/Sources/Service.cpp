@@ -39,6 +39,7 @@
 #include "SafeFile.hpp"
 #include "ActivityLink.hpp"
 #include "StreakNow.hpp"
+#include "TrainingLoad.hpp"
 #include "Vo2TrailIngest.hpp"
 #include "Treadmill.hpp"
 #include "Vo2Rescore.hpp"
@@ -1382,6 +1383,17 @@ void Service::stopTrack(bool discard)
         return;
     }
 
+    // HybridX Run: the run's training load (hybridx-link TrainingLoad.hpp), Edwards' TRIMP from
+    // RunStats' time in each of the watch's zones. Taken now: a treadmill run is saved later,
+    // after its distance is entered, when RunStats has gone.
+    mLastLoad = 0;
+    if (mRunStats) {
+        const RunVo2::RunStatsResult r = mRunStats->result();
+        if (r.zoneCount > 0) {
+            mLastLoad = HybridXLink::edwardsLoad(r.zoneSec);
+        }
+    }
+
     if (!discard && mSessionNotEmpty) {
 
         if (mTrackState != Track::State::PAUSED) {
@@ -1508,6 +1520,7 @@ void Service::sendStreakLine()
     if (!msg) {
         return;
     }
+    msg->load = mLastLoad;   // the Saved screen's "Load 39", with or without a Streak line
     std::unique_ptr<char[]> buf(new (std::nothrow) char[kMaxBytes]);
     StreakNow now;
     bool have = false;
@@ -2663,7 +2676,8 @@ void Service::writeActivityLink(const ActivityWriter::TrackData& track)
     const uint32_t startUtc = static_cast<uint32_t>(mStartUtc);
     const int16_t  tzMin    = tzOffsetMinutes(startUtc, calendarSeconds(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
                                                                        local.tm_hour, local.tm_min, local.tm_sec));
-    const Entry    e        = makeEntry(startUtc, tzMin, track.duration, track.distance, track.hrAvg, track.hrMax, Sport::Run);
+    const Entry    e        = makeEntry(startUtc, tzMin, track.duration, track.distance, track.hrAvg, track.hrMax, Sport::Run,
+                                        mLastLoad);
     if (!valid(e)) {
         LOG_WARNING("Not telling Streak about this run: its start (%lu) is not valid\n", static_cast<unsigned long>(e.startUtc));
         return;

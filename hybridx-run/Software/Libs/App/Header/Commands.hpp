@@ -283,6 +283,7 @@ namespace CustomMessage {
         bool show      = false;
         char line1[24] = {};   ///< "3 of 4 this week"
         char line2[20] = {};   ///< "8-week streak", or empty
+        uint16_t load  = 0;    ///< The run's training load, sent whether or not there is a line (0: none)
         StreakLineUpd() : SDK::MessageBase(STREAK_LINE) {}
     };
 

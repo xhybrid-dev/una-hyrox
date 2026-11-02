@@ -14,6 +14,7 @@
 #include "SDK/Metrics/GpsSpeedFilter.hpp"   // HybridX Trail: the corrected speed Run uses, for the VO2 windows
 #include "Vo2Window.hpp"
 #include "Vo2WindowFile.hpp"
+#include "TrainingLoad.hpp"   // HybridX Trail: the run's training load
 #include "SDK/Metrics/DeltaCounter.hpp"
 #include "SDK/Metrics/ThrottledSample.hpp"
 #include "SDK/Filters/SimpleLPF.hpp"
@@ -177,6 +178,8 @@ private:
                                 skVo2SpeedScaleTau,
                                 skVo2SpeedChordTicks>   mVo2Speed;     ///< ticked beside mSpeedSmoother; only the VO2 feed reads it
     RunVo2::WindowBuilder  mVo2Builder;
+    HybridXLink::LoadMeter mLoadMeter;   ///< the run's training load (hybridx-link TrainingLoad.hpp)
+    uint8_t                mHrThresholds[CustomMessage::kHrThresholdsCount] = {95, 114, 133, 152, 171, 190};
     RunVo2::WindowRecord   mVo2Windows[RunVo2::kWindowFileMaxWindows] = {};   ///< this run's candidate windows, the first ones
     uint16_t               mVo2WindowCount = 0;
     uint32_t               mVo2RunId       = 0;   ///< the run's start, UTC seconds

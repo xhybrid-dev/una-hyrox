@@ -16,6 +16,7 @@
 #include "ActivityLink.hpp"
 #include "SafeFile.hpp"
 #include "StreakNow.hpp"
+#include "TrainingLoad.hpp"
 #include "RideAltitude.hpp"
 #include "RideFit.hpp"
 #include "RideText.hpp"
@@ -344,6 +345,9 @@ void Service::finish(bool save, bool bank)
     }
     const uint32_t nowMs = mKernel.sys.getTimeMs();
     sModel.stop(nowMs);
+    // The session's training load (hybridx-link TrainingLoad.hpp): Edwards' TRIMP from
+    // the time in each of the watch's zones, for Streak and the Saved screen.
+    mLastLoad = HybridXLink::edwardsLoadMs(sModel.summary().zoneMs);
     mBatterySensor.disconnect();
     // The ride is over: the GPS is no longer wanted until the main menu asks again.
     releaseGps();
@@ -773,7 +777,7 @@ void Service::writeActivityLink(const Ride::FitSession &fs)
                                                                        local.tm_hour, local.tm_min, local.tm_sec));
     const Entry e = makeEntry(startUtc, tzMin, static_cast<float>(fs.timerSec),
                               static_cast<float>(fs.distCm) / 100.0f, static_cast<float>(fs.hrAvg),
-                              static_cast<float>(fs.hrMax), Sport::Ride);
+                              static_cast<float>(fs.hrMax), Sport::Ride, mLastLoad);
     if (!valid(e)) {
         LOG_WARNING("Not telling Streak about this ride: its start (%lu) is not valid\n",
                     static_cast<unsigned long>(e.startUtc));
@@ -813,6 +817,7 @@ void Service::sendStreakLine()
     if (!msg) {
         return;
     }
+    msg->load = mLastLoad;   // the Saved screen's "Load 39", with or without a Streak line
     std::unique_ptr<char[]> buf(new (std::nothrow) char[kMaxBytes]);
     StreakNow now;
     bool have = false;

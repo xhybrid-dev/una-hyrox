@@ -40,6 +40,8 @@ void ResultScreen::build()
     mRing    = Theme::arc(mRoot, Widgets::kCx, Widgets::kCy, 113, 6, 0, 360, Color::GRAY_DARK);
     mHeading = Theme::label(mRoot, F::SemiBold30, Strings::kSaving, 0, 62, 240, LV_TEXT_ALIGN_CENTER, Color::GRAY);
     mNote    = Theme::label(mRoot, F::Medium18, "", 0, 118, 240, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    // Under the note's two lines: the session's training load (hybridx-link TrainingLoad.hpp).
+    mLoad    = Theme::label(mRoot, F::Regular14, "", 0, 174, 240, LV_TEXT_ALIGN_CENTER, Color::GRAY);
 }
 
 void ResultScreen::onShow()
@@ -85,6 +87,7 @@ void ResultScreen::showResult()
     Theme::setText(mHeading, heading, color);
     Theme::setText(mNote, note, Color::WHITE);
     const bool streak = mToSummary && mModel.saved().saved && showStreakLine();
+    showLoad();
     arm(streak ? kStreakShowMs : kShowMs);
 }
 
@@ -106,8 +109,23 @@ bool ResultScreen::showStreakLine()
 void ResultScreen::onStreakLine()
 {
     // Normally here before the result; if it comes after, it still replaces the note.
+    if (mShown) {
+        showLoad();
+    }
     if (mShown && mToSummary && mModel.saved().saved && showStreakLine()) {
         arm(kStreakShowMs);
+    }
+}
+
+void ResultScreen::showLoad()
+{
+    const uint16_t load = mModel.sessionLoad();
+    if (mToSummary && mModel.saved().saved && load > 0) {
+        char buf[16];
+        std::snprintf(buf, sizeof(buf), "Load %u", static_cast<unsigned>(load));
+        Theme::setText(mLoad, buf, Color::WHITE);
+    } else {
+        Theme::assign(mLoad, "");
     }
 }
 

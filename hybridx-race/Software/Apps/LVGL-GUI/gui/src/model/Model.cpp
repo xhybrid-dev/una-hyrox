@@ -331,6 +331,7 @@ bool Model::customMessageHandler(SDK::MessageBase *message)
     case CustomMessage::STREAK_LINE: {   // the Streak line after a save
         const auto* msg = static_cast<CustomMessage::StreakLineUpd*>(message);
         mStreakShow = msg->show;
+            mSessionLoad = msg->load;
         std::memcpy(mStreakLine1, msg->line1, sizeof(mStreakLine1));
         std::memcpy(mStreakLine2, msg->line2, sizeof(mStreakLine2));
         mStreakLine1[sizeof(mStreakLine1) - 1] = '\0';

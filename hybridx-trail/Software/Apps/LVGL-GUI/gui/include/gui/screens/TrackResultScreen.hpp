@@ -35,6 +35,8 @@ private:
 
     Result      mResult;
     lv_timer_t* mDismiss = nullptr;
+    lv_obj_t*   mTick    = nullptr;   ///< the tick or cross; "Load 39" takes its place
+    lv_obj_t*   mLoad    = nullptr;   ///< the session's training load, when saved with one
     lv_obj_t*   mText    = nullptr;   ///< the confirmation's text; the Streak line replaces it
     std::unique_ptr<Widgets::Title> mTitle;
 };

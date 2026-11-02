@@ -45,6 +45,7 @@
 #include "RaceModel.hpp"
 #include "RecordSpool.hpp"
 #include "Settings.hpp"
+#include "TrainingLoad.hpp"
 #include "SettingsSerializer.hpp"
 #include "Track.hpp"
 #include "WristTiltDetector.hpp"
@@ -121,6 +122,7 @@ private:
 
     std::array<uint8_t, CustomMessage::kHrThresholdsCount> mHrThresholds = {};
     uint8_t mHrThresholdCount = 0u;
+    HybridXLink::LoadMeter mLoadMeter;   ///< the race's training load (hybridx-link TrainingLoad.hpp)
     uint8_t mHrSource = 0u;       ///< HeartRateEx::Source, for the icon and FIT
     uint8_t mHrOpticalBpm = 0u;   ///< Raw optical bpm, for the FIT series
     uint8_t mHrExternalBpm = 0u;  ///< Raw external bpm, for the FIT series

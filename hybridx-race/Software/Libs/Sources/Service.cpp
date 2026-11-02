@@ -28,6 +28,7 @@
 
 #include "ActivityLink.hpp"
 #include "StreakNow.hpp"
+#include "TrainingLoad.hpp"
 #include "AppConfigFields.hpp"
 #include "LapTiming.hpp"
 #include "SafeFile.hpp"
@@ -518,6 +519,13 @@ void Service::startRace(Race::Format format)
         LOG_ERROR("Could not start the race\n");
         return;
     }
+    // The race's training load (hybridx-link TrainingLoad.hpp): a second in each of the
+    // watch's zones while running; the defaults if the watch has not said.
+    if (mHrThresholdCount > 0) {
+        mLoadMeter.setZones(mHrThresholds.data(), mHrThresholdCount);
+    } else {
+        mLoadMeter.setZones(CustomMessage::kHrThresholdsDefault, CustomMessage::kHrThresholdsCount);
+    }
 
     mSettings.format = format;
     if (!mSettingsSerializer.save(mSettings)) {
@@ -890,6 +898,7 @@ void Service::sendStreakLine()
     if (!msg) {
         return;
     }
+    msg->load = mLoadMeter.load();   // the Saved screen's "Load 39", with or without a Streak line
     std::unique_ptr<char[]> buf(new (std::nothrow) char[kMaxBytes]);
     StreakNow now;
     bool have = false;
@@ -935,7 +944,7 @@ void Service::writeActivityLink(const ActivityWriter::TrackData& track)
                                                                        local.tm_hour, local.tm_min, local.tm_sec));
     // The distance is the race's planned distance for the laps it recorded (an early finish is shorter).
     const Entry e = makeEntry(startUtc, tzMin, track.duration, static_cast<float>(track.distanceM), track.hrAvg,
-                              track.hrMax, Sport::Hybrid);
+                              track.hrMax, Sport::Hybrid, mLoadMeter.load());
     if (!valid(e)) {
         LOG_WARNING("Not telling Streak about this race: its start (%lu) is not valid\n", static_cast<unsigned long>(e.startUtc));
         return;
@@ -1021,6 +1030,9 @@ void Service::processRace()
         const float hr = mHrCounter.getCurrent();
         if (hr > skHrMinValid && mHrTrust >= 1u && mHrTrust <= 3u) {
             mRace.addHeartRate(static_cast<uint8_t>(hr));
+            mLoadMeter.addSecond(static_cast<uint16_t>(hr + 0.5f));
+        } else {
+            mLoadMeter.addSecond(0);   // a second with no heart rate scores nothing
         }
     }
 

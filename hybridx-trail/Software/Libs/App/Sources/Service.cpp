@@ -36,6 +36,7 @@
 #include "SafeFile.hpp"   // HybridX Trail: a copy of Run's (Vo2Link)
 #include "ActivityLink.hpp" // HybridX Trail: a copy of hybridx-link's (Link)
 #include "StreakNow.hpp"
+#include "TrainingLoad.hpp"
 
 #define LOG_MODULE_PRX      "Service"
 #define LOG_MODULE_LEVEL    LOG_LEVEL_INFO
@@ -831,6 +832,8 @@ void Service::sendInitialInfoToGui()
         }
     }
 
+    // HybridX Trail: kept for the run's training load (hybridx-link TrainingLoad.hpp).
+    memcpy(mHrThresholds, hrThresholds, sizeof(mHrThresholds));
     SDK::send_msg<CustomMessage::SettingsUpd>(mKernel, mSettings, mIsImperial, mTimeFormat12h, hrThresholds, CustomMessage::kHrThresholdsCount);
     SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
     SDK::send_msg<CustomMessage::Battery>(mKernel, static_cast<uint8_t>(mBatterySoc.get()));
@@ -1286,6 +1289,8 @@ void Service::stopTrack(bool discard)
 
 void Service::startVo2(std::time_t utc)
 {
+    // The run's training load: a second in each of the watch's zones, while the run is active.
+    mLoadMeter.setZones(mHrThresholds, CustomMessage::kHrThresholdsCount);
     mVo2Builder.reset();
     mVo2Speed.reset();
     mVo2WindowCount = 0;
@@ -1319,6 +1324,11 @@ void Service::feedVo2()
     s.hrBpm         = (hrFresh && hr > 0.0f && hr < 255.0f) ? static_cast<uint8_t>(hr + 0.5f) : 0;
     s.hrTrust       = mTrackData.hrTrustLevel;   // the raw value: the core applies RunLVGL's 1-3 test
     mVo2Builder.addSecond(s);
+    if (s.active) {
+        // The training load takes the heart rate the file would trust (RunLVGL's 1 to 3).
+        const bool trusted = mTrackData.hrTrustLevel >= 1 && mTrackData.hrTrustLevel <= 3;
+        mLoadMeter.addSecond(trusted ? s.hrBpm : 0);
+    }
 
     // Keep the minutes Run could use: past the warm-up, with enough good seconds.
     // The first kWindowFileMaxWindows only (two hours of steady running).
@@ -1403,6 +1413,7 @@ void Service::sendStreakLine()
     if (!msg) {
         return;
     }
+    msg->load = mLoadMeter.load();   // the Saved screen's "Load 39", with or without a Streak line
     std::unique_ptr<char[]> buf(new (std::nothrow) char[kMaxBytes]);
     StreakNow now;
     bool have = false;
@@ -1448,7 +1459,8 @@ void Service::writeActivityLink(const ActivityWriter::TrackData& track)
     const uint32_t startUtc = static_cast<uint32_t>(mStartUtc);
     const int16_t  tzMin    = tzOffsetMinutes(startUtc, calendarSeconds(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
                                                                        local.tm_hour, local.tm_min, local.tm_sec));
-    const Entry    e        = makeEntry(startUtc, tzMin, track.duration, track.distance, track.hrAvg, track.hrMax, Sport::Run);
+    const Entry    e        = makeEntry(startUtc, tzMin, track.duration, track.distance, track.hrAvg, track.hrMax, Sport::Run,
+                                        mLoadMeter.load());
     if (!valid(e)) {
         LOG_WARNING("Not telling Streak about this run: its start (%lu) is not valid\n", static_cast<unsigned long>(e.startUtc));
         return;

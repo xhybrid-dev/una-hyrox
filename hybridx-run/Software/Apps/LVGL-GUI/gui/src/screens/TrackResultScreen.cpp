@@ -34,8 +34,11 @@ void TrackResultScreen::build()
 {
     const bool saved = mResult == Result::Saved;
     Theme::label(mRoot, Theme::Font::SemiBold30, saved ? "Saved" : "Discarded", 41, 47, 159);
-    Theme::imageTinted(mRoot, saved ? &img_circletick_50x50 : &img_circlecross_50x50, 95, 95,
-                       SDK::GUI::Color::YELLOW_DARK);
+    mTick = Theme::imageTinted(mRoot, saved ? &img_circletick_50x50 : &img_circlecross_50x50, 95, 95,
+                               SDK::GUI::Color::YELLOW_DARK);
+    // The session's training load (hybridx-link TrainingLoad.hpp) replaces the tick when it
+    // comes with the Streak line: "Saved" above already says what the tick did.
+    mLoad = Theme::label(mRoot, Theme::Font::SemiBold25, "", 0, 104, 240);
     mText = Theme::label(mRoot, Theme::Font::Medium18,
                  saved ? "Activity has\nbeen saved" : "Activity has\nbeen deleted", 48, 156, 144);
     mTitle = std::make_unique<Widgets::Title>(mRoot, Strings::kAppNameUc);
@@ -70,6 +73,12 @@ void TrackResultScreen::onStreakLine()
 {
     // The Streak line (hybridx-link StreakNow) in place of the confirmation's text, held a
     // little longer to be read.
+    if (mResult == Result::Saved && mLoad != nullptr && mModel.sessionLoad() > 0) {
+        lv_label_set_text_fmt(mLoad, "Load %u", static_cast<unsigned>(mModel.sessionLoad()));
+        if (mTick != nullptr) {
+            lv_obj_add_flag(mTick, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
     if (mText == nullptr || !mModel.hasStreakLine()) {
         return;
     }

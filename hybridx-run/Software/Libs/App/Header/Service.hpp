@@ -222,6 +222,7 @@ private:
     bool         mGpsInitialConnectFailed = false;  ///< GPS_LOCATION subscribe lost the startup ack race; the retry logs the recovery.
     bool         mGpsWanted = false;                 ///< GPS_LOCATION should stay connected (pre-activity + active track); cleared in disconnect() so the retry never re-wakes the GNSS post-activity.
     bool         mSessionNotEmpty     = false;
+    uint16_t     mLastLoad            = 0;      ///< HybridX Run: the run's training load (0: none)
     std::time_t  mStartUtc            = 0;      ///< The start startTrack was given: the activity file's name is made from it.
     bool         mLapNotEmpty         = false;
     uint32_t     mLapCarryMs          = 0;      ///< Time the last lap handed to this one.

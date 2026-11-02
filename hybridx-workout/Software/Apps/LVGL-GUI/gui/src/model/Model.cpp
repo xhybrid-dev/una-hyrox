@@ -75,6 +75,7 @@ void Model::startSession()
     mDiscarded  = false;
     mSaved      = Workout::SavedSession();
     mStreakShow = false;
+    mSessionLoad = 0;
     mStreakLine1[0] = '\0';
     mStreakLine2[0] = '\0';
     SDK::send_msg<CustomMessage::SessionStart>(mKernel);
@@ -105,6 +106,7 @@ void Model::stop(bool save)
     mSaved     = Workout::SavedSession();
     mDiscarded = !save;
     mStreakShow = false;
+    mSessionLoad = 0;
     mStreakLine1[0] = '\0';
     mStreakLine2[0] = '\0';
     SDK::send_msg<CustomMessage::SessionStop>(mKernel, static_cast<uint8_t>(save ? 1u : 0u));
@@ -227,6 +229,7 @@ bool Model::customMessageHandler(SDK::MessageBase* msg)
         case CustomMessage::STREAK_LINE: {
             auto* m = static_cast<CustomMessage::StreakLineUpd*>(msg);
             mStreakShow = m->show;
+            mSessionLoad = m->load;
             std::memcpy(mStreakLine1, m->line1, sizeof(mStreakLine1));
             mStreakLine1[sizeof(mStreakLine1) - 1] = '\0';
             std::memcpy(mStreakLine2, m->line2, sizeof(mStreakLine2));
@@ -276,8 +279,9 @@ void Model::injectLapsPage(const Workout::LapsPageData& p)
     }
 }
 
-void Model::injectStreakLine(bool show, const char* line1, const char* line2)
+void Model::injectStreakLine(bool show, const char* line1, const char* line2, uint16_t load)
 {
+    mSessionLoad = load;
     mStreakShow = show;
     std::strncpy(mStreakLine1, line1, sizeof(mStreakLine1) - 1);
     std::strncpy(mStreakLine2, line2, sizeof(mStreakLine2) - 1);

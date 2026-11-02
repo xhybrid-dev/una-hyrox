@@ -157,6 +157,7 @@ private:
     Ride::RideSettings mSettings;
     Ride::HrZones mZones;
     uint32_t    mWeightG = Ride::kDefaultWeightG;
+    uint16_t    mLastLoad = 0;   ///< The last saved session's training load (0: none)
 
     // GPS (outdoor). The counters pause with the ride, as the Cycling example's.
     bool     mGpsWanted = false;

@@ -46,6 +46,9 @@ private:
     lv_obj_t*   mRing    = nullptr;
     lv_obj_t*   mHeading = nullptr;
     lv_obj_t*   mNote    = nullptr;
+    lv_obj_t*   mLoad    = nullptr;   ///< "Load 39": the session's training load, when saved
+    /// Show the load line when the session was saved and has one.
+    void showLoad();
     lv_timer_t* mTimer   = nullptr;
     bool        mShown   = false;
     bool        mToSummary = false;
