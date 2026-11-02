@@ -239,6 +239,23 @@ TEST(LinkReader, WorkoutsKindsComeFromTheSportNotTheApp)
     }
 }
 
+TEST(LinkReader, ASummaryWithALoadIsReadAsBefore)
+{
+    // From 2 November 2026 each row ends with the session's training load (an 8th
+    // number, hybridx-link ActivityLink.hpp). Rows of seven and of eight both count.
+    Watch w;
+    w.fs.addFile(std::string(kShared) + "act_ride.json",
+                 R"({"v":1,"app":"HybridXRide","a":[[)" + std::to_string(entry(2026, 10, 26, 7, 0).startUtc) +
+                     R"(,1500,2700,5000,150,170,2],[)" + std::to_string(entry(2026, 10, 27, 7, 0).startUtc) +
+                     R"(,1500,1800,6970,119,165,2,39]]})");
+    LinkReader r;
+    std::vector<Found> found;
+    ASSERT_EQ(read(r, w, Seen(), found), 2u);
+    EXPECT_EQ(found[0].kind, Kind::Ride);
+    EXPECT_EQ(found[1].kind, Kind::Ride);
+    EXPECT_EQ(found[1].minutes, 30);
+}
+
 TEST(LinkReader, AFileOutsideTheTableIsNotRead)
 {
     Watch w;

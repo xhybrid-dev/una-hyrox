@@ -12,6 +12,7 @@
 #include <string>
 
 #include "ActivityLink.hpp"
+#include "TrainingLoad.hpp"
 
 using namespace HybridXLink;
 
@@ -85,7 +86,63 @@ TEST(ActivityLink, RoundTrip)
 TEST(ActivityLink, TheFileIsTheDocumentedShape)
 {
     const std::string text = write(fileOf("HybridXRun", {entry(1791980037u, 60, 2700)}));
-    EXPECT_EQ(text, R"({"v":1,"app":"HybridXRun","a":[[1791980037,1500,2700,5400,152,171,1]]})");
+    EXPECT_EQ(text, R"({"v":1,"app":"HybridXRun","a":[[1791980037,1500,2700,5400,152,171,1,0]]})");
+}
+
+TEST(ActivityLink, TheLoadIsTheEighthNumber)
+{
+    Entry e = entry(1791980037u, 60, 2700);
+    e.load = 39;
+    const std::string text = write(fileOf("HybridXRide", {e}));
+    EXPECT_EQ(text, R"({"v":1,"app":"HybridXRide","a":[[1791980037,1500,2700,5400,152,171,1,39]]})");
+    ActivityFile out;
+    ASSERT_TRUE(read(text, out));
+    ASSERT_EQ(out.count, 1);
+    EXPECT_EQ(out.entries[0].load, 39);
+    EXPECT_TRUE(out.entries[0] == e);
+}
+
+TEST(ActivityLink, ARowOfSevenFromAnOlderAppReadsAsNoLoad)
+{
+    // What every app wrote before 2 November 2026: still read, with load 0.
+    const std::string text = R"({"v":1,"app":"HybridXRun","a":[[1791980037,1500,2700,5400,152,171,1]]})";
+    ActivityFile out;
+    ASSERT_TRUE(read(text, out));
+    ASSERT_EQ(out.count, 1);
+    EXPECT_EQ(out.skipped, 0);
+    EXPECT_EQ(out.entries[0].load, 0);
+    EXPECT_EQ(out.entries[0].durationSec, 2700u);
+}
+
+TEST(ActivityLink, ALoadOutOfRangeMakesTheEntryBad)
+{
+    const std::string text =
+        R"({"v":1,"app":"HybridXRun","a":[[1791980037,1500,2700,5400,152,171,1,-1],)"
+        R"([1791990037,1500,2700,5400,152,171,1,65536],[1792000037,1500,2700,5400,152,171,1,65535]]})";
+    ActivityFile out;
+    ASSERT_TRUE(read(text, out));
+    ASSERT_EQ(out.count, 1);
+    EXPECT_EQ(out.skipped, 2);
+    EXPECT_EQ(out.entries[0].load, 65535);
+}
+
+TEST(ActivityLink, MixedRowsReadSideBySide)
+{
+    // An app updated part way through its file: older rows of seven, a newer row of eight.
+    const std::string text = R"({"v":1,"app":"HybridXRun","a":[[1791980037,1500,2700,5400,152,171,1],)"
+                             R"([1791990037,1500,1800,4000,140,160,1,25]]})";
+    ActivityFile out;
+    ASSERT_TRUE(read(text, out));
+    ASSERT_EQ(out.count, 2);
+    EXPECT_EQ(out.entries[0].load, 0);
+    EXPECT_EQ(out.entries[1].load, 25);
+}
+
+TEST(ActivityLink, MakeEntryCarriesTheLoad)
+{
+    const Entry e = makeEntry(1791980037u, 60, 2700, 5400.0f, 152.0f, 171.0f, Sport::Run, 87);
+    EXPECT_EQ(e.load, 87);
+    EXPECT_EQ(makeEntry(1791980037u, 60, 2700, 5400.0f, 152.0f, 171.0f, Sport::Run).load, 0);
 }
 
 TEST(ActivityLink, AnEmptyListIsAFile)
@@ -110,13 +167,14 @@ TEST(ActivityLink, TheWorstCaseFits)
         e.avgHr       = 255;
         e.maxHr       = 255;
         e.sport       = Sport::Other;
+        e.load        = kMaxLoad;
         f.entries[f.count++] = e;
     }
     char buf[kMaxBytes];
     const size_t len = encode(f, buf, sizeof(buf));
     ASSERT_GT(len, 0u);
     EXPECT_LT(len, kMaxBytes);
-    EXPECT_LT(len, 800u);   // the header comment says "about 710"
+    EXPECT_LT(len, 900u);   // the header comment says "about 810"
 
     ActivityFile out;
     ASSERT_TRUE(decode(buf, len, out));

@@ -50,7 +50,7 @@ them (draft request: `hybridx-streak/docs/UNA_ACTIVITY_REQUEST.md`, not sent).
 (`.tmp`, then `.bak`, then the file). The last 16 activities, oldest first:
 
 ```
-{"v":1,"app":"HybridXRun","a":[[1791980037,1500,2700,5400,152,171,1],...]}
+{"v":1,"app":"HybridXRun","a":[[1791980037,1500,2700,5400,152,171,1,39],...]}
 ```
 
 | Field | Meaning |
@@ -63,13 +63,21 @@ them (draft request: `hybridx-streak/docs/UNA_ACTIVITY_REQUEST.md`, not sent).
 | `a[i][3]` | Distance in metres, 0 if none (up to 1000 km). |
 | `a[i][4]`, `[5]` | Average and maximum heart rate, 0 if none. Average is never above the maximum. |
 | `a[i][6]` | Sport: 1 run, 2 ride, 3 walk, 4 strength, 5 workout, 6 hybrid, 7 row, 9 other. Our codes, not FIT's. An unknown code reads as other. One app may write more than one: HybridX Workout writes 4 for strength, 6 for a circuit and 5 for the rest (Workout NOTES "W2"). |
+| `a[i][7]` | **Training load** (2 November 2026; `TrainingLoad.hpp`): Edwards' TRIMP, the minutes in each of the watch's heart-rate zones weighted 1 to 5, 0 if there is no heart rate. **Optional:** a row of seven, from an app not yet updated, reads as load 0. Up to 65535. |
 
 Local start (what Streak's dedupe uses) is `startUtc + (a[i][1] - 1440) * 60`.
 
 The reader checks every value, because the SDK's reader does not. A file that is
 missing, malformed, from another version or holds more than 16 entries reads as
 nothing. One bad entry is skipped and counted; the rest are kept. The worst case
-file is about 710 bytes (`kMaxBytes` is 1024).
+file is about 810 bytes (`kMaxBytes` is 1024).
+
+**Why the load is not a new version.** A reader of version 1 asks for each row's numbers
+by index (`a[i][0]` to `a[i][6]`), so an eighth is simply not asked for: a Streak that
+predates it still reads every file. Bumping `v` to 2 would have made every such reader
+read nothing. So the version stays 1, the writer always writes eight, and the reader takes
+a missing eighth as "no load". The same rule applies to any later optional number: add it
+at the end, and make its absence mean "none".
 
 Distance and heart rate are carried for later; Streak ignores them today, so
 the link does not change Streak's saved state.
@@ -253,7 +261,8 @@ Tell me what the file holds and what Streak showed, whichever way it went.
 - If Streak is not opened for more than about two weeks, older entries fall outside
   its window and are not counted. Its folder scan has the same limit.
 - A file in the format is a promise: once apps in the field write `v:1`, a change
-  needs `v:2` and a reader that takes both.
+  that old readers cannot ignore needs `v:2` and a reader that takes both. An optional
+  number added at the end of a row (the load, `a[i][7]`) is one they ignore, so it does not.
 
 ## First result on a watch (Jon, 1 November 2026)
 

@@ -8,11 +8,17 @@
  * (kSlotPaths), and is its only writer. The file holds that app's last
  * kMaxEntries activities, oldest first:
  *
- *   {"v":1,"app":"HybridXRun","a":[[1791980037,1500,2700,5400,152,171,1],...]}
+ *   {"v":1,"app":"HybridXRun","a":[[1791980037,1500,2700,5400,152,171,1,39],...]}
  *
  * app = the app's folder name (the name Streak's own folder scan would use, so
  * the same activity found both ways is counted once); each entry is
- * [startUtc, tzOffsetMin + 1440, durationSec, distanceM, avgHr, maxHr, sport].
+ * [startUtc, tzOffsetMin + 1440, durationSec, distanceM, avgHr, maxHr, sport, load].
+ *
+ * The load (TrainingLoad.hpp; 2 November 2026) is an 8th number added without
+ * a new version: a reader that knows only the first seven reads them by index
+ * and ignores it, and this reader takes a row of seven (from an app not yet
+ * updated) as load 0, "none". A version change would make every older reader
+ * read nothing, so the format stays at 1. The writer always writes eight.
  * Integers only, none negative: the SDK writer prints signed 32-bit values
  * with "%ld", which is wrong where int32_t is an int (the host tests), so the
  * time-zone offset is stored 1440 higher. Distance and heart rate are 0 when
@@ -49,7 +55,7 @@ inline constexpr uint8_t kMaxEntries = 16;
 /// The app's folder name: 1 to 15 characters of A-Z a-z 0-9 _ -, plus the NUL.
 inline constexpr size_t kAppNameChars = 16;
 
-/// A buffer big enough for any file the writer makes (the worst case is about 710 bytes).
+/// A buffer big enough for any file the writer makes (the worst case is about 810 bytes).
 inline constexpr size_t kMaxBytes = 1024;
 
 /// What an entry may hold. Anything else is not an activity.
@@ -84,6 +90,7 @@ struct Entry {
     uint8_t  avgHr       = 0;   ///< 0 = none
     uint8_t  maxHr       = 0;   ///< 0 = none
     Sport    sport       = Sport::Other;
+    uint16_t load        = 0;   ///< training load (TrainingLoad.hpp); 0 = none
 
     /// Local start, seconds since 1970-01-01 on the local calendar: the
     /// "localStart" HybridX Streak keys its dedupe on.
@@ -95,7 +102,8 @@ struct Entry {
     bool operator==(const Entry& o) const
     {
         return startUtc == o.startUtc && tzOffsetMin == o.tzOffsetMin && durationSec == o.durationSec &&
-               distanceM == o.distanceM && avgHr == o.avgHr && maxHr == o.maxHr && sport == o.sport;
+               distanceM == o.distanceM && avgHr == o.avgHr && maxHr == o.maxHr && sport == o.sport &&
+               load == o.load;
     }
 };
 
@@ -106,9 +114,10 @@ bool valid(const Entry& e);
 /// there is no heart rate, NaN if a counter went wrong): rounded to whole
 /// numbers and held inside the limits, a negative or NaN becoming 0, the average
 /// held to no more than the maximum. @p startUtc and @p tzOffsetMin are not
-/// changed, so a bad start still fails valid().
+/// changed, so a bad start still fails valid(). @p load is the session's
+/// training load (TrainingLoad.hpp), 0 when there is none.
 Entry makeEntry(uint32_t startUtc, int16_t tzOffsetMin, int64_t durationSec, float distanceM, float avgHr,
-                float maxHr, Sport sport);
+                float maxHr, Sport sport, uint16_t load = 0);
 
 /// A calendar date and time as seconds since 1970-01-01 on that same calendar
 /// (no zone applied): what an app has after the kernel's local-time call gives it

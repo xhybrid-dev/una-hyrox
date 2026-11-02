@@ -24,6 +24,7 @@ FILES=(
     Sources/ActivityLink.cpp
     Header/StreakNow.hpp
     Sources/StreakNow.cpp
+    Header/TrainingLoad.hpp
 )
 
 bad=0

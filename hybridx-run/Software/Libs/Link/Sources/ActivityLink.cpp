@@ -6,6 +6,7 @@
  */
 
 #include "ActivityLink.hpp"
+#include "TrainingLoad.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -20,7 +21,8 @@ namespace HybridXLink
 namespace
 {
 
-constexpr unsigned kFields = 7;   // startUtc, tz + bias, duration, distance, avgHr, maxHr, sport
+constexpr unsigned kFields = 7;   // startUtc, tz + bias, duration, distance, avgHr, maxHr, sport (all required)
+constexpr unsigned kLoadField = 7;   // the 8th, load: optional (ActivityLink.hpp)
 
 /// The SDK reader's integer getters do no type or range check (strtoul on
 /// whatever is there), so read as int64 and bound it here.
@@ -56,6 +58,19 @@ bool readEntry(const SDK::JsonStreamReader& r, unsigned i, Entry& out)
     e.avgHr       = static_cast<uint8_t>(f[4]);
     e.maxHr       = static_cast<uint8_t>(f[5]);
     e.sport       = sportFromCode(f[6]);
+    // The load: a row of seven (an app not yet updated) is load 0; one that is
+    // there must be in range, or the entry is bad.
+    {
+        char q[24];
+        std::snprintf(q, sizeof(q), "a[%u][%u]", i, kLoadField);
+        int64_t load = 0;
+        if (r.get(q, load)) {
+            if (load < 0 || load > kMaxLoad) {
+                return false;
+            }
+            e.load = static_cast<uint16_t>(load);
+        }
+    }
     if (!valid(e)) {
         return false;
     }
@@ -110,7 +125,7 @@ bool valid(const Entry& e)
 }
 
 Entry makeEntry(uint32_t startUtc, int16_t tzOffsetMin, int64_t durationSec, float distanceM, float avgHr,
-                float maxHr, Sport sport)
+                float maxHr, Sport sport, uint16_t load)
 {
     // Round and bound a float. The test is written so that a NaN fails it and gives 0.
     const auto whole = [](float v, float max) { return !(v > 0.0f) ? 0.0f : (v >= max ? max : v + 0.5f); };
@@ -124,6 +139,7 @@ Entry makeEntry(uint32_t startUtc, int16_t tzOffsetMin, int64_t durationSec, flo
     const uint8_t avg = static_cast<uint8_t>(whole(avgHr, 254.0f));
     e.avgHr       = avg > e.maxHr ? e.maxHr : avg;
     e.sport       = sport;
+    e.load        = load;
     return e;
 }
 
@@ -224,6 +240,7 @@ size_t encode(const ActivityFile& file, char* buf, size_t cap)
         w.add(e.avgHr);
         w.add(e.maxHr);
         w.add(static_cast<uint8_t>(e.sport));
+        w.add(e.load);
         w.endArray();
     }
     w.endArray();
