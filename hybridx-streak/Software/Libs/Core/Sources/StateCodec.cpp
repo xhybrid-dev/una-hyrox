@@ -15,6 +15,10 @@
  *   r     ring: [next, floor];  k: [[appKey, localStart], ...] in slot order
  *   a     app names
  *   h     history: [next, [[count, target, outcome], ...]]
+ *   L     training load (optional; LoadHistory.hpp): [started, firstDay, openStart,
+ *         fitnessX100, fatigueX100, seeded, [14 daily loads]]. Added on 2 November 2026
+ *         without a version change: an older reader ignores the key, and a file without
+ *         it (or with a broken one) reads with no load history, the rest kept.
  ******************************************************************************
  */
 
@@ -204,6 +208,22 @@ size_t encode(const State& s, char* out, size_t cap)
     w.endArray();
     w.endArray();
 
+    if (s.load.started) {
+        w.startArray("L");
+        w.add(static_cast<uint8_t>(1));
+        w.add(static_cast<uint32_t>(s.load.firstDay));
+        w.add(static_cast<uint32_t>(s.load.openStart));
+        w.add(s.load.fitnessX100);
+        w.add(s.load.fatigueX100);
+        w.add(static_cast<uint8_t>(s.load.seeded ? 1 : 0));
+        w.startArray();
+        for (uint8_t i = 0; i < kOpenDays; ++i) {
+            w.add(s.load.daily[i]);
+        }
+        w.endArray();
+        w.endArray();
+    }
+
     w.endMap();
     if (w.isError()) {
         return 0;
@@ -299,6 +319,28 @@ bool decode(const char* json, size_t len, State& out)
         }
         s.history[i].outcome = outcome <= static_cast<uint8_t>(Outcome::Void) ? static_cast<Outcome>(outcome)
                                                                                 : Outcome::Void;
+    }
+
+    // Training load: optional. Anything wrong with it leaves no load history, never a
+    // lost streak.
+    s.load = LoadState();
+    if (d.length("L") == 7 && d.length("L[6]") == kOpenDays) {
+        LoadState l;
+        uint8_t  started = 0, seeded = 0;
+        uint32_t first = 0, open = 0;
+        bool ok = d.get(started, "L[0]") && d.get(first, "L[1]") && d.get(open, "L[2]") &&
+                  d.get(l.fitnessX100, "L[3]") && d.get(l.fatigueX100, "L[4]") && d.get(seeded, "L[5]");
+        for (uint8_t i = 0; ok && i < kOpenDays; ++i) {
+            ok = d.get(l.daily[i], "L[6][%d]", i);
+        }
+        const uint32_t kMaxAvgX100 = 0xFFFFu * 100u;   // no average can pass the largest daily load
+        if (ok && started == 1 && l.fitnessX100 <= kMaxAvgX100 && l.fatigueX100 <= kMaxAvgX100) {
+            l.started   = true;
+            l.firstDay  = static_cast<int32_t>(first);
+            l.openStart = static_cast<int32_t>(open);
+            l.seeded    = seeded != 0;
+            s.load      = l;
+        }
     }
 
     out = s;

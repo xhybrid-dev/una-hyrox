@@ -24,11 +24,12 @@ enum class ScreenId : uint8_t {
     Summit,       ///< a summit reached
     Shield,       ///< a week missed: spend a shield?
     FreshStart,   ///< the streak reset; the climb is kept
-    Menu,         ///< This week, Log a session, Trophy case, Settings
+    Menu,         ///< This week, Log a session, Trophy case, Load, Settings
     Week,         ///< this week's sessions, and why each counts or not
     Confirm,      ///< undo / exclude / include one of them?
     Log,          ///< log a session the watch did not record
     Trophy,       ///< summits, badges, bests
+    Load,         ///< training load: form, fitness, fatigue
     Settings,     ///< the goal
     Value,        ///< one setting's choices
     Clock,        ///< the watch has lost the time

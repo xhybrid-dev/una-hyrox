@@ -9,8 +9,8 @@
  * watch while working in the simulator (hybridx-race NOTES 0.9).
  *
  * The service sends a view whenever it changes, and the moments to play once.
- * The GUI queue is 10 deep and drops the oldest, so an update is at most six
- * messages (PLAN S2).
+ * The GUI queue is 10 deep and drops the oldest, so an update is at most seven
+ * messages (PLAN S2; the seventh, LOAD_VIEW, since 2 November 2026), plus the moments.
  ******************************************************************************
  */
 
@@ -40,6 +40,7 @@ constexpr SDK::MessageType::Type WEEK_LIST = 0x00000003;
 constexpr SDK::MessageType::Type APP_NAMES = 0x00000004;
 constexpr SDK::MessageType::Type TROPHIES  = 0x00000005;
 constexpr SDK::MessageType::Type GOAL_VIEW = 0x00000006;
+constexpr SDK::MessageType::Type LOAD_VIEW = 0x00000007;
 
 // -- GUI -> Service ------------------------------------------------------------
 constexpr SDK::MessageType::Type CELEBRATE       = 0x00000080;
@@ -115,6 +116,22 @@ struct Trophies : public SDK::MessageBase {
     Trophies() : SDK::MessageBase(TROPHIES) {}
 };
 
+/// Training load (LoadHistory.hpp), for the Load screen: whole points.
+struct LoadData {
+    int16_t  form        = 0;      ///< fitness - fatigue
+    uint16_t fitness     = 0;
+    uint16_t fatigue     = 0;
+    uint8_t  word        = 0;      ///< Streak::FormWord
+    uint16_t historyDays = 0;      ///< days of load history, today included
+    uint32_t weekLoad    = 0;      ///< this week's sessions' load, so far
+    uint16_t todayLoad   = 0;
+};
+
+struct LoadView : public SDK::MessageBase {
+    LoadData data {};
+    LoadView() : SDK::MessageBase(LOAD_VIEW) {}
+};
+
 /// The goal, and one waiting for next week.
 struct GoalData {
     Streak::Goal goal {};
@@ -181,6 +198,7 @@ STREAK_ASSERT_FITS_POOL(Moments);
 STREAK_ASSERT_FITS_POOL(WeekList);
 STREAK_ASSERT_FITS_POOL(AppNames);
 STREAK_ASSERT_FITS_POOL(Trophies);
+STREAK_ASSERT_FITS_POOL(LoadView);
 STREAK_ASSERT_FITS_POOL(GoalView);
 STREAK_ASSERT_FITS_POOL(Celebrate);
 STREAK_ASSERT_FITS_POOL(LogManual);

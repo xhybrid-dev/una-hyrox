@@ -36,6 +36,9 @@ struct HomeView {
     uint8_t  lastWeek      = 0;   ///< qualifying sessions last week, for the boundary screens
     Mood     mood          = Mood::Climbing;
     uint8_t  flags         = 0;   ///< kClockUnset | kDecisionPending | kTrialWeek
+    int16_t  form          = 0;   ///< training form today, whole points (LoadHistory.hpp)
+    uint8_t  formWord      = 0;   ///< FormWord: Learning until two weeks of history
+    uint16_t loadDays      = 0;   ///< days of load history, today included ("Learning: day 5 of 14")
 
     static constexpr uint8_t kClockUnset     = 0x01;   ///< the watch has lost the time: nothing is judged
     static constexpr uint8_t kDecisionPending = 0x02;  ///< a shield offer is waiting for an answer

@@ -7,6 +7,8 @@
 
 #include "GlanceLayout.hpp"
 
+#include "FormText.hpp"
+
 #include <cstdio>
 #include <cstring>
 
@@ -146,6 +148,14 @@ void words(const Streak::HomeView& v, State state, Words& w)
             std::snprintf(w.coach, sizeof(w.coach), "%u more, %u days left", left, u(v.daysLeft));
         }
         w.coachColour = GLANCE_COLOR_YELLOW_DARK;
+    } else if (v.formWord >= static_cast<uint8_t>(Streak::FormWord::Fresh)) {
+        // On track, with two weeks of load history: form (Jon, 2 November 2026), in amber
+        // when it says to ease off.
+        const auto word = static_cast<Streak::FormWord>(v.formWord);
+        Streak::formatFormLine(w.coach, sizeof(w.coach), v.form, word, v.loadDays);
+        if (word == Streak::FormWord::Overreaching) {
+            w.coachColour = GLANCE_COLOR_YELLOW_DARK;
+        }
     } else {
         // On track: the next summit.
         const Streak::ClimbPosition pos = Streak::climbFor(v.weeksAchieved);

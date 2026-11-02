@@ -47,6 +47,7 @@
 
 #include "ActivityScanner.hpp"
 #include "Goal.hpp"
+#include "LoadHistory.hpp"
 #include "StreakEvents.hpp"
 #include "StreakTypes.hpp"
 #include "StreakView.hpp"
@@ -144,6 +145,11 @@ struct State {
     WeekRecord history[kHistory] {};
     uint8_t  historyNext      = 0;
     uint8_t  historyCount     = 0;
+
+    // Training load: fitness, fatigue and form (LoadHistory.hpp). Kept apart from the
+    // weeks: it spans them, and the streak's rules (scope, minimum, exclusion) do not
+    // apply to it, because the body did the work either way.
+    LoadState load {};
 };
 
 

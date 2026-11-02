@@ -12,6 +12,8 @@
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
+#include "FormText.hpp"
+
 using Style = Widgets::Wheel::Item::Style;
 
 void MenuScreen::build()
@@ -19,6 +21,9 @@ void MenuScreen::build()
     mItems[kWeek]     = { Style::Tip, "This week" };
     mItems[kLog]      = { Style::Simple, "Log a session" };
     mItems[kTrophy]   = { Style::Simple, "Trophy case" };
+    mItems[kLoad]     = { Style::Tip, "Training load" };
+    mItems[kLoad].tip      = mLoadTip;
+    mItems[kLoad].tipColor = Palette::kTextSoft;
     mItems[kSettings] = { Style::Simple, "Settings" };
     mItems[kWeek].tip      = mWeekTip;
     mItems[kWeek].tipColor = Palette::kWin;
@@ -52,6 +57,7 @@ void MenuScreen::onHomeView()
     const Streak::HomeView& v = mModel.home();
     snprintf(mWeekTip, sizeof(mWeekTip), "%u of %u counted", static_cast<unsigned>(v.sessions),
              static_cast<unsigned>(v.target));
+    Streak::formatFormLine(mLoadTip, sizeof(mLoadTip), v.form, static_cast<Streak::FormWord>(v.formWord), v.loadDays);
     if (mMenu) {
         mMenu->refresh();
     }
@@ -76,6 +82,10 @@ void MenuScreen::onKey(uint8_t code)
                 case kTrophy:
                     mModel.trophyAt = 0;
                     ScreenManager::instance().goTo(ScreenId::Trophy);
+                    break;
+                case kLoad:
+                    mModel.loadAt = 0;
+                    ScreenManager::instance().goTo(ScreenId::Load);
                     break;
                 default:
                     mModel.settingsAt = 0;

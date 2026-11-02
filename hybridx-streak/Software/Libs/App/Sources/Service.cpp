@@ -16,6 +16,7 @@
 #include "ActivityScanner.hpp"
 #include "AppConfigFields.hpp"
 #include "LinkReader.hpp"
+#include "LoadHistory.hpp"
 #include "StateCodec.hpp"
 #include "StreakModel.hpp"
 #include "StreakNow.hpp"   // the Streak line the HybridX apps show (hybridx-link)
@@ -268,6 +269,29 @@ void Service::sendViews()
         }
         t.recentCount = n;
         msg.send();
+    }
+
+    if (auto lv = SDK::make_msg<CustomMessage::LoadView>(mKernel)) {
+        // Training load as of today (a copy: moving the window is the model's job on open).
+        Streak::LoadState   copy = s.load;
+        Streak::LoadHistory h(copy);
+        if (copy.started) {
+            h.advanceTo(n.day);
+        }
+        const Streak::LoadFigures f = h.figures(n.day);
+        auto whole = [](int64_t x100) {
+            return static_cast<int32_t>(x100 >= 0 ? (x100 + 50) / 100 : -((-x100 + 50) / 100));
+        };
+        CustomMessage::LoadData& d = lv->data;
+        const int32_t form = whole(f.formX100);
+        d.form        = static_cast<int16_t>(form < -9999 ? -9999 : (form > 9999 ? 9999 : form));
+        d.fitness     = static_cast<uint16_t>(whole(f.fitnessX100) > 0xFFFF ? 0xFFFF : whole(f.fitnessX100));
+        d.fatigue     = static_cast<uint16_t>(whole(f.fatigueX100) > 0xFFFF ? 0xFFFF : whole(f.fatigueX100));
+        d.word        = static_cast<uint8_t>(f.word);
+        d.historyDays = f.historyDays;
+        d.weekLoad    = h.sum(s.weekStartDay, n.day);
+        d.todayLoad   = h.dayLoad(n.day);
+        lv.send();
     }
 
     if (auto g = SDK::make_msg<CustomMessage::GoalView>(mKernel)) {

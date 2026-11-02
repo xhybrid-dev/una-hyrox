@@ -25,6 +25,7 @@
 #include "gui/screens/ShieldScreen.hpp"
 #include "gui/screens/SummitScreen.hpp"
 #include "gui/screens/TrophyScreen.hpp"
+#include "gui/screens/LoadScreen.hpp"
 #include "gui/screens/ValueScreen.hpp"
 #include "gui/screens/WeekScreen.hpp"
 
@@ -114,6 +115,7 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::Confirm:    return new ConfirmScreen(m);
         case ScreenId::Log:        return new LogScreen(m);
         case ScreenId::Trophy:     return new TrophyScreen(m);
+        case ScreenId::Load:       return new LoadScreen(m);
         case ScreenId::Settings:   return new SettingsScreen(m);
         case ScreenId::Value:      return new ValueScreen(m);
         case ScreenId::Clock:      return new ClockScreen(m);

@@ -6,7 +6,8 @@
  *   make_state <out.json> <weeks achieved> <weeks missed after them>
  *
  * The weeks run up to the one before this one (weeks start on Monday); each
- * achieved week has three sessions from an app folder "Earlier". The model
+ * achieved week has three sessions from an app folder "Earlier", with training
+ * loads of 60, 45 and 90 (so the Load screen has weeks of history). The model
  * does the rest when the simulator opens: missed weeks become a shield offer.
  */
 
@@ -49,6 +50,7 @@ int main(int argc, char** argv)
             f[i].localStart = static_cast<uint32_t>(start + 2 * i) * 86400u + 7u * 3600u;
             f[i].kind       = i == 1 ? Streak::Kind::Strength : Streak::Kind::Run;
             f[i].minutes    = 40;
+            f[i].load       = static_cast<uint16_t>(i == 0 ? 60 : (i == 1 ? 45 : 90));   // a training load each
             snprintf(f[i].app, sizeof(f[i].app), "Earlier");
         }
         Streak::Events e;

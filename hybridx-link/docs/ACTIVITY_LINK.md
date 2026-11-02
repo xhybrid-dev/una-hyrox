@@ -270,3 +270,36 @@ HybridX Ride and HybridX Workout, from the CI build, each saved a session on Jon
 Streak counted it: the first time the link has worked on a watch. Not yet reported: which of
 Workout's kinds were used, the Streak lines and toasts word for word, the files, the phone sync,
 and the other apps (FAMILY_WATCH_TEST.md has the full list).
+
+## Training load (2 November 2026)
+
+Jon's request: bring the family together with a training load, like TrainingPeaks' load and
+Performance Manager, shown in Streak. Each app scores its own sessions; Streak builds fitness,
+fatigue and form from them (Streak NOTES "Training load").
+
+- **The score** (`Software/Libs/Link/Header/TrainingLoad.hpp`) is Edwards' TRIMP. Each
+  minute in the watch's heart-rate zone 1 to 5 counts 1 to 5 points. Zone 0, meaning below
+  zone 1 or no heart rate, counts nothing. The zones are the watch's own thresholds
+  (`RequestSystemSettings`), by the rule every app already uses: above threshold i is zone
+  i + 1, capped at 5. Jon's ride of 1 November (6:41 in zone 1, 1:28 in 2, 4:25 in 3, 3:56 in
+  4) scores 39, and a host test pins it.
+- **How each app scores:**
+
+  | App | From | Saved screen |
+  |---|---|---|
+  | Run | `RunStats`' zone seconds, taken at stop, so a treadmill run, saved after its distance, keeps it | "Load 39" in place of the tick |
+  | Race | a `LoadMeter`, fed each running second with the trusted heart rate | as Run |
+  | Trail | a `LoadMeter`; Trail now keeps the zone thresholds it read | as Run |
+  | Workout | its model's zone milliseconds | "Load 39" under the note |
+  | Ride | its model's zone milliseconds | as Workout |
+
+- **The file:** the 8th number of each row (see the table above), and why it is not a version
+  change.
+- **The Streak-line message** carries the load in every app, so the Saved screen shows it
+  whether or not Streak is installed.
+- **Wrist heart-rate dropouts under-count the load.** The end of Jon's ride of 1 November
+  shows one. A strap fixes it; nothing smooths it here.
+- **In the simulator** the SDK's heart rate starts at 70 and climbs over the minutes. So an
+  80-second test session scores 0 to 4: Workout's stayed under zone 1, and Run's, Race's and
+  Trail's each scored 4, which matches by hand (81 s in zone 3 is 3 × 81 / 60 ≈ 4). Non-zero
+  loads need the family check's `LONG=1`.

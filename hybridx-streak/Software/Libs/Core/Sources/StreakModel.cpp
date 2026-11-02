@@ -240,6 +240,8 @@ void StreakModel::update(int32_t nowDay, const Found* found, size_t count, Event
     // Never roll back: a clock set backwards leaves the weeks where they are.
     const int32_t effNow = maxOf(nowDay, mState.lastDay);
     mState.lastDay       = effNow;
+    LoadHistory loads(mState.load);
+    loads.advanceTo(effNow);
 
     Events  pastEvents;   // toasts for weeks that close now are not played
     size_t  i = 0;
@@ -256,6 +258,7 @@ void StreakModel::update(int32_t nowDay, const Found* found, size_t count, Event
             if (seen(f.appKey, f.localStart)) {
                 continue;
             }
+            loads.add(f.localDay, f.load);   // each session once: the dedupe above
             if (f.localDay < mState.weekStartDay) {
                 // Its week was judged already: it joins the lifetime total only
                 // (PLAN 6.2: committed weeks are final).
@@ -569,6 +572,17 @@ HomeView StreakModel::view(int32_t nowDay) const
     } else {
         v.mood = Mood::Climbing;
     }
+    // Training load: form and its word, as of today (the glance's line and the menu's hint).
+    LoadState copy = mState.load;   // figures() is const, but advanceTo is not: work on a copy
+    LoadHistory loads(copy);
+    if (copy.started) {
+        loads.advanceTo(effNow);
+    }
+    const LoadFigures lf = loads.figures(effNow);
+    const int32_t form = lf.formX100 >= 0 ? (lf.formX100 + 50) / 100 : -((-lf.formX100 + 50) / 100);
+    v.form     = static_cast<int16_t>(form < -9999 ? -9999 : (form > 9999 ? 9999 : form));
+    v.formWord = static_cast<uint8_t>(lf.word);
+    v.loadDays = lf.historyDays;
     return v;
 }
 

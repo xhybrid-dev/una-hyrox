@@ -97,6 +97,7 @@ size_t LinkReader::addTo(SDK::Interface::IFileSystem& fs, int32_t fromDay, int32
             f.kind    = kindOf(e.sport);
             const uint32_t minutes = e.durationSec / 60u;   // whole minutes, as the FIT reader does
             f.minutes = static_cast<uint16_t>(minutes > 0xFFFFu ? 0xFFFFu : minutes);
+            f.load    = e.load;   // the app's training load for it (0 from an app not yet scoring)
             std::snprintf(f.app, sizeof(f.app), "%s", mFile.app);
             count = insert(found, count, cap, f);
         }

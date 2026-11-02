@@ -22,6 +22,7 @@ public:
     /// This week's list, the trophies or the goal changed.
     virtual void onWeek() {}
     virtual void onTrophies() {}
+    virtual void onLoad() {}
     virtual void onGoal() {}
 
     /// No button for the screen timeout (Model::kScreenTimeoutSteps).

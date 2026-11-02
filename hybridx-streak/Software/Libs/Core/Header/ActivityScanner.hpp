@@ -53,6 +53,7 @@ struct Found {
     int32_t  localDay   = 0;   ///< localStart / 86400
     Kind     kind       = Kind::Other;
     uint16_t minutes    = 0;   ///< total timer time, whole minutes
+    uint16_t load       = 0;   ///< training load (hybridx-link TrainingLoad.hpp); 0 none or not known
     char     app[kAppNameChars] {};   ///< the app folder, truncated for display
 };
 

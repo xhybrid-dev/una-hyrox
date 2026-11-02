@@ -27,10 +27,11 @@ protected:
     void build() override;
 
 private:
-    enum : uint8_t { kWeek, kLog, kTrophy, kSettings, kCount };
+    enum : uint8_t { kWeek, kLog, kTrophy, kLoad, kSettings, kCount };
 
     Widgets::Wheel::Item             mItems[kCount] {};
     char                             mWeekTip[32] {};
+    char                             mLoadTip[32] {};
     std::unique_ptr<Widgets::Title>   mTitle;
     std::unique_ptr<Widgets::Wheel>   mMenu;
     std::unique_ptr<Widgets::Buttons> mButtons;

@@ -13,6 +13,7 @@
 
 #include "GlanceFontWidths.hpp"
 #include "GlanceLayout.hpp"
+#include "LoadHistory.hpp"
 #include "Summits.hpp"
 
 using Glance::Layout;
@@ -263,4 +264,51 @@ TEST(GlanceLayout, TheWordsForEachState)
     Glance::layout(Streak::HomeView {}, State::NoStreak, 240, 60, 32, l);
     EXPECT_EQ(l.count, kMountain + 2);
     EXPECT_STREQ(bottom(l).text, "Open it to start");
+}
+
+TEST(GlanceLayout, OnTrackWithTwoWeeksOfLoadTheLineIsForm)
+{
+    Streak::HomeView v = view(7, 2, 3, Streak::Mood::Climbing);
+    v.loadDays = 30;
+    Layout l;
+
+    v.form     = 5;
+    v.formWord = static_cast<uint8_t>(Streak::FormWord::Fresh);
+    Glance::layout(v, State::Normal, 240, 60, 32, l);
+    EXPECT_STREQ(bottom(l).text, "Form +5 fresh");
+    EXPECT_NE(bottom(l).colour, GLANCE_COLOR_YELLOW_DARK);
+
+    v.form     = -30;
+    v.formWord = static_cast<uint8_t>(Streak::FormWord::Overreaching);
+    Glance::layout(v, State::Normal, 240, 60, 32, l);
+    EXPECT_STREQ(bottom(l).text, "Form -30 ease off");
+    EXPECT_EQ(bottom(l).colour, GLANCE_COLOR_YELLOW_DARK);
+
+    // Still learning: the next summit, as before.
+    v.formWord = static_cast<uint8_t>(Streak::FormWord::Learning);
+    v.loadDays = 5;
+    Glance::layout(v, State::Normal, 240, 60, 32, l);
+    EXPECT_EQ(std::string(bottom(l).text).find("Form"), std::string::npos);
+
+    // At risk or banked keeps its own line: form only on track.
+    Streak::HomeView risk = view(40, 2, 4, Streak::Mood::AtRisk);
+    risk.formWord = static_cast<uint8_t>(Streak::FormWord::Fresh);
+    Glance::layout(risk, State::Normal, 240, 60, 32, l);
+    EXPECT_STREQ(bottom(l).text, "2 more, 2 days left");
+}
+
+TEST(GlanceLayout, TheWidestFormLineFits)
+{
+    for (uint8_t w = static_cast<uint8_t>(Streak::FormWord::Fresh);
+         w <= static_cast<uint8_t>(Streak::FormWord::Overreaching); ++w) {
+        for (const int16_t form : {int16_t(-9999), int16_t(9999), int16_t(-888), int16_t(0)}) {
+            Streak::HomeView v = view(7, 2, 3, Streak::Mood::Climbing);
+            v.loadDays = 30;
+            v.form     = form;
+            v.formWord = w;
+            Layout l;
+            Glance::layout(v, State::Normal, 240, 60, 32, l);
+            expectFits(l, 240, 60, 32, "form " + std::to_string(form) + " word " + std::to_string(w));
+        }
+    }
 }

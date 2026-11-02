@@ -54,6 +54,8 @@ add_executable(hybridx-streak-host-tests
     FitSessionReaderTest.cpp
     ActivityScannerTest.cpp
     LinkReaderTest.cpp
+    LoadHistoryTest.cpp
+    StreakLoadTest.cpp
     StreakModelTest.cpp
     StateCodecTest.cpp
     GlanceLayoutTest.cpp

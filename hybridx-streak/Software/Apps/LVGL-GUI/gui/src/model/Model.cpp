@@ -201,6 +201,13 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             }
             break;
 
+        case CustomMessage::LOAD_VIEW:
+            mLoad = static_cast<CustomMessage::LoadView*>(message)->data;
+            if (mListener) {
+                mListener->onLoad();
+            }
+            break;
+
         case CustomMessage::GOAL_VIEW:
             mGoal = static_cast<CustomMessage::GoalView*>(message)->data;
             if (mListener) {
