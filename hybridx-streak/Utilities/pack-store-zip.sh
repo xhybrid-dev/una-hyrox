@@ -1,20 +1,26 @@
 #!/bin/bash
 #
-# Build the portal upload package for HybridX Streak's main app.
+# Build the portal upload package for X Streak (HybridXStreak). A copy of X Weigh-in's
+# (x-weighin/Utilities/pack-store-zip.sh, itself HybridX Race's), with X Streak's
+# names, IDs and paths: the Streak family's release, hybridx-link/docs/STORE_RELEASE.md.
 #
-# The glance stays side-load/CI-only for now (docs/NOTES.md S5.1: "two
-# manifests, two zips" assumed a store-listing mechanism for a standalone
-# glance that no SDK doc or example confirms exists -- PLAN.md §12 Q4, still
-# open). This script packages the main app only, exactly like
-# hybridx-race/Utilities/pack-store-zip.sh, whose layout and logic it copies.
+# Two store listings, two packages: the app, and with --glance its glance (HXStreakGlance,
+# built into Output/Glance/), listed on its own and needing the app. Same checks for
+# both; the glance has no phone settings and no simulator.
 #
 # The layout is the one Docs/deploy.md specifies: the .uapp, app-manifest.json,
 # icon.png, and a previews/ folder of screenshots. Everything the manifest says
 # about the binary is taken FROM the binary, so appVersion and the filename can
 # never drift apart, and both SDK validators must pass before a zip is written.
+# The portal's own rules (X Weigh-in NOTES, "The portal refused 1.0.0's
+# manifests") are checked too, and the APP_ID must agree in every place that
+# names it.
 #
 # Usage:
-#   UNA_SDK=/path/to/una-sdk ./pack-store-zip.sh [--expect-version X.Y.Z]
+#   UNA_SDK=/path/to/una-sdk ./pack-store-zip.sh [--glance] [--expect-version X.Y.Z]
+#
+# --expect-version asserts; it does not override. CI passes it on a streak-v* tag,
+# so a forgotten tag, a stale build or a development APP_ID fails the release.
 #
 # Build the app first:
 #   cmake -S Software/Apps/HybridXStreak-CMake -B build && cmake --build build
@@ -22,17 +28,35 @@
 set -euo pipefail
 
 APP=$(cd "$(dirname "$0")/.." && pwd)
-OUT="$APP/Output"
-STAGE="$OUT/Release"
 PACKER="${UNA_SDK:-}/Utilities/Scripts/app_packer"
 
 EXPECT_VERSION=""
+GLANCE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --expect-version) EXPECT_VERSION="${2:-}"; shift 2 ;;
+        --glance) GLANCE=1; shift ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
+
+# What differs between the two packages.
+if [ "$GLANCE" = 1 ]; then
+    NAME="HXStreakGlance"
+    OUT="$APP/Output/Glance"
+    RES="$APP/Resources/Glance"
+    CMAKE_LISTS="$APP/Software/Apps/HybridXStreakGlance-CMake/CMakeLists.txt"
+    SIM_LISTS=""                                   # a glance has no simulator
+    DEV_APP_ID="D9923B245EF1C6FE"                  # first 16 hex of md5("HybridXStreakGlance")
+else
+    NAME="HybridXStreak"
+    OUT="$APP/Output"
+    RES="$APP/Resources"
+    CMAKE_LISTS="$APP/Software/Apps/HybridXStreak-CMake/CMakeLists.txt"
+    SIM_LISTS="$APP/Software/Apps/LVGL-GUI/simulator/CMakeLists.txt"
+    DEV_APP_ID="A75434BA114DFEBE"                  # first 16 hex of md5("HybridXStreak")
+fi
+STAGE="$OUT/Release"
 
 if [ -z "${UNA_SDK:-}" ]; then
     echo "UNA_SDK is not set." >&2
@@ -56,8 +80,8 @@ case ${#UAPPS[@]} in
 esac
 BINARY="${UAPPS[0]}"
 
-# HybridXStreak_0.1.0.uapp -> 0.1.0, HybridXStreak_0.0.0-dev.uapp -> 0.0.0-dev.
-VERSION=$(printf '%s' "$BINARY" | sed -n 's/^HybridXStreak_\(.*\)\.uapp$/\1/p')
+# HybridXStreak_1.0.0.uapp -> 1.0.0, a dev build's HybridXStreak_0.0.0-dev.uapp -> 0.0.0-dev.
+VERSION=$(printf '%s' "$BINARY" | sed -n "s/^${NAME}_\(.*\)\.uapp\$/\1/p")
 if [ -z "$VERSION" ]; then
     echo "Cannot read a version out of '$BINARY'." >&2
     exit 1
@@ -76,6 +100,39 @@ case "$VERSION" in
         ;;
 esac
 
+# -- The ID in the binary is the ID in the manifest ---------------------------
+# APP_ID is baked into the .uapp by CMake and named again in the manifest and
+# the simulator's build. After the portal issues the real one it has to be
+# pasted in all three, and the
+# portal matches new versions to the app by it (Docs/deploy.md), so one place
+# updated and one forgotten is exactly the mistake worth refusing.
+CMAKE_ID=$(sed -n 's/^set(APP_ID "\([0-9A-Fa-f]\{16\}\)").*/\1/p' \
+           "$CMAKE_LISTS" | head -n 1)
+SIM_ID="$CMAKE_ID"
+if [ -n "$SIM_LISTS" ]; then
+    SIM_ID=$(sed -n 's/.*APP_ID="\([0-9A-Fa-f]\{16\}\)".*/\1/p' "$SIM_LISTS" | head -n 1)
+fi
+MANIFEST_ID=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' \
+              "$RES/app-manifest.json")
+if [ -z "$CMAKE_ID" ]; then
+    echo "Cannot read APP_ID out of $CMAKE_LISTS." >&2
+    exit 1
+fi
+if [ "$CMAKE_ID" != "$MANIFEST_ID" ]; then
+    echo "APP_ID differs: CMakeLists.txt has $CMAKE_ID, app-manifest.json has $MANIFEST_ID." >&2
+    echo "Paste the portal's App ID into both, re-run cmake and rebuild." >&2
+    exit 1
+fi
+if [ "$CMAKE_ID" != "$SIM_ID" ]; then
+    echo "APP_ID differs: CMakeLists.txt has $CMAKE_ID, the simulator's has '$SIM_ID'." >&2
+    exit 1
+fi
+if [ -n "$EXPECT_VERSION" ] && [ "$MANIFEST_ID" = "$DEV_APP_ID" ]; then
+    echo "A release must carry the App ID the portal issued, not the development ID" >&2
+    echo "$DEV_APP_ID. Create the app on apps.unawatch.com first (hybridx-link/docs/STORE_RELEASE.md)." >&2
+    exit 1
+fi
+
 # -- Stage -------------------------------------------------------------------
 
 rm -rf "$STAGE"
@@ -85,17 +142,18 @@ cp "$OUT/$BINARY" "$STAGE/$BINARY"
 cp "$APP/Resources/icon_60x60.png" "$STAGE/icon.png"
 
 shopt -s nullglob
-PREVIEWS=("$APP/Resources/previews"/*.png)
+PREVIEWS=("$RES/previews"/*.png)
 shopt -u nullglob
 if [ ${#PREVIEWS[@]} -eq 0 ]; then
-    echo "No previews in Resources/previews -- curate some from docs/screens/real/." >&2
+    echo "No previews in $RES/previews -- see docs/experiments/capture_screens.sh" >&2
+    echo "(the app) or glance_preview.py --store (the glance)." >&2
     exit 1
 fi
 cp "${PREVIEWS[@]}" "$STAGE/previews/"
 
 # The manifest names the binary and the version it was built from, not what a
 # human last typed into it.
-python3 - "$APP/Resources/app-manifest.json" "$STAGE/app-manifest.json" \
+python3 - "$RES/app-manifest.json" "$STAGE/app-manifest.json" \
          "$BINARY" "$VERSION" <<'PY'
 import json, sys
 src, dst, binary, version = sys.argv[1:5]
@@ -108,27 +166,64 @@ with open(dst, "w") as f:
     f.write("\n")
 PY
 
+# -- The portal's own manifest check ----------------------------------------
+# The UNA portal (apps.unawatch.com) validates the manifest more strictly than
+# the SDK's tools. It refused X Weigh-in 1.0.0 (13 October 2026, x-weighin/docs/NOTES.md, W5):
+#   - it requires the activity keys for every app type, so a utility or a glance
+#     still carries them, set to "not used" (Docs/app-config-json.md's Files
+#     example has the same set);
+#   - it allows no other keys: one was extra, and "previews" is the only key
+#     ours shared that no SDK example carries. The previews/ folder itself
+#     passed ("Valid assets").
+python3 - "$STAGE/app-manifest.json" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1]))
+need = ["supportsLaps", "supportsDistance", "supportsTrack", "supportsHeartbeat", "supportsElevation",
+        "supportsStep", "supportsSpeed", "customMeasures", "stravaExport"]
+missing = [k for k in need if k not in m]
+banned = [k for k in ("previews",) if k in m]
+if missing or banned:
+    sys.exit("The portal would refuse this manifest: missing %s, not allowed %s" % (missing, banned))
+PY
+
 # -- Validate, then and only then zip ----------------------------------------
 
 python3 "$PACKER/min_kernel_version.py" --stamp "$STAGE/app-manifest.json"
 python3 "$PACKER/min_kernel_version.py" --check "$STAGE/app-manifest.json"
-python3 "$PACKER/validate_app_config.py" \
-        --check "$STAGE/app-manifest.json" \
-        --check-bounds "$APP/Software/Libs/App/Sources/AppConfigFields.cpp" \
-        --check-bounds "$APP/Software/Libs/App/Header/AppConfigFields.hpp"
+if [ "$GLANCE" = 1 ]; then
+    # No phone settings: the validator checks there are none to mismatch.
+    python3 "$PACKER/validate_app_config.py" --check "$STAGE/app-manifest.json"
+else
+    python3 "$PACKER/validate_app_config.py" \
+            --check "$STAGE/app-manifest.json" \
+            --check-bounds "$APP/Software/Libs/App/Sources/AppConfigFields.cpp" \
+            --check-bounds "$APP/Software/Libs/App/Header/AppConfigFields.hpp"
+fi
 
-ZIP="$OUT/HybridXStreak-$VERSION.zip"
+ZIP="$OUT/$NAME-$VERSION.zip"
 rm -f "$ZIP"
-(cd "$STAGE" && zip -q -r "$ZIP" .)
+if command -v zip >/dev/null 2>&1; then
+    (cd "$STAGE" && zip -q -r "$ZIP" .)
+else
+    # The CI image has Python and not always zip. Same layout: everything at the
+    # root of the archive, previews/ as a folder.
+    (cd "$STAGE" && python3 -m zipfile -c "$ZIP" ./*)
+fi
 
 echo
 echo "Package: $ZIP"
-unzip -l "$ZIP"
+if command -v unzip >/dev/null 2>&1; then
+    unzip -l "$ZIP"
+else
+    python3 -m zipfile -l "$ZIP"
+fi
 echo
-echo "Before uploading: the id in the manifest is a development APP_ID."
-echo "Create the app on apps.unawatch.com, paste its App ID into"
-echo "Software/Apps/HybridXStreak-CMake/CMakeLists.txt and Resources/app-manifest.json,"
-echo "re-run cmake, rebuild, and re-run this script."
-echo
-echo "The glance (HXStreakGlance) is not packaged here -- it stays"
-echo "side-load/CI-only. See docs/NOTES.md S5.1."
+if [ "$MANIFEST_ID" = "$DEV_APP_ID" ]; then
+    echo "Before uploading: the id in the manifest is a development APP_ID."
+    echo "Create the app on apps.unawatch.com, paste its App ID into"
+    echo "$CMAKE_LISTS"
+    echo "and $RES/app-manifest.json${SIM_LISTS:+ and $SIM_LISTS},"
+    echo "re-run cmake, rebuild, and re-run this script."
+else
+    echo "App ID $MANIFEST_ID matches in CMakeLists.txt and app-manifest.json${SIM_LISTS:+ and the simulator}."
+fi

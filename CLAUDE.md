@@ -112,6 +112,15 @@ The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
     (about 12 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
     `TREADMILL=1` for a treadmill Run; needs the six simulators built);
   - the family on a watch, Jon's step-by-step test: `hybridx-link/docs/FAMILY_WATCH_TEST.md`.
+- **The store release** (phase P, 3 November 2026): the eight listings (X Streak and its
+  glance, X Run and the VO2max glance, X Trail, X Workout, X Ride, and HybridX Race 1.1.0), the
+  release day and each listing's store text: `hybridx-link/docs/STORE_RELEASE.md`.
+  - Each app has its own packager, `Utilities/pack-store-zip.sh [--glance] [--expect-version X.Y.Z]`,
+    copied from X Weigh-in's. It checks the portal's rules and that the APP_ID agrees everywhere.
+  - Each app has `docs/experiments/store_previews.sh`, which keeps its walkthrough's screens as
+    `Resources/previews/`. A glance's previews come from `glance_preview.py --store`.
+  - CI artifacts: `streak-store-zip`, `run-store-zip`, `trail-store-zip`, `workout-store-zip`
+    and `ride-store-zip`. Each is a dry run until its tag (`streak-v1.0.0`, ...).
 
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You

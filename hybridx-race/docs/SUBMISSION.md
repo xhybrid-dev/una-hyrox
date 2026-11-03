@@ -7,6 +7,23 @@ usefulness, originality and UX/UI, each out of 10.
 Everything below that can be done without store access is done. What is left is
 waiting on UNA (portal access) and on Jon (watch tests, one decision, the entry).
 
+## 1.1.0: Race joins the X family (3 November 2026)
+
+1.0.0 is on the store. 1.1.0 adds:
+- the activity link (each saved race is counted by X Streak, as Hybrid);
+- the Streak line on the Saved screen;
+- the training load ("Load N"). The CHANGELOG lists it all.
+
+It goes up with the rest of the family. The steps, the release notes and the order are in
+`hybridx-link/docs/STORE_RELEASE.md`. In short:
+1. Tag the release commit `v1.1.0` and `apps-v1.1.0` on GitHub.
+2. Download **race-store-zip** (`HybridXRace-1.1.0.zip`).
+3. On Race's existing listing: the **Version** tab, **Upload New**, **Release**, **Confirm and
+   Publish**.
+
+The App ID is unchanged (`5C4D6F49335E5E17`), so the store matches the new version to the
+listing. The sections below are the 0.1.0 and 1.0.0 history.
+
 ## Where things stand
 
 | | |

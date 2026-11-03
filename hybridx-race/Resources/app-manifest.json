@@ -12,7 +12,7 @@
     "HR",
     "ACCELEROMETER"
   ],
-  "description": "Race and simulation timer for HYROX-format events. One button per split, every run and station recorded as a lap.",
+  "description": "Race and simulation timer for HYROX-format events. One button per split, every run and station recorded as a lap. Counts in X Streak.",
   "supportsLaps": true,
   "supportsDistance": false,
   "supportsTrack": false,

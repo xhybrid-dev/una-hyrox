@@ -10,10 +10,16 @@ strips the prefix for the SDK's version script.
 
 ## [Unreleased]
 
-Everything below becomes 0.1.0 once it has run on a watch (Gate 6).
+The first store release, 1.0.0 (`hybridx-link/docs/STORE_RELEASE.md`). On the watch the app
+list calls it **X Streak**; its folder stays `HybridXStreak`. Its glance is its own listing,
+**X Streak Glance**.
 
 ### Added
 
+- **Training load**: each session from the family carries its heart-rate training load
+  (Edwards' score), and Streak turns the days into fitness (42 days), fatigue (7 days) and form
+  (the difference), on a Training load screen; form's word (Fresh, Steady, Building or
+  Overreaching) shows after two weeks of history, and on the glance when the week is on track.
 - **The HybridX apps' summaries.** Each HybridX activity app (Run now; Race,
   Trail and later apps next) leaves its last 16 activities in the shared folder
   and Streak counts them on open, in the app and the glance. On a real watch this
@@ -53,13 +59,9 @@ Everything below becomes 0.1.0 once it has run on a watch (Gate 6).
 
 ### Notes
 
-- Automatic counting depends on one app being able to read another's
-  `Activity/` folder — unconfirmed on real hardware until Jon runs the Gate
-  0 probe (`docs/PROBE.md`). If it can't, everything above still stands
-  except automatic counting of *other* apps' files.
-- The glance ships side-load/CI-only for now, not as its own store listing —
-  see `docs/NOTES.md` S5.1.
-- Nothing wakes a service on a schedule on this platform, so there is no
-  background scan or reminder; everything recomputes on open. A scheduled
-  reminder, if the probe shows the phone doesn't delete synced files, is
-  deferred to P1 — see `docs/PLAN.md` §10.
+- On a watch Streak counts the X family's sessions (X Run, X Trail, X Ride, X Workout and
+  HybridX Race), which each leave a summary in the shared folder, and manual logs. It cannot
+  read other apps' activity folders (Gate 0), so UNA's own apps are not counted until UNA
+  offers a way.
+- Nothing wakes a service on a schedule on this platform, so there is no background scan or
+  reminder; everything recomputes on open.

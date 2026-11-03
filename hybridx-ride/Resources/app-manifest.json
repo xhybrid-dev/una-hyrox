@@ -1,0 +1,26 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "activity"
+  ],
+  "name": "X Ride",
+  "icon": "icon.png",
+  "binary": "HybridXRide.uapp",
+  "appVersion": "1.0.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [
+    "GPS",
+    "HR"
+  ],
+  "description": "Rides with heart rate: GPS speed, distance and climb outdoors, with auto-pause and auto laps by time or distance; time, heart rate, intervals and Tabata on the turbo indoors. Your rides count in X Streak.",
+  "supportsLaps": true,
+  "supportsDistance": true,
+  "supportsTrack": true,
+  "supportsHeartbeat": true,
+  "supportsElevation": true,
+  "supportsStep": false,
+  "supportsSpeed": "speed",
+  "customMeasures": [],
+  "stravaExport": true,
+  "id": "250009C2B1049597"
+}

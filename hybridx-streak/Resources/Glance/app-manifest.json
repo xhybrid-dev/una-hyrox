@@ -1,0 +1,23 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "glance"
+  ],
+  "name": "X Streak Glance",
+  "icon": "icon.png",
+  "binary": "HXStreakGlance.uapp",
+  "appVersion": "1.0.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [],
+  "description": "Your X Streak week on the glances screen: this week's sessions against your target and your streak. Needs the X Streak app; the glance only shows what the app has saved.",
+  "supportsLaps": false,
+  "supportsDistance": false,
+  "supportsTrack": false,
+  "supportsHeartbeat": false,
+  "supportsElevation": false,
+  "supportsStep": false,
+  "supportsSpeed": "none",
+  "customMeasures": [],
+  "stravaExport": false,
+  "id": "D9923B245EF1C6FE"
+}

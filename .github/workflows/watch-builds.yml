@@ -229,6 +229,127 @@ jobs:
           path: trailquest/Output/TrailQuest-*.zip
           if-no-files-found: error
 
+      - name: X Streak store packages
+        # The Streak family's release (hybridx-link/docs/STORE_RELEASE.md), from
+        # hybridx-streak/Utilities/pack-store-zip.sh (X Weigh-in's): the .uapp, manifest, icon and
+        # previews in one zip, and with --glance the glance's, its own listing. A dry run unless the
+        # push is a streak-v* tag, when the script also refuses a binary whose version is not the
+        # tag's and a package still carrying the development APP_ID.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            streak-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#streak-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash hybridx-streak/Utilities/pack-store-zip.sh $EXPECT
+          # shellcheck disable=SC2086
+          bash hybridx-streak/Utilities/pack-store-zip.sh --glance $EXPECT
+
+      - name: Upload the X Streak store packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: streak-store-zip
+          path: |
+            hybridx-streak/Output/HybridXStreak-*.zip
+            hybridx-streak/Output/Glance/HXStreakGlance-*.zip
+          if-no-files-found: error
+
+      - name: X Run store packages
+        # The Streak family's release (hybridx-link/docs/STORE_RELEASE.md), from
+        # hybridx-run/Utilities/pack-store-zip.sh (X Weigh-in's): the .uapp, manifest, icon and
+        # previews in one zip, and with --glance the glance's, its own listing. A dry run unless the
+        # push is a run-v* tag, when the script also refuses a binary whose version is not the
+        # tag's and a package still carrying the development APP_ID.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            run-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#run-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash hybridx-run/Utilities/pack-store-zip.sh $EXPECT
+          # shellcheck disable=SC2086
+          bash hybridx-run/Utilities/pack-store-zip.sh --glance $EXPECT
+
+      - name: Upload the X Run store packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: run-store-zip
+          path: |
+            hybridx-run/Output/HybridXRun-*.zip
+            hybridx-run/Output/Glance/HybridXRunGlance-*.zip
+          if-no-files-found: error
+
+      - name: X Trail store package
+        # The Streak family's release (hybridx-link/docs/STORE_RELEASE.md), from
+        # hybridx-trail/Utilities/pack-store-zip.sh (X Weigh-in's): the .uapp, manifest, icon and
+        # previews in one zip. A dry run unless the
+        # push is a trail-v* tag, when the script also refuses a binary whose version is not the
+        # tag's and a package still carrying the development APP_ID.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            trail-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#trail-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash hybridx-trail/Utilities/pack-store-zip.sh $EXPECT
+
+      - name: Upload the X Trail store package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trail-store-zip
+          path: |
+            hybridx-trail/Output/HybridXTrail-*.zip
+          if-no-files-found: error
+
+      - name: X Workout store package
+        # The Streak family's release (hybridx-link/docs/STORE_RELEASE.md), from
+        # hybridx-workout/Utilities/pack-store-zip.sh (X Weigh-in's): the .uapp, manifest, icon and
+        # previews in one zip. A dry run unless the
+        # push is a workout-v* tag, when the script also refuses a binary whose version is not the
+        # tag's and a package still carrying the development APP_ID.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            workout-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#workout-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash hybridx-workout/Utilities/pack-store-zip.sh $EXPECT
+
+      - name: Upload the X Workout store package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: workout-store-zip
+          path: |
+            hybridx-workout/Output/HybridXWorkout-*.zip
+          if-no-files-found: error
+
+      - name: X Ride store package
+        # The Streak family's release (hybridx-link/docs/STORE_RELEASE.md), from
+        # hybridx-ride/Utilities/pack-store-zip.sh (X Weigh-in's): the .uapp, manifest, icon and
+        # previews in one zip. A dry run unless the
+        # push is a ride-v* tag, when the script also refuses a binary whose version is not the
+        # tag's and a package still carrying the development APP_ID.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            ride-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#ride-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash hybridx-ride/Utilities/pack-store-zip.sh $EXPECT
+
+      - name: Upload the X Ride store package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ride-store-zip
+          path: |
+            hybridx-ride/Output/HybridXRide-*.zip
+          if-no-files-found: error
+
   host-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
