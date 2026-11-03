@@ -25,6 +25,7 @@
 
 #include "Commands.hpp"
 #include "LapLockout.hpp"
+#include "RidePlanText.hpp"
 
 class ModelListener;
 
@@ -64,8 +65,15 @@ public:
     void resume();
     void stop(bool save);
     void requestLaps(uint8_t first);
-    /// Step the auto lap to its next choice (the service saves it and answers).
+    /// Step the auto lap to its next choice (the service saves it and answers):
+    /// the times, then outdoors the distances.
     void nextAutoLap();
+    /// Auto-pause on or off (outdoors; the service saves it and answers).
+    void toggleAutoPause();
+    /// Step the indoor plan to its next kind (Free, Intervals, Tabata).
+    void nextKind();
+    /// Step one of the plan's numbers to its next choice.
+    void stepPlanField(Ride::PlanField field);
     /// Choose Outdoor or Indoor (the service saves it and answers). Also tells the
     /// service the main menu is up, so an outdoor ride's GPS starts looking.
     void setOutdoor(bool outdoor);
@@ -82,6 +90,11 @@ public:
     const Ride::LapsPageData& lapsPage() const { return mLapsPage; }
     /// The remembered auto lap, minutes (0: off).
     uint8_t autoLapMin() const { return mAutoLapMin; }
+    /// The remembered distance auto lap, km (0: off; outdoors only).
+    uint8_t autoLapKm() const { return mAutoLapKm; }
+    bool autoPause() const { return mAutoPause; }
+    /// The remembered indoor plan.
+    const Ride::PlanConfig& plan() const { return mPlan; }
     /// The remembered ride type, and the watch profile's units.
     bool outdoor() const { return mOutdoor; }
     bool imperial() const { return mImperial; }
@@ -117,6 +130,7 @@ public:
     void injectStrap(uint8_t state, const char* name);
     void injectGps(uint8_t state);
     void injectSettings(bool outdoor, bool imperial);
+    void injectPlanSettings(const Ride::PlanConfig& plan, uint8_t autoLapMin, uint8_t autoLapKm, bool autoPause);
 #endif
 
 protected:
@@ -131,6 +145,9 @@ protected:
     bool     mDiscarded = false;
 
     uint8_t  mAutoLapMin = 0;
+    uint8_t  mAutoLapKm = 0;
+    bool     mAutoPause = true;
+    Ride::PlanConfig mPlan {};
     bool     mOutdoor = true;
     bool     mImperial = false;
     bool     mSettingsKnown = false;   ///< The service has sent the settings

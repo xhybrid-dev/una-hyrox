@@ -15,8 +15,14 @@
  * distance, lap average speed); the totals become time, distance, climb and
  * calories; the zones and the clock are the same. Units follow the watch
  * profile (km, km/h and metres, or miles, mph and feet).
- * R2 is the lap button (a 3 s lockout stops a double tap), R1 opens the action
- * menu. The toast shows for about 2 s after a lap (R2 or the auto lap), over
+ * An indoor plan (Intervals or Tabata) turns the main face into the step: its
+ * heading ("Work 3/6", lime; "Rest 3/6", sky), its countdown (amber in the
+ * last three seconds, as the buzz counts them), the total, heart rate and
+ * zone; once the plan is done, "Done" and the total time.
+ * Outdoors, while auto-pause holds the ride, the main face says "Auto-paused".
+ * R2 is the lap button (a 3 s lockout stops a double tap; a plan's steps end
+ * by themselves, so it does nothing then), R1 opens the action menu. The toast
+ * shows for about 2 s after a lap (R2, the auto lap or a plan's step), over
  * any face; any click dismisses it, and R2 still works through it. This screen
  * never exits the app on idle: a ride is not abandoned because nobody
  * pressed anything.
@@ -64,6 +70,7 @@ private:
     void buildClock();
     void redraw();
     void redrawMain(const Ride::SessionSnapshot& s);
+    void redrawPlanMain(const Ride::SessionSnapshot& s);
     void redrawLap(const Ride::SessionSnapshot& s);
     /// The face @p dir (+1 or -1) steps to: the Lap face is outdoor only.
     uint8_t stepFace(int dir) const;

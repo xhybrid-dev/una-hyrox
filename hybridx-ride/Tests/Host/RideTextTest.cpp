@@ -117,6 +117,36 @@ TEST(SessionText, AutoLapChoicesGoRoundToOff)
     EXPECT_EQ(nextAutoLap(200), 0);
 }
 
+TEST(SessionText, TheAutoLapIsOneChoiceOfTimesThenDistances)
+{
+    // Outdoors: Off, the six times, then the six distances, round to Off.
+    std::string seen;
+    AutoLapChoice c;
+    for (int k = 0; k < kAutoLapChoiceCount; ++k) {
+        c = nextAutoLapChoice(c.minutes, c.km, true);
+        seen += text([&](char *o, size_t n) { formatAutoLapChoice(o, n, c.minutes, c.km, true); }) + ",";
+    }
+    EXPECT_EQ(seen, "1 min,5 min,10 min,15 min,20 min,30 min,1 km,5 km,10 km,15 km,20 km,25 km,Off,");
+
+    // Indoors the distances are skipped, and a remembered distance reads as Off.
+    c = nextAutoLapChoice(30, 0, false);
+    EXPECT_EQ(c.minutes, 0);
+    EXPECT_EQ(c.km, 0);
+    c = nextAutoLapChoice(0, 10, false);
+    EXPECT_EQ(c.minutes, 1);
+    EXPECT_EQ(text([](char *o, size_t n) { formatAutoLapChoice(o, n, 0, 10, false); }), "Off");
+
+    // Never both at once; unknown values are Off.
+    for (uint8_t i = 0; i < kAutoLapChoiceCount; ++i) {
+        const AutoLapChoice a = autoLapChoiceAt(i);
+        EXPECT_FALSE(a.minutes > 0 && a.km > 0) << int(i);
+        EXPECT_EQ(autoLapChoiceIndex(a.minutes, a.km, true), i);
+    }
+    EXPECT_EQ(autoLapChoiceIndex(0, 7, true), 0);
+    EXPECT_EQ(autoLapChoiceAt(200).minutes, 0);
+    EXPECT_EQ(autoLapChoiceAt(200).km, 0);
+}
+
 TEST(SessionText, Zones)
 {
     EXPECT_EQ(text([](char *o, size_t n) { formatZone(o, n, 0); }), "Z0");

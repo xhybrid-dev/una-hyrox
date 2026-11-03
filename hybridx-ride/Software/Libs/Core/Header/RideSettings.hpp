@@ -25,10 +25,6 @@ namespace Ride {
 
 inline constexpr const char* kSettingsPath = "settings.json";
 
-/// The Cycling example's distance alerts, km (0: off).
-constexpr uint8_t kAutoLapKmCount = 7;
-constexpr uint8_t kAutoLapKm[kAutoLapKmCount] = {0, 1, 5, 10, 15, 20, 25};
-
 struct RideSettings {
     uint8_t    autoLapMin = 0;   ///< One of kAutoLapMinutes (0: off)
     uint8_t    autoLapKm = 0;    ///< One of kAutoLapKm (0: off); outdoors only

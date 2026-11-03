@@ -119,8 +119,25 @@ void Model::requestLaps(uint8_t first)
 
 void Model::nextAutoLap()
 {
-    const uint8_t next = Ride::nextAutoLap(Ride::autoLapIndex(mAutoLapMin));
-    SDK::send_msg<CustomMessage::SetAutoLap>(mKernel, Ride::kAutoLapMinutes[next]);
+    const Ride::AutoLapChoice next = Ride::nextAutoLapChoice(mAutoLapMin, mAutoLapKm, mOutdoor);
+    SDK::send_msg<CustomMessage::SetAutoLap>(mKernel, next.minutes, next.km);
+}
+
+void Model::toggleAutoPause()
+{
+    SDK::send_msg<CustomMessage::SetAutoPause>(mKernel, static_cast<uint8_t>(mAutoPause ? 0u : 1u));
+}
+
+void Model::nextKind()
+{
+    Ride::PlanConfig p = mPlan;
+    p.type = Ride::nextKind(p.type);
+    SDK::send_msg<CustomMessage::SetPlan>(mKernel, p);
+}
+
+void Model::stepPlanField(Ride::PlanField field)
+{
+    SDK::send_msg<CustomMessage::SetPlan>(mKernel, Ride::stepField(mPlan, field));
 }
 
 void Model::setOutdoor(bool outdoor)
@@ -203,6 +220,9 @@ bool Model::customMessageHandler(SDK::MessageBase* msg)
         case CustomMessage::SETTINGS_UPDATE: {
             auto* m = static_cast<CustomMessage::SettingsUpdate*>(msg);
             mAutoLapMin    = m->autoLapMin;
+            mAutoLapKm     = m->autoLapKm;
+            mAutoPause     = m->autoPause != 0;
+            mPlan          = Ride::clamp(m->plan);
             mOutdoor       = m->outdoor != 0;
             mImperial      = m->imperial != 0;
             mSettingsKnown = true;
@@ -305,6 +325,18 @@ void Model::injectSettings(bool outdoor, bool imperial)
 {
     mOutdoor       = outdoor;
     mImperial      = imperial;
+    mSettingsKnown = true;
+    if (modelListener) {
+        modelListener->onSettings();
+    }
+}
+
+void Model::injectPlanSettings(const Ride::PlanConfig& plan, uint8_t autoLapMin, uint8_t autoLapKm, bool autoPause)
+{
+    mPlan          = Ride::clamp(plan);
+    mAutoLapMin    = autoLapMin;
+    mAutoLapKm     = autoLapKm;
+    mAutoPause     = autoPause;
     mSettingsKnown = true;
     if (modelListener) {
         modelListener->onSettings();

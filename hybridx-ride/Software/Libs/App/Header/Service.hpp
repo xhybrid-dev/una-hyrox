@@ -25,6 +25,17 @@
  * the auto lap, then one FIT record. Laps and the session are written when it
  * ends.
  *
+ * Outdoors, auto-pause (RideSettings::autoPause, on by default) pauses the ride
+ * when the bike stops and resumes it when it moves off: the SDK Cycling
+ * example's detector (AutoPause.hpp), once a second on the GPS speed. A pause
+ * the rider asks for wins: auto-pause never resumes it. Outdoors too, the auto
+ * lap can be a distance (1 to 25 km) instead of a time.
+ *
+ * Indoors, a ride can follow a plan (RidePlan.hpp: Intervals or Tabata), run by
+ * the PlanRunner: each work or rest step is a lap that ends by itself, with a
+ * buzz for each, and a countdown in the last three seconds (onCue, buzzCue).
+ * At the plan's end the ride pauses and only End or Discard remain.
+ *
  * After a save: the ride goes into ../SharedData/HybridX/act_ride.json
  * for HybridX Streak (writeActivityLink), and the Streak line is worked out and
  * sent to the Saved screen (sendStreakLine), as HybridX Race does.
@@ -39,7 +50,9 @@
 
 #include "ActivityWriter.hpp"
 #include "Commands.hpp"
+#include "AutoPause.hpp"
 #include "HrZones.hpp"
+#include "PlanRunner.hpp"
 #include "SecondGate.hpp"
 #include "RideFit.hpp"
 #include "RideModel.hpp"
@@ -109,6 +122,15 @@ private:
     void onSensorData(uint16_t handle, SDK::Sensor::DataBatch &batch);
     /// The lap toast and buzz for a lap that has just ended (by R2 or the auto lap).
     void lapEnded(uint32_t nowMs, bool autoEnded);
+    /// A plan's cue (a step began, the warning, the end): the buzz and the toast.
+    void onCue(Ride::Cue cue);
+    void sendLapEvent(uint8_t index, Ride::Cue cue);
+    void buzzCue(Ride::Cue cue);
+    /// Outdoors, once a second: auto-pause and auto-resume on the GPS speed.
+    void updateAutoPause();
+    /// Pause or resume by auto-pause (true) or the rider (false).
+    void pauseBy(bool autoTrigger);
+    void resumeBy(bool autoTrigger);
 
     uint16_t currentHr(uint32_t nowMs) const;
 
@@ -116,7 +138,9 @@ private:
     void readSystemSettings();
     void loadSettings();
     void saveSettings();
-    void setAutoLap(uint8_t minutes);
+    void setAutoLap(uint8_t minutes, uint8_t km);
+    void setAutoPause(bool on);
+    void setPlan(const Ride::PlanConfig &plan);
     void setMode(bool outdoor);
 
     void requestAccessoryPrepare();
@@ -170,6 +194,12 @@ private:
     bool     mSpeedValid = false;
     uint32_t mSpeedAtMs = 0;
     uint32_t mSpeedNowMmS = 0;     ///< The speed the last sample used
+    uint32_t mSpeedSeq = 0;        ///< Valid speed samples received (auto-pause's freshness)
+    uint32_t mSpeedSeqSeen = 0;    ///< ... as auto-pause last looked
+    bool     mAutoPauseOn = false; ///< This ride: auto-pause is working (outdoors, switched on)
+    bool     mAutoPaused = false;  ///< The ride is paused by auto-pause, not the rider
+    uint16_t mAutoPauses = 0;      ///< This ride's auto-pauses, for the log
+    Ride::AutoPause mAutoPause;
     float    mSeaLevelPa = 0.0f;
     uint32_t mBadAltitude = 0;     ///< Barometer readings dropped as unusable, this ride
     uint32_t mSentDistCm = 0;      ///< What the model has been given so far

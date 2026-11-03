@@ -13,6 +13,7 @@
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
+#include "RidePlanText.hpp"
 #include "RideText.hpp"
 
 using namespace SDK::GUI;
@@ -41,6 +42,12 @@ void setBigNumber(lv_obj_t* label, const lv_font_t* font, const lv_font_t* refer
 const char* speedUnit(bool imperial) { return imperial ? Strings::kMph : Strings::kKmh; }
 const char* distUnit(bool imperial) { return imperial ? Strings::kMiles : Strings::kKm; }
 const char* climbUnit(bool imperial) { return imperial ? Strings::kFeet : Strings::kMetres; }
+
+/// The lap button works on a running free ride (a plan's steps end by themselves).
+bool lapButtonLive(const Ride::SessionSnapshot& s)
+{
+    return s.state == static_cast<uint8_t>(Ride::RunState::Running) && s.plan.steps == 0;
+}
 
 uint32_t ringColor(const Ride::SessionSnapshot& s)
 {
@@ -202,8 +209,8 @@ void LiveScreen::onKey(uint8_t code)
             break;
 
         case Btn::R2:
-            // A paused ride has no lap to end; the model drops a double tap.
-            if (!mModel.paused()) {
+            // A paused ride has no lap to end, nor a plan's step; the model drops a double tap.
+            if (lapButtonLive(mModel.snapshot())) {
                 mModel.lap();
             }
             break;
@@ -228,7 +235,7 @@ void LiveScreen::redraw()
     const Ride::SessionSnapshot& s = mModel.snapshot();
 
     Theme::setArcColor(mRing, ringColor(s));
-    mButtons->setR2(mModel.paused() ? Widgets::Buttons::NONE : Widgets::Buttons::AMBER);
+    mButtons->setR2(lapButtonLive(s) ? Widgets::Buttons::AMBER : Widgets::Buttons::NONE);
 
     switch (mFace) {
         case FaceMain:   redrawMain(s); break;
@@ -241,6 +248,10 @@ void LiveScreen::redraw()
 
 void LiveScreen::redrawMain(const Ride::SessionSnapshot& s)
 {
+    if (s.plan.steps > 0) {
+        redrawPlanMain(s);
+        return;
+    }
     char buf[64];   // "km/h  999.99 km  99:59:59" and its worst-case bounds
     const bool paused = s.state == static_cast<uint8_t>(Ride::RunState::Paused);
 
@@ -265,7 +276,7 @@ void LiveScreen::redrawMain(const Ride::SessionSnapshot& s)
     if (!s.logOk) {
         Theme::setText(mInfo, Strings::kFileTrouble, Color::RED);
     } else if (paused) {
-        Theme::setText(mInfo, Strings::kPaused, Color::YELLOW_DARK);
+        Theme::setText(mInfo, s.autoPaused ? Strings::kAutoPaused : Strings::kPaused, Color::YELLOW_DARK);
     } else if (s.outdoor) {
         char dist[16];
         char total[16];
@@ -286,6 +297,67 @@ void LiveScreen::redrawMain(const Ride::SessionSnapshot& s)
     Theme::assign(mHr, buf);
 
     // The zone, in its colour; nothing below zone 1.
+    if (s.zone >= 1) {
+        std::snprintf(buf, sizeof(buf), "Zone %u", static_cast<unsigned>(s.zone > 5 ? 5 : s.zone));
+        Theme::setText(mZone, buf, Theme::zoneColor(s.zone));
+    } else {
+        Theme::assign(mZone, "");
+    }
+}
+
+void LiveScreen::redrawPlanMain(const Ride::SessionSnapshot& s)
+{
+    // HybridX Workout's plan face, cut to a ride's timed steps.
+    const Ride::PlanView& v = s.plan;
+    const bool paused = s.state == static_cast<uint8_t>(Ride::RunState::Paused) && !v.done;
+    char buf[40];
+
+    // The step, smaller than a free ride's lap number: the face is narrow up there.
+    Ride::formatStepHeading(buf, sizeof(buf), v);
+    lv_obj_set_style_text_font(mLapNo, Theme::font(Theme::Font::Medium18), LV_PART_MAIN);
+    lv_obj_set_y(mLapNo, 28);   // "Work 30/30" is wider than "Lap 64": a little lower, clear of the arcs
+    Theme::setText(mLapNo, buf, v.done ? Color::GREEN : Theme::stepColor(v.kind));
+
+    // The step's time counting down; the total once done.
+    const bool down = Ride::countsDown(v);
+    uint32_t ms = s.activeMs;
+    if (down) {
+        Ride::formatCountdown(buf, sizeof(buf), v.remainingMs);
+        ms = v.remainingMs;
+    } else {
+        Ride::formatClock(buf, sizeof(buf), v.done ? s.activeMs : v.stepMs);
+        ms = v.done ? s.activeMs : v.stepMs;
+    }
+    const lv_font_t* big  = Theme::font(Theme::Font::Light60);
+    const lv_font_t* font = ms >= 3600000u ? Theme::font(Theme::Font::SemiBold40) : big;
+    setBigNumber(mLapTime, font, big);
+    uint32_t color = Color::WHITE;
+    if (paused) {
+        color = Color::GRAY;
+    } else if (down && v.remainingMs <= Ride::kWarnMs) {
+        color = Color::YELLOW_DARK;   // the countdown buzz's three seconds
+    } else if (v.kind == static_cast<uint8_t>(Ride::StepKind::Rest) && !v.done) {
+        color = Theme::stepColor(v.kind);
+    }
+    Theme::setText(mLapTime, buf, color);
+
+    if (!s.logOk) {
+        Theme::setText(mInfo, Strings::kFileTrouble, Color::RED);
+    } else if (v.done) {
+        Theme::setText(mInfo, Strings::kPlanDone, Color::YELLOW_DARK);
+    } else if (paused) {
+        Theme::setText(mInfo, Strings::kPaused, Color::YELLOW_DARK);
+    } else {
+        char total[16];
+        Ride::formatClock(total, sizeof(total), s.activeMs);
+        std::snprintf(buf, sizeof(buf), "Total %s", total);
+        Theme::setText(mInfo, buf, Color::GRAY);
+    }
+
+    char bpm[8];
+    Ride::formatBpm(bpm, sizeof(bpm), s.hr);
+    std::snprintf(buf, sizeof(buf), "%s bpm", bpm);
+    Theme::assign(mHr, buf);
     if (s.zone >= 1) {
         std::snprintf(buf, sizeof(buf), "Zone %u", static_cast<unsigned>(s.zone > 5 ? 5 : s.zone));
         Theme::setText(mZone, buf, Theme::zoneColor(s.zone));
@@ -340,11 +412,16 @@ void LiveScreen::redrawTotals(const Ride::SessionSnapshot& s)
     } else {
         Ride::formatKcal(value[1], sizeof(value[1]), s.kcalX10);
         std::snprintf(value[2], sizeof(value[2]), "%u", static_cast<unsigned>(s.laps));
-        Ride::formatAutoLap(value[3], sizeof(value[3]), s.autoLapMin);
         names[0] = Strings::kTotal;
         names[1] = Strings::kCalories;
         names[2] = Strings::kLapsRow;
-        names[3] = Strings::kAutoLapRow;
+        if (s.plan.steps > 0) {
+            Ride::plantext::copyOut(value[3], sizeof(value[3]), Ride::kindName(static_cast<Ride::SessionType>(s.plan.type)));
+            names[3] = Strings::kPlanRow;
+        } else {
+            Ride::formatAutoLap(value[3], sizeof(value[3]), s.autoLapMin);
+            names[3] = Strings::kAutoLapRow;
+        }
     }
     for (uint8_t i = 0; i < kTotals; ++i) {
         Theme::assign(mRowName[i], names[i]);
@@ -373,8 +450,12 @@ void LiveScreen::redrawClock(const Ride::SessionSnapshot& s)
 
     // What the ride is doing, small, so the clock face is not a blind spot.
     char lap[16];
-    Ride::formatClock(lap, sizeof(lap), s.lapMs);
-    std::snprintf(buf, sizeof(buf), "Lap %u %s", static_cast<unsigned>(s.laps), lap);
+    if (s.plan.steps > 0) {
+        Ride::formatStepHeading(buf, sizeof(buf), s.plan);   // "Work 3/6", "Rest 3/6", "Done"
+    } else {
+        Ride::formatClock(lap, sizeof(lap), s.lapMs);
+        std::snprintf(buf, sizeof(buf), "Lap %u %s", static_cast<unsigned>(s.laps), lap);
+    }
     Theme::setText(mClockLap, buf, ringColor(s) == Color::GRAY ? Color::GRAY : ringColor(s));
 
     Ride::formatHourMinute(buf, sizeof(buf), s.hour, s.minute);
@@ -391,7 +472,14 @@ void LiveScreen::showToast(const Ride::LapEventData& e)
     char buf[64];
     char clock[16];
 
-    const uint32_t color = Color::YELLOW_DARK;   // the lap button's amber
+    uint32_t color = Color::YELLOW_DARK;   // the lap button's amber
+    switch (static_cast<Ride::Cue>(e.cue)) {
+        case Ride::Cue::Done: color = Color::GREEN; break;
+        case Ride::Cue::Rest: color = Theme::stepColor(static_cast<uint8_t>(Ride::StepKind::Rest)); break;
+        case Ride::Cue::Work: color = Theme::stepColor(static_cast<uint8_t>(Ride::StepKind::Work)); break;
+        default: break;
+    }
+    const uint8_t type = mModel.snapshot().plan.type;
 
     if (mToast) {
         lv_obj_delete(mToast);
@@ -401,17 +489,15 @@ void LiveScreen::showToast(const Ride::LapEventData& e)
     lv_obj_move_to_index(mToast, static_cast<int32_t>(lv_obj_get_child_count(mRoot)) - 1 - 4);
 
     Theme::arc(mToast, Widgets::kCx, Widgets::kCy, kRingRadius, kRingWidth, 0, 360, color);
-    // The lap now begun ("Auto lap" when the auto lap ended the last), then the
-    // one just finished: how long, and its heart rate.
-    if (e.autoEnded) {
-        std::snprintf(buf, sizeof(buf), "Auto lap");
-    } else {
-        std::snprintf(buf, sizeof(buf), "Lap %u", static_cast<unsigned>(e.finishedLap + 1u));
-    }
+    // What begins now ("Work 4", "Rest", "Done", "Lap 4", "Auto lap"), then the
+    // lap just finished: what it was, how long, and its heart rate.
+    Ride::formatCueHeading(buf, sizeof(buf), e);
     Theme::label(mToast, F::SemiBold30, buf, 0, 52, 240, LV_TEXT_ALIGN_CENTER, color);
 
+    char name[16];
     Ride::formatClock(clock, sizeof(clock), e.durationMs);
-    std::snprintf(buf, sizeof(buf), "Lap %u %s", static_cast<unsigned>(e.finishedLap), clock);
+    Ride::formatStepName(name, sizeof(name), type, e.kind, e.round, e.finishedLap, false);
+    std::snprintf(buf, sizeof(buf), "%s %s", name, clock);
     Theme::label(mToast, F::Medium18, buf, 0, 106, 240);
 
     if (e.hrAvg == 0) {

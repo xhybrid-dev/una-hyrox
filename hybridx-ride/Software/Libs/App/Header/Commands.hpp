@@ -40,6 +40,8 @@ constexpr SDK::MessageType::Type SESSION_STOP   = 0x00000014;
 constexpr SDK::MessageType::Type SESSION_LAPS_REQUEST = 0x00000015;
 constexpr SDK::MessageType::Type SET_AUTO_LAP   = 0x00000016;
 constexpr SDK::MessageType::Type SET_MODE       = 0x00000017;
+constexpr SDK::MessageType::Type SET_AUTO_PAUSE = 0x00000018;
+constexpr SDK::MessageType::Type SET_PLAN       = 0x00000019;
 
 /// Service --> GUI: the session as it now stands. Sent when the GUI starts, on
 /// every change, and once a second while a session runs.
@@ -88,9 +90,11 @@ struct SettingsUpdate : public SDK::MessageBase {
     uint8_t autoLapMin = 0;   ///< One of Ride::kAutoLapMinutes (0: off)
     uint8_t outdoor = 1;      ///< The main menu's choice: 1 Outdoor (GPS), 0 Indoor
     uint8_t imperial = 0;     ///< The watch profile's units: 1 miles and feet
+    uint8_t autoLapKm = 0;    ///< One of Ride::kAutoLapKm (0: off); outdoors only
+    uint8_t autoPause = 1;    ///< Outdoors: pause when the bike stops
+    Ride::PlanConfig plan {}; ///< Indoors: Free, Intervals or Tabata, and its numbers
 
     SettingsUpdate() : SDK::MessageBase(SETTINGS_UPDATE) {}
-    SettingsUpdate(uint8_t m, uint8_t o, uint8_t i) : SettingsUpdate() { autoLapMin = m; outdoor = o; imperial = i; }
 };
 
 /// Service --> GUI: the GPS state (Ride::GpsState), sent when it changes and when the screen opens.
@@ -126,12 +130,32 @@ struct SessionStart : public SDK::MessageBase {
     SessionStart() : SDK::MessageBase(SESSION_START) {}
 };
 
-/// GUI --> Service: change the auto lap (minutes, one of Ride::kAutoLapMinutes) and remember it.
+/// GUI --> Service: change the auto lap and remember it: by time (minutes, one of
+/// Ride::kAutoLapMinutes) or, outdoors, by distance (km, one of Ride::kAutoLapKm). They
+/// are one choice: at most one is set, and both 0 is off.
 struct SetAutoLap : public SDK::MessageBase {
     uint8_t minutes = 0;
+    uint8_t km = 0;
 
     SetAutoLap() : SDK::MessageBase(SET_AUTO_LAP) {}
-    explicit SetAutoLap(uint8_t m) : SetAutoLap() { minutes = m; }
+    SetAutoLap(uint8_t m, uint8_t k) : SetAutoLap() { minutes = m; km = k; }
+};
+
+/// GUI --> Service: auto-pause on (1) or off (0), and remember it. Outdoors only.
+struct SetAutoPause : public SDK::MessageBase {
+    uint8_t on = 1;
+
+    SetAutoPause() : SDK::MessageBase(SET_AUTO_PAUSE) {}
+    explicit SetAutoPause(uint8_t o) : SetAutoPause() { on = o; }
+};
+
+/// GUI --> Service: the indoor plan and its numbers, for the next ride; the service
+/// clamps every value (RidePlan.hpp) and remembers them.
+struct SetPlan : public SDK::MessageBase {
+    Ride::PlanConfig plan {};
+
+    SetPlan() : SDK::MessageBase(SET_PLAN) {}
+    explicit SetPlan(const Ride::PlanConfig &p) : SetPlan() { plan = p; }
 };
 
 /// GUI --> Service: choose Outdoor (1) or Indoor (0) and remember it.
@@ -170,6 +194,8 @@ static_assert(sizeof(SessionLapEvent) <= 256u, "SessionLapEvent exceeds the 256-
 static_assert(sizeof(SessionLapsPage) <= 256u, "SessionLapsPage exceeds the 256-byte kernel pool block");
 static_assert(sizeof(AccessoryStatusUpd) <= 256u, "AccessoryStatusUpd exceeds the 256-byte kernel pool block");
 static_assert(sizeof(GpsStatusUpd) <= 256u, "GpsStatusUpd exceeds the 256-byte kernel pool block");
+static_assert(sizeof(SettingsUpdate) <= 256u, "SettingsUpdate exceeds the 256-byte kernel pool block");
+static_assert(sizeof(SetPlan) <= 256u, "SetPlan exceeds the 256-byte kernel pool block");
 static_assert(sizeof(StreakLineUpd) <= 256u, "StreakLineUpd exceeds the 256-byte kernel pool block");
 
 } // namespace CustomMessage

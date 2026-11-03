@@ -13,6 +13,7 @@
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
+#include "RidePlanText.hpp"
 #include "RideText.hpp"
 
 using namespace SDK::GUI;
@@ -70,7 +71,10 @@ void SummaryScreen::showPage(uint8_t page)
     const uint8_t fixed = fixedPages();
     char title[24];
     if (page == 0) {
-        std::snprintf(title, sizeof(title), "%s", Strings::kSummary);
+        // An indoor plan's summary is titled with its kind; a free ride's is "Summary".
+        const auto t = static_cast<Ride::SessionType>(mModel.saved().type);
+        std::snprintf(title, sizeof(title), "%s",
+                      t == Ride::SessionType::Plain ? Strings::kSummary : Ride::kindName(t));
         buildOverview();
     } else if (outdoor && page == 1) {
         std::snprintf(title, sizeof(title), "%s", Strings::kRideSummary);
@@ -116,8 +120,8 @@ void SummaryScreen::buildOverview()
         return;
     }
 
-    std::snprintf(buf, sizeof(buf), "%u %s", static_cast<unsigned>(saved.summary.laps),
-                  saved.summary.laps == 1 ? "lap" : "laps");
+    // "4 laps"; a plan's "6 rounds" or "8 of 8 rounds".
+    Ride::formatSummaryLine(buf, sizeof(buf), saved.type, saved.summary.laps);
     Theme::label(mPageRoot, F::Medium18, buf, 0, 130, 240);
 
     std::snprintf(buf, sizeof(buf), "%s kcal", kcal);
@@ -235,10 +239,13 @@ void SummaryScreen::fillLaps(const Ride::LapsPageData& page)
         char buf[32];
         char part[16];
 
-        // "Lap 3", or "Auto 3" for one the auto lap ended ("Lap 3 auto" does not fit).
-        std::snprintf(buf, sizeof(buf), "%s %u", row.autoEnded ? "Auto" : "Lap",
-                      static_cast<unsigned>(page.first + i + 1u));
-        Theme::assign(mLapName[i], buf);
+        // "Lap 3", or "Auto 3" for one the auto lap ended ("Lap 3 auto" does not fit);
+        // a plan's rows are its steps, in their colours: "Work 3", "Rest 3".
+        const uint8_t type = mModel.saved().type;
+        Ride::formatStepName(buf, sizeof(buf), type, row.kind, row.round,
+                             static_cast<uint8_t>(page.first + i + 1u), row.autoEnded != 0);
+        Theme::setText(mLapName[i], buf, type == static_cast<uint8_t>(Ride::SessionType::Plain)
+                                             ? Color::WHITE : Theme::stepColor(row.kind));
 
         Ride::formatClock(buf, sizeof(buf), row.durationMs);
         Theme::assign(mLapTime[i], buf);

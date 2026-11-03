@@ -25,6 +25,7 @@ enum class ScreenId : uint8_t {
     HoldConfirm,   ///< End or discard, R1 held
     Result,        ///< Saved / not saved / discarded
     Summary,       ///< What the session came to, then its laps
+    PlanSettings,  ///< An indoor plan's numbers
 };
 
 class ScreenManager

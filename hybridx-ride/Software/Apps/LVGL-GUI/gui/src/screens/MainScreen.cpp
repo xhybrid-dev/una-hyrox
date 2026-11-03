@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    MainScreen.cpp
- * @brief   Before a ride: Start and Auto lap (see MainScreen.hpp).
+ * @brief   Before a ride: Start, the ride type and its settings (see MainScreen.hpp).
  ******************************************************************************
  */
 
@@ -11,6 +11,7 @@
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
+#include "RidePlanText.hpp"
 #include "RideText.hpp"
 
 #include "SDK/Messages/AccessoryMessages.hpp"
@@ -23,13 +24,15 @@ using Style = WheelMenu::Item::Style;
 
 // Mutable: the hint lines are rewritten as the choices change, then the wheel
 // is refreshed (the SDK widget reads the items, it has no setters).
-WheelMenu::Item kItems[4] = {
+WheelMenu::Item kItems[5] = {
     { Style::Tip, Strings::kStart },
     { Style::Tip, Strings::kRideType },
     { Style::Tip, Strings::kSensor },
     { Style::Tip, Strings::kAutoLap },
+    { Style::Tip, Strings::kAutoPause },
 };
-char sAutoLapTip[12];
+char sFourthTip[24];
+char sFifthTip[40];
 
 /// What Start will do about position: the GPS outdoors, nothing indoors.
 const char* startTip(const Model& model, bool warned, uint32_t& color)
@@ -145,10 +148,27 @@ void MainScreen::confirm()
         case RowSensor:
             break;   // only shows where the heart rate comes from
 
-        case RowAutoLap:
+        case RowFourth:
             // The service saves it and answers with the new value (onSettings).
-            mModel.nextAutoLap();
+            if (mModel.outdoor()) {
+                mModel.nextAutoLap();
+            } else {
+                mModel.nextKind();
+            }
             break;
+
+        case RowFifth: {
+            const Ride::SessionType t = mModel.plan().type;
+            Ride::PlanField fields[3];
+            if (mModel.outdoor()) {
+                mModel.toggleAutoPause();
+            } else if (t == Ride::SessionType::Plain) {
+                mModel.nextAutoLap();
+            } else if (Ride::planFields(t, fields) > 0) {
+                ScreenManager::instance().goTo(ScreenId::PlanSettings);
+            }
+            // Tabata: nothing to set.
+        } break;
 
         default:
             break;
@@ -167,9 +187,28 @@ void MainScreen::refresh()
     kItems[RowSensor].tip      = strapTip(mModel.strapState(), color);
     kItems[RowSensor].tipColor = color;
 
-    Ride::formatAutoLap(sAutoLapTip, sizeof(sAutoLapTip), mModel.autoLapMin());
-    kItems[RowAutoLap].tip      = sAutoLapTip;
-    kItems[RowAutoLap].tipColor = Color::WHITE;
+    if (mModel.outdoor()) {
+        kItems[RowFourth].text = Strings::kAutoLap;
+        Ride::formatAutoLapChoice(sFourthTip, sizeof(sFourthTip), mModel.autoLapMin(), mModel.autoLapKm(), true);
+        kItems[RowFifth].text = Strings::kAutoPause;
+        Ride::plantext::copyOut(sFifthTip, sizeof(sFifthTip), mModel.autoPause() ? Strings::kOn : Strings::kOff);
+    } else {
+        const Ride::SessionType t = mModel.plan().type;
+        kItems[RowFourth].text = Strings::kType;
+        Ride::plantext::copyOut(sFourthTip, sizeof(sFourthTip), Ride::kindName(t));
+        if (t == Ride::SessionType::Plain) {
+            kItems[RowFifth].text = Strings::kAutoLap;
+            Ride::formatAutoLapChoice(sFifthTip, sizeof(sFifthTip), mModel.autoLapMin(), 0, false);
+        } else {
+            // Tabata has nothing to set: its hint says what the fixed plan is.
+            kItems[RowFifth].text = Strings::kSettings;
+            Ride::formatPlanSummary(sFifthTip, sizeof(sFifthTip), mModel.plan());
+        }
+    }
+    kItems[RowFourth].tip      = sFourthTip;
+    kItems[RowFourth].tipColor = Color::WHITE;
+    kItems[RowFifth].tip       = sFifthTip;
+    kItems[RowFifth].tipColor  = Color::WHITE;
 
     mMenu->setBackground(Color::TEAL_DARK);
     mMenu->refresh();

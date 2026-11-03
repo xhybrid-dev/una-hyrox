@@ -164,6 +164,66 @@ inline uint8_t autoLapIndex(uint8_t minutes)
     return 0;
 }
 
+// --- The auto lap as one choice: Off, by time, or (outdoors) by distance -----------
+
+/// The choices in order: Off, the times (1 to 30 min), then outdoors the distances (1 to 25 km).
+constexpr uint8_t kAutoLapChoiceCount = kAutoLapCount + kAutoLapKmCount - 1u;
+
+struct AutoLapChoice {
+    uint8_t minutes = 0;   ///< One of kAutoLapMinutes (0: not by time)
+    uint8_t km = 0;        ///< One of kAutoLapKm (0: not by distance)
+};
+
+/// Choice @p i (0: Off). Out of range is Off.
+inline AutoLapChoice autoLapChoiceAt(uint8_t i)
+{
+    AutoLapChoice c;
+    if (i == 0 || i >= kAutoLapChoiceCount) {
+        return c;
+    }
+    if (i < kAutoLapCount) {
+        c.minutes = kAutoLapMinutes[i];
+    } else {
+        c.km = kAutoLapKm[i - kAutoLapCount + 1u];
+    }
+    return c;
+}
+
+/// The index of a setting among the choices; a distance indoors, or anything unknown, is Off.
+inline uint8_t autoLapChoiceIndex(uint8_t minutes, uint8_t km, bool outdoor)
+{
+    if (minutes > 0) {
+        return autoLapIndex(minutes);
+    }
+    if (outdoor && km > 0) {
+        for (uint8_t i = 1; i < kAutoLapKmCount; ++i) {
+            if (kAutoLapKm[i] == km) {
+                return static_cast<uint8_t>(kAutoLapCount + i - 1u);
+            }
+        }
+    }
+    return 0;
+}
+
+/// The choice after the current one, round to Off; indoors the distances are skipped.
+inline AutoLapChoice nextAutoLapChoice(uint8_t minutes, uint8_t km, bool outdoor)
+{
+    const uint8_t count = outdoor ? kAutoLapChoiceCount : kAutoLapCount;
+    const uint8_t i     = autoLapChoiceIndex(minutes, km, outdoor);
+    return autoLapChoiceAt(static_cast<uint8_t>(i + 1u < count ? i + 1u : 0u));
+}
+
+/// The choice in words: "Off", "5 min" or "10 km" (a distance indoors is "Off").
+inline size_t formatAutoLapChoice(char *out, size_t cap, uint8_t minutes, uint8_t km, bool outdoor)
+{
+    if (minutes == 0 && outdoor && km > 0) {
+        char tmp[12];
+        std::snprintf(tmp, sizeof(tmp), "%u km", static_cast<unsigned>(km));
+        return detail::copyOut(out, cap, tmp);
+    }
+    return formatAutoLap(out, cap, minutes);
+}
+
 /// A zone's short name: "Z1" to "Z5", and "Z0" below zone 1.
 inline size_t formatZone(char *out, size_t cap, uint8_t zone)
 {

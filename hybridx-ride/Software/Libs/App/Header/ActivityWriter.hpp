@@ -114,8 +114,10 @@ public:
     ActivityWriter(const SDK::Kernel& kernel, const char* pathToDir);
 
     void start(const AppInfo& info);
-    void pause(std::time_t timestamp);
-    void resume(std::time_t timestamp);
+    /// The FIT timer stops (or starts again). @p autoTrigger: auto-pause did it, not the
+    /// rider (the event's timer_trigger, as the SDK Cycling example writes it).
+    void pause(std::time_t timestamp, bool autoTrigger = false);
+    void resume(std::time_t timestamp, bool autoTrigger = false);
     /// False when the record could not be written (the screen says so).
     bool addRecord(const RecordData& record);
     void addLap(const LapData& lap);
@@ -171,7 +173,8 @@ private:
 
     void writeFieldDescription(uint8_t devFieldNum, const char* name,
                                const char* units, SDK::Fit::BaseType baseType);
-    void addMessageEvent(std::time_t t, SDK::Fit::EventType type);
+    void addMessageEvent(std::time_t t, SDK::Fit::EventType type,
+                         SDK::Fit::TimerTrigger trigger = SDK::Fit::TimerTrigger::Manual);
 
     bool createAndOpenFile(std::time_t utc);
     bool saveSummary(const TrackData& track);

@@ -21,6 +21,7 @@
 #include "gui/screens/HoldConfirmScreen.hpp"
 #include "gui/screens/ResultScreen.hpp"
 #include "gui/screens/SummaryScreen.hpp"
+#include "gui/screens/PlanSettingsScreen.hpp"
 
 ScreenManager& ScreenManager::instance()
 {
@@ -106,6 +107,7 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::HoldConfirm: return new HoldConfirmScreen(m);
         case ScreenId::Result:      return new ResultScreen(m);
         case ScreenId::Summary:     return new SummaryScreen(m);
+        case ScreenId::PlanSettings: return new PlanSettingsScreen(m);
     }
     return nullptr;
 }

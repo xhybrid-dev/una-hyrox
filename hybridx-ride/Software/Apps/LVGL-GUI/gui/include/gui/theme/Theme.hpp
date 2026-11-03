@@ -51,6 +51,13 @@ inline uint32_t zoneColor(uint8_t zone)
     return zone >= 1 && zone <= 5 ? kZone[zone - 1] : SDK::GUI::Color::GRAY;
 }
 
+/// A plan step's colour (StepKind): work lime, rest sky, on the display's grid
+/// (HybridX Workout's).
+inline uint32_t stepColor(uint8_t kind)
+{
+    return kind == 1 ? SDK::GUI::Color::SKY : SDK::GUI::Color::LIME;
+}
+
 // The SDK's drawing helpers, under the app's name for them.
 using SDK::LVGL::Draw::rgb;
 using SDK::LVGL::Draw::init;

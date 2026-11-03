@@ -23,6 +23,11 @@ constexpr const char* kOutdoor    = "Outdoor";
 constexpr const char* kIndoor     = "Indoor";
 constexpr const char* kSensor     = "Heart rate";
 constexpr const char* kAutoLap    = "Auto lap";
+constexpr const char* kAutoPause  = "Auto-pause";
+constexpr const char* kOn         = "On";
+constexpr const char* kOff        = "Off";
+constexpr const char* kType       = "Type";
+constexpr const char* kSettings   = "Settings";
 
 // Start's hint (the GPS, outdoors) and the press-again warning
 constexpr const char* kGpsReady   = "GPS ready";
@@ -43,9 +48,13 @@ constexpr const char* kPause       = "Pause";
 constexpr const char* kResumeTimer = "Resume\ntimer";
 constexpr const char* kEnd         = "End\nride";
 constexpr const char* kDiscard     = "Discard";
+constexpr const char* kBack        = "Back";
 
 // The live screen
 constexpr const char* kPaused     = "Paused";
+constexpr const char* kAutoPaused = "Auto-paused";
+constexpr const char* kPlanDone   = "R1 to end";   ///< Under "Done": End or Discard from the menu
+constexpr const char* kPlanRow    = "Plan";
 constexpr const char* kTotals     = "Totals";
 constexpr const char* kLapFace    = "Lap";
 constexpr const char* kTime       = "Time";

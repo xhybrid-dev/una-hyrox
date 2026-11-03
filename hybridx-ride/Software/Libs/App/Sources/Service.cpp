@@ -44,6 +44,8 @@ namespace
 /// service's small stack.
 Ride::RideModel sModel;
 Ride::FitLap       sFitLaps[Ride::kMaxLaps];
+/// The indoor plan over the model (a free ride: no plan, the button laps).
+Ride::PlanRunner   sRunner;
 
 /// The app's folder name: what Streak shows and keys sessions by.
 constexpr const char* kAppFolder = "HybridXRide";
@@ -198,7 +200,17 @@ void Service::run()
 
             case CustomMessage::SET_AUTO_LAP: {
                 auto *m = static_cast<CustomMessage::SetAutoLap *>(msg);
-                setAutoLap(m->minutes);
+                setAutoLap(m->minutes, m->km);
+            } break;
+
+            case CustomMessage::SET_AUTO_PAUSE: {
+                auto *m = static_cast<CustomMessage::SetAutoPause *>(msg);
+                setAutoPause(m->on != 0);
+            } break;
+
+            case CustomMessage::SET_PLAN: {
+                auto *m = static_cast<CustomMessage::SetPlan *>(msg);
+                setPlan(m->plan);
             } break;
 
             case CustomMessage::SET_MODE: {
@@ -250,6 +262,14 @@ void Service::startSession()
     cfg.weightG   = mWeightG;
     cfg.autoLapMs = static_cast<uint32_t>(mSettings.autoLapMin) * 60000u;
     cfg.outdoor   = mSettings.outdoor;
+    // Outdoors the auto lap can be a distance instead (one at a time: RideSettings).
+    cfg.autoLapDistCm = cfg.outdoor && mSettings.autoLapMin == 0
+                            ? static_cast<uint32_t>(mSettings.autoLapKm) * 100000u : 0u;
+    // A plan is indoors only: outdoors the road decides.
+    Ride::PlanConfig plan = mSettings.plan;
+    if (cfg.outdoor) {
+        plan.type = Ride::SessionType::Plain;
+    }
 
     // The GPS counters start from nothing: this ride's distance and climb only.
     mDistance.reset();
@@ -259,6 +279,11 @@ void Service::startSession()
     mBadAltitude = 0;
     mSpeedNowMmS = 0;
     mSpeedValid  = false;
+    mSpeedSeqSeen = mSpeedSeq;
+    mAutoPause.reset();
+    mAutoPauseOn = cfg.outdoor && mSettings.autoPause;
+    mAutoPaused  = false;
+    mAutoPauses  = 0;
 
     mStartUtc = mTimeTracker.getExpectedUTC();
     mSecond.reset();
@@ -278,15 +303,24 @@ void Service::startSession()
     mFitOpen = true;
 
     const uint32_t nowMs = mKernel.sys.getTimeMs();
-    sModel.start(nowMs, cfg);
-    LOG_INFO("Ride started (%s): auto lap %u min, weight %lu g\n", cfg.outdoor ? "outdoor" : "indoor",
-             static_cast<unsigned>(mSettings.autoLapMin), static_cast<unsigned long>(mWeightG));
+    sRunner.start(plan, sModel, nowMs, cfg);   // starts the model too
+    LOG_INFO("Ride started (%s): auto lap %u min / %u km, auto-pause %s, plan %u (%u steps), weight %lu g\n",
+             cfg.outdoor ? "outdoor" : "indoor", static_cast<unsigned>(mSettings.autoLapMin),
+             static_cast<unsigned>(cfg.autoLapDistCm / 100000u), mAutoPauseOn ? "on" : "off",
+             static_cast<unsigned>(sRunner.config().type), static_cast<unsigned>(Ride::stepCount(sRunner.config())),
+             static_cast<unsigned long>(mWeightG));
     sendUpdate();
 }
 
 void Service::lap()
 {
     const uint32_t nowMs = mKernel.sys.getTimeMs();
+    if (sRunner.hasPlan()) {
+        // The plan's steps end by themselves: the button does nothing.
+        onCue(sRunner.press(sModel, nowMs));
+        sendUpdate();
+        return;
+    }
     const Ride::LapResult r = sModel.lap(nowMs);
     if (r == Ride::LapResult::Ok) {
         lapEnded(nowMs, false);
@@ -303,38 +337,178 @@ void Service::lapEnded(uint32_t nowMs, bool autoEnded)
     if (sModel.lapCount() < 2) {
         return;
     }
-    const uint8_t done = static_cast<uint8_t>(sModel.lapCount() - 2u);
-    const Ride::LapStats &l = sModel.lapAt(done);
+    (void)autoEnded;   // the lap itself says so
+    buzz(SDK::Message::RequestVibroPlay::STRONG_CLICK_100);
+    backlightOn();
+    sendLapEvent(static_cast<uint8_t>(sModel.lapCount() - 2u), Ride::Cue::Round);
+}
+
+void Service::onCue(Ride::Cue cue)
+{
+    switch (cue) {
+    case Ride::Cue::None:
+        return;
+    case Ride::Cue::Warning:
+        buzzCue(cue);
+        backlightOn();
+        return;
+    case Ride::Cue::Done:
+        // The runner has paused the model: the file's timer stops here too.
+        mWriter.pause(mTimeTracker.getExpectedUTC());
+        mDistance.pause();
+        mAltitude.pause();
+        mSpeedNowMmS = 0;
+        LOG_INFO("Plan done: %u laps; End or Discard to finish\n", static_cast<unsigned>(sModel.lapCount()));
+        buzzCue(cue);
+        backlightOn();
+        sendLapEvent(static_cast<uint8_t>(sModel.lapCount() - 1u), cue);
+        return;
+    default:
+        // A work or rest step began, or a free ride's lap was taken.
+        buzzCue(cue);
+        backlightOn();
+        if (sModel.lapCount() >= 2) {
+            sendLapEvent(static_cast<uint8_t>(sModel.lapCount() - 2u), cue);
+        }
+        return;
+    }
+}
+
+void Service::sendLapEvent(uint8_t index, Ride::Cue cue)
+{
+    const Ride::LapStats &l = sModel.lapAt(index);
     Ride::LapEventData ev;
-    ev.finishedLap = static_cast<uint8_t>(done + 1u);
-    ev.autoEnded   = autoEnded ? 1u : 0u;
+    ev.finishedLap = static_cast<uint8_t>(index + 1u);
+    ev.autoEnded   = l.autoEnded ? 1u : 0u;
+    ev.byDistance  = l.byDistance ? 1u : 0u;
+    ev.cue         = static_cast<uint8_t>(cue);
+    ev.kind        = l.kind;
+    ev.round       = l.round;
     ev.durationMs  = l.activeMs;
     ev.hrAvg       = l.hrAvg();
     ev.distCm      = l.distCm;
     ev.avgSpeedMmS = l.avgSpeedMmS();
-    buzz(SDK::Message::RequestVibroPlay::STRONG_CLICK_100);
-    backlightOn();
     SDK::send_msg<CustomMessage::SessionLapEvent>(mKernel, ev);
 }
 
+void Service::buzzCue(Ride::Cue cue)
+{
+    // HybridX Workout's patterns: one per cue, each different to the hand. The
+    // warning is a countdown: three ticks a second apart, 3, 2, 1.
+    using V = SDK::Message::RequestVibroPlay;
+    auto vibro = SDK::make_msg<V>(mKernel);
+    if (!vibro) {
+        return;
+    }
+    uint32_t n = 0;
+    auto note = [&](uint8_t effect, uint32_t pauseMs) {
+        if (n < V::skMaxNotes) {
+            vibro->notes[n].effect = effect;
+            vibro->notes[n].pause  = pauseMs;
+            ++n;
+        }
+    };
+    switch (cue) {
+    case Ride::Cue::Work:  note(V::LONG_DOUBLE_SHARP_CLICK_STRONG_1_100, 0); break;
+    case Ride::Cue::Rest:  note(V::SHORT_DOUBLE_CLICK_MEDIUM_1_100, 0); break;
+    case Ride::Cue::Round: note(V::STRONG_CLICK_100, 0); break;
+    case Ride::Cue::Done:  note(V::ALERT_1000MS_100, 0); break;
+    case Ride::Cue::Warning:
+        note(V::SHARP_TICK_1_100, 0);
+        note(0, 900);
+        note(V::SHARP_TICK_1_100, 0);
+        note(0, 900);
+        note(V::SHARP_TICK_1_100, 0);
+        break;
+    case Ride::Cue::None:
+    default:
+        return;
+    }
+    vibro->notesCount = n;
+    vibro.send();
+}
+
 void Service::pause()
+{
+    if (mAutoPaused) {
+        // The rider asked while auto-pause held the ride: the pause is theirs now, so
+        // moving off cannot resume it under the menu (the SDK Cycling example's rule).
+        mAutoPaused = false;
+        LOG_INFO("Auto-pause taken over by the rider\n");
+        sendUpdate();
+        return;
+    }
+    pauseBy(false);
+}
+
+void Service::resume()
+{
+    if (sRunner.done()) {
+        // The plan is over: resuming would stretch its last step's lap.
+        LOG_INFO("Resume refused: the plan is done\n");
+        return;
+    }
+    resumeBy(false);
+}
+
+void Service::pauseBy(bool autoTrigger)
 {
     if (sModel.pause(mKernel.sys.getTimeMs())) {
         mDistance.pause();
         mAltitude.pause();
         mSpeedNowMmS = 0;
-        mWriter.pause(mTimeTracker.getExpectedUTC());
+        mAutoPaused  = autoTrigger;
+        mWriter.pause(mTimeTracker.getExpectedUTC(), autoTrigger);
         sendUpdate();
     }
 }
 
-void Service::resume()
+void Service::resumeBy(bool autoTrigger)
 {
     if (sModel.resume(mKernel.sys.getTimeMs())) {
         mDistance.resume();
         mAltitude.resume();
-        mWriter.resume(mTimeTracker.getExpectedUTC());
+        mAutoPaused = false;
+        mWriter.resume(mTimeTracker.getExpectedUTC(), autoTrigger);
         sendUpdate();
+    }
+}
+
+void Service::updateAutoPause()
+{
+    if (!mAutoPauseOn || sRunner.done()) {
+        return;
+    }
+    // A new valid GPS speed since the last look (the SDK's freshness: the tick and the
+    // samples are not phase-locked, so a tick may see none or two).
+    const bool fresh = mSpeedSeq != mSpeedSeqSeen && mSpeedValid;
+    mSpeedSeqSeen = mSpeedSeq;
+    const float    v   = mSpeedMs < 0.0f ? 0.0f : (mSpeedMs > skMaxSpeedMs ? skMaxSpeedMs : mSpeedMs);
+    const uint32_t mms = static_cast<uint32_t>(v * 1000.0f + 0.5f);
+    using AP = Ride::AutoPause;
+    const AP::RideState state = sModel.state() == Ride::RunState::Running
+                                    ? AP::RideState::Running
+                                    : (mAutoPaused ? AP::RideState::AutoPaused : AP::RideState::ManuallyPaused);
+    const AP::Action a = mAutoPause.tick(fresh, mms, state);
+    // Vibro only, no backlight: it happens at every traffic light. One pulse on pause,
+    // two on resume, so the two can be told apart without looking (the SDK example's).
+    using V = SDK::Message::RequestVibroPlay;
+    if (a == AP::Action::Pause) {
+        ++mAutoPauses;
+        LOG_INFO("Auto-pause: paused at %lu mm/s\n", static_cast<unsigned long>(mms));
+        pauseBy(true);
+        buzz(V::STRONG_CLICK_100);
+    } else if (a == AP::Action::Resume) {
+        LOG_INFO("Auto-pause: resumed at %lu mm/s\n", static_cast<unsigned long>(mms));
+        resumeBy(true);
+        auto vibro = SDK::make_msg<V>(mKernel);
+        if (vibro) {
+            vibro->notes[0].effect = V::STRONG_CLICK_100;
+            vibro->notes[0].pause  = 150;
+            vibro->notes[1].effect = V::STRONG_CLICK_100;
+            vibro->notesCount      = 2;
+            vibro.send();
+        }
     }
 }
 
@@ -345,6 +519,10 @@ void Service::finish(bool save, bool bank)
     }
     const uint32_t nowMs = mKernel.sys.getTimeMs();
     sModel.stop(nowMs);
+    mAutoPaused = false;
+    if (mAutoPauses > 0) {
+        LOG_INFO("Auto-pause paused this ride %u times\n", static_cast<unsigned>(mAutoPauses));
+    }
     // The session's training load (hybridx-link TrainingLoad.hpp): Edwards' TRIMP from
     // the time in each of the watch's zones, for Streak and the Saved screen.
     mLastLoad = HybridXLink::edwardsLoadMs(sModel.summary().zoneMs);
@@ -375,6 +553,8 @@ void Service::finish(bool save, bool bank)
         lap.kcal        = sFitLaps[i].kcal;
         lap.restingKcal = sFitLaps[i].restingKcal;
         lap.autoEnded   = sFitLaps[i].autoEnded;
+        lap.byDistance  = sFitLaps[i].byDistance;
+        lap.rest        = sFitLaps[i].kind == static_cast<uint8_t>(Ride::StepKind::Rest);
         lap.distCm      = sFitLaps[i].distCm;
         lap.avgSpeedMmS = sFitLaps[i].avgSpeedMmS;
         lap.maxSpeedMmS = sFitLaps[i].maxSpeedMmS;
@@ -436,6 +616,9 @@ void Service::tick()
     const uint32_t nowMs = mKernel.sys.getTimeMs();
     const uint16_t hr = currentHr(nowMs);
 
+    // Before the sample, as the SDK example: a ride that has just stopped records no more.
+    updateAutoPause();
+
     if (sModel.state() == Ride::RunState::Running) {
         // The sample first, so the record can carry the distance up to this second.
         const Ride::Motion motion = motionNow(nowMs);
@@ -462,6 +645,8 @@ void Service::tick()
             LOG_INFO("Auto lap: lap %u\n", static_cast<unsigned>(sModel.lapCount() - 1u));
             lapEnded(nowMs, true);
         }
+        // An indoor plan: a step whose time is up ends, or warns that it soon will.
+        onCue(sRunner.tick(sModel, nowMs));
     }
 
     if (mGuiStarted) {
@@ -604,6 +789,7 @@ void Service::onSensorData(uint16_t handle, SDK::Sensor::DataBatch &batch)
             mSpeedMs    = p.getSpeed();
             mSpeedValid = p.isSpeedValid();   // already excludes dead reckoning
             mSpeedAtMs  = mKernel.sys.getTimeMs();
+            ++mSpeedSeq;                      // for auto-pause: one more sample
         }
     } else if (mGpsDistance.matchesDriver(handle)) {
         SDK::SensorDataParser::GpsDistance p(batch[0]);
@@ -710,10 +896,33 @@ void Service::saveSettings()
     }
 }
 
-void Service::setAutoLap(uint8_t minutes)
+void Service::setAutoLap(uint8_t minutes, uint8_t km)
 {
-    // Only one of the example's choices; the next ride takes it up.
+    // Only one of the examples' choices, and one at a time (time wins); the next ride takes it up.
     mSettings.autoLapMin = Ride::kAutoLapMinutes[Ride::autoLapIndex(minutes)];
+    uint8_t k = 0;
+    for (uint8_t i = 1; i < Ride::kAutoLapKmCount && mSettings.autoLapMin == 0; ++i) {
+        if (Ride::kAutoLapKm[i] == km) {
+            k = km;
+        }
+    }
+    mSettings.autoLapKm = k;
+    saveSettings();
+    sendSettings();
+}
+
+void Service::setAutoPause(bool on)
+{
+    // For the next ride: one under way keeps what it started with.
+    mSettings.autoPause = on;
+    saveSettings();
+    sendSettings();
+}
+
+void Service::setPlan(const Ride::PlanConfig &plan)
+{
+    // For the next ride: one under way keeps the plan it started with.
+    mSettings.plan = Ride::clamp(plan);
     saveSettings();
     sendSettings();
 }
@@ -872,6 +1081,9 @@ void Service::sendUpdate()
     s.ascentCm   = sModel.ascentCm();
     s.lapDistCm  = sModel.current().distCm;
     s.lapAvgSpeedMmS = sModel.current().avgSpeedMmS();
+    s.autoPaused = mAutoPaused ? 1u : 0u;
+    s.autoLapKm  = static_cast<uint8_t>(sModel.config().autoLapDistCm / 100000u);
+    s.plan       = sRunner.view(sModel, nowMs);
 
     const Ride::SessionSummary sum = sModel.summary();
     s.avgSpeedMmS = sum.avgSpeedMmS;
@@ -888,9 +1100,17 @@ void Service::sendUpdate()
 
 void Service::sendSettings()
 {
-    SDK::send_msg<CustomMessage::SettingsUpdate>(mKernel, mSettings.autoLapMin,
-                                                 static_cast<uint8_t>(mSettings.outdoor ? 1 : 0),
-                                                 static_cast<uint8_t>(mImperial ? 1 : 0));
+    auto msg = SDK::make_msg<CustomMessage::SettingsUpdate>(mKernel);
+    if (!msg) {
+        return;
+    }
+    msg->autoLapMin = mSettings.autoLapMin;
+    msg->outdoor    = mSettings.outdoor ? 1u : 0u;
+    msg->imperial   = mImperial ? 1u : 0u;
+    msg->autoLapKm  = mSettings.autoLapKm;
+    msg->autoPause  = mSettings.autoPause ? 1u : 0u;
+    msg->plan       = mSettings.plan;
+    msg.send();
 }
 
 void Service::sendSaved(bool saved)
@@ -898,6 +1118,8 @@ void Service::sendSaved(bool saved)
     Ride::SavedSession s;
     s.saved    = saved ? 1u : 0u;
     s.outdoor  = sModel.config().outdoor ? 1u : 0u;
+    s.type     = static_cast<uint8_t>(sRunner.config().type);
+    s.planDone = sRunner.done() ? 1u : 0u;
     s.summary  = sModel.summary();
     s.activeMs = sModel.activeMs(mKernel.sys.getTimeMs());
     SDK::send_msg<CustomMessage::SessionSaved>(mKernel, s);
@@ -912,6 +1134,8 @@ void Service::sendLaps(uint8_t first)
         const Ride::LapStats &l = sModel.lapAt(i);
         Ride::LapRow &row = page.rows[page.count++];
         row.autoEnded  = l.autoEnded ? 1u : 0u;
+        row.kind       = l.kind;
+        row.round      = l.round;
         row.hrAvg      = l.hrAvg();
         row.hrMax      = l.hrMax;
         row.kcal       = Ride::detail::kcalOf(sModel.lapKcalX10(i));

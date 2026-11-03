@@ -1,8 +1,8 @@
 /**
  ******************************************************************************
  * @file    MainScreen.hpp
- * @brief   Before a ride: Start, the ride type, the heart-rate source and the
- *          auto lap on the wheel.
+ * @brief   Before a ride: Start, the ride type, the heart-rate source, and
+ *          two rows that follow the ride type, on the wheel.
  *
  * L1 up, L2 down, R1 selects, R2 exits the app:
  *   - Start begins. Its hint is the GPS outdoors (finding it, or ready), or
@@ -11,8 +11,15 @@
  *   - Ride flips Outdoor and Indoor (remembered);
  *   - Heart rate only shows the source: the strap's state when the kernel
  *     reports one, else the wrist;
- *   - Auto lap steps through Off, 1, 5, 10, 15, 20 and 30 minutes, the SDK
- *     Workout example's choices (remembered).
+ *   - Outdoors: Auto lap steps through Off, 1, 5, 10, 15, 20 and 30 minutes
+ *     (the SDK Workout example's), then 1, 5, 10, 15, 20 and 25 km (the
+ *     Cycling example's distance alerts); Auto-pause flips On and Off (on by
+ *     default);
+ *   - Indoors: Type steps round Free, Intervals and Tabata; the last row is
+ *     the Auto lap (times only) for Free, or Settings for a plan, with the
+ *     plan in a line as its hint: R1 opens Intervals' numbers (Tabata's 8 x
+ *     20 s / 10 s is fixed).
+ * All remembered by the service.
  * Exits on idle. If a ride is already running (the screen was closed and
  * reopened) it goes straight to the live screen.
  ******************************************************************************
@@ -48,7 +55,9 @@ protected:
     void build() override;
 
 private:
-    enum Row : uint16_t { RowStart, RowRide, RowSensor, RowAutoLap, RowCount };
+    /// The fourth and fifth rows follow the ride type: Auto lap and Auto-pause
+    /// outdoors; Type, then Auto lap or Settings, indoors.
+    enum Row : uint16_t { RowStart, RowRide, RowSensor, RowFourth, RowFifth, RowCount };
 
     void confirm();
     void refresh();

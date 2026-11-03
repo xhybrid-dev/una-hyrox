@@ -74,6 +74,35 @@ Ride::SessionSnapshot worstOutdoorSnapshot()
     return s;
 }
 
+/// An indoor plan at its longest: Intervals of 30 rounds of 10 minutes.
+Ride::SessionSnapshot worstPlanSnapshot(Ride::StepKind kind, uint32_t remainingMs, bool done = false)
+{
+    Ride::SessionSnapshot s = worstSnapshot();
+    s.plan.type        = static_cast<uint8_t>(Ride::SessionType::Custom);
+    s.plan.kind        = static_cast<uint8_t>(kind);
+    s.plan.steps       = 59;
+    s.plan.step        = 59;
+    s.plan.round       = 30;
+    s.plan.rounds      = 30;
+    s.plan.done        = done ? 1u : 0u;
+    s.plan.stepMs      = 600000u - remainingMs;
+    s.plan.remainingMs = done ? 0u : remainingMs;
+    if (done) {
+        s.state = static_cast<uint8_t>(Ride::RunState::Paused);
+    }
+    return s;
+}
+
+Ride::PlanConfig longestPlan()
+{
+    Ride::PlanConfig p;
+    p.type    = Ride::SessionType::Custom;
+    p.workSec = Ride::kWorkSecMax;
+    p.restSec = Ride::kRestSecMax;
+    p.rounds  = Ride::kRoundsMax;
+    return p;
+}
+
 Ride::SessionSnapshot worstPausedSnapshot()
 {
     Ride::SessionSnapshot s = worstSnapshot();
@@ -119,6 +148,24 @@ Ride::SavedSession worstSaved(bool saved)
         s.summary.zoneMs[z] = kMax32;
     }
     return s;
+}
+
+Ride::LapsPageData worstPlanLaps(uint8_t first)
+{
+    Ride::LapsPageData p;
+    p.first = first;
+    p.total = 59;
+    p.count = Ride::kLapsPerPage;
+    for (uint8_t i = 0; i < Ride::kLapsPerPage; ++i) {
+        p.rows[i].autoEnded  = 1;
+        p.rows[i].kind       = static_cast<uint8_t>(i % 2 == 0 ? Ride::StepKind::Rest : Ride::StepKind::Work);
+        p.rows[i].round      = 30;
+        p.rows[i].hrAvg      = 65535;
+        p.rows[i].hrMax      = 65535;
+        p.rows[i].kcal       = 65535;
+        p.rows[i].durationMs = kMax32;
+    }
+    return p;
 }
 
 Ride::LapsPageData worstLaps(uint8_t first)
@@ -182,7 +229,30 @@ const Step kSteps[] = {
     { nullptr, [] { sModel->injectStrap(0xFF, ""); } },
     { "main menu, heart rate row (wrist)", nullptr },
     { nullptr, [] { key(Btn::L2); } },
-    { "main menu, auto lap row", nullptr },
+    { "main menu, type row (Free)", nullptr },
+    { nullptr, [] { key(Btn::L2); } },
+    { "main menu, auto lap row (indoor)", nullptr },
+    { nullptr, [] { sModel->injectPlanSettings(longestPlan(), 0, 0, true); } },
+    { "main menu, settings row (longest Intervals)", nullptr },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::PlanSettings); } },
+    { nullptr, [] { sModel->injectPlanSettings(longestPlan(), 0, 0, true); } },
+    { "plan settings, longest", nullptr },
+    { nullptr, [] { key(Btn::L2); key(Btn::L2); } },
+    { "plan settings, rounds", nullptr },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Main); } },
+    { nullptr, [] {
+          Ride::PlanConfig p;
+          p.type = Ride::SessionType::Tabata;
+          sModel->injectPlanSettings(p, 0, 0, true);
+      } },
+    { "main menu, settings row (Tabata)", nullptr },
+    { nullptr, [] { key(Btn::L1); } },
+    { "main menu, type row (Tabata)", nullptr },
+    { nullptr, [] { sModel->injectSettings(true, false); sModel->injectPlanSettings(Ride::PlanConfig(), 0, 25, false); } },
+    { "main menu, auto lap row (25 km)", nullptr },
+    { nullptr, [] { key(Btn::L2); } },
+    { "main menu, auto-pause row (Off)", nullptr },
+    { nullptr, [] { sModel->injectSettings(false, false); } },
     // The live screen, main face
     { nullptr, [] { sModel->injectSnapshot(worstSnapshot()); } },       // the menu goes to Live
     { nullptr, [] { sModel->injectSnapshot(worstSnapshot()); } },
@@ -206,6 +276,34 @@ const Step kSteps[] = {
           sModel->injectSnapshot(s);
       } },
     { "live clock, battery unknown", nullptr },
+    // An indoor plan: the step face, its countdown and its end, the toasts, the totals and the clock
+    { nullptr, [] { key(Btn::L2); sModel->injectSnapshot(worstPlanSnapshot(Ride::StepKind::Work, 600000u)); } },
+    { "live main, plan work, 10 minutes", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(worstPlanSnapshot(Ride::StepKind::Rest, 2500u)); } },
+    { "live main, plan rest, countdown", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(worstPlanSnapshot(Ride::StepKind::Work, 0u, true)); } },
+    { "live main, plan done", nullptr },
+    { nullptr, [] {
+          Ride::LapEventData e = worstLapEvent();
+          e.cue   = static_cast<uint8_t>(Ride::Cue::Work);
+          e.kind  = static_cast<uint8_t>(Ride::StepKind::Rest);
+          e.round = 29;
+          e.distCm = 0;
+          sModel->injectLapEvent(e);
+      } },
+    { "lap toast, plan work", nullptr },
+    { nullptr, [] {
+          Ride::LapEventData e = worstLapEvent();
+          e.cue   = static_cast<uint8_t>(Ride::Cue::Done);
+          e.kind  = static_cast<uint8_t>(Ride::StepKind::Work);
+          e.round = 30;
+          sModel->injectLapEvent(e);
+      } },
+    { "lap toast, plan done", nullptr },
+    { nullptr, [] { key(Btn::L2); sModel->injectSnapshot(worstPlanSnapshot(Ride::StepKind::Rest, 600000u)); } },
+    { "live totals, plan", nullptr },
+    { nullptr, [] { key(Btn::L2); key(Btn::L2); sModel->injectSnapshot(worstPlanSnapshot(Ride::StepKind::Rest, 600000u)); } },
+    { "live clock, plan", nullptr },
     // Outdoors: the main face leads with speed, then the Lap face, then the totals, the toast
     { nullptr, [] { sModel->injectSettings(true, false); sModel->injectSnapshot(worstOutdoorSnapshot()); key(Btn::L2); } },
     { "live main, outdoor, worst case", nullptr },
@@ -216,6 +314,13 @@ const Step kSteps[] = {
           sModel->injectSnapshot(s);
       } },
     { "live main, outdoor, paused, file error", nullptr },
+    { nullptr, [] {
+          Ride::SessionSnapshot s = worstOutdoorSnapshot();
+          s.state      = static_cast<uint8_t>(Ride::RunState::Paused);
+          s.autoPaused = 1;
+          sModel->injectSnapshot(s);
+      } },
+    { "live main, outdoor, auto-paused", nullptr },
     { nullptr, [] { sModel->injectSnapshot(worstOutdoorSnapshot()); key(Btn::L2); } },
     { "live lap, outdoor", nullptr },
     { nullptr, [] { key(Btn::L2); sModel->injectSnapshot(worstOutdoorSnapshot()); } },
@@ -228,6 +333,14 @@ const Step kSteps[] = {
     { "live lap, outdoor, imperial", nullptr },
     { nullptr, [] { key(Btn::L2); sModel->injectSnapshot(worstOutdoorSnapshot()); } },
     { "live totals, outdoor, imperial", nullptr },
+    // The action menu, and a finished plan's
+    { nullptr, [] { sModel->injectSnapshot(worstSnapshot()); ScreenManager::instance().goTo(ScreenId::Action); } },
+    { nullptr, [] {} },
+    { "action menu", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(worstPlanSnapshot(Ride::StepKind::Work, 0u, true)); ScreenManager::instance().goTo(ScreenId::Live); } },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Action); } },
+    { nullptr, [] {} },
+    { "action menu, plan done", nullptr },
     // Hold to confirm
     { nullptr, [] { sModel->setHoldMode(Model::HoldMode::Discard); ScreenManager::instance().goTo(ScreenId::HoldConfirm); } },
     { nullptr, [] {} },
@@ -255,6 +368,21 @@ const Step kSteps[] = {
     { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
     { nullptr, [] { key(Btn::L1); key(Btn::L1); sModel->injectLapsPage(worstLaps(60)); } },
     { "summary, laps 61 to 63", nullptr },
+    // An indoor plan's summary: titled with its kind, rounds, and its steps as laps
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Main); } },
+    { nullptr, [] {
+          Ride::SavedSession s = worstSaved(true);
+          s.type = static_cast<uint8_t>(Ride::SessionType::Custom);
+          s.summary.laps = 59;
+          sModel->injectSaved(s);
+          ScreenManager::instance().goTo(ScreenId::Summary);
+      } },
+    { nullptr, [] {} },
+    { "summary, plan overview", nullptr },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Main); } },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
+    { nullptr, [] { key(Btn::L1); key(Btn::L1); sModel->injectLapsPage(worstPlanLaps(54)); } },
+    { "summary, plan laps 55 to 57", nullptr },
     // The outdoor summary: overview, the Ride page, and the laps with distances
     { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Main); } },
     { nullptr, [] { sModel->injectSaved(worstSavedOutdoor()); ScreenManager::instance().goTo(ScreenId::Summary); } },

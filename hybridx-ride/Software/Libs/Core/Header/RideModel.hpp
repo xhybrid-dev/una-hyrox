@@ -56,6 +56,9 @@ enum class LapResult : uint8_t { Ok = 0, NotRunning, Full };
 /// The Workout example's auto-lap choices, in minutes (0: off).
 constexpr uint8_t kAutoLapCount = 7;
 constexpr uint8_t kAutoLapMinutes[kAutoLapCount] = {0, 1, 5, 10, 15, 20, 30};
+/// The Cycling example's distance alerts, km (0: off); outdoors only.
+constexpr uint8_t kAutoLapKmCount = 7;
+constexpr uint8_t kAutoLapKm[kAutoLapKmCount] = {0, 1, 5, 10, 15, 20, 25};
 
 struct RideConfig {
     HrZones  zones;

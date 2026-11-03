@@ -99,7 +99,7 @@ void ActivityWriter::start(const AppInfo& info)
     // event
     mFit->defineMessage(L_EVENT, fit::mesgNum(fit::MesgNum::Event),
         {fit::field::Event::Timestamp, fit::field::Event::EventField,
-         fit::field::Event::EventType});
+         fit::field::Event::EventType, fit::field::Event::Data});
 
     const fit::FitWriter::Field profileName{kSportProfileNameNum, fit::BaseType::String,
                                             static_cast<uint8_t>(mProfileName.size() + 1u)};
@@ -216,18 +216,20 @@ void ActivityWriter::writeFieldDescription(uint8_t devFieldNum, const char* name
         .write();
 }
 
-void ActivityWriter::pause(std::time_t timestamp)
+void ActivityWriter::pause(std::time_t timestamp, bool autoTrigger)
 {
     if (mFit && mTimerRunning) {
-        addMessageEvent(timestamp, fit::EventType::Stop);
+        addMessageEvent(timestamp, fit::EventType::Stop,
+                        autoTrigger ? fit::TimerTrigger::Auto : fit::TimerTrigger::Manual);
         mTimerRunning = false;
     }
 }
 
-void ActivityWriter::resume(std::time_t timestamp)
+void ActivityWriter::resume(std::time_t timestamp, bool autoTrigger)
 {
     if (mFit && !mTimerRunning) {
-        addMessageEvent(timestamp, fit::EventType::Start);
+        addMessageEvent(timestamp, fit::EventType::Start,
+                        autoTrigger ? fit::TimerTrigger::Auto : fit::TimerTrigger::Manual);
         mTimerRunning = true;
     }
 }
@@ -395,12 +397,15 @@ void ActivityWriter::discard()
     mFile.reset();
 }
 
-void ActivityWriter::addMessageEvent(std::time_t t, fit::EventType type)
+void ActivityWriter::addMessageEvent(std::time_t t, fit::EventType type, fit::TimerTrigger trigger)
 {
+    // Field order must match the L_EVENT definition. `data` is uint32 per the profile;
+    // decoders read it as timer_trigger because `event` is Timer (the SDK Cycling example's).
     mFit->data(L_EVENT)
         .u32(unixToFitTimestamp(t))
         .u8(static_cast<uint8_t>(fit::Event::Timer))
         .u8(static_cast<uint8_t>(type))
+        .u32(static_cast<uint32_t>(trigger))
         .write();
 }
 
