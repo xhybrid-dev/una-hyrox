@@ -2,7 +2,8 @@
 """Decode a ride FIT file with fitdecode (an independent reader) and check it
 says what the app means it to say.
 
-    fit_check.py <file.fit> <scenario>      scenario: full | outdoor | autolap | nohr | crash | sim-indoor | sim-outdoor
+    fit_check.py <file.fit> <scenario>      scenario: full | outdoor | autolap | nohr | crash | autopause |
+                                            distlap | intervals | tabata | sim-indoor | sim-outdoor
 
 Checks: valid header and CRC; file_id; the one developer field
 (resting_calories, as the SDK's Workout example); timer events in pairs; one
@@ -17,6 +18,10 @@ adding up to it; speed, altitude and (after the first 30 s) position on the reco
 descent in the laps and the session; and for `crash`, that the records survive
 with no laps. `sim-indoor` and `sim-outdoor` are files from the PC simulator (random heart rate,
 its own weight and GPS): structure is checked, exact numbers are not.
+`autopause`: the timer stops and starts again by auto-pause (timer_trigger auto), the rider's
+start and stop stay manual, and no record falls in the pause. `distlap`: laps ended by
+distance (lap_trigger distance) of 1001, 1001 and 798 m. `intervals` and `tabata`: every lap
+ended by time, work laps active and rest laps rest (intensity), the plan's lengths exactly.
 Exit status 1 if any check fails.
 """
 import sys
@@ -24,7 +29,8 @@ import fitdecode
 
 path, scenario = sys.argv[1], sys.argv[2]
 sim = scenario.startswith("sim")
-outdoor = scenario in ("outdoor", "sim-outdoor")
+outdoor = scenario in ("outdoor", "sim-outdoor", "autopause", "distlap")
+PLAN_LAPS = {"intervals": [40, 20, 40, 20, 40], "tabata": [20, 10] * 7 + [20]}
 failures = []
 
 
@@ -67,9 +73,15 @@ check(kinds and kinds[0] == "start", "first event is a timer start")
 if scenario != "crash":
     check(kinds[-1] == "stop", "last event is a timer stop")
     check(all(kinds[i] != kinds[i + 1] for i in range(len(kinds) - 1)), "timer events alternate start/stop")
-    want_events = {"full": 4, "outdoor": 4, "nohr": 4, "autolap": 2}.get(scenario)
+    want_events = {"full": 4, "outdoor": 4, "nohr": 4, "autolap": 2, "autopause": 4,
+                   "distlap": 2, "intervals": 2, "tabata": 2}.get(scenario)
     if want_events is not None:
         check(len(kinds) == want_events, f"{len(kinds)} timer events, want {want_events}")
+    trig = [e.get("timer_trigger", e.get("data")) for e in by.get("event", [])]
+    want_trig = (["manual", "auto", "auto", "manual"] if scenario == "autopause"
+                 else (["manual"] * len(kinds) if not sim else None))
+    if want_trig is not None:
+        check(trig == want_trig, f"timer triggers {trig} == {want_trig}")
 
 # --- records
 recs = by.get("record", [])
@@ -82,6 +94,16 @@ if scenario in ("full", "nohr", "outdoor"):
     check(len(big) == 1 and big[0] == 21.0, f"one gap, at the pause ({big})")
 elif scenario == "autolap":
     check(len(recs) == 150 and not big, "150 records, no gaps")
+elif scenario == "distlap":
+    check(len(recs) == 400 and not big, "400 records, no gaps")
+elif scenario in PLAN_LAPS:
+    want_n = sum(PLAN_LAPS[scenario])
+    check(len(recs) == want_n and not big, f"{want_n} records, no gaps ({len(recs)}, {big})")
+elif scenario == "autopause":
+    # 60 s moving, 30 s stopped, 60 s moving; the detector needs two samples either way, so
+    # one stopped second is recorded before the pause and one moving second is lost before the resume.
+    check(len(recs) == 120, f"120 records ({len(recs)}): 60 + 1 stopped, then 59 after the resume")
+    check(len(big) == 1 and big[0] == 31.0, f"one gap, at the auto-pause ({big})")
 check(all(g > 0 for g in gaps), "record timestamps strictly increase")
 hrs = [r.get("heart_rate") for r in recs]
 if scenario == "nohr":
@@ -100,16 +122,29 @@ if scenario == "crash":
 # --- laps
 laps = by.get("lap", [])
 sess = by["session"][0]
-want_laps = {"full": 4, "outdoor": 4, "nohr": 4, "autolap": 3}.get(scenario)
+want_laps = {"full": 4, "outdoor": 4, "nohr": 4, "autolap": 3, "autopause": 1, "distlap": 3,
+             "intervals": 5, "tabata": 15}.get(scenario)
 if want_laps is not None:
     check(len(laps) == want_laps, f"{want_laps} laps (got {len(laps)})")
 check([l.get("message_index") for l in laps] == list(range(len(laps))), "lap message_index 0..n-1")
 triggers = [l.get("lap_trigger") for l in laps]
-want_t = {"autolap": ["time", "time", "manual"]}.get(scenario, ["manual"] * len(laps) if not sim else None)
+want_t = {"autolap": ["time", "time", "manual"], "distlap": ["distance", "distance", "manual"],
+          "intervals": ["time"] * 5, "tabata": ["time"] * 15}.get(scenario, ["manual"] * len(laps) if not sim else None)
 if want_t is not None:
     check(triggers == want_t, f"lap triggers {triggers} == {want_t}")
 if scenario == "autolap":
     check([l["total_timer_time"] for l in laps] == [60, 60, 30], f"auto laps of 60, 60, 30 s ({[l['total_timer_time'] for l in laps]})")
+if scenario in PLAN_LAPS:
+    got = [l["total_timer_time"] for l in laps]
+    check(got == PLAN_LAPS[scenario], f"the plan's steps {got} == {PLAN_LAPS[scenario]}")
+intens = [l.get("intensity") for l in laps]
+if scenario in PLAN_LAPS:
+    want_i = ["active" if i % 2 == 0 else "rest" for i in range(len(laps))]
+    check(intens == want_i, f"lap intensity {intens} == {want_i}")
+elif not sim:
+    check(all(i in ("active", 0) for i in intens), f"every lap active ({intens})")
+if scenario == "autopause":
+    check(laps[0]["total_timer_time"] == 120, f"the lap's timer {laps[0]['total_timer_time']} s == 120 (the pause left out)")
 cursor = laps[0]["start_time"]
 chain = True
 for l in laps:
@@ -196,6 +231,17 @@ elif scenario == "outdoor":
     check([l.get("total_descent") for l in laps] == [0, 0, 5, 0], f"lap descents {[l.get('total_descent') for l in laps]}")
     check(abs(sess.get("avg_speed", -1) - 7.0) < 0.001 and abs(sess.get("max_speed", -1) - 7.0) < 0.001,
           f"session avg/max speed {sess.get('avg_speed')}/{sess.get('max_speed')} == 7.0")
+elif scenario in ("autopause", "distlap"):
+    ds = [r.get("distance") for r in recs]
+    check(all(d is not None for d in ds), "distance on every outdoor record")
+    check(all(b >= a for a, b in zip(ds, ds[1:])), "distance never goes down")
+    # Auto-pause: 120 recorded seconds at 7 m/s, one of them stopped. Distance laps: 400 s.
+    want_d = 119 * 7.0 if scenario == "autopause" else 2800.0
+    check(abs(sess.get("total_distance", -1) - want_d) < 0.01, f"session total_distance {sess.get('total_distance')} == {want_d}")
+    ld = [l.get("total_distance") for l in laps]
+    check(abs(sum(ld) - sess["total_distance"]) < 0.02, f"laps' distances {ld} add up to the session's")
+    if scenario == "distlap":
+        check([round(d, 2) for d in ld] == [1001.0, 1001.0, 798.0], f"distance laps {ld} == 1001, 1001, 798 m")
 else:
     check(all("distance" not in r for r in recs), "no distance on an indoor ride's records")
     check(sess.get("total_distance") is None, "no distance on an indoor ride's session")

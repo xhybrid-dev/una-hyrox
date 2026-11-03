@@ -9,12 +9,19 @@
 //             autolap  a 1-minute auto lap over 150 s: laps of 60, 60 and 30 s
 //             nohr     like full, but the watch never gives a heart rate
 //             crash    records only, then the "app dies"; a new writer recovers it
+//             autopause outdoor with auto-pause: 60 s at 7 m/s, 30 s stopped, 60 s at 7 m/s;
+//                      the timer stops and starts again by the detector (timer_trigger auto)
+//             distlap  outdoor, a 1 km auto lap over 400 s at 7 m/s: laps of 1001, 1001, 798 m
+//             intervals indoor Intervals, 40 s work / 20 s rest x 3, run by the PlanRunner
+//             tabata   indoor Tabata, 8 x 20 s / 10 s
 //
 // The heart rates are invented, a steady value per lap so each lap sits in one
 // zone (on the watch's default thresholds), at an 80 kg weight. They say nothing
 // about the real sensors.
 
 #include "ActivityWriter.hpp"
+#include "AutoPause.hpp"
+#include "PlanRunner.hpp"
 #include "RideFit.hpp"
 #include "RideModel.hpp"
 
@@ -46,18 +53,29 @@ int main(int argc, char **argv)
     const bool autoLap = scenario == "autolap";
     const bool noHr    = scenario == "nohr";
     const bool crash   = scenario == "crash";
-    const bool outdoor = scenario == "outdoor";
+    const bool autoPause = scenario == "autopause";
+    const bool distLap   = scenario == "distlap";
+    const bool tabata    = scenario == "tabata";
+    const bool plan      = tabata || scenario == "intervals";
+    const bool outdoor   = scenario == "outdoor" || autoPause || distLap;
 
     Ride::RideConfig cfg;
     cfg.weightG   = 80000;
     cfg.outdoor   = outdoor;
     cfg.autoLapMs = autoLap ? 60000u : 0u;
+    cfg.autoLapDistCm = distLap ? 100000u : 0u;
 
     // The script: each stretch's heart rate and length; a new stretch is a lap
     // by the button (not in the auto-lap scenario, which is one stretch).
     std::vector<Step> steps;
     if (autoLap) {
         steps = {{120, 150, false}};
+    } else if (distLap) {
+        steps = {{120, 400, false}};
+    } else if (autoPause) {
+        steps = {{130, 150, false}};
+    } else if (plan) {
+        steps = {{150, tabata ? 230u : 160u, false}};
     } else {
         steps = {{140, 150, true}, {160, 45, false}, {100, 100, false}, {120, 120, false}};
     }
@@ -82,20 +100,29 @@ int main(int argc, char **argv)
     writer.start(info);
 
     static Ride::RideModel model;
+    static Ride::PlanRunner runner;
     const uint32_t clockBase = 4000000000u;      // near the 32-bit wrap, on purpose
-    model.start(clockBase, cfg);
+    Ride::PlanConfig planCfg;
+    if (plan) {
+        planCfg.type    = tabata ? Ride::SessionType::Tabata : Ride::SessionType::Custom;
+        planCfg.workSec = 40;
+        planCfg.restSec = 20;
+        planCfg.rounds  = 3;
+    }
+    runner.start(planCfg, model, clockBase, cfg);   // a free ride: just the model
 
     uint32_t t = 0;   // seconds since the start
     int autoLaps = 0;
     uint32_t recorded = 0;   // recorded seconds so far
+    uint32_t speedNow = 7000;   // mm/s, outdoors
     auto sample = [&](uint16_t hr, bool recordIt, int stretch) {
         ++t;
         const uint32_t nowMs = clockBase + t * 1000u;
         Ride::Motion m;
         if (outdoor && recordIt) {
             // 7 m/s; a metre climbed every 10th second of lap 1, 50 cm dropped every 10th of lap 3.
-            m.distCm    = 700;
-            m.speedMmS  = 7000;
+            m.distCm    = speedNow / 10u;
+            m.speedMmS  = speedNow;
             m.ascentCm  = (stretch == 0 && recorded % 10 == 0) ? 100 : 0;
             m.descentCm = (stretch == 2 && recorded % 10 == 0) ? 50 : 0;
         }
@@ -113,13 +140,51 @@ int main(int argc, char **argv)
                 r.altitudeM   = 40.0f + static_cast<float>(model.ascentCm()) / 100.0f
                                       - static_cast<float>(model.descentCm()) / 100.0f;
                 r.hasSpeed    = true;
-                r.speedMmS    = 7000;
+                r.speedMmS    = speedNow;
                 r.distCm      = model.distCm();
             }
             writer.addRecord(r);
             ++recorded;
         }
     };
+
+    int autoPauses = 0;
+    if (autoPause) {
+        // The service's order each second: the detector first, then the sample.
+        Ride::AutoPause ap;
+        ap.reset();
+        bool autoPaused = false;
+        for (uint32_t i = 0; i < 150; ++i) {
+            speedNow = (i >= 60 && i < 90) ? 0u : 7000u;
+            using AP = Ride::AutoPause;
+            const AP::RideState st = model.state() == Ride::RunState::Running ? AP::RideState::Running
+                                     : (autoPaused ? AP::RideState::AutoPaused : AP::RideState::ManuallyPaused);
+            const AP::Action a = ap.tick(true, speedNow, st);
+            const std::time_t now = startUtc + static_cast<std::time_t>(t);
+            if (a == AP::Action::Pause) {
+                writer.pause(now, true);
+                model.pause(clockBase + t * 1000u);
+                autoPaused = true;
+                ++autoPauses;
+            } else if (a == AP::Action::Resume) {
+                writer.resume(now, true);
+                model.resume(clockBase + t * 1000u);
+                autoPaused = false;
+            }
+            sample(130, model.state() == Ride::RunState::Running, 1);
+        }
+        steps.clear();
+    } else if (plan) {
+        // Each second: the sample, then the runner, which ends a step whose time is up.
+        while (!runner.done() && t < 1000u) {
+            const Ride::PlanView v = runner.view(model, clockBase + t * 1000u);
+            sample(v.kind == static_cast<uint8_t>(Ride::StepKind::Rest) ? 110 : 150, true, 1);
+            if (runner.tick(model, clockBase + t * 1000u) == Ride::Cue::Done) {
+                writer.pause(startUtc + static_cast<std::time_t>(t));   // as the service does at Done
+            }
+        }
+        steps.clear();
+    }
 
     bool first = true;
     int stretch = -1;
@@ -170,6 +235,8 @@ int main(int argc, char **argv)
             lap.kcal        = laps[i].kcal;
             lap.restingKcal = laps[i].restingKcal;
             lap.autoEnded   = laps[i].autoEnded;
+            lap.byDistance  = laps[i].byDistance;
+            lap.rest        = laps[i].kind == static_cast<uint8_t>(Ride::StepKind::Rest);
             lap.distCm      = laps[i].distCm;
             lap.avgSpeedMmS = laps[i].avgSpeedMmS;
             lap.maxSpeedMmS = laps[i].maxSpeedMmS;
@@ -198,6 +265,9 @@ int main(int argc, char **argv)
         if (!writer.stop(track)) {
             std::fprintf(stderr, "writer.stop() failed\n");
             return 1;
+        }
+        if (autoPause) {
+            std::printf("auto-pause: %d pause(s)\n", autoPauses);
         }
         std::printf("session: %u laps (%d auto), elapsed %u s, timer %u s, hr avg %u max %u, %u kcal (%u resting)\n",
                     n, autoLaps, fs.elapsedSec, fs.timerSec, fs.hrAvg, fs.hrMax, fs.kcal, fs.restingKcal);

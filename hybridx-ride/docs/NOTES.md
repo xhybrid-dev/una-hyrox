@@ -290,3 +290,68 @@ few seconds, so its readings pass the check.
 ### On the watch (Jon, 1 November 2026)
 
 Works well; the saved session was counted by HybridX Streak (first watch result for the link, `hybridx-link/docs/ACTIVITY_LINK.md`). Details still to come: see `FAMILY_WATCH_TEST.md` section 5.
+
+## 6. Phase R: a complete Ride (2 and 3 November 2026)
+
+Jon (2 November 2026): auto-pause yes; indoor intervals on the turbo, "Intervals and Tabata",
+ready for when UNA adds bike sensors; bike routes later. The display name is now **X Ride**
+(`APP_USER_NAME`; the folder stays `HybridXRide`, so Streak's keys do not move). The training
+load (Edwards' TRIMP from the watch's zones) went in with the family's (`hybridx-link`
+"Training load"): the 8th number in `act_ride.json`, and "Load N" on the Saved screen.
+
+### What it does
+
+- **Auto-pause (outdoors).** `Core/Header/AutoPause.hpp` is the SDK Cycling example's detector
+  (`Examples/Apps/Cycling`, `updateAutoPause`) as a pure class: pause below 0.5 m/s, resume
+  above 0.9 m/s, two samples either way, counted in samples not ticks; the state is held when
+  the speed has been stale for 5 s, and from the start until the first valid speed; a pause the
+  rider asks for wins. The service ticks it once a UTC second before the sample, on the GPS
+  speed (`isSpeedValid()`, so dead reckoning cannot resume a ride in a tunnel). The FIT timer
+  events carry `timer_trigger` (manual or auto, the profile's `data` field, as the example
+  writes them). One buzz on pause, two on resume, no backlight (the example's reasoning: it
+  happens at every traffic light). The live face says "Auto-paused". Main menu: **Auto-pause
+  On/Off**, on by default, outdoors only, remembered. Its thresholds are the example's
+  provisional ones; every transition is logged.
+- **Distance auto laps (outdoors).** The Auto lap row runs Off, 1 to 30 min, then 1, 5, 10,
+  15, 20 and 25 km (the Cycling example's distance alerts); one at a time. The lap ends on
+  the sample that takes it past the distance (FIT `lap_trigger` distance, 2).
+- **Indoor intervals.** Indoors the main menu has **Type** (Free, Intervals, Tabata) and,
+  for a plan, **Settings** (Intervals: work 10 s to 5 min, rest 5 s to 2 min, 1 to 30
+  rounds; default 40 s / 20 s x 6; Tabata 8 x 20 s / 10 s is fixed). Workout's
+  `SessionPlan`/`PlanRunner`/`PlanText` were copied and cut down (`RidePlan.hpp`,
+  `PlanRunner.hpp`, `RidePlanText.hpp`; the apps stay independent). Each step is a lap ended
+  by time, rest steps with FIT `intensity` rest (1); the step face counts down (amber in the
+  last three seconds, with three ticks), and the buzzes are Workout's. At the end the ride
+  pauses; the action menu becomes End ride, Discard, Back. Outdoors a plan never runs (the
+  road decides). A step is data, so a power or cadence target is one more field when UNA's
+  sensors arrive (section 1).
+- **Settings v2** (`{"v":2,...,"autopause","lapkm","type","work","rest","rounds"}`); a v1
+  file still reads.
+
+### Verified (3 November 2026, in the container)
+
+- Host tests: 112 pass (auto-pause's SDK cases, the plans, the distance lap, settings v1/v2,
+  the auto-lap choices).
+- `fit_check.sh`: nine scenarios through the real writer, decoded by fitdecode, all pass. New:
+  `autopause` (timer triggers manual, auto, auto, manual; 120 records with one 31 s gap: the
+  dwell records one stopped second and loses one moving second, as the SDK notes),
+  `distlap` (laps of 1001, 1001 and 798 m, triggers distance, distance, manual),
+  `intervals` and `tabata` (every lap by time, its exact length, active and rest alternating).
+- The text-fit audit: 0 problems, with the new rows, the settings screen, the plan faces and
+  toasts, "Auto-paused", the done menu and the plan summary added.
+- `capture_screens.sh`: a stop at the lights in the simulator (its GPS never stops, so a file
+  `sim_stopped`, simulator-only code, reads the speed as 0), and an indoor Intervals session
+  through the real service; the files checked (an auto pair in the outdoor file; the indoor
+  laps by time, active and rest).
+
+### Not verified
+
+- Auto-pause on a real ride: the thresholds are the example's, from bench noise. Jon's first
+  rides with stops will show whether it pauses at lights and resumes promptly.
+- Whether Strava and the UNA app use the laps' `intensity` (rest) and the auto timer events.
+
+### For Jon
+
+In `hybridx-link/docs/FAMILY_WATCH_TEST.md`: an outdoor ride with a stop or two (watch
+"Auto-paused", feel one buzz, then two as you ride off), a 1 km auto lap if you like, and a
+turbo session with Intervals or Tabata (the countdown ticks, the done menu).

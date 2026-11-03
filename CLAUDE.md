@@ -407,7 +407,11 @@ An eleventh app: rides that count in HybridX Streak. SDK v1.6.2 connects heart-r
 straps only (`Kind::HRM`; the cadence and power bits are reserved and ignored, and no
 sensor type carries bike data: the Gate B0 probe confirmed it on Jon's watch), so the
 app is **heart rate plus GPS outdoors, and time plus heart rate indoors**, to be extended
-when UNA adds sensors. A main-menu switch chooses Outdoor or Indoor. It saves a cycling
+when UNA adds sensors. A main-menu switch chooses Outdoor or Indoor. Outdoors: **auto-pause**
+(the SDK Cycling example's detector, `Core/Header/AutoPause.hpp`; On/Off on the main menu) and
+time or **distance auto laps** (1 to 25 km). Indoors: **Free, Intervals or Tabata** on the turbo
+(`RidePlan.hpp`, `PlanRunner.hpp`, `RidePlanText.hpp`, cut from Workout's; Ride NOTES section 6).
+It saves a cycling
 FIT file (outdoor sub_sport Generic, indoor IndoorCycling), writes the activity link
 (`act_ride.json`, `Sport::Ride`) and shows the Streak line. It is independent of the other
 apps. The Gate B0 probe stays in `Tools/Probe`.
@@ -438,14 +442,16 @@ apps. The Gate B0 probe stays in `Tools/Probe`.
   - simulator: `hybridx-ride/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its
     `build/`; run `build/bin/HybridXRideSimulator`; keys 1-4 are L1, L2, R1, R2). It has a
     GPS (a fix after about 4 s, then 20 to 30 km/h round a loop) and a constant barometer;
-  - every screen by key presses (an outdoor ride with an auto lap and a pause, a discarded
-    one, an indoor one), then both files, the sidecars, `act_ride.json` and the Streak line
-    checked: `docs/experiments/capture_screens.sh [out-dir]` (about 3 minutes, into
-    `docs/screens/r1-*.png`; needs Xvfb, xdotool, ImageMagick, fitdecode);
+  - every screen by key presses (an outdoor ride with an auto lap, a pause and an auto-pause, a
+    discarded one, an indoor Intervals session), then both files, the sidecars, `act_ride.json`
+    and the Streak line checked: `docs/experiments/capture_screens.sh [out-dir]` (about 4
+    minutes, into `docs/screens/r1-*.png`; needs Xvfb, xdotool, ImageMagick, fitdecode). The
+    simulator's GPS never stops: a file `Software/Output/sim_stopped` reads its speed as 0
+    (simulator-only code), for an auto-pause;
   - the text-fit audit: `docs/experiments/audit.sh` (about 10 seconds; after any change to a
     screen's text or layout; the wheel menu is the SDK's widget and is not audited);
-  - the FIT file from the real writer in five scenarios (full, outdoor, autolap, nohr, crash),
-    decoded: `docs/experiments/fit_check.sh [work-dir]`;
+  - the FIT file from the real writer in nine scenarios (full, outdoor, autolap, nohr, crash,
+    autopause, distlap, intervals, tabata), decoded: `docs/experiments/fit_check.sh [work-dir]`;
   - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"), using
     `hybridx-ride/Software/Apps/HybridXRide-CMake` (needs `gcc-arm-none-eabi`, `pyelftools`, `Pillow`);
     icons: `python3 hybridx-ride/Resources/make_icons.py`;

@@ -59,6 +59,21 @@ uint32_t toCm(float metres)
     const float cm = metres * 100.0f + 0.5f;
     return cm >= 4294967040.0f ? UINT32_MAX : static_cast<uint32_t>(cm);
 }
+
+#if defined(SIMULATOR)
+/// The simulator's GPS never stops (the SDK's loop rides on at 20 to 30 km/h), so to show
+/// auto-pause a capture puts a file named sim_stopped in the app's folder: while it is there
+/// the speed reads 0, as at the lights. The simulator only; never on a watch.
+bool simStopped(SDK::Kernel &kernel)
+{
+    auto file = kernel.fs.file("sim_stopped");
+    if (!file || !file->open(false, false)) {
+        return false;
+    }
+    file->close();
+    return true;
+}
+#endif
 } // namespace
 
 Service::Service(SDK::Kernel &kernel)
@@ -788,6 +803,11 @@ void Service::onSensorData(uint16_t handle, SDK::Sensor::DataBatch &batch)
         if (p.isDataValid()) {
             mSpeedMs    = p.getSpeed();
             mSpeedValid = p.isSpeedValid();   // already excludes dead reckoning
+#if defined(SIMULATOR)
+            if (simStopped(mKernel)) {
+                mSpeedMs = 0.0f;
+            }
+#endif
             mSpeedAtMs  = mKernel.sys.getTimeMs();
             ++mSpeedSeq;                      // for auto-pause: one more sample
         }
