@@ -193,6 +193,9 @@ And the training load (section "Training load", 3 November 2026):
    5 %, as the apps count their seconds slightly differently at the edges);
 7. Streak's state keeps their sum on today (`"L"`), and the fitness, fatigue and form it shows
    for today are what a separate reference of Banister's model makes of it.
+   Passed on 3 November 2026 (quick mode, 32 of 32): Run, Race and Trail 4 each, Ride 3,
+   Workout's three 0 (the simulator's heart rate stayed below zone 1 there), each equal to its
+   records' load; Streak's day 15, fitness 0.36, fatigue 2.14, form -1.78, as the reference.
 
 It also reports whether Trail left minutes for Run's VO2max (for information: the
 simulator's heart rate is not steady running, so there are usually none).
