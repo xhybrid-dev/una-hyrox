@@ -9,6 +9,13 @@ point face as the watch does: digits only, anything else as '?'. Without the
 SDK, DejaVu Sans stands in. A mock-up until the watch shows the real thing.
 
     glance_preview.py <glance_preview binary> <out.png> [w h controls]
+    glance_preview.py <glance_preview binary> <out.png> --store <dir>
+
+--store also writes the store listing's previews into <dir> (X Streak Glance's
+listing, hybridx-link/docs/STORE_RELEASE.md): 480x480 (the watch's 240 at 2x, as
+the app's previews), the glance at the middle of a round screen between the
+glances list's separators (172 px, X Weigh-in NOTES, Gate W3), for the panels
+named in STORE below. As X Run's glance_preview.py.
 """
 import os
 import subprocess
@@ -37,8 +44,20 @@ def face(f):
     bold = "-Bold" if weight == "SemiBold" else ""
     return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf" % bold, int(size * S * 0.82))
 
-binary, out = sys.argv[1], sys.argv[2]
-args = sys.argv[3:6] if len(sys.argv) > 5 else ["240", "60", "32"]
+BAND = 172  # the list's separators span the middle of a 240 px glance
+LIST_BLUE = (70, 90, 255)
+argv = sys.argv[1:]
+store_dir = None
+if "--store" in argv:
+    i = argv.index("--store")
+    store_dir = argv[i + 1]
+    del argv[i:i + 2]
+binary, out = argv[0], argv[1]
+args = argv[2:5] if len(argv) > 4 else ["240", "60", "32"]
+# Store previews: (file name, panel name from Tests/Host/tools/glance_preview.cpp).
+STORE = [("1-climbing.png", "Climbing"),
+         ("2-week-banked.png", "Week banked"),
+         ("3-at-risk.png", "At risk")]
 lines = subprocess.run([binary] + args, capture_output=True, text=True, check=True).stdout.splitlines()
 
 panels = []
@@ -84,3 +103,23 @@ for name, img, _ in panels:
     y += img.height + gap
 sheet.save(out)
 print("wrote", out)
+
+if store_dir:
+    os.makedirs(store_dir, exist_ok=True)
+    byname = {name: img for name, img, _ in panels}
+    for fname, pname in STORE:
+        img = byname[pname]
+        size = 240 * S
+        canvas = Image.new("RGB", (size, size), (0, 0, 0))
+        top = (size - img.height) // 2
+        canvas.paste(img, ((size - img.width) // 2, top))
+        cd = ImageDraw.Draw(canvas)
+        x0 = (size - BAND * S) // 2
+        for ly in (top - 10, top + img.height + 8):
+            cd.rectangle([x0, ly, x0 + BAND * S - 1, ly + 2], fill=LIST_BLUE)
+        # The round display: everything outside the circle is bezel.
+        mask = Image.new("L", (size, size), 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, size - 1, size - 1], fill=255)
+        Image.composite(canvas, Image.new("RGB", (size, size), (0, 0, 0)), mask).save(
+            os.path.join(store_dir, fname))
+        print("wrote", os.path.join(store_dir, fname))

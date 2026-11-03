@@ -11,6 +11,21 @@ when it stamps `BUILD_VERSION` into the `.uapp`.
 
 ## [Unreleased]
 
+Becomes 1.1.0: HybridX Race joins the X family (`hybridx-link/docs/STORE_RELEASE.md`).
+
+### Added
+
+- **X Streak counts your races.** Each saved race leaves a summary in the shared folder
+  (`act_race.json`), so X Streak counts it, as Hybrid, the next time it opens.
+- **The Streak line** on the Saved screen: this week's count and your streak, when X Streak is
+  installed and has been opened.
+- **Training load**: each race's heart-rate training load (Edwards' score), shown as "Load N" on
+  the Saved screen and carried into X Streak's fitness, fatigue and form.
+
+### Changed
+
+- Built on UNA SDK v1.6.2 (was v1.6.0).
+
 ## [1.0.0] - 2026-10-16
 
 The first feature release since 0.1.0: a pace plan for races, a distinct pitch

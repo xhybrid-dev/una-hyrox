@@ -1,0 +1,25 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "activity"
+  ],
+  "name": "X Workout",
+  "icon": "icon.png",
+  "binary": "HybridXWorkout.uapp",
+  "appVersion": "1.0.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [
+    "HR"
+  ],
+  "description": "Gym and HIIT sessions with heart-rate zones and calories: a free workout with laps, strength sets with rest timers, EMOM, AMRAP, Tabata, intervals and Hyrox-style circuits. Your workouts count in X Streak.",
+  "supportsLaps": true,
+  "supportsDistance": false,
+  "supportsTrack": false,
+  "supportsHeartbeat": true,
+  "supportsElevation": false,
+  "supportsStep": false,
+  "supportsSpeed": "none",
+  "customMeasures": [],
+  "stravaExport": true,
+  "id": "A294992CFC56DBE9"
+}
