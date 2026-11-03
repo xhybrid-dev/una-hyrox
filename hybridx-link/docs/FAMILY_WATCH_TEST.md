@@ -5,14 +5,20 @@ simulator and by host tests (each app's NOTES; the family check, `ACTIVITY_LINK.
 watch build compiles in CI, but none of the link has run on a watch. This is that test.
 
 **What it shows:** each app saves its activity, leaves its summary for Streak, and shows the
-Streak line; Streak counts each session once, as the right kind; a discarded session counts
-for nothing; and all of it survives a phone sync.
+Streak line and the session's training load ("Load 12"); Streak counts each session once, as
+the right kind, and adds its load to the Training load screen; a discarded session counts for
+nothing; Ride's auto-pause and turbo intervals work; and all of it survives a phone sync.
+
+**The names (2 November 2026).** The watch's app list now shows **X Run, X Trail, X Ride,
+X Workout and X Streak** (and X Sauna, X Weigh-in); **HybridX Race** keeps its name. Only the
+shown name changed: the folders on the watch are as before, so nothing already saved moves.
 
 **Time:** about two hours, best done in one day (so the week does not roll over midway), with
 a short run and a short ride outdoors. Every session can be short: step 3 below lets a
 two-minute session count.
 
-**In the family:** Streak (it counts), and Run, Race, Trail, Workout and Ride (they write).
+**In the family:** X Streak (it counts), and X Run, HybridX Race, X Trail, X Workout and X Ride
+(they write).
 X Sauna is installed too, but on its own: it stays out of the streak (Jon, 27 October 2026),
 so step 13 checks that it does **not** count.
 
@@ -29,7 +35,7 @@ is best).
 2. **A heart-rate strap** (optional). If you want to use one, switch **External HR** on in the
    watch's settings and pair the strap there first. The apps say "Strap connected" on their
    Start row when it is working.
-3. **Streak's settings, on the phone.** In the UNA app, open HybridX Streak's settings (after
+3. **Streak's settings, on the phone.** In the UNA app, open X Streak's settings (after
    step 2 has installed it) and set **Shortest session** to **0**, so short test sessions count.
    Leave **Weekly target** as it is (3 by default); note what it is. Put Shortest session back
    to 10 after the test.
@@ -75,8 +81,8 @@ All the apps come from one place: the **watch-apps** artifact of a green CI run.
 
 ## 3. The sessions, in order
 
-For each: do it, save it, read the **Saved** screen's amber lines, then open **Streak** and
-read its toast ("+1 Run · 3 min": the kind, then the session's minutes). The counts below assume
+For each: do it, save it, read the **Saved** screen's amber lines and its **Load** (a number
+when the watch had your heart rate; none without it), then open **Streak** and read its toast ("+1 Run · 3 min": the kind, then the session's minutes). The counts below assume
 a target of 3 and that nothing else counted this week; if Streak already had sessions this week,
 add them to every number. "N of 3 this week" goes on past 3 ("4 of 3"). A second line gives the
 streak once there is one: from step 4 if you had none ("1-week streak"), from step 2 if you had
@@ -95,11 +101,11 @@ one. On the session that meets the target, Streak's own screen also says the wee
 
 How to run each (one at a time):
 
-**Step 2, Run.** Open HybridX Run outdoors, wait for the GPS, Start, run 3 minutes, then R1
+**Step 2, Run.** Open X Run outdoors, wait for the GPS, Start, run 3 minutes, then R1
 (the menu), L2 twice to **Save**, and hold R1.
 
 **Step 3, Workout, Strength.** This is the one to feel the buzzes on.
-1. Open HybridX Workout. L2 to **Type**, R1 until it says **Strength**.
+1. Open X Workout. L2 to **Type**, R1 until it says **Strength**.
 2. L2 to **Settings**, R1. On **Sets**, press R1 until it shows 2 (it steps up through the
    choices and round to 1). L2 to **Rest**, R1 until it shows 30 s. R2 back to the menu: the
    Settings row now says "2 sets, 30 s rest".
@@ -122,10 +128,14 @@ After 5 minutes it says "Done": R1, hold R1.
 walk or jog 100 m, then **R2**: "SkiErg" in amber with "1000 m". Do a minute of anything, then
 **R2**: "Done". R1, hold R1. The summary says "1 station".
 
-**Step 6, Ride.** Open HybridX Ride. Outdoors: wait for "GPS ready" on the Start row; indoors:
-L2 to the Ride row and R1 to Indoor. Start, 3 minutes, then R1, L2 L2 to End, hold R1.
+**Step 6, Ride, outdoors with a stop.** Open X Ride. Wait for "GPS ready" on the Start row.
+The main menu's last row says **Auto-pause On** (leave it on). Start, ride a minute, then
+**stop** (a junction, or just stand with the bike) for 20 seconds: within a few seconds the
+watch buzzes **once** and the screen says **"Auto-paused"** in amber, with the speed grey.
+Ride off: after a few metres it buzzes **twice** and the timer runs again. Ride another
+minute, then R1, L2 L2 to End, hold R1.
 
-**Step 7, Trail.** Open HybridX Trail, choose your route, Start, 3 minutes, then save as for Run.
+**Step 7, Trail.** Open X Trail, choose your route, Start, 3 minutes, then save as for Run.
 
 **Step 8, Race.** Open HybridX Race and choose a half (either) and a run length of 100 m on its
 main menu and in its settings. Start race (R1, and R1 again on "On your marks"), press R2 for
@@ -151,9 +161,35 @@ screen to save.
     swap phase once, then end and save it. Open Streak: **no** toast, no change. (Do not wear
     the watch in a sauna or water for this: that is a separate test, and only if UNA's
     published limits allow it.)
-14. **The glance** (if installed): it shows the week's count from step 8.
+14. **The glance** (if installed): it shows the week's count from step 8. (Its form line,
+    "Form +5 fresh", only appears after two weeks of history, when you are on track.)
 
-## 5. What to send me
+## 5. Ride on the turbo, and the training load
+
+These sessions count too (each adds one to the week); that is fine.
+
+15. **Ride, Tabata on the turbo** (or anywhere still: the watch only needs your heart rate).
+    Open X Ride. L2 to the **Ride** row and R1 to **Indoor**. The rows below change: L2 to
+    **Type**, R1 until it says **Tabata**; the next row says **Settings, 8 x 20 s / 10 s**.
+    L1 up to **Start**, R1. The screen shows **"Work 1/8"** in lime and counts 20 seconds down;
+    in the last 3 seconds the number turns amber and the watch ticks three times; then a
+    double buzz and **"Rest 1/8"** in blue, 10 seconds. After 8 rounds (4 minutes): a long
+    buzz and **"Done"**. R1 opens the menu on **End ride**: hold R1. The Saved screen shows
+    the Streak line and the load; the summary is titled **Tabata**, "8 of 8 rounds", with
+    laps "Work 1", "Rest 1", ... in their colours. R2 does nothing during the plan (no lap
+    button: the steps end by themselves).
+16. **Intervals** (optional): as 15, with Type **Intervals**; its **Settings** opens Work,
+    Rest and Rounds (R1 steps each; default 40 s / 20 s x 6).
+17. **A distance lap** (optional, outdoors): on the main menu, R1 on **Auto lap** steps
+    past the minutes to **1 km**, 5 km and so on. Ride over 1 km: a buzz and "Auto lap".
+18. **Training load in Streak.** Open X Streak, L2 to **Training load** (before Settings):
+    its hint says "Learning: day 1 of 14". R1 opens it: **Form**, then **Fitness**,
+    **Fatigue**, **This week** and **Today**. Today's load should be the sum of the "Load"
+    numbers on today's Saved screens. The word under Form stays "Learning" for the first two
+    weeks; after that it says Fresh, Steady, Building or Overreaching (the bands are a first
+    guess, to tune from your weeks).
+
+## 6. What to send me
 
 - The photos (or what each Saved screen and Streak toast said), against the table in section 3.
 - The files from step 11, before the sync if you can.
@@ -161,7 +197,12 @@ screen to save.
   three ticks, the end)? Were the colours easy to read (lime work, blue rest, amber in the last
   3 seconds)?
 - For step 12: what the UNA app and Strava called each Workout session, and what they showed
-  for its laps and sets.
+  for its laps and sets; and for Ride, whether they show the Tabata's rest laps as rest, and
+  the auto-pause as a pause.
+- For step 6: how quickly it paused and resumed, and whether it ever paused while you were
+  moving slowly (on a climb, say).
+- For step 18: the Saved screens' loads and Streak's Today; whether the numbers feel sensible
+  for the effort (Edwards' score: 30 minutes mostly in zones 3 and 4 is about 90 to 120).
 - Anything that was awkward on the wrist.
 
 ## What each result decides

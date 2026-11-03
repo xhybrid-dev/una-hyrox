@@ -8,6 +8,14 @@
 # its own kind, and the seventh save's Streak line meets the target of 7 ("1-week streak"). It checks the activity link end to end with the apps' real writers and
 # Streak's real reader (docs/ACTIVITY_LINK.md, "Family check").
 #
+# Training load (ACTIVITY_LINK.md, "Training load"): each summary's 8th number must be the
+# Edwards load worked out again here from its own .fit's records (each record's heart rate in
+# the watch's default zones, 95/114/133/152/171/190, a second each; within a point or 5 %, as
+# the apps count their seconds slightly differently at the edges); Streak's state must keep
+# their sum on today (its "L"), and the fitness, fatigue and form it shows must be what a
+# separate reference of Banister's model makes of that day (42 and 7 days). Quick mode's
+# 80-second sessions score little; LONG=1 gives loads in the tens.
+#
 # The simulators keep their files in <cwd>/../../../../../Output, so each app
 # runs from its own <out>/<App>/a/b/c/d/e and its ../SharedData is a symlink to
 # the one <out>/SharedData, as every app's is the same folder on a watch:
@@ -187,6 +195,22 @@ def check(name, passed, detail):
 # Each writer: its entries, its own name and sports, each the start and timer time of its .fit.
 # Workout saves three (Free, Strength, Circuit), each with its own link sport: Workout 5,
 # Strength 4, Hybrid 6 (Workout NOTES "W2"); the others one each.
+# Edwards' TRIMP from a .fit's records, in the watch's default zones (hybridx-link TrainingLoad.hpp:
+# above threshold i is zone i + 1, capped at 5).
+TH = [95, 114, 133, 152, 171, 190]
+def zone(hr):
+    if not hr:
+        return 0
+    return min(5, sum(1 for t in TH if hr > t))
+def fit_load(frames):
+    secs = [0] * 6
+    for f in frames:
+        if f.name == "record" and f.has_field("heart_rate"):
+            secs[zone(f.get_value("heart_rate"))] += 1
+    weighted = sum(k * secs[k] for k in range(1, 6))
+    return (weighted + 30) // 60, secs
+loads = []   # every entry's load, for Streak's day
+
 for app, slot, sports in (("Run", "run", [1]), ("Race", "race", [6]), ("Trail", "trail", [1]),
                           ("Workout", "workout", [5, 4, 6]), ("Ride", "ride", [2])):
     fits = sorted(glob.glob(f"{out}/{app}/Output/Activity/*/*.fit") + glob.glob(f"{out}/{app}/Output/Activity/*.fit"))
@@ -204,11 +228,18 @@ for app, slot, sports in (("Run", "run", [1]), ("Race", "race", [6]), ("Trail", 
         continue
     for n, (fit, e) in enumerate(zip(fits, entries), start=1):
         with fitdecode.FitReader(fit) as r:
-            sess = next(f for f in r if isinstance(f, fitdecode.FitDataMessage) and f.name == "session")
+            frames = [f for f in r if isinstance(f, fitdecode.FitDataMessage)]
+        sess = next(f for f in frames if f.name == "session")
         start = int(sess.get_value("start_time").timestamp())
         timer = sess.get_value("total_timer_time")
         label = f"{app} = its .fit" if len(entries) == 1 else f"{app} {n} = its .fit ({sess.get_value('sport')})"
         check(label, e[0] == start and abs(e[2] - timer) <= 1, f"start {e[0]} vs {start}, {e[2]} s vs {timer:.0f} s")
+        want_load, secs = fit_load(frames)
+        got_load = e[7] if len(e) > 7 else None
+        loads.append(got_load or 0)
+        lab = f"{app} load" if len(entries) == 1 else f"{app} {n} load"
+        check(lab, got_load is not None and abs(got_load - want_load) <= max(1, want_load * 0.05),
+              f"{got_load} vs {want_load} from the records (s in zones 1-5: {secs[1:]})")
 
 def summaries(log):
     try:
@@ -266,6 +297,46 @@ want = sorted([("HybridXRace", "Hybrid"), ("HybridXRide", "Ride"), ("HybridXRun"
 c1, c2 = counted("streak-1.json"), counted("streak-2.json")
 check("Streak counts each", c1 == want, ", ".join(f"{a} {k}" for a, k in c1) if c1 else "no state")
 check("Streak, still once each", c2 == want, f"{len(c2) if c2 else 0} sessions after the second open")
+
+# Training load in Streak: its state's "L" = [1, first day, first open day, fitness x100,
+# fatigue x100, seeded, [14 daily loads]] (StateCodec). Streak first opened today (Streak-0), so
+# the window ends today and today holds every session's load. The reference: Banister's model
+# from nothing, 13 empty days then today's load, each day's step rounded half away from zero, as
+# LoadHistory's integer one (an independent copy, here).
+import time
+def step(avg, load, days):
+    diff = load * 100 - avg
+    half = days // 2
+    delta = (diff + half) // days if diff >= 0 else -((-diff + half) // days)
+    return max(0, avg + delta)
+try:
+    st = json.load(open(f"{out}/streak-2.json"))
+except (OSError, ValueError):
+    st = {}
+L = st.get("L")
+today = int(time.time() // 86400)   # the simulators' local day (the container runs in UTC)
+total = sum(loads)
+if not L or len(L) != 7 or len(L[6]) != 14:
+    check("Streak keeps the loads", False, f"no \"L\" in its state ({L})")
+else:
+    started, first, open_start, fit_x100, fat_x100, seeded, daily = L
+    day_i = today - open_start
+    got_today = daily[day_i] if 0 <= day_i < 14 else None
+    check("Streak keeps the loads", started == 1 and first == today and open_start == today - 13
+          and got_today == total and sum(daily) == total,
+          f"today's load {got_today} == the summaries' {total} ({'+'.join(map(str, loads))}); "
+          f"first day {first - today:+d}, window from {open_start - today:+d}")
+    # What the screens show for today: LoadHistory::figures, from the state ...
+    f, g = fit_x100, fat_x100
+    for d in daily:
+        f, g = step(f, d, 42), step(g, d, 7)
+    # ... and the reference, from the summaries alone.
+    rf, rg = 0, 0
+    for d in [0] * 13 + [total]:
+        rf, rg = step(rf, d, 42), step(rg, d, 7)
+    check("Streak's fitness, fatigue, form", (f, g, f - g) == (rf, rg, rf - rg) and (total == 0 or rf > 0),
+          f"fitness {f / 100:.2f}, fatigue {g / 100:.2f}, form {(f - g) / 100:+.2f} (reference "
+          f"{rf / 100:.2f}, {rg / 100:.2f}, {(rf - rg) / 100:+.2f}); day 1 of 14, so the word is Learning")
 
 # Trail's minutes for Run's VO2max: information only (the simulator's heart rate is not steady running).
 vo2 = sorted(os.path.basename(p) for p in glob.glob(f"{out}/SharedData/HybridX/trail_vo2_*.json"))

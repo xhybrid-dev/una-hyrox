@@ -187,6 +187,13 @@ Streak's real reader:
 4. its saved state counts each once (Run, Hybrid, Run, Workout, Ride);
 5. the second open finds nothing new and still holds five.
 
+And the training load (section "Training load", 3 November 2026):
+6. each entry's 8th number is the Edwards load worked out again from its own `.fit`'s records
+   (each record's heart rate in the watch's default zones, a second each; within a point or
+   5 %, as the apps count their seconds slightly differently at the edges);
+7. Streak's state keeps their sum on today (`"L"`), and the fitness, fatigue and form it shows
+   for today are what a separate reference of Banister's model makes of it.
+
 It also reports whether Trail left minutes for Run's VO2max (for information: the
 simulator's heart rate is not steady running, so there are usually none).
 
