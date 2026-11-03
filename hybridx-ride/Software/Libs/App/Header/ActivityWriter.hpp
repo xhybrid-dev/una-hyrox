@@ -81,7 +81,9 @@ public:
         uint8_t     hrMax = 0;
         uint16_t    kcal = 0;           // whole kcal
         uint16_t    restingKcal = 0;
-        bool        autoEnded = false;  // lap_trigger time, else manual
+        bool        autoEnded = false;  // lap_trigger time (or distance, below), else manual
+        bool        byDistance = false; // ended by the distance auto lap: lap_trigger distance
+        bool        rest = false;       // intensity rest (an interval's rest), else active
         // Outdoor only.
         uint32_t    distCm = 0;
         uint32_t    avgSpeedMmS = 0;
@@ -162,6 +164,10 @@ private:
     std::string mProfileName;
     std::time_t mLastFlushUtc = 0;
     bool        mOutdoor      = false;
+    /// The FIT timer is running (start or resume), so stop() closes it; after a pause
+    /// (manual, auto, or a plan's end) it is already stopped, and a second stop would
+    /// break the start/stop pairs (HybridX Workout's fix, W2).
+    bool        mTimerRunning = false;
 
     void writeFieldDescription(uint8_t devFieldNum, const char* name,
                                const char* units, SDK::Fit::BaseType baseType);

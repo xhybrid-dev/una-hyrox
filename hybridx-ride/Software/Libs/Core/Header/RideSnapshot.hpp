@@ -11,6 +11,7 @@
 
 #include <cstdint>
 
+#include "PlanRunner.hpp"
 #include "RideModel.hpp"
 
 namespace Ride {
@@ -44,20 +45,29 @@ struct SessionSnapshot {
     uint32_t lapDistCm = 0;
     uint32_t avgSpeedMmS = 0;     ///< Over the ride's active time
     uint32_t lapAvgSpeedMmS = 0;
+    uint8_t  autoPaused = 0;      ///< 1 while paused by auto-pause (outdoors), not by the rider
+    uint8_t  autoLapKm = 0;       ///< The distance auto lap, km (0: off; outdoors only)
+    PlanView plan;                ///< An indoor plan's step (plan.steps 0: a free ride)
 };
 
 /// What a finished ride came to, for the summary screen.
 struct SavedSession {
     uint8_t        saved = 0;     ///< 1 when the activity file was written
     uint8_t        outdoor = 0;   ///< 1 for a GPS ride
+    uint8_t        type = 0;      ///< SessionType (an indoor plan, or Free)
+    uint8_t        planDone = 0;  ///< 1 when the plan ran to its end
     uint32_t       activeMs = 0;
     SessionSummary summary;
 };
 
-/// A lap just ended (R2, or the auto lap): what it was, for the lap toast.
+/// A lap just ended (R2, the auto lap, or a plan's step): what it was, for the lap toast.
 struct LapEventData {
     uint8_t  finishedLap = 1;     ///< Its number, from 1
     uint8_t  autoEnded = 0;
+    uint8_t  byDistance = 0;      ///< Ended by the distance auto lap
+    uint8_t  cue = 0;             ///< Cue: what begins now (Done: the plan is over)
+    uint8_t  kind = 0;            ///< The finished lap's StepKind
+    uint8_t  round = 0;           ///< Its round (0: a free ride)
     uint16_t hrAvg = 0;           ///< bpm, 0 none
     uint32_t durationMs = 0;
     uint32_t distCm = 0;          ///< 0 indoors
@@ -67,6 +77,8 @@ struct LapEventData {
 /// One lap of a finished ride, for the summary's lap pages.
 struct LapRow {
     uint8_t  autoEnded = 0;
+    uint8_t  kind = 0;            ///< StepKind
+    uint8_t  round = 0;           ///< 0: a free ride
     uint16_t hrAvg = 0;
     uint16_t hrMax = 0;
     uint16_t kcal = 0;

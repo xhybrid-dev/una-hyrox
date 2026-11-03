@@ -43,6 +43,8 @@ add_executable(hybridx-ride-host-tests
     RideTextTest.cpp
     RideFitTest.cpp
     RideSettingsTest.cpp
+    AutoPauseTest.cpp
+    RidePlanTest.cpp
     RideMotionTest.cpp
     RideAltitudeTest.cpp
     LapTimingTest.cpp

@@ -36,7 +36,9 @@ struct FitLap {
     uint8_t  hrMax = 0;
     uint16_t kcal = 0;          ///< Calories, whole kcal
     uint16_t restingKcal = 0;   ///< Their resting part
-    bool     autoEnded = false; ///< Ended by the auto lap (lap_trigger time), else manual
+    bool     autoEnded = false; ///< Ended by the auto lap or a timed step (lap_trigger time), else manual
+    bool     byDistance = false;///< Ended by the distance auto lap (lap_trigger distance)
+    uint8_t  kind = 0;          ///< StepKind: a Rest lap is FIT intensity rest
     uint32_t distCm = 0;
     uint32_t avgSpeedMmS = 0;
     uint32_t maxSpeedMmS = 0;
@@ -105,6 +107,8 @@ inline uint8_t buildFit(const RideModel &m, FitLap *out, uint8_t cap, FitSession
         f.kcal        = detail::kcalOf(m.lapKcalX10(i));
         f.restingKcal = detail::kcalOf(m.lapRestingKcalX10(i));
         f.autoEnded   = l.autoEnded;
+        f.byDistance  = l.byDistance;
+        f.kind        = l.kind;
         f.distCm      = l.distCm;
         f.avgSpeedMmS = l.avgSpeedMmS();
         f.maxSpeedMmS = l.maxSpeedMmS;

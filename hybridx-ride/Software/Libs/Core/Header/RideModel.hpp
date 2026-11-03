@@ -24,6 +24,12 @@
  *
  * Auto lap (the example's "time alert"): with RideConfig::autoLapMs set, a
  * sample that finds the lap's active time at or past it ends the lap there.
+ * Outdoors, RideConfig::autoLapDistCm (the Cycling example's distance alert:
+ * 1 to 25 km) does the same on the lap's distance; the lap that ends keeps the
+ * sample that took it past, so the next starts at the following one.
+ *
+ * Plans (indoor intervals, RidePlan.hpp, run by PlanRunner): each lap carries
+ * its step (kind and round), and a timed step ends its lap with lapTimed().
  *
  * Bounds. At most kMaxLaps laps; the next lap is refused (LapResult::Full)
  * and nothing changes. Sums are 32 or 64 bit and counters saturate.
@@ -55,6 +61,7 @@ struct RideConfig {
     HrZones  zones;
     uint32_t weightG = kDefaultWeightG;
     uint32_t autoLapMs = 0;           ///< 0: off
+    uint32_t autoLapDistCm = 0;       ///< 0: off; outdoors only
     bool     outdoor = false;         ///< GPS ride (true) or indoor, heart rate only (false)
 };
 
@@ -73,7 +80,10 @@ struct LapStats {
     uint32_t hrSum = 0;
     uint32_t hrCount = 0;
     uint16_t hrMax = 0;
-    bool     autoEnded = false;       ///< Ended by the auto lap, not the button
+    bool     autoEnded = false;       ///< Ended by time or distance (the auto lap, a timed step), not the button
+    bool     byDistance = false;      ///< Ended by the distance auto lap
+    uint8_t  kind = 0;                ///< StepKind (RidePlan.hpp); 0 Work for a free ride
+    uint8_t  round = 0;               ///< The plan's round, from 1; 0 for a free ride
     uint32_t zoneMs[kZoneCount] = {}; ///< Active time in each zone (0: below zone 1 or no HR)
     uint32_t distCm = 0;
     uint32_t ascentCm = 0;
@@ -141,6 +151,31 @@ public:
     LapResult lap(uint32_t nowMs)
     {
         return endLap(nowMs, false);
+    }
+
+    /// End this lap by time (a timed step of a plan) and begin the next.
+    LapResult lapTimed(uint32_t nowMs)
+    {
+        return endLap(nowMs, true);
+    }
+
+    /// Mark the current lap as ended by time (a timed plan's last step).
+    void markLapTimed()
+    {
+        if (mLapCount > 0) {
+            mLaps[mLapCount - 1].autoEnded = true;
+        }
+    }
+
+    /// Label the current lap with the plan step it records (@p station is unused on a bike).
+    void setLapInfo(uint8_t kind, uint8_t round, uint8_t station = 0)
+    {
+        (void)station;
+        if (mLapCount == 0) {
+            return;
+        }
+        mLaps[mLapCount - 1].kind  = kind;
+        mLaps[mLapCount - 1].round = round;
     }
 
     bool pause(uint32_t nowMs)
@@ -224,6 +259,13 @@ public:
         }
         if (mCfg.autoLapMs > 0 && cur.activeMs >= mCfg.autoLapMs) {
             return endLap(nowMs, true) == LapResult::Ok;
+        }
+        if (mCfg.outdoor && mCfg.autoLapDistCm > 0 && cur.distCm >= mCfg.autoLapDistCm) {
+            if (endLap(nowMs, true) != LapResult::Ok) {
+                return false;   // full: the lap goes on
+            }
+            mLaps[mLapCount - 2].byDistance = true;
+            return true;
         }
         return false;
     }

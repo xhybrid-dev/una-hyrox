@@ -113,7 +113,7 @@ void ActivityWriter::start(const AppInfo& info)
              fit::field::Lap::TotalElapsedTime, fit::field::Lap::TotalTimerTime,
              fit::field::Lap::MessageIndex,
              fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate,
-             fit::field::Lap::TotalCalories, kLapTrigger},
+             fit::field::Lap::TotalCalories, kLapTrigger, fit::field::Lap::Intensity},
             {{DF_LAP_RESTING_CAL, 2, 0}});
         if (mProfileName.empty()) {
             mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
@@ -151,7 +151,7 @@ void ActivityWriter::start(const AppInfo& info)
              fit::field::Lap::TotalElapsedTime, fit::field::Lap::TotalTimerTime,
              fit::field::Lap::MessageIndex,
              fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate,
-             fit::field::Lap::TotalCalories, kLapTrigger,
+             fit::field::Lap::TotalCalories, kLapTrigger, fit::field::Lap::Intensity,
              fit::field::Lap::TotalDistance, fit::field::Lap::AvgSpeed,
              fit::field::Lap::MaxSpeed, fit::field::Lap::TotalAscent,
              fit::field::Lap::TotalDescent},
@@ -185,6 +185,7 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Activity::LocalTimestamp, fit::field::Activity::NumSessions});
 
     addMessageEvent(info.timestamp, fit::EventType::Start);
+    mTimerRunning = true;
 
     // Header + all definitions are on disk: flush and drop the recovery marker.
     // Only write the marker when begin() succeeded AND the flush is durable.
@@ -217,15 +218,17 @@ void ActivityWriter::writeFieldDescription(uint8_t devFieldNum, const char* name
 
 void ActivityWriter::pause(std::time_t timestamp)
 {
-    if (mFit) {
+    if (mFit && mTimerRunning) {
         addMessageEvent(timestamp, fit::EventType::Stop);
+        mTimerRunning = false;
     }
 }
 
 void ActivityWriter::resume(std::time_t timestamp)
 {
-    if (mFit) {
+    if (mFit && !mTimerRunning) {
         addMessageEvent(timestamp, fit::EventType::Start);
+        mTimerRunning = true;
     }
 }
 
@@ -286,7 +289,9 @@ void ActivityWriter::addLap(const LapData& lap)
         d.u8(hr != 0 ? hr : static_cast<uint8_t>(fit::baseTypeInvalid(fit::BaseType::UInt8)));
     }
     d.u16(lap.kcal)
-        .u8(lap.autoEnded ? kLapTriggerTime : kLapTriggerManual);
+        .u8(lap.byDistance ? static_cast<uint8_t>(fit::LapTrigger::Distance)
+                           : (lap.autoEnded ? kLapTriggerTime : kLapTriggerManual))
+        .u8(static_cast<uint8_t>(lap.rest ? fit::Intensity::Rest : fit::Intensity::Active));
     if (mOutdoor) {
         d.u32(lap.distCm)
             .u16(speedField(lap.avgSpeedMmS))
@@ -305,8 +310,12 @@ bool ActivityWriter::stop(const TrackData& track)
         return false;
     }
 
-    // The timer started at start(); close the pair before the session.
-    addMessageEvent(track.timestamp, fit::EventType::Stop);
+    // The timer started at start(); close the pair before the session, unless a
+    // pause (manual, auto, or a plan's end) has closed it already.
+    if (mTimerRunning) {
+        addMessageEvent(track.timestamp, fit::EventType::Stop);
+        mTimerRunning = false;
+    }
 
     bool ok = mFit->ok();
 
