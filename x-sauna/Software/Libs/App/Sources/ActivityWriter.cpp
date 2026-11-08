@@ -52,6 +52,7 @@ void ActivityWriter::start(const AppInfo& info)
     mLapCounter   = 0;
     mLastFlushUtc = info.timestamp;
     mProfileName  = info.sportProfileName.substr(0, kProfileNameMax);
+    mWithPlunge   = info.withPlunge;
 
     if (!createAndOpenFile(info.timestamp)) {
         return;
@@ -92,14 +93,18 @@ void ActivityWriter::start(const AppInfo& info)
     }
 
     // Developer field descriptions (label and units survive any profile). No
-    // unit is claimed for the temperature: it is the sensor's own number.
+    // unit is claimed for the temperature: it is the sensor's own number. The
+    // UNA app titles each card from the name ("sauna_minutes" reads "Sauna
+    // minutes"), so the unit is in the name. Only the fields this session uses
+    // are described: the UNA app makes a card of each.
     writeFieldDescription(DF_WATCH_TEMP, "watch_temp", nullptr, fit::BaseType::Float32);
     writeFieldDescription(DF_PHASE, "phase", nullptr, fit::BaseType::UInt8);
-    writeFieldDescription(DF_ROUND, "round", nullptr, fit::BaseType::UInt8);
     writeFieldDescription(DF_HR_RECOVERY, "hr_recovery_bpm", "bpm", fit::BaseType::SInt16);
-    writeFieldDescription(DF_MODE, "mode", nullptr, fit::BaseType::UInt8);
-    writeFieldDescription(DF_REST_ENABLED, "rest_enabled", nullptr, fit::BaseType::UInt8);
-    writeFieldDescription(DF_COMPLETED, "completed", nullptr, fit::BaseType::UInt8);
+    writeFieldDescription(DF_SAUNA_MINUTES, "sauna_minutes", "min", fit::BaseType::UInt16);
+    if (mWithPlunge) {
+        writeFieldDescription(DF_PLUNGE_SECONDS, "plunge_seconds", "s", fit::BaseType::UInt16);
+    }
+    writeFieldDescription(DF_ROUNDS, "rounds", nullptr, fit::BaseType::UInt8);
 
     // event
     mFit->defineMessage(L_EVENT, fit::mesgNum(fit::MesgNum::Event),
@@ -118,15 +123,19 @@ void ActivityWriter::start(const AppInfo& info)
          fit::field::Lap::MessageIndex,
          fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate,
          kLapTrigger},
-        {{DF_PHASE, 1, 0}, {DF_ROUND, 1, 0}, {DF_HR_RECOVERY, 2, 0}});
-    if (mProfileName.empty()) {
+        {{DF_PHASE, 1, 0}, {DF_HR_RECOVERY, 2, 0}});
+    // The profile name is always declared (an empty one is a lone NUL), so the
+    // only choice is whether the session carries plunge_seconds.
+    const uint8_t profileNameLen = static_cast<uint8_t>(mProfileName.size() + 1u);
+    if (mWithPlunge) {
         mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
             {fit::field::Session::Timestamp, fit::field::Session::StartTime,
              fit::field::Session::TotalElapsedTime, fit::field::Session::TotalTimerTime,
              fit::field::Session::MessageIndex, fit::field::Session::NumLaps,
              fit::field::Session::Sport, fit::field::Session::SubSport,
-             fit::field::Session::AvgHeartRate, fit::field::Session::MaxHeartRate},
-            {{DF_MODE, 1, 0}, {DF_REST_ENABLED, 1, 0}, {DF_COMPLETED, 1, 0}});
+             fit::field::Session::AvgHeartRate, fit::field::Session::MaxHeartRate,
+             {kSportProfileNameNum, fit::BaseType::String, profileNameLen}},
+            {{DF_SAUNA_MINUTES, 2, 0}, {DF_PLUNGE_SECONDS, 2, 0}, {DF_ROUNDS, 1, 0}});
     } else {
         mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
             {fit::field::Session::Timestamp, fit::field::Session::StartTime,
@@ -134,9 +143,8 @@ void ActivityWriter::start(const AppInfo& info)
              fit::field::Session::MessageIndex, fit::field::Session::NumLaps,
              fit::field::Session::Sport, fit::field::Session::SubSport,
              fit::field::Session::AvgHeartRate, fit::field::Session::MaxHeartRate,
-             {kSportProfileNameNum, fit::BaseType::String,
-              static_cast<uint8_t>(mProfileName.size() + 1u)}},
-            {{DF_MODE, 1, 0}, {DF_REST_ENABLED, 1, 0}, {DF_COMPLETED, 1, 0}});
+             {kSportProfileNameNum, fit::BaseType::String, profileNameLen}},
+            {{DF_SAUNA_MINUTES, 2, 0}, {DF_ROUNDS, 1, 0}});
     }
     mFit->defineMessage(L_ACTIVITY, fit::mesgNum(fit::MesgNum::Activity),
         {fit::field::Activity::Timestamp, fit::field::Activity::TotalTimerTime,
@@ -237,8 +245,7 @@ void ActivityWriter::addLap(const LapData& lap)
     }
     d.u8(kLapTriggerManual)
         // Developer fields, in definition order.
-        .u8(lap.phase)
-        .u8(lap.round);
+        .u8(lap.phase);
     if (lap.hasRecovery) {
         d.i16(lap.recoveryBpm);
     } else {
@@ -270,15 +277,14 @@ bool ActivityWriter::stop(const TrackData& track)
         .u8(track.subSport)
         .u8(track.hrAvg != 0 ? track.hrAvg : static_cast<uint8_t>(fit::baseTypeInvalid(fit::BaseType::UInt8)))
         .u8(track.hrMax != 0 ? track.hrMax : static_cast<uint8_t>(fit::baseTypeInvalid(fit::BaseType::UInt8)));
-    // The optional standard field sits after the last one declared above and
-    // before the developer fields, as the definition orders them.
-    if (!mProfileName.empty()) {
-        session.str(mProfileName.c_str(), static_cast<uint8_t>(mProfileName.size() + 1u));
+    // The profile name is the last standard field; the developer fields follow
+    // in definition order.
+    session.str(mProfileName.c_str(), static_cast<uint8_t>(mProfileName.size() + 1u))
+        .u16(track.saunaMinutes);
+    if (mWithPlunge) {
+        session.u16(track.plungeSeconds);
     }
-    ok = session.u8(track.mode)
-        .u8(track.restEnabled)
-        .u8(track.completed)
-        .write() && ok;
+    ok = session.u8(track.rounds).write() && ok;
 
     ok = mFit->data(L_ACTIVITY)
         .u32(unixToFitTimestamp(track.timestamp))

@@ -40,6 +40,9 @@ Planned with Jon on 20 October 2026 (plan approved for SA0 only):
   threshold is set from evidence (see SA1).
 - **Open for Jon:** whether the watch is rated for a sauna and for water (below).
   Nothing in the SDK says either way.
+- **The typed-in sauna temperature, asked again (Jon, 8 November 2026): no.** The
+  first real sauna showed the watch's reading cannot be the room's (Gate SA3, below);
+  "Watch temp" stays the only temperature.
 
 ## What the platform gives us (20 October 2026)
 
@@ -82,7 +85,7 @@ Planned with Jon on 20 October 2026 (plan approved for SA0 only):
 | **SA0** | Identity, scaffold, CI build, and a **probe screen** that logs temperature and heart rate once a second to a CSV | Jon runs the staged test and sends the CSV: is the sensor there, what unit, ambient or skin, how it behaves when hot, wet or cold |
 | SA1 | The pure core with an injected clock, host-tested: session model, phases, laps, HR recovery, heat hint, text. **Done (22 October 2026)** | Host tests pass; Just-sauna rule settled |
 | SA2 | The service and the FIT file: HR and temperature a second, laps with developer fields, crash recovery; APP_TYPE moves to Activity. **Done (22 October 2026)**, on branch `claude/x-sauna-sa2` | A FIT file decodes (done here); the UNA app, Garmin and Strava take it (Jon) |
-| SA3 | The LVGL screens: start, live, summary. **Done (22 October 2026)**, on branch `claude/x-sauna-sa3` | Jon uses it on the wrist in a real session |
+| SA3 | The LVGL screens: start, live, summary. **Done (22 October 2026)**, on branch `claude/x-sauna-sa3`. **First real sauna 8 November 2026**; the file's cards changed for the UNA app (Gate SA3, below) | Jon uses it on the wrist in a real session |
 | SA4 | Store release: icon, package, `SUBMISSION.md`, 1.0.0 | Installed from the store |
 
 Outline of later phases (refined at each gate):
@@ -323,6 +326,10 @@ on the SA0 branch); the FIT file is the data log.
   (Knitting's) times the R2 hold.
 
 ### What is in the file
+
+> **Changed at Gate SA3 (8 November 2026):** the session's developer fields are now
+> `sauna_minutes`, `plunge_seconds` and `rounds`, and the laps' `round` is gone. The
+> table under "Gate SA3: the first real sauna" is current; this one is SA2's.
 
 | Message | Standard fields | Developer fields (this app's own numbers) |
 |---|---|---|
@@ -610,6 +617,175 @@ the watch is not checked.
 5. Then **SA4**: the store release (the icon, the portal's app ID, `SUBMISSION.md`).
    Also to decide there: how the branches (`sa0` probe, `sa2`, `sa3`) merge. No
    pull request has been opened.
+
+## Gate SA3: the first real sauna (8 November 2026)
+
+Jon took the SA3 build to a real sauna with a cold plunge: Sauna + plunge, Rest off,
+three rounds. He reckons the sauna was **100 to 120 °C**. He sent the UNA app's export
+of the activity (`una-training-20261108-0937.fit`, not committed: his health data) and
+two screenshots of the UNA app.
+
+### The file
+
+It is the watch's own file: every message and developer field we write, valid CRC.
+
+- **The record gaps are fixed on a watch.** 5,814 records over 5,813 s, one a second
+  with no gaps (`SecondGate`, after the first session's 5% loss).
+- **Heart rate** is missing on 101 seconds (1.7%: the trust gate). Temperature is
+  on every record but the first.
+- **The laps** (times are timer times; temperature is `watch_temp`, the sensor's own
+  number):
+
+| Lap | Time | HR avg / max | Recovery (bpm) | Watch temp: start, peak or low, end | Fastest 15 s fall |
+|---|---|---|---|---|---|
+| Sauna 1 | 39:08 | 84 / 118 | 49 | 18.4, peak 43.5, 34.7 | -7.1 (in its last seconds) |
+| Plunge 1 | 1:01 | 83 / 115 | -22 | 34.1, low 24.5, 24.5 | -4.1 |
+| Sauna 2 | 23:43 | 89 / 132 | 47 | 24.5, peak 43.9, 40.6 | -0.9 |
+| Plunge 2 | 1:02 | 108 / 121 | -14 | 40.6, low 27.8, 27.8 | **-7.9** |
+| Sauna 3 | 22:52 | 97 / 120 | 10 | 27.8, peak 40.6, 39.6 | -0.2 |
+| Plunge 3 | 1:02 | 109 / 124 | 12 | 39.6, low 37.8, 37.8 | -0.6 |
+| Sauna 4 | 8:05 | 97 / 113 | none (last lap) | 37.7, 35.8, 35.8 | -0.7 |
+
+### What the temperature does in heat and cold
+
+- **It is not the sauna, and cannot be made into it.** In a 100 to 120 °C room it
+  climbed from 18 (the watch started cold) at about 0.5 to 1.5 a minute, and **levelled
+  at 43 to 44 after 30 to 35 minutes**. The sensor is inside the watch, pressed against
+  the wrist (Gate SA0), so it settles near the skin under it plus a little. No
+  correction recovers the air temperature: the plateau is set by the skin, and the
+  reading lags by tens of minutes.
+- **Cold water shows as a cliff.** When the watch went into the plunge it fell
+  **5 to 8 in 15 seconds** (41.8 to 34.1 at the lap press in round 1; 39.9 to 34.1
+  about 20 s after it in round 2) and reached 24.5 and 27.8 within the minute. Nothing
+  else in the session came close: out of the sauna but not in the water it fell 0.2 to
+  0.9 per 15 s.
+- **Leaving the heat shows too, slowly.** In round 1 the reading started to fall about
+  2 minutes before the plunge (43.4 to 41.9, then level): Jon had left the sauna and
+  was elsewhere (a shower or the walk), and those minutes count as Sauna. In round 2 the
+  lap press came about 25 s before the water.
+- **Round 3's plunge never met cold water.** No cliff (39.6 to 37.8 over the minute),
+  and the heart rate did not drop. Round 3's sauna also peaked lower (40.6) and fell for
+  its last 6 minutes. **Lap 7 ("Sauna 4", 8 min) was not in the heat:** the reading was
+  flat at about 36. Questions for Jon below.
+- **So the reading is useful as what it is:** a heat-exposure trace whose shape tells
+  sauna, air and water apart. The UNA app's "Watch temp" card shows that shape well.
+
+**The heat hint** (SA1, off, untuned) can now be judged: its design compares the
+reading with the session's first minute, and here the watch started at 18, so
+everything after was "warmer". A rate-based rule fits the data better: a fall of 4 or
+more in 15 to 30 s means cold water, and it never happened in air. That could confirm a
+plunge or nudge a forgotten lap. **Offered, not built** (one session of evidence; the
+lap button works).
+
+### Heart rate in the plunge
+
+After rounds 1 and 2 the heart rate fell from about 118 to 67 to 73 **within 30 to 45 s
+of the water**, so those rounds' recoveries (49 and 47) mostly measure the plunge. Round
+3, whose plunge missed the watch, gave 10. Cold water can slow the heart, but it also
+cuts blood flow at the wrist, where the optical sensor reads; the trust gate passed
+nearly every second. **Treat plunge heart rates with caution** until a strap (not worn
+in a sauna) or a second session agrees.
+
+### What the UNA app showed
+
+**Title "Training"**, 8 Nov 2026 at 09:37 (the UNA app also names its export
+"una-training-..."). Distance 0.00 km, average pace 0'00", elevation 0 m, **duration
+1:36:53**, average HR 90, "Best lap 01:01.00" (the shortest lap, the first plunge),
+"90% in Zone 1 - Warm Up". Then the heart-rate chart, HR zones (max 132, average 90),
+the **laps card** (7 laps, each with 0.00 km and 0'00"/km beside its time and average
+HR), the **Watch temp** card (max 43.9, average 36, a line over time), a **Phase** card
+(max and average of 0 and 1), and below it, from SA2, Round, HR recovery, Mode, Rest
+enabled and Completed.
+
+- **The charts appear to stop at about one hour.** From the axis labels, both the heart
+  rate and the watch-temperature charts run from 0 to about 60 minutes, and the
+  temperature line shows one plunge, not three. Their max and average are the whole
+  session's (43.9 and 36.0 over all 97 minutes; the first hour's average is 35.0). So
+  the UNA app draws the first hour only, or squeezes the axis. **For Jon to confirm:** tap
+  the right-hand end of the heart-rate chart; does it say about 60:00?
+- **What our file cannot change:** the title, distance, pace, elevation, "Best lap", the
+  laps table's distance and pace columns, and the zones are the UNA app's own layout.
+  The file has no distance at all; the UNA app shows zero anyway.
+
+### Can the file give the activity a title? No: the UNA app titles from the sport
+
+The evidence, from this file and others already synced through the UNA app:
+
+| Name in the file | Written by | What the UNA app showed |
+|---|---|---|
+| `session.sport_profile_name` "Sauna" (field 110) | X Sauna, since SA2 | "Training" (twice); Strava "training - UNA Watch" |
+| `workout.wkt_name` "HYROX-format full race" (mesg 26, field 8) | HybridX Race, since 5.11 | its export "una-running-...", a Running activity |
+| the sport (Training, 10) | every X Sauna file | "Training", and the export name |
+
+The public FIT profile (fitdecode's tables, checked today) has **no sauna or cold sport
+or sub-sport**: the nearest are `meditation` (sport 67) and `breathing` (sub-sport 62),
+which would mislabel it. Two name fields remain untried, `sport.name` (mesg 12) and
+`file_id.product_name`, but the UNA app's title and export name both follow the sport,
+so neither is likely to reach the title, and `product_name` identifies the device. **Not
+tried.** The route is UNA: `UNA_SAUNA_REQUEST.md` asks them to use the file's
+`sport_profile_name` as the title (in their app and in what they send Strava), and to
+hide distance, pace and elevation for activities that have none. Jon to send.
+
+### The cards changed (Jon, 8 November 2026)
+
+Jon chose "sauna cards": the UNA app makes a card of every developer field, titled from
+its name, so the file now carries the ones a person wants to read, and drops the ones
+that meant nothing there.
+
+| Message | Developer fields now | Gone |
+|---|---|---|
+| record, every second | `watch_temp` (float32, unchanged) | |
+| lap, one per phase | `phase` (0 sauna, 1 plunge, 2 rest), `hr_recovery_bpm` (sint16) | `round` (the Phase and lap order give it) |
+| session | `sauna_minutes` (uint16, whole minutes, half up), `plunge_seconds` (uint16; **Sauna + plunge only**, not described at all in Just sauna), `rounds` (uint8, Sauna laps) | `mode`, `rest_enabled`, `completed` |
+
+- **Whole numbers, not decimals.** The UNA app is seen to show an integer card as it is
+  (HR recovery "14"). A float32 holds 0.8 as 0.800000011920929, and whether the UNA app
+  rounds a single value is unknown; a float64 would print cleanly but is a type the UNA
+  app has not been seen to parse, and a parse failure could cost the whole activity.
+  The plunge is in **seconds** because a plunge is a minute or two (Jon's were 61, 62
+  and 62 s); the sauna in minutes.
+- The totals are the **laps' own whole seconds** summed (`SessionFit.hpp`), so a card
+  never disagrees with the laps table: this session would read Sauna minutes 94, Plunge
+  seconds 185, Rounds 4.
+- **Retired numbers are not reused** (2, 4, 5, 6); the new ones are 7, 8 and 9.
+- `sport_profile_name` "Sauna" stays: the standard field UNA is asked to honour.
+- **A session banked because the app was stopped** is now said in the log only
+  ("Session saved: ... (banked: the app was stopped)"), as Workout does.
+- Sport stays **Training / Generic** (settled 22 October 2026).
+
+### Verified (8 November 2026)
+
+- **Host tests:** 119 pass, no warnings (new: the phase totals and rounds come from the
+  laps written, Just sauna has no plunge time, minutes round half up, seconds saturate
+  below FIT's invalid value).
+- **The file** (`docs/experiments/fit_check.sh`, four scenarios through the real writer,
+  decoded by fitdecode): all pass, now also checking that only the six fields above are
+  described, that `sauna_minutes`, `plunge_seconds` and `rounds` agree with the laps,
+  that Just sauna has no `plunge_seconds`, and that the dropped fields are gone.
+- **A whole session in the simulator** (`capture_screens.sh`): the real service writes
+  the new fields and the same decoder passes on its file; the log line reads "Session
+  saved: 4 laps, 2 rounds, sauna 25 s, plunge 4 s". No screen changed.
+- **Watch target, local compile check:** both processes link, `XSauna_0.0.0-dev.uapp`
+  309,844 bytes, no warnings from our code. Not installable; CI makes the one to install.
+- **Not verified:** how the UNA app draws the three new session cards (the old session
+  cards did appear, so these should; whether as a number or a one-point chart is unseen).
+
+### For Jon at Gate SA3 (second round)
+
+1. **Install** the CI build from this branch (`watch-apps`, `XSauna_*.uapp`, into
+   `Apps/XSauna/`, then restart the watch).
+2. **A short dry session is enough**: Start, R2 a few times, end by holding R1. In the
+   UNA app, look for **Sauna minutes, Plunge seconds and Rounds**, and that Mode, Rest
+   enabled, Completed and Round are gone. A screenshot of the new cards would settle
+   how session cards look.
+3. **Tap the right-hand end of the heart-rate chart** of the 8 November session: about
+   60:00 means the UNA app draws only the first hour (it goes in the request to UNA).
+4. **What happened in round 3 and after?** Was the third plunge a shower, or the arm
+   out of the water? Was the third sauna a lower bench or another room? Was lap 7
+   getting changed before ending? (If so, ending sooner, or Rest on, keeps the totals
+   clean: this session's 94 sauna minutes include about 8 that were not in the heat.)
+5. **Send `UNA_SAUNA_REQUEST.md`** to UNA (edit first; add the chart point if confirmed).
+6. Then **SA4**, the store release.
 
 ## Gate SA0: what Jon tests on the watch
 

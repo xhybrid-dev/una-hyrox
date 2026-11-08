@@ -199,7 +199,10 @@ void Service::startSession(uint8_t mode, uint8_t rest)
     info.appVersion       = SDK::ParseVersion(BUILD_VERSION).u32;
     info.devID            = DEV_ID;
     info.appID            = APP_ID;
-    info.sportProfileName = "Sauna";    // Race 5.28's experiment: whether anything honours it is unknown
+    // Ignored by the UNA app and Strava today (NOTES, Gate SA3): they title from
+    // the sport. Kept as the standard field UNA is asked to honour.
+    info.sportProfileName = "Sauna";
+    info.withPlunge       = cfg.mode == Sauna::Mode::SaunaPlunge;
     mWriter.start(info);
     mFitOpen = true;
 
@@ -281,7 +284,6 @@ void Service::finish(bool save, bool bank)
         lap.hrAvg       = sFitLaps[i].hrAvg;
         lap.hrMax       = sFitLaps[i].hrMax;
         lap.phase       = sFitLaps[i].phase;
-        lap.round       = sFitLaps[i].round;
         lap.hasRecovery = sFitLaps[i].hasRecovery;
         lap.recoveryBpm = sFitLaps[i].recoveryBpm;
         mWriter.addLap(lap);
@@ -294,15 +296,20 @@ void Service::finish(bool save, bool bank)
     track.duration    = fs.timerSec;
     track.hrAvg       = fs.hrAvg;
     track.hrMax       = fs.hrMax;
-    track.mode        = fs.mode;
-    track.restEnabled = fs.rest;
-    track.completed   = bank ? 0u : 1u;
+    track.saunaMinutes  = fs.saunaMinutes;
+    track.plungeSeconds = fs.plungeSeconds;
+    track.rounds        = fs.rounds;
 
     const bool ok = mWriter.stop(track);
     mFitOpen = false;
     if (ok) {
         notifyNewActivity();
-        LOG_INFO("Session saved: %u laps\n", static_cast<unsigned>(n));
+        // A session banked because the app was stopped is said here, not in
+        // the file (its old `completed` card meant nothing in the UNA app).
+        LOG_INFO("Session saved: %u laps, %u rounds, sauna %u s, plunge %u s%s\n",
+                 static_cast<unsigned>(n), static_cast<unsigned>(fs.rounds),
+                 static_cast<unsigned>(fs.saunaSec), static_cast<unsigned>(fs.plungeSec),
+                 bank ? " (banked: the app was stopped)" : "");
     } else {
         LOG_ERROR("Failed to write the activity file\n");
     }

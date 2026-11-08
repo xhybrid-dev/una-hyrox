@@ -7,8 +7,11 @@ check it says what the app means it to say.
 Checks: valid header and CRC; file_id; developer data and field descriptions;
 timer events in pairs; one record a second (gaps only where paused); the
 watch temperature developer field on every record; laps that chain and sum to
-the session; phase, round and recovery developer fields; session sport and
-profile name; and for `crash`, that the records survive with no laps.
+the session; phase and recovery developer fields on the laps; the session's
+sport, profile name and its cards (sauna_minutes, plunge_seconds with a plunge
+only, rounds) agreeing with the laps; that the fields dropped at Gate SA3
+(round, mode, rest_enabled, completed) are gone; and for `crash`, that the
+records survive with no laps.
 `sim` is a file from the PC simulator (random heart rate, made-up temperature,
 sauna + plunge + rest + a second sauna, one pause): structure is checked, exact
 numbers are not.
@@ -53,11 +56,15 @@ check(fid.get("product_name") == "UNA Watch", "file_id.product_name is UNA Watch
 dev = {}
 for f in by.get("field_description", []):
     dev[f.get("field_name")] = f
-expected = {"watch_temp": 136, "phase": 2, "round": 2, "hr_recovery_bpm": 131,
-            "mode": 2, "rest_enabled": 2, "completed": 2}
+expected = {"watch_temp": 136, "phase": 2, "hr_recovery_bpm": 131,
+            "sauna_minutes": 132, "rounds": 2}
+if scenario != "sauna":                       # Just sauna has no plunge
+    expected["plunge_seconds"] = 132
+names = {136: "float32", 131: "sint16", 132: "uint16", 2: "uint8"}
 for n, base in expected.items():
-    ok = n in dev and dev[n].get("fit_base_type_id") in (base, {136: "float32", 131: "sint16"}.get(base, "uint8"))
+    ok = n in dev and dev[n].get("fit_base_type_id") in (base, names[base])
     check(ok, f"developer field {n} described (base type {dev.get(n, {}).get('fit_base_type_id')})")
+check(set(dev) == set(expected), f"no other developer fields ({sorted(dev)})")
 check(len(by.get("developer_data_id", [])) == 1, "one developer_data_id")
 
 # --- timer events
@@ -121,9 +128,7 @@ check(sum(l["total_timer_time"] for l in laps) == sess["total_timer_time"], "lap
 phases = [l.get("phase") for l in laps]
 want = {"sauna": [0, 2, 0]}.get(scenario, [0, 1, 2, 0])
 check(phases == want, f"lap phases {phases} == {want}")
-rounds = [l.get("round") for l in laps]
-want_r = {"sauna": [1, 1, 2]}.get(scenario, [1, 1, 1, 2])
-check(rounds == want_r, f"lap rounds {rounds} == {want_r}")
+check(all("round" not in l for l in laps), "no round field on the laps (dropped at Gate SA3)")
 rec = [l.get("hr_recovery_bpm") for l in laps]
 print("  info lap hr_recovery_bpm:", rec)
 check(rec[-1] is None, "the last lap has no recovery (it never ended)")
@@ -140,9 +145,25 @@ check(sess.get("sport") == "training" or sess.get("sport") == 10, f"session spor
 check(sess.get("sub_sport") in ("generic", 0), "sub_sport generic")
 check(sess.get("num_laps") == want_laps, "session num_laps")
 check(sess.get("sport_profile_name") == "Sauna", f"sport_profile_name is Sauna ({sess.get('sport_profile_name')})")
-check(sess.get("mode") == (1 if scenario == "sauna" else 0), f"mode developer field ({sess.get('mode')})")
-check(sess.get("rest_enabled") == 1, "rest_enabled developer field")
-check(sess.get("completed") == 1, "completed developer field")
+for gone in ("mode", "rest_enabled", "completed"):
+    check(gone not in sess, f"no {gone} field on the session (dropped at Gate SA3)")
+
+
+def seconds(phase):
+    # The laps' timer seconds in that phase.
+    return sum(int(round(l["total_timer_time"])) for l in laps if l.get("phase") == phase)
+
+
+want_sauna = (seconds(0) + 30) // 60          # whole minutes, half up
+check(sess.get("sauna_minutes") == want_sauna,
+      f"sauna_minutes {sess.get('sauna_minutes')} == {want_sauna} from the laps ({seconds(0)} s)")
+if scenario == "sauna":
+    check("plunge_seconds" not in sess, "no plunge_seconds in Just sauna")
+else:
+    check(sess.get("plunge_seconds") == seconds(1),
+          f"plunge_seconds {sess.get('plunge_seconds')} == {seconds(1)} from the laps")
+want_rounds = sum(1 for l in laps if l.get("phase") == 0)
+check(sess.get("rounds") == want_rounds, f"rounds {sess.get('rounds')} == {want_rounds} Sauna laps")
 act = by["activity"][0]
 check(act.get("num_sessions") == 1, "activity num_sessions")
 
