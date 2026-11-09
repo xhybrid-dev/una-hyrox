@@ -20,6 +20,7 @@ Text colours are checked for contrast (>= 4.5:1) as they are drawn; the run fail
     UNA_SDK=... python3 hybridx-link/Tools/Brand/store_images.py
 """
 import os
+import re
 import sys
 
 from PIL import Image, ImageDraw
@@ -467,7 +468,7 @@ def main():
         banner(cw, kind, listing, app_dir, glance, key + " banner").save(os.path.join(out, "01-banner.png"))
         n = 2
         for i, card in enumerate(listing["cards"], start=1):
-            slug = "-".join(w.strip(".,?'").lower() for w in " ".join(card[0]).split())[:40].strip("-")
+            slug = re.sub(r"[^a-z0-9]+", "-", " ".join(card[0]).lower().replace("'", ""))[:40].strip("-")
             img, size = square(cw, kind, i, card, app_dir, "%s %s" % (key, slug),
                                listing.get("name", FAMILY_NAMES[kind]))
             img.save(os.path.join(out, "%02d-%s.png" % (n, slug)))

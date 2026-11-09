@@ -9,7 +9,7 @@ this order: the banner first, then the squares.
 | File | Size |
 |---|---|
 | `01-banner.png` | 1920 × 1080, the listing's first image |
-| `02-wander-off-you'll-feel-it.png` | 1080 × 1080 |
+| `02-wander-off-youll-feel-it.png` | 1080 × 1080 |
 | `03-your-routes.png` | 1080 × 1080 |
 | `04-heading-up.png` | 1080 × 1080 |
 | `05-know-the-climb.png` | 1080 × 1080 |
