@@ -53,6 +53,26 @@ The previews (480 × 480) come from the simulator. Each app's
 glance's previews come from `glance_preview.py --store`, because the simulator cannot run
 glances.
 
+## Images (9 November 2026)
+
+The family is in the HybridX brand. Each app has its own colourway, tied together by the blade X,
+Anton and Space Grotesk, and HYBRIDX.CLUB: `hybridx-link/Tools/Brand/README.md`.
+
+- **The icons:** one family, a disc in each app's colour with its glyph. They are in each `.uapp`
+  (60 and 30 px, the watch's colours) and each zip's `icon.png`. The 1024 px masters are in
+  `hybridx-link/docs/brand/icons/`, and each glance has its own store icon.
+- **The gallery:** each listing's `docs/store/`:
+  - `01-banner.png` (1920 × 1080) is the first image;
+  - then four square feature cards and the family card (1080 × 1080);
+  - a glance's set is in its app's `docs/store/glance/`.
+- **The whole family:** `hybridx-link/docs/brand/family-banner.png`.
+- **The previews** in the zips stay the 480 px simulator screens, which the portal accepted for
+  Weigh-in.
+
+**Check with UNA once:** the gallery shows UNA's own watch render (with its logo), from the SDK's
+Figma pack. Their trademark notice allows "for UNA Watch" as a nominative reference. A line to
+UNA confirms device renders in store art are welcome.
+
 ## The release day (about an hour of Jon's time)
 
 1. **Create the seven listings on the portal.**

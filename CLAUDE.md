@@ -126,6 +126,16 @@ The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
     `1C83FDDE4EA3C880`, X Workout `B9171EBAF7066A30`, X Ride `58F141AE44428F51` (Race keeps
     `5C4D6F49335E5E17`). Each is in its CMake file, manifest and simulator. The packagers still
     name the development IDs, only to refuse them.
+  - **The brand** (phase B, 9 November 2026): the family's icons and store images in the HybridX
+    brand, one colourway per app (Race Classic, Run Engine, Trail Moss, Ride Velodrome, Workout
+    Iron, Streak Glacier).
+    - The tools are in `hybridx-link/Tools/Brand/` (`README.md`).
+    - `make_icons.py` writes every app's `Resources/icon_*.png`, the glances' store icons and the
+      1024 px masters.
+    - `store_images.py` writes each listing's `docs/store/`: a 1920 × 1080 banner first, then
+      1080 × 1080 cards. It fails on any text under 4.5:1, measured against the real pixels
+      under it.
+    - The apps' own `Resources/make_icons.py` are gone.
 
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You
@@ -469,7 +479,7 @@ apps. The Gate B0 probe stays in `Tools/Probe`.
     autopause, distlap, intervals, tabata), decoded: `docs/experiments/fit_check.sh [work-dir]`;
   - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"), using
     `hybridx-ride/Software/Apps/HybridXRide-CMake` (needs `gcc-arm-none-eabi`, `pyelftools`, `Pillow`);
-    icons: `python3 hybridx-ride/Resources/make_icons.py`;
+    icons: `python3 hybridx-link/Tools/Brand/make_icons.py` (all the family's);
   - probe simulator: `hybridx-ride/Tools/Probe/Software/Apps/LVGL-GUI/simulator`. Its mock
     kernel never answers accessory requests, so only a watch shows the states.
 
