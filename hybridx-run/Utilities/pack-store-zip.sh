@@ -139,7 +139,13 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE/previews"
 
 cp "$OUT/$BINARY" "$STAGE/$BINARY"
-cp "$APP/Resources/icon_60x60.png" "$STAGE/icon.png"
+# A glance's store listing has its own icon (its app's glyph reversed onto the light colour;
+# hybridx-link/Tools/Brand/make_icons.py); otherwise the app's.
+if [ -f "$RES/icon_60x60.png" ]; then
+    cp "$RES/icon_60x60.png" "$STAGE/icon.png"
+else
+    cp "$APP/Resources/icon_60x60.png" "$STAGE/icon.png"
+fi
 
 shopt -s nullglob
 PREVIEWS=("$RES/previews"/*.png)
