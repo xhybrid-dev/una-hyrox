@@ -58,7 +58,7 @@ target_include_directories(HybridXRideSimulator PRIVATE
 target_compile_definitions(HybridXRideSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
-    APP_ID="250009C2B1049597"
+    APP_ID="58F141AE44428F51"
     APP_NAME="HybridXRide"
     DEV_ID="HybridX Simulator"
     BUILD_VERSION="0.1.0-sim"

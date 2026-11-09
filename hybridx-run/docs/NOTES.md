@@ -1161,3 +1161,11 @@ Race and Trail read it and every app's activity summary, and show "3 of 4 this w
 are in `hybridx-link/docs/ACTIVITY_LINK.md`, "The Streak line". The code is the link library's
 `StreakNow` (copied into each app), and `Service::sendStreakLine()` in each app (in Streak,
 `Service::saveStreakNow()`).
+
+## App IDs from the portal (9 November 2026)
+
+Jon created the store listings (`hybridx-link/docs/STORE_RELEASE.md`). This app's portal App ID
+is now in every place that names it: the watch build's `CMakeLists.txt`, `Resources/app-manifest.json`
+and the simulator's `CMakeLists.txt`; the glance's in its CMake file and `Resources/Glance/app-manifest.json`. X Run `D0A3ADE4AF694DB2` (was `74CDEFFE3DBA395D`); VO2max Glance `A38E5C0975D2394A` (was `1EC7F5A0424304CD`). The packager still names the development ID,
+only to refuse it on a release. The CHANGELOG says 1.0.0. What is left: the tag `run-v1.0.0`
+(Jon, on GitHub), then the upload.

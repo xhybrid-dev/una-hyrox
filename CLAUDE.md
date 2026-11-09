@@ -121,6 +121,11 @@ The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
     `Resources/previews/`. A glance's previews come from `glance_preview.py --store`.
   - CI artifacts: `streak-store-zip`, `run-store-zip`, `trail-store-zip`, `workout-store-zip`
     and `ride-store-zip`. Each is a dry run until its tag (`streak-v1.0.0`, ...).
+  - The portal's App IDs (9 November 2026): X Streak `BF63291BD26E20AC`, X Streak Glance
+    `BC8BFA0808314DB6`, X Run `D0A3ADE4AF694DB2`, VO2max Glance `A38E5C0975D2394A`, X Trail
+    `1C83FDDE4EA3C880`, X Workout `B9171EBAF7066A30`, X Ride `58F141AE44428F51` (Race keeps
+    `5C4D6F49335E5E17`). Each is in its CMake file, manifest and simulator. The packagers still
+    name the development IDs, only to refuse them.
 
 ## HybridX Trail (`hybridx-trail/`)
 A third app: breadcrumb route navigation for runners and trail runners. You
@@ -444,8 +449,8 @@ apps. The Gate B0 probe stays in `Tools/Probe`.
 - **Activity link:** on each saved ride, `Service::writeActivityLink` adds it to
   `../SharedData/HybridX/act_ride.json` (distance outdoors, 0 indoors), then `sendStreakLine()`.
 - **Watch builds come from CI**, as for the others (`HybridXRide_<version>.uapp` and
-  `RideProbe_0.1.0.uapp` in `watch-apps`). Tags `ride-vX.Y.Z`. Development APP_ID
-  `250009C2B1049597` (md5 of `HybridXRide`); the portal issues the real one at release.
+  `RideProbe_0.1.0.uapp` in `watch-apps`). Tags `ride-vX.Y.Z`. App ID
+  `58F141AE44428F51` (portal-issued, 9 November 2026; the development one was `250009C2B1049597`).
 - **Commands:**
   - host tests: `cmake -S hybridx-ride/Tests/Host -B hybridx-ride/build-tests && cmake --build hybridx-ride/build-tests && hybridx-ride/build-tests/hybridx-ride-host-tests`
     (the probe's three tests are in the same binary);
@@ -489,8 +494,8 @@ independent of the other apps.
 - **Activity link:** on each saved workout, `Service::writeActivityLink` adds it to
   `../SharedData/HybridX/act_workout.json` (Strength for strength, Hybrid for a circuit, Workout
   for the rest), then `sendStreakLine()`.
-- **Watch builds come from CI**, as for the others. Tags `workout-vX.Y.Z`. Development APP_ID
-  `A294992CFC56DBE9` (md5 of `HybridXWorkout`); the portal issues the real one at release.
+- **Watch builds come from CI**, as for the others. Tags `workout-vX.Y.Z`. App ID
+  `B9171EBAF7066A30` (portal-issued, 9 November 2026; the development one was `A294992CFC56DBE9`).
 - **Commands:**
   - host tests: `cmake -S hybridx-workout/Tests/Host -B hybridx-workout/build-tests && cmake --build hybridx-workout/build-tests && hybridx-workout/build-tests/hybridx-workout-host-tests`;
   - simulator: `hybridx-workout/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its

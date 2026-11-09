@@ -11,7 +11,9 @@ when it stamps `BUILD_VERSION` into the `.uapp`.
 
 ## [Unreleased]
 
-Becomes 1.1.0: HybridX Race joins the X family (`hybridx-link/docs/STORE_RELEASE.md`).
+## [1.1.0] - 2026-11-09
+
+HybridX Race joins the X family (`hybridx-link/docs/STORE_RELEASE.md`).
 
 ### Added
 

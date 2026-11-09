@@ -11,7 +11,9 @@ prefix for the SDK's version script. The store release of the Streak family:
 
 ## [Unreleased]
 
-The first store release, 1.0.0. On the watch the app list calls it **X Ride**
+## [1.0.0] - 2026-11-09
+
+The first store release. On the watch the app list calls it **X Ride**
 (project name HybridX Ride; its folder stays `HybridXRide`).
 
 ### Added

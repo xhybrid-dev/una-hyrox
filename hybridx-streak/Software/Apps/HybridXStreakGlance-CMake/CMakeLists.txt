@@ -10,7 +10,7 @@ set(APP_USER_NAME "Streak")
 set(APP_FILE_NAME "HXStreakGlance")
 set(APP_TYPE "Glance")
 set(DEV_ID "HybridX")
-set(APP_ID "D9923B245EF1C6FE")          # first 16 hex of md5("HybridXStreakGlance"); development ID
+set(APP_ID "BC8BFA0808314DB6")          # issued by the UNA portal for "X Streak Glance" (9 November 2026); was the development ID D9923B245EF1C6FE
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 # Its own output folder, so the main app's Output/ keeps exactly one .uapp.
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output/Glance")

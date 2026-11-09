@@ -13,7 +13,7 @@ set(APP_USER_NAME "VO2max")             # the label on the glances screen
 set(APP_FILE_NAME "HybridXRunGlance")
 set(APP_TYPE "Glance")
 set(DEV_ID "HybridX")
-set(APP_ID "1EC7F5A0424304CD")          # first 16 hex of md5("HybridXRunGlance"); development ID
+set(APP_ID "A38E5C0975D2394A")          # issued by the UNA portal for "VO2max Glance" (9 November 2026); was the development ID 1EC7F5A0424304CD
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 # Its own output folder, so the app's Output/ keeps exactly one .uapp.
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output/Glance")

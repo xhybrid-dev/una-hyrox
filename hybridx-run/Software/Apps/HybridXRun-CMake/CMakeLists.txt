@@ -15,7 +15,7 @@ set(APP_USER_NAME "X Run")              # 5 bytes; app_merging.py truncates at 1
 set(APP_FILE_NAME "HybridXRun")
 set(APP_TYPE "Activity")
 set(DEV_ID "HybridX")
-set(APP_ID "74CDEFFE3DBA395D")          # first 16 hex of md5("HybridXRun"); development ID
+set(APP_ID "D0A3ADE4AF694DB2")          # issued by the UNA portal for "X Run" (9 November 2026); was the development ID 74CDEFFE3DBA395D
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")

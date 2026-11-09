@@ -94,7 +94,7 @@ int main(int argc, char **argv)
     info.timestamp        = startUtc;
     info.appVersion       = 0x00000100u;
     info.devID            = "HybridX";
-    info.appID            = "250009C2B1049597";
+    info.appID            = "58F141AE44428F51";
     info.sportProfileName = "Ride";
     info.outdoor          = outdoor;
     writer.start(info);

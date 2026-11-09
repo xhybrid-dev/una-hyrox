@@ -355,3 +355,11 @@ load (Edwards' TRIMP from the watch's zones) went in with the family's (`hybridx
 In `hybridx-link/docs/FAMILY_WATCH_TEST.md`: an outdoor ride with a stop or two (watch
 "Auto-paused", feel one buzz, then two as you ride off), a 1 km auto lap if you like, and a
 turbo session with Intervals or Tabata (the countdown ticks, the done menu).
+
+## App IDs from the portal (9 November 2026)
+
+Jon created the store listings (`hybridx-link/docs/STORE_RELEASE.md`). This app's portal App ID
+is now in every place that names it: the watch build's `CMakeLists.txt`, `Resources/app-manifest.json`
+and the simulator's `CMakeLists.txt`. X Ride `58F141AE44428F51` (was `250009C2B1049597`); `make_fit` writes it too. The packager still names the development ID,
+only to refuse it on a release. The CHANGELOG says 1.0.0. What is left: the tag `ride-v1.0.0`
+(Jon, on GitHub), then the upload.

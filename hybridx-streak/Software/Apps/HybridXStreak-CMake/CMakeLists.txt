@@ -13,7 +13,7 @@ set(APP_USER_NAME "X Streak")           # 8 bytes; app_merging.py truncates at 1
 set(APP_FILE_NAME "HybridXStreak")
 set(APP_TYPE "Utility")
 set(DEV_ID "HybridX")
-set(APP_ID "A75434BA114DFEBE")          # first 16 hex of md5("HybridXStreak"); development ID
+set(APP_ID "BF63291BD26E20AC")          # issued by the UNA portal for "X Streak" (9 November 2026); was the development ID A75434BA114DFEBE
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")

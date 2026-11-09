@@ -68,7 +68,7 @@ target_compile_definitions(HybridXRunSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
     "LV_MEM_SIZE=(56U*1024U)"  # as in HybridXRun-CMake/CMakeLists.txt
-    APP_ID="74CDEFFE3DBA395D"
+    APP_ID="D0A3ADE4AF694DB2"
     APP_NAME="HybridXRun"
     DEV_ID="HybridX Simulator"
     BUILD_VERSION="0.1.0-sim"
