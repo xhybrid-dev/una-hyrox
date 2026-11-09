@@ -13,7 +13,7 @@ set(APP_USER_NAME "X Workout")            # 9 bytes; app_merging.py truncates at
 set(APP_FILE_NAME "HybridXWorkout")
 set(APP_TYPE "Activity")                  # as HybridX Race and the SDK's Workout
 set(DEV_ID "HybridX")
-set(APP_ID "A294992CFC56DBE9")          # development ID: first 16 hex of md5("HybridXWorkout"); the portal's replaces it at release
+set(APP_ID "B9171EBAF7066A30")          # issued by the UNA portal for "X Workout" (9 November 2026); was the development ID A294992CFC56DBE9
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")

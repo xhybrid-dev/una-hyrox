@@ -442,3 +442,11 @@ Jon agreed the rules at the end of Phase A ("Yes looks great"), as proposed:
 ### On the watch (Jon, 1 November 2026)
 
 Works well; the saved session was counted by HybridX Streak (first watch result for the link, `hybridx-link/docs/ACTIVITY_LINK.md`). Details still to come: see `FAMILY_WATCH_TEST.md` section 5.
+
+## App IDs from the portal (9 November 2026)
+
+Jon created the store listings (`hybridx-link/docs/STORE_RELEASE.md`). This app's portal App ID
+is now in every place that names it: the watch build's `CMakeLists.txt`, `Resources/app-manifest.json`
+and the simulator's `CMakeLists.txt`. X Workout `B9171EBAF7066A30` (was `A294992CFC56DBE9`); `make_fit` writes it too. The packager still names the development ID,
+only to refuse it on a release. The CHANGELOG says 1.0.0. What is left: the tag `workout-v1.0.0`
+(Jon, on GitHub), then the upload.

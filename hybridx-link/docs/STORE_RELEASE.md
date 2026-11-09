@@ -9,21 +9,34 @@ the portal's rules it taught) and the SDK's portal route (`una-sdk/Docs/deploy.m
   **X Streak Glance** and **VO2max Glance** (1.0.0).
 - An update: **HybridX Race 1.1.0**. It is on the store at 1.0.0, from before the family.
 
-Everything that can be done without the portal is done. Each package is built by CI on every
-push as a **dry run**, with the development App ID. What is left needs Jon: the seven App IDs,
-the tags, and the uploads.
+**9 November 2026:** Jon created the seven listings, and their App IDs are in every place that
+names them (release-day step 2, done). Each CHANGELOG now has 1.0.0 (Race 1.1.0), dated
+9 November. CI still builds each package as a dry run on every push: the binaries say
+`0.0.0-dev` until their tags. **What is left needs Jon:** the tags (step 3), then the check and
+the uploads (steps 4 to 7).
+
+**Checked on 9 November**, before the tags: all eight binaries were built locally as their tags
+will build them (`-DBUILD_VERSION=1.0.0`, Race `1.1.0`), and each packager was run with
+`--expect-version`. Each passed:
+- the portal form;
+- both SDK validators;
+- the App ID matching in every place (`app_merging.py` logs it in each binary);
+- the release checks.
+
+Those local zips are compile checks (Ubuntu's compiler and stubs), never for upload. **Only
+the zips CI builds from the tags go to the portal.**
 
 ## Where things stand
 
-| Listing | Package (CI artifact) | Tag | App ID now |
+| Listing | Package (CI artifact) | Tag | App ID |
 |---|---|---|---|
-| X Streak | `HybridXStreak-<v>.zip` (`streak-store-zip`) | `streak-v1.0.0` | development `A75434BA114DFEBE` |
-| X Streak Glance | `Glance/HXStreakGlance-<v>.zip` (`streak-store-zip`) | the same tag | development `D9923B245EF1C6FE` |
-| X Run | `HybridXRun-<v>.zip` (`run-store-zip`) | `run-v1.0.0` | development `74CDEFFE3DBA395D` |
-| VO2max Glance | `Glance/HybridXRunGlance-<v>.zip` (`run-store-zip`) | the same tag | development `1EC7F5A0424304CD` |
-| X Trail | `HybridXTrail-<v>.zip` (`trail-store-zip`) | `trail-v1.0.0` | development `71ABD15ED7526601` |
-| X Workout | `HybridXWorkout-<v>.zip` (`workout-store-zip`) | `workout-v1.0.0` | development `A294992CFC56DBE9` |
-| X Ride | `HybridXRide-<v>.zip` (`ride-store-zip`) | `ride-v1.0.0` | development `250009C2B1049597` |
+| X Streak | `HybridXStreak-<v>.zip` (`streak-store-zip`) | `streak-v1.0.0` | the portal's `BF63291BD26E20AC` |
+| X Streak Glance | `Glance/HXStreakGlance-<v>.zip` (`streak-store-zip`) | the same tag | the portal's `BC8BFA0808314DB6` |
+| X Run | `HybridXRun-<v>.zip` (`run-store-zip`) | `run-v1.0.0` | the portal's `D0A3ADE4AF694DB2` |
+| VO2max Glance | `Glance/HybridXRunGlance-<v>.zip` (`run-store-zip`) | the same tag | the portal's `A38E5C0975D2394A` |
+| X Trail | `HybridXTrail-<v>.zip` (`trail-store-zip`) | `trail-v1.0.0` | the portal's `1C83FDDE4EA3C880` |
+| X Workout | `HybridXWorkout-<v>.zip` (`workout-store-zip`) | `workout-v1.0.0` | the portal's `B9171EBAF7066A30` |
+| X Ride | `HybridXRide-<v>.zip` (`ride-store-zip`) | `ride-v1.0.0` | the portal's `58F141AE44428F51` |
 | HybridX Race | `HybridXRace-<v>.zip` (`race-store-zip`) | `v1.1.0` and `apps-v1.1.0` | the portal's `5C4D6F49335E5E17` |
 
 Each zip holds four things: the `.uapp`, `app-manifest.json`, `icon.png` and `previews/`.

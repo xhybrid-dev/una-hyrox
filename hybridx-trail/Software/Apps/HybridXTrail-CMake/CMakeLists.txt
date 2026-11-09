@@ -15,7 +15,7 @@ set(APP_USER_NAME "X Trail")            # 7 bytes; app_merging.py truncates at 1
 set(APP_FILE_NAME "HybridXTrail")
 set(APP_TYPE "Activity")
 set(DEV_ID "HybridX")
-set(APP_ID "71ABD15ED7526601")          # first 16 hex of md5("HybridXTrail"); development ID
+set(APP_ID "1C83FDDE4EA3C880")          # issued by the UNA portal for "X Trail" (9 November 2026); was the development ID 71ABD15ED7526601
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")

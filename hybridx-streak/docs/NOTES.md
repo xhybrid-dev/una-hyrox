@@ -1084,3 +1084,11 @@ makes an update seven messages, still inside the 10-deep queue.
   calculation from each session's average heart rate and length.
 - **Not checked:** anything on a watch, and the glance's form line drawn on a watch (its widths
   are host-tested against the real font widths).
+
+## App IDs from the portal (9 November 2026)
+
+Jon created the store listings (`hybridx-link/docs/STORE_RELEASE.md`). This app's portal App ID
+is now in every place that names it: the watch build's `CMakeLists.txt`, `Resources/app-manifest.json`
+and the simulator's `CMakeLists.txt`; the glance's in its CMake file and `Resources/Glance/app-manifest.json`. X Streak `BF63291BD26E20AC` (was `A75434BA114DFEBE`); X Streak Glance `BC8BFA0808314DB6` (was `D9923B245EF1C6FE`). The packager still names the development ID,
+only to refuse it on a release. The CHANGELOG says 1.0.0. What is left: the tag `streak-v1.0.0`
+(Jon, on GitHub), then the upload.

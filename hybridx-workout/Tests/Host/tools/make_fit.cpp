@@ -128,7 +128,7 @@ int main(int argc, char **argv)
     info.timestamp        = startUtc;
     info.appVersion       = 0x00000100u;
     info.devID            = "HybridX";
-    info.appID            = "A294992CFC56DBE9";
+    info.appID            = "B9171EBAF7066A30";
     info.sportProfileName = Workout::fitSportOf(script.plan.type).profileName;
     writer.start(info);
 

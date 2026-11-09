@@ -58,7 +58,7 @@ target_include_directories(HybridXWorkoutSimulator PRIVATE
 target_compile_definitions(HybridXWorkoutSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
-    APP_ID="A294992CFC56DBE9"
+    APP_ID="B9171EBAF7066A30"
     APP_NAME="HybridXWorkout"
     DEV_ID="HybridX Simulator"
     BUILD_VERSION="0.1.0-sim"

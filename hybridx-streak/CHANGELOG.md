@@ -10,7 +10,9 @@ strips the prefix for the SDK's version script.
 
 ## [Unreleased]
 
-The first store release, 1.0.0 (`hybridx-link/docs/STORE_RELEASE.md`). On the watch the app
+## [1.0.0] - 2026-11-09
+
+The first store release (`hybridx-link/docs/STORE_RELEASE.md`). On the watch the app
 list calls it **X Streak**; its folder stays `HybridXStreak`. Its glance is its own listing,
 **X Streak Glance**.
 
