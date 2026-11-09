@@ -85,6 +85,20 @@ UNA_SDK=/path/to/una-sdk python3 hybridx-link/Tools/Brand/store_images.py
 block against the real pixels under it (the ground, the X, the watch), not against the card's
 base colour.
 
+## The asset pack (`pack_assets.py`)
+
+One zip with a folder for each listing:
+- `icon/`: 1024, 512 and 256 px, and the watch's 60 and 30 px;
+- `store-images/`: the banner first, then the cards;
+- `watch-screens/`: the 480 px previews.
+
+It also holds the family banner and every icon together, and a README.txt. Rebuild it after
+any change:
+
+```
+python3 hybridx-link/Tools/Brand/pack_assets.py X-Family-Store-Assets.zip
+```
+
 ## Fonts and the logo
 
 - `fonts/` holds Anton, Space Grotesk and Inter, all under the SIL Open Font License 1.1. Their
