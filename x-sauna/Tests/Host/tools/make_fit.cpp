@@ -7,7 +7,7 @@
 //             sauna    just sauna (sauna <-> rest)
 //             nohr     like full, but the watch never gives a heart rate
 //             crash    records only, then the "app dies"; a new writer recovers it
-//   profile-name  session.sport_profile_name; "-" for none. Default "Sauna".
+//   profile-name  session.sport_profile_name; "-" for an empty one. Default "Sauna".
 //
 // The numbers are invented to give a decoder something to tell apart (an HR
 // that falls after each phase, a temperature that follows SimTemp). They say
@@ -90,6 +90,7 @@ int main(int argc, char **argv)
     info.devID      = "HybridX";
     info.appID      = "400AE282F6C2C161";
     info.sportProfileName = profile;
+    info.withPlunge       = !justSauna;
     writer.start(info);
 
     static Sauna::SessionModel model;
@@ -156,7 +157,6 @@ int main(int argc, char **argv)
             lap.hrAvg       = laps[i].hrAvg;
             lap.hrMax       = laps[i].hrMax;
             lap.phase       = laps[i].phase;
-            lap.round       = laps[i].round;
             lap.hasRecovery = laps[i].hasRecovery;
             lap.recoveryBpm = laps[i].recoveryBpm;
             writer.addLap(lap);
@@ -169,9 +169,9 @@ int main(int argc, char **argv)
         track.duration    = fs.timerSec;
         track.hrAvg       = fs.hrAvg;
         track.hrMax       = fs.hrMax;
-        track.mode        = fs.mode;
-        track.restEnabled = fs.rest;
-        track.completed   = 1;
+        track.saunaMinutes  = fs.saunaMinutes;
+        track.plungeSeconds = fs.plungeSeconds;
+        track.rounds          = fs.rounds;
         if (!writer.stop(track)) {
             std::fprintf(stderr, "writer.stop() failed\n");
             return 1;

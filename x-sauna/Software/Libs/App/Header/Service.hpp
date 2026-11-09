@@ -6,7 +6,8 @@
  * The session lives here, not in the screen, so it survives the screen going
  * away: if the GUI closes mid-session the service keeps recording for
  * kGuiGoneGraceMs, then saves and exits; if the kernel stops the app it saves
- * what it has (the file says so: completed = 0). A boot that finds a recording
+ * what it has (the log says so; the file's old `completed` field went at Gate
+ * SA3, as the UNA app showed it as a card). A boot that finds a recording
  * interrupted finishes the file first (ActivityWriter::recoverInterrupted).
  *
  * Once a second (each new UTC second, not "a second since the last": see

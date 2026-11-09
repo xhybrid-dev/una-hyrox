@@ -379,7 +379,8 @@ Rest phase). It is an activity with a FIT file (SA2 onwards). It is independent 
 other apps. The SA0 probe build lives on branch `claude/x-sauna-sa0`; the SA2 service
 and file on `claude/x-sauna-sa2`; the SA3 screens on `claude/x-sauna-sa3`.
 - **Docs:** findings, decisions and phases (SA0-SA4): `x-sauna/docs/NOTES.md`.
-  Read it at the start of each Sauna phase, and work only on that phase.
+  Read it at the start of each Sauna phase, and work only on that phase. The draft
+  request to UNA (the activity's title, and the cards it shows): `UNA_SAUNA_REQUEST.md`.
 - **Rules:** the same standing rules as Race apply. Also: the watch's temperature
   sensor (`AMBIENT_TEMPERATURE`) has never been read on a watch, so its unit,
   whether it is air or skin, and how it behaves in heat are unknown until Gate SA0.
@@ -392,6 +393,9 @@ and file on `claude/x-sauna-sa2`; the SA3 screens on `claude/x-sauna-sa3`.
   pool is 36 KB; NOTES "The LVGL pool"), the watch build `Software/Apps/Sauna-CMake`. The FIT writer
   (`Software/Libs/App/.../ActivityWriter`) is a trimmed copy of Race's; the temperature
   goes in a developer field, never the standard one (it is not the air temperature).
+  The UNA app makes a card of every developer field and titles the activity from the
+  sport only ("Training"), so the session carries `sauna_minutes`, `plunge_seconds` and
+  `rounds` for those cards (NOTES, "Gate SA3: the first real sauna").
 - **Watch builds come from CI**, as for the others. Tags `sauna-vX.Y.Z`. Development
   APP_ID `400AE282F6C2C161` (md5 of `XSauna`); the portal issues the real one at SA4.
 - **Commands:**

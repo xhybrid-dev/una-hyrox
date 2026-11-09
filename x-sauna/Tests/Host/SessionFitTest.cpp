@@ -111,7 +111,7 @@ TEST(SessionFit, RecoveryOnlyWhereItResolved)
     EXPECT_EQ(laps[3].recoveryBpm, 0);
 }
 
-TEST(SessionFit, ModeAndRestAreRecordedAsUsed)
+TEST(SessionFit, ModeIsRecordedAsUsed)
 {
     FitLap laps[kMaxLaps];
     FitSession session;
@@ -120,13 +120,76 @@ TEST(SessionFit, ModeAndRestAreRecordedAsUsed)
     m.stop(1000);
     buildFit(m, laps, kMaxLaps, session);
     EXPECT_EQ(session.mode, static_cast<uint8_t>(Mode::SaunaOnly));
-    EXPECT_EQ(session.rest, 1);                // Just sauna always rests
 
     m.start(0, cfg(Mode::SaunaPlunge, false));
     m.stop(1000);
     buildFit(m, laps, kMaxLaps, session);
     EXPECT_EQ(session.mode, static_cast<uint8_t>(Mode::SaunaPlunge));
-    EXPECT_EQ(session.rest, 0);
+}
+
+TEST(SessionFit, PhaseTotalsAndRoundsComeFromTheLapsWritten)
+{
+    SessionModel m;
+    build(m, 0);
+    FitLap laps[kMaxLaps];
+    FitSession session;
+    const uint8_t n = buildFit(m, laps, kMaxLaps, session);
+    uint32_t sauna = 0, plunge = 0, rest = 0;
+    for (uint8_t i = 0; i < n; ++i) {
+        (laps[i].phase == static_cast<uint8_t>(Phase::Sauna)    ? sauna
+         : laps[i].phase == static_cast<uint8_t>(Phase::Plunge) ? plunge
+                                                                : rest) += laps[i].activeSec;
+    }
+    EXPECT_EQ(session.saunaSec, sauna);        // exactly the laps' whole seconds
+    EXPECT_EQ(session.plungeSec, plunge);
+    EXPECT_EQ(session.saunaSec + session.plungeSec + rest, session.timerSec);
+    EXPECT_EQ(session.rounds, 2);              // two Sauna laps
+    EXPECT_GT(session.plungeSec, 0u);
+    EXPECT_EQ(session.saunaMinutes, detail::wholeMinutes(sauna));
+    EXPECT_EQ(session.plungeSeconds, plunge);
+}
+
+TEST(SessionFit, JustSaunaHasNoPlungeTime)
+{
+    SessionModel m;
+    m.start(0, cfg(Mode::SaunaOnly, false));
+    m.lap(600000);                             // sauna 10 min
+    m.lap(900000);                             // rest 5 min
+    m.stop(1500000);                           // sauna 10 min
+    FitLap laps[kMaxLaps];
+    FitSession session;
+    buildFit(m, laps, kMaxLaps, session);
+    EXPECT_EQ(session.rounds, 2);
+    EXPECT_EQ(session.saunaSec, 1200u);
+    EXPECT_EQ(session.saunaMinutes, 20u);
+    EXPECT_EQ(session.plungeSec, 0u);
+    EXPECT_EQ(session.plungeSeconds, 0u);
+}
+
+TEST(SessionFit, WholeMinutesRoundHalfUpAndSaturate)
+{
+    EXPECT_EQ(detail::wholeMinutes(0), 0u);
+    EXPECT_EQ(detail::wholeMinutes(29), 0u);
+    EXPECT_EQ(detail::wholeMinutes(30), 1u);        // half up
+    EXPECT_EQ(detail::wholeMinutes(89), 1u);
+    EXPECT_EQ(detail::wholeMinutes(90), 2u);
+    EXPECT_EQ(detail::wholeMinutes(5628), 94u);     // Jon's sauna laps, 8 Nov: 93.8 min
+    EXPECT_EQ(detail::wholeMinutes(UINT32_MAX), 0xFFFEu);
+    EXPECT_EQ(detail::clampU16(185), 185u);         // and his plunges, in seconds
+    EXPECT_EQ(detail::clampU16(0xFFFF), 0xFFFEu);   // never FIT's invalid value
+}
+
+TEST(SessionFit, LongPlungeSecondsSaturate)
+{
+    SessionModel m;
+    m.start(0, cfg(Mode::SaunaPlunge, false));
+    m.lap(60000);                              // sauna 1 min
+    m.stop(60000 + 70000u * 1000u);            // a 70,000 s "plunge"
+    FitLap laps[kMaxLaps];
+    FitSession session;
+    buildFit(m, laps, kMaxLaps, session);
+    EXPECT_EQ(session.plungeSec, 70000u);
+    EXPECT_EQ(session.plungeSeconds, 0xFFFEu);
 }
 
 TEST(SessionFit, CapLimitsTheLapsWritten)

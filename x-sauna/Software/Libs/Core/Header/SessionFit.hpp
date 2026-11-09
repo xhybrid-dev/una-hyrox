@@ -10,6 +10,10 @@
  * its elapsed time their sum, so the file never disagrees with itself.
  *
  * Heart rate 0 means "none"; the writer turns it into FIT's invalid value.
+ *
+ * The session's totals for the UNA app's cards (sauna and plunge time, rounds;
+ * Gate SA3, 8 November 2026) come from the same whole-second laps, so a card
+ * never disagrees with the laps the file carries.
  ******************************************************************************
  */
 
@@ -42,13 +46,35 @@ struct FitSession {
     uint8_t  hrMax = 0;
     uint8_t  lapCount = 0;
     uint8_t  mode = 0;          ///< Mode
-    uint8_t  rest = 0;          ///< Rest phase in use (Just sauna always rests)
+    uint32_t saunaSec = 0;      ///< Timer time in Sauna laps
+    uint32_t plungeSec = 0;     ///< Timer time in Plunge laps
+    uint16_t saunaMinutes = 0;  ///< saunaSec in whole minutes, rounded half up
+    uint16_t plungeSeconds = 0; ///< plungeSec, saturating
+    uint8_t  rounds = 0;        ///< Sauna laps written
 };
 
 namespace detail {
 inline uint8_t clampBpm(uint32_t v)
 {
     return v > 255u ? 255u : static_cast<uint8_t>(v);
+}
+
+/// Whole seconds to whole minutes, half up (5628 s is 94 min).
+inline uint16_t wholeMinutes(uint32_t sec)
+{
+    const uint32_t m = sec / 60u + (sec % 60u >= 30u ? 1u : 0u);
+    return m > 0xFFFEu ? 0xFFFEu : static_cast<uint16_t>(m);
+}
+
+/// Saturates below 0xFFFF, the FIT invalid value for a uint16.
+inline uint16_t clampU16(uint32_t v)
+{
+    return v > 0xFFFEu ? 0xFFFEu : static_cast<uint16_t>(v);
+}
+
+inline uint32_t addSat(uint32_t a, uint32_t b)
+{
+    return a > UINT32_MAX - b ? UINT32_MAX : a + b;
 }
 } // namespace detail
 
@@ -83,6 +109,14 @@ inline uint8_t buildFit(const SessionModel &m, FitLap *out, uint8_t cap, FitSess
 
         session.elapsedSec += s.elapsedSec;
         session.timerSec   += s.activeSec;
+        if (l.phase == Phase::Sauna) {
+            session.saunaSec = detail::addSat(session.saunaSec, s.activeSec);
+            if (session.rounds < 255u) {
+                ++session.rounds;
+            }
+        } else if (l.phase == Phase::Plunge) {
+            session.plungeSec = detail::addSat(session.plungeSec, s.activeSec);
+        }
     }
 
     const SessionSummary sum = m.summary();
@@ -90,7 +124,8 @@ inline uint8_t buildFit(const SessionModel &m, FitLap *out, uint8_t cap, FitSess
     session.hrMax    = detail::clampBpm(sum.hrMax);
     session.lapCount = n;
     session.mode     = static_cast<uint8_t>(m.config().mode);
-    session.rest     = (m.config().mode == Mode::SaunaOnly || m.config().rest) ? 1u : 0u;
+    session.saunaMinutes  = detail::wholeMinutes(session.saunaSec);
+    session.plungeSeconds = detail::clampU16(session.plungeSec);
     return n;
 }
 
