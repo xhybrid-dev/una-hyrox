@@ -533,21 +533,30 @@ independent of the other apps.
   - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"), using
     `hybridx-workout/Software/Apps/HybridXWorkout-CMake`.
 
-## HybridX Plan (`hybridx-plan/`)
-A thirteenth app, at the brief stage (14 November 2026): training plans on the watch. A
-running app (RunLVGL-based, as X Run) with three built-in plans (10K, half marathon, VO2max
-block). The runner enters a recent 5K (and optionally a half) on the phone; the watch works
-out the paces (Daniels–Gilbert equations), the calendar and each day's workout, and runs it
+## HybridX Training (`hybridx-training/`)
+A thirteenth app, **X Training** on the watch (Jon, 14 November 2026; first briefed as
+"HybridX Plan"): training plans on the watch. Everything X Run records, plus three built-in
+plans (10K, half marathon, VO2max block) at three levels on the runner's own days. The runner
+enters a recent 5K (and optionally a half) on the phone; the watch works out the paces
+(Daniels–Gilbert equations), the calendar and each day's workout, dosed by time, and runs it
 through the SDK's own workout engine, gauges and alerts. Later: a glance with today's workout.
-Joins the family (a new `act_plan.json` slot for Streak; X Run's VO2max both ways). Nothing
-is built.
-- **Docs:** brief, architecture, phases (TP0-TP7) and decisions: `hybridx-plan/docs/HYBRIDX_PLAN_BRIEF.md`;
-  the pace model, session library and the three draft plans: `PLANS_DRAFT.md`. Read both at
-  the start of each Plan phase, and `NOTES.md` once TP0 creates it.
-- **First decision:** the overlap with UNA's own Running (structured workouts and a dated
-  `:/Workouts/Schedule/`), the reason Intervals was retired (brief section 2).
-- **Rules:** the same standing rules as Race apply. Pace fractions and quality limits marked
-  "[from memory]" in `PLANS_DRAFT.md` must be checked in the source before they are coded. Never
-  derive paces from X Run's VO2max (a different scale: `hybridx-run/docs/RACE_PREDICTIONS.md` §4.3).
-- **Watch builds will come from CI**, as for the others. Tags `plan-vX.Y.Z` (the name is
-  Jon's decision, brief §14.2).
+Joins the family (a new `act_training.json` slot for Streak; X Run's VO2max both ways).
+TP0 (decisions, the independent review, desk checks) is done; nothing is built.
+- **Docs:** brief, architecture, phases (TP0-TP7): `hybridx-training/docs/HYBRIDX_TRAINING_BRIEF.md`;
+  the pace model, sessions and the three plans: `PLANS.md`; the independent engineering and
+  coaching review: `REVIEW.md`; decisions, verified SDK facts and the TP1 plan: `NOTES.md`.
+  Read the brief, `PLANS.md` and `NOTES.md` at the start of each Training phase, and work only
+  on that phase.
+- **Rules:** the same standing rules as Race apply. Also:
+  - never derive paces from X Run's VO2max (a different scale: `hybridx-run/docs/RACE_PREDICTIONS.md` §4.3),
+    and never show the internal fitness figure beside it;
+  - sessions are minutes at an intensity, capped per level (`PLANS.md` §3.3); easy steps alert
+    for "too fast" only;
+  - the plans' content will live in `Tools/Plans/*.plan` (text) and a generated header: change
+    the text, never the header;
+  - values marked "[secondary]" in `PLANS.md` have not been read in Daniels' book: the fixture
+    rows from the book are wanted before a release.
+- **Start (TP2):** a verbatim copy of `hybridx-run/Software`, then stripped of X Run's VO2max
+  history and screens (`REVIEW.md` E1). The Streak slot is a family change (TP4; `REVIEW.md` E3).
+- **Watch builds will come from CI**, as for the others. Tags `training-vX.Y.Z`. App folder
+  `HybridXTraining`; development APP_ID `6E050D707D4D2D32`.
