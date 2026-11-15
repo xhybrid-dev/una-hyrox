@@ -263,6 +263,8 @@ private:
 
     // X Training: the phone's settings (app_config.json), kept for write-back.
     std::unique_ptr<SDK::AppConfig> mConfig;
+    bool mPhoneAsks    = false;   ///< X Training: the phone's settings ask for a new plan
+    bool mForceNewPlan = false;   ///< X Training: the next loadPlan() starts the phone's plan afresh
 
     // -- X Training: the plan (docs/HYBRIDX_TRAINING_BRIEF.md sections 7 and 9) ----------
     XTraining::PlanSetup   mPhoneSetup;          ///< what app_config.json asks for
@@ -320,6 +322,11 @@ private:
     void sendPlanWeek(SDK::Workout::Ymd today);       ///< This week (TP3)
     void sendPlanOverview(SDK::Workout::Ymd today);   ///< Plan
     void sendPlanPaces();                             ///< Paces
+    static CustomMessage::PlanSetupInfo toSetupInfo(const XTraining::PlanSetup& s);
+    /// Why @p i cannot make a plan, in the watch's words; nullptr if it can.
+    static const char* checkSetup(const CustomMessage::PlanSetupInfo& i);
+    /// The plan's phone fields written to app_config.json (AppConfig::save), as Race does.
+    void writeConfig(const CustomMessage::PlanSetupInfo& i);
     /// The plan's session on @p date (a rest day included); false outside the plan.
     bool planDay(SDK::Workout::Ymd date, XTraining::DaySession& out) const;
     /// The first day from @p from (within two weeks) with a run on it.
@@ -361,6 +368,7 @@ private:
     void handleEvent(const CustomMessage::IntervalsNextPhase& event);
     void handleEvent(const CustomMessage::WorkoutDetailsRequest& event);
     void handleEvent(const CustomMessage::PlanRequest& event);   ///< X Training
+    void handleEvent(const CustomMessage::NewPlan& event);       ///< X Training
     void handleEvent(const CustomMessage::WorkoutEnd& event);
 
     // -- Track control --------------------------------------------------------

@@ -14,12 +14,13 @@
 # (its CMakeLists.txt). About 2 minutes.
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./capture_screens.sh [out-dir] [scenario ...]
-#   scenarios: before rest session done finished noplan problem week notes (default: all)
+#   scenarios: before rest session done finished noplan problem week notes settings newplan
+#              phoneask phonekeep (default: all)
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${1:-$REPO/docs/screens}
 shift || true
-SCENARIOS=${*:-before rest session done finished noplan problem week notes}
+SCENARIOS=${*:-before rest session done finished noplan problem week notes settings newplan phoneask phonekeep}
 SOFT="$REPO/Software"
 BIN="$SOFT/Apps/LVGL-GUI/simulator/build/bin"
 DISP=:96
@@ -137,6 +138,48 @@ for sc in $SCENARIOS; do
         start_sim
         key 2; key 2; key 2; key 2; key 2; key 3 2; snap notes-paces1
         key 2; snap notes-paces2; key 2; snap notes-paces3; key 2; snap notes-paces4 ;;
+    settings) # the plan's three settings, race alerts turned through its values
+        config 1 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)"
+        start_sim
+        key 1; snap settings-menu; key 3 2
+        key 2; snap settings-reps; key 3; snap settings-reps-on
+        key 2; snap settings-easyhr
+        key 2; snap settings-race; key 3; snap settings-race-first2k; key 3; snap settings-race-both
+        echo "  settings.json: $(tr -d ' \n' < "$SOFT/Output/settings.json" | grep -oE '"(reps_by_distance|race_alerts)":[a-z0-9]+' | tr '\n' ' ')"
+        echo "  plan.json reps by distance (6th): $(grep -oE '"s":\[[0-9,]+' "$SOFT/Output/plan.json")" ;;
+    newplan)  # a plan under way; New plan on the watch: the half, a race, started
+        config 1 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)"
+        start_sim
+        key 2; key 2; key 2; key 2; key 3 2; snap newplan-plan    # L2 x4: Plan; R1
+        key 3 2; snap newplan-menu                                # R1: New plan
+        key 3; snap newplan-half                                  # R1 on Plan: the half
+        key 2; key 3 2; snap newplan-fivek                        # Your 5K: the picker
+        key 1; key 3; key 2; key 2; snap newplan-fivek-secs; key 3 2   # 21, then :02; saved
+        key 2; key 2; key 3; snap newplan-level                   # Level: 3
+        key 2; key 3 2; snap newplan-days; key 4 2                # Run days, back
+        key 2; key 2; key 3 2; snap newplan-race                  # Race: the list
+        key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2; key 2
+        snap newplan-race-pick; key 3 2; snap newplan-race-set
+        key 2; key 3 3; snap newplan-confirm                      # Next: the summary
+        key 3 3; snap newplan-today                               # R1: started; Today
+        echo "  app_config.json: $(tr -d ' \n' < "$SOFT/Output/app_config.json" | grep -oE '"(plan|fiveK|level|raceDate)":"?[^,"]*"?' | tr '\n' ' ')"
+        echo "  plan.json: $(grep -oE '"(s|c)":\[[0-9,]+\]' "$SOFT/Output/plan.json" | tr '\n' ' ')" ;;
+    phoneask) # the phone asks for the half while the 10K is under way: start it
+        config 2 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)"
+        start_sim
+        snap phoneask-main; key 3 2; snap phoneask-today
+        key 3 2; snap phoneask-ask; key 3 3; snap phoneask-started
+        echo "  plan.json: $(grep -oE '"(s|c)":\[[0-9,]+\]' "$SOFT/Output/plan.json" | tr '\n' ' ')" ;;
+    phonekeep) # the same ask, answered "keep mine": the phone's values go back to the 10K
+        config 2 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)"
+        start_sim
+        key 3 2; key 3 2; key 2; snap phonekeep-ask; key 3 3; snap phonekeep-kept
+        echo "  app_config.json plan: $(tr -d ' \n' < "$SOFT/Output/app_config.json" | grep -oE '"plan":[0-9]')"
+        echo "  plan.json: $(grep -oE '"(s|c)":\[[0-9,]+\]' "$SOFT/Output/plan.json" | tr '\n' ' ')" ;;
     problem)  # a plan, but no 5K
         config 1 "" "$DAYS_TODAY" "$LONG_TODAY"
         start_sim

@@ -91,6 +91,11 @@ struct Settings {
     bool     phoneNotifEn  = true;  ///< Flag to enable receiving phone notification when app is run.
     bool     calibTraceEn  = false; ///< Debug: write per-tick outdoor-stride calibrator CSV trace.
     bool     treadmill     = false; ///< HybridX Run: Start records a treadmill run (no GPS; distance from cadence).
+    // X Training (TP3): the plan's watch settings.
+    enum RaceAlerts : uint8_t { RACE_ALERTS_OFF = 0, RACE_ALERTS_FIRST_2K, RACE_ALERTS_BOTH, RACE_ALERTS_COUNT };
+    bool     repsByDistance = false;   ///< Cruise, interval, 10K and half-pace reps by distance, not time.
+    uint8_t  raceAlerts     = RACE_ALERTS_OFF;   ///< On the race step: none, "too fast" in the first 2 km, or both.
+    bool     easyByHr       = false;   ///< The phone's "easy runs by heart rate", mirrored (not saved here).
     Alerts::Distance::Id alertDistanceId = Alerts::Distance::ID_DEFAULT; ///< Distance alert option.
     Alerts::Time::Id     alertTimeId     = Alerts::Time::ID_OFF;     ///< Time alert option.
 

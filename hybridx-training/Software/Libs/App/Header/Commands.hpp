@@ -56,6 +56,8 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type PLAN_WEEK                 = 0x00000022;   // X Training: This week
     constexpr SDK::MessageType::Type PLAN_OVERVIEW             = 0x00000023;   // X Training: Plan
     constexpr SDK::MessageType::Type PLAN_PACES                = 0x00000024;   // X Training: Paces
+    constexpr SDK::MessageType::Type PLAN_SETUP                = 0x00000026;   // X Training: the phone's set-up
+    constexpr SDK::MessageType::Type PLAN_PREVIEW              = 0x00000027;   // X Training: a new plan's calendar
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -69,6 +71,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type WORKOUT_END             = 0x00000018;
     constexpr SDK::MessageType::Type TREADMILL_DISTANCE      = 0x0000001D;  ///< HybridX Run: the answer to TREADMILL_ASK
     constexpr SDK::MessageType::Type PLAN_REQUEST            = 0x00000025;  ///< X Training: a plan screen's data, please
+    constexpr SDK::MessageType::Type NEW_PLAN                = 0x00000028;  ///< X Training: preview, start or keep a plan
 
     // Service <-> GUI
     struct SettingsUpd : public SDK::MessageBase {
@@ -590,6 +593,7 @@ namespace CustomMessage {
             BeforeStart,     ///< The plan starts on a later day.
             Finished,        ///< The plan's last day has passed.
             Problem,         ///< The set-up cannot make a plan; see text.
+            PhoneAsks,       ///< The phone asks for a new plan in place of the one under way.
         };
         static constexpr size_t kText = 36;
         uint8_t  status     = NoPlan;
@@ -699,9 +703,56 @@ namespace CustomMessage {
     };
     static_assert(sizeof(PlanPaces) <= kMaxMessageBytes, "PlanPaces exceeds the 256-byte kernel pool block");
 
+    /// A plan's set-up as the phone has it (and the watch's New plan makes it).
+    struct PlanSetupInfo {
+        uint8_t  plan        = 0;      ///< XTraining::PlanId
+        uint8_t  level       = 2;
+        uint8_t  days        = 0;      ///< bit 0 Monday .. bit 6 Sunday
+        uint8_t  longDay     = 6;      ///< 0 Monday .. 6 Sunday
+        bool     fiveKRecent = true;
+        uint32_t fiveKSec    = 0;
+        uint32_t raceDate    = 0;      ///< YYYYMMDD; 0 for none
+    };
+
+    /// The answer to PlanRequest::Setup: the phone's set-up and, when it asks for a new plan,
+    /// the plan under way.
+    struct PlanSetupUpd : public SDK::MessageBase {
+        PlanSetupInfo phone;
+        PlanSetupInfo current;
+        bool          phoneAsks = false;
+        PlanSetupUpd() : SDK::MessageBase(PLAN_SETUP) {}
+    };
+    static_assert(sizeof(PlanSetupUpd) <= kMaxMessageBytes, "PlanSetupUpd exceeds the 256-byte kernel pool block");
+
+    /// GUI -> Service: a new plan. Preview answers PLAN_PREVIEW; Apply writes the set-up to the
+    /// phone's values file and starts it from the next Monday (or this one, Monday to
+    /// Wednesday); KeepCurrent answers the phone's ask with no, writing the plan under way back.
+    struct NewPlan : public SDK::MessageBase {
+        enum Action : uint8_t { Preview = 0, Apply, KeepCurrent };
+        uint8_t       action = Preview;
+        PlanSetupInfo info;
+        NewPlan() : SDK::MessageBase(NEW_PLAN) {}
+        NewPlan(uint8_t a, const PlanSetupInfo& i) : NewPlan() { action = a; info = i; }
+    };
+
+    /// What a new plan would be: its calendar, or why it cannot be made.
+    struct PlanPreviewInfo {
+        bool     ok        = false;
+        uint8_t  status    = 0;        ///< XTraining::Calendar::Status
+        uint8_t  weeks     = 0;        ///< weeks to run
+        uint8_t  planWeeks = 0;        ///< the plan's full length
+        uint32_t start     = 0;        ///< the first Monday
+        char     problem[PlanTodayInfo::kText] = {};
+    };
+    struct PlanPreview : public SDK::MessageBase {
+        PlanPreviewInfo info;
+        PlanPreview() : SDK::MessageBase(PLAN_PREVIEW), info{} {}
+    };
+    static_assert(sizeof(PlanPreview) <= kMaxMessageBytes, "PlanPreview exceeds the 256-byte kernel pool block");
+
     /// GUI -> Service: a plan screen's data.
     struct PlanRequest : public SDK::MessageBase {
-        enum What : uint8_t { Day = 0, Week, Overview, Paces };
+        enum What : uint8_t { Day = 0, Week, Overview, Paces, Setup };
         uint8_t  what = Week;
         uint32_t date = 0;          ///< for Day; 0 is today
         PlanRequest() : SDK::MessageBase(PLAN_REQUEST) {}

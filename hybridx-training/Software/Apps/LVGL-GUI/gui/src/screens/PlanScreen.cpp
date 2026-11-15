@@ -62,8 +62,9 @@ PlanScreen::~PlanScreen() = default;
 void PlanScreen::build()
 {
     mButtons = std::make_unique<Widgets::Buttons>(mRoot);
+    // R1: New plan (brief 5.2), whatever the plan's state.
     mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,
-                  Widgets::Buttons::NONE, Widgets::Buttons::WHITE);
+                  Widgets::Buttons::AMBER, Widgets::Buttons::WHITE);
     mTitle = std::make_unique<Widgets::Title>(mRoot, mTitleText);
     mTop.init(mRoot);
     mBottom.init(mRoot);
@@ -111,8 +112,8 @@ void PlanScreen::fill()
             bottom[nb++] = Line{ mText[1], F::Medium18, F::Regular16, Color::YELLOW };
         } else {
             top[nt++] = Line{ "No plan", F::SemiBold25, F::SemiBold20, Color::WHITE };
-            bottom[nb++] = Line{ "Choose one in the", F::Medium18, F::Regular16, Color::GRAY };
-            bottom[nb++] = Line{ "UNA app", F::Medium18, F::Regular16, Color::GRAY };
+            bottom[nb++] = Line{ "R1: choose one here,", F::Medium18, F::Regular16, Color::GRAY };
+            bottom[nb++] = Line{ "or in the UNA app", F::Medium18, F::Regular16, Color::GRAY };
         }
     } else {
         const Phase phase = static_cast<Phase>(o.phase[o.runWeek < CustomMessage::PlanOverviewInfo::kMaxWeeks ? o.runWeek : 0]);
@@ -180,5 +181,8 @@ void PlanScreen::onKey(uint8_t code)
     namespace Btn = SDK::GUI::Button;
     if (code == Btn::R2) {
         ScreenManager::instance().goTo(ScreenId::Main);
+    } else if (code == Btn::R1) {
+        mModel.setDraftReady(false);   // a fresh draft, from the phone's set-up
+        ScreenManager::instance().goTo(ScreenId::NewPlan);
     }
 }

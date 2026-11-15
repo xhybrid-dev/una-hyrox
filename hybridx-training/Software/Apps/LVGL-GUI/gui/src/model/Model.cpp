@@ -343,6 +343,12 @@ void Model::requestWorkoutDetails(uint16_t index)
     SDK::send_msg<CustomMessage::WorkoutDetailsRequest>(mKernel, index);
 }
 
+void Model::newPlan(uint8_t action, const CustomMessage::PlanSetupInfo& info)
+{
+    mPlanPreview = CustomMessage::PlanPreviewInfo{};
+    SDK::send_msg<CustomMessage::NewPlan>(mKernel, action, info);
+}
+
 void Model::requestPlan(uint8_t what, uint32_t date)
 {
     SDK::send_msg<CustomMessage::PlanRequest>(mKernel, what, date);
@@ -583,6 +589,19 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
         case CustomMessage::PLAN_PACES: {
             mPlanPaces = static_cast<CustomMessage::PlanPaces*>(message)->info;
             modelListener->onPlanPaces();
+        } break;
+
+        case CustomMessage::PLAN_SETUP: {
+            const auto* m = static_cast<CustomMessage::PlanSetupUpd*>(message);
+            mPhoneSetup   = m->phone;
+            mCurrentSetup = m->current;
+            mPhoneAsks    = m->phoneAsks;
+            modelListener->onPlanSetup();
+        } break;
+
+        case CustomMessage::PLAN_PREVIEW: {
+            mPlanPreview = static_cast<CustomMessage::PlanPreview*>(message)->info;
+            modelListener->onPlanPreview();
         } break;
 
         case CustomMessage::WORKOUT_LIST: {

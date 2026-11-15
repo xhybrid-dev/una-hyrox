@@ -437,6 +437,41 @@ the gap TP3 fills first.
   steps, Plan, the Paces pages) and a 32:00 runner with a slow half (the note); 32 screens, each
   looked at; 66 host tests; the watch target links.
 
+### Step 3: Settings and New plan
+
+- **Settings** gains three items after Lap Alerts: **Reps by distance** (a watch setting in
+  `settings.json`; `plan.json` keeps a copy, and Today's estimates follow it), **Easy by heart
+  rate** (the phone's field: the switch writes it back with `AppConfig::setBool` and `save()`, as
+  Race does, so the phone shows what the watch uses) and **Race alerts**: Off (the default), First
+  2 km, too fast, or Both ways (`settings.json`; the race step obeys it in step 4).
+- **New plan** (Plan, R1; brief 5.2): a wheel of the choices with their values as hints: the
+  plan (R1 turns 10K, half, VO2max), your 5K (minutes then seconds, 12:00 to 59:59), run in the
+  last 6 weeks (a switch), the level (R1 turns 1 to 3, "2: 20 to 40 km/week"), the run days (seven
+  switches; the long run moves to a run day if its day is switched off), the long run (R1 turns
+  through the run days), the race (None, or a Saturday or Sunday 3 to 26 weeks on), then Next. The
+  draft starts from the phone's set-up. Next shows the plan, level and 5K, the days, the long run
+  and, from the service's `PlanCalendar`, "From Mon 16 Nov, 12 weeks" (or "8 of its 12 weeks", or
+  why it cannot be: "The race is too close or past"); R1 starts it. Starting writes the plan's
+  phone fields to `app_config.json` (not the half, nor easy by heart rate) and makes a new plan
+  even when the plan, level and race are the ones already running (a restart).
+- **A new plan from the phone now asks** (brief 5.1): when the phone's plan, level or race date
+  would replace a plan under way, the service keeps the plan under way and Today says "New plan
+  from your phone / Half marathon, level 2 / Start it?" (the main menu's hint: "New plan from
+  phone"). R1 offers Start it or Keep mine. Keep mine writes the plan under way back to the
+  phone's values, so they agree again. A first plan, or the phone ending a plan (plan none),
+  still applies without asking. While the question waits, today's session is not offered.
+- **Messages:** `PlanRequest::Setup` → `PLAN_SETUP` (the phone's set-up, the plan under way, and
+  whether the phone asks); `NEW_PLAN` (Preview → `PLAN_PREVIEW`, Apply, KeepCurrent);
+  `PlanTodayInfo::PhoneAsks`.
+- **Checked** (`capture_screens.sh`, four more pretend watches, 57 screens, each looked at):
+  - settings: reps by distance and race alerts saved in `settings.json`, and reps by distance
+    copied to `plan.json`;
+  - a New plan made on the watch (the half, level 3, 5K 21:02, a race on Sun 7 Feb): the phone's
+    values written (`"plan":2`, `"fiveK":"21:02"`, `"raceDate":"2027-02-07"`, `"level":3`) and a
+    12-week plan from Mon 16 Nov;
+  - the phone's ask answered Start it (the half from Mon 16 Nov) and, on another pretend watch,
+    Keep mine (`app_config.json` back to `"plan":1`, the 10K under way unchanged).
+
 From the coach review above: a **Race alerts** setting (Off, First 2 km "too fast", Both; default
 Off); **R2 held for about a second** on the open warm-up before a time trial or a race, with a
 "Hold to start" hint; a note on the Paces screen where threshold meets 10K pace ("Threshold is

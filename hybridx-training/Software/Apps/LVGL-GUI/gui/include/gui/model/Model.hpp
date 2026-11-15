@@ -157,6 +157,16 @@ public:
     /// The day This week opened (0 for none).
     void     setChosenDay(uint32_t date) { mChosenDay = date; }
     uint32_t getChosenDay() const { return mChosenDay; }
+    // X Training (TP3): New plan. The draft is made on the watch, from the phone's set-up.
+    const CustomMessage::PlanSetupInfo&   getPhoneSetup() const { return mPhoneSetup; }
+    const CustomMessage::PlanSetupInfo&   getCurrentSetup() const { return mCurrentSetup; }
+    bool                                   phoneAsks() const { return mPhoneAsks; }
+    const CustomMessage::PlanPreviewInfo& getPlanPreview() const { return mPlanPreview; }
+    CustomMessage::PlanSetupInfo&          draft() { return mDraft; }
+    bool  draftReady() const { return mDraftReady; }
+    void  setDraftReady(bool ready) { mDraftReady = ready; }
+    /// Send the draft (or @p info) to the service: Preview, Apply or KeepCurrent.
+    void  newPlan(uint8_t action, const CustomMessage::PlanSetupInfo& info);
     /// Today's date as the service last said (0 if not set).
     uint32_t todayDate() const { return mPlanToday.date; }
 
@@ -290,6 +300,12 @@ private:
     CustomMessage::PlanOverviewInfo  mPlanOverview {};
     CustomMessage::PlanPacesInfo     mPlanPaces {};
     uint32_t                         mChosenDay = 0;
+    CustomMessage::PlanSetupInfo     mPhoneSetup {};
+    CustomMessage::PlanSetupInfo     mCurrentSetup {};
+    CustomMessage::PlanSetupInfo     mDraft {};
+    CustomMessage::PlanPreviewInfo   mPlanPreview {};
+    bool                             mPhoneAsks  = false;
+    bool                             mDraftReady = false;
     bool            mStepCard       = false;
     bool            mDetailsFromToday = false;
     WorkoutFace     mWorkoutFace    {};

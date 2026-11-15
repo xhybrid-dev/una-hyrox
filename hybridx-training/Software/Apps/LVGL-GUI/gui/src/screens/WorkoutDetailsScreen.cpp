@@ -361,6 +361,9 @@ void WorkoutDetailsScreen::onKey(uint8_t code)
         case Btn::R1:
             if (plan() && todayStartable()) {
                 startToday();
+            } else if (mSource == Source::Today
+                       && mModel.getPlanToday().status == CustomMessage::PlanTodayInfo::PhoneAsks) {
+                ScreenManager::instance().goTo(ScreenId::PlanAsk);
             }
             break;
         case Btn::R2:
@@ -503,6 +506,12 @@ void WorkoutDetailsScreen::setPlanPage()
             add("Well done", F::Italic18, F::Italic18, Color::TEAL);
             addWrapped("Choose a new plan in the UNA app", 1, 2, Color::GRAY);
             break;
+        case Info::PhoneAsks:
+            add("New plan", F::SemiBold25, F::SemiBold20, Color::WHITE);
+            add("from your phone", F::Medium18, F::Regular16, Color::WHITE);
+            add(t.what, F::Medium18, F::Regular16, Color::CYAN);           // "Half marathon, level 2"
+            add("Start it?", F::Italic18, F::Italic18, Color::GRAY);
+            break;
         case Info::Problem:
             add("Check your plan", F::SemiBold25, F::SemiBold20, Color::WHITE);
             addWrapped(t.name, 1, 2, Color::YELLOW);
@@ -533,7 +542,7 @@ void WorkoutDetailsScreen::setPlanPage()
         mTitle->setText(mTodayTitle);
     }
 
-    const bool startable = todayStartable();
+    const bool startable = todayStartable() || t.status == Info::PhoneAsks;
     mButtons->setR1(startable ? Widgets::Buttons::AMBER : Widgets::Buttons::NONE);
     if (t.status == Info::Session || t.status == Info::Done) {
         mModel.requestPlanDay(t.date);   // the steps, a scroll away

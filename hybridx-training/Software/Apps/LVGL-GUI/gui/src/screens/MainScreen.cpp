@@ -150,6 +150,9 @@ void MainScreen::setTodayTip()
         case Info::Problem:
             std::snprintf(mTodayTip, sizeof(mTodayTip), "Check your plan");
             break;
+        case Info::PhoneAsks:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "New plan from phone");
+            break;
         case Info::NoPlan:
         default:
             std::snprintf(mTodayTip, sizeof(mTodayTip), "No plan");

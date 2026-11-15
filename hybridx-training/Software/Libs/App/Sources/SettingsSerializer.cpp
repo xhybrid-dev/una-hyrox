@@ -79,6 +79,8 @@ bool SettingsSerializer::save(const Settings &settings)
     writer.add("phone_notif_en", settings.phoneNotifEn);
     writer.add("calib_trace_en", settings.calibTraceEn);
     writer.add("treadmill",      settings.treadmill);   // HybridX Run
+    writer.add("reps_by_distance", settings.repsByDistance);   // X Training
+    writer.add("race_alerts",      settings.raceAlerts);
     writer.add("alert_distance_id", static_cast<uint8_t>(settings.alertDistanceId));
     writer.add("alert_time_id",     static_cast<uint8_t>(settings.alertTimeId));
 
@@ -161,6 +163,11 @@ bool SettingsSerializer::load(Settings &settings)
     reader.get("calib_trace_en", settings.calibTraceEn);
     settings.treadmill = false;     // HybridX Run: absent in older files
     reader.get("treadmill", settings.treadmill);
+    settings.repsByDistance = false;   // X Training: absent in older files
+    reader.get("reps_by_distance", settings.repsByDistance);
+    uint8_t race = Settings::RACE_ALERTS_OFF;
+    reader.get("race_alerts", race);
+    settings.raceAlerts = race < Settings::RACE_ALERTS_COUNT ? race : static_cast<uint8_t>(Settings::RACE_ALERTS_OFF);
     uint8_t distId = static_cast<uint8_t>(Settings::Alerts::Distance::ID_DEFAULT);
     uint8_t timeId = static_cast<uint8_t>(Settings::Alerts::Time::ID_OFF);
     reader.get("alert_distance_id", distId);

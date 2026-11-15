@@ -27,6 +27,12 @@ enum class ScreenId : uint8_t {
     PlanDay,        // X Training: a day This week opened
     PlanOverview,   // X Training: Plan
     PlanPaces,      // X Training: Paces
+    NewPlan,        // X Training: New plan's choices
+    NewPlanFiveK,   // X Training: the 5K time picker
+    NewPlanDays,    // X Training: the run days
+    NewPlanRace,    // X Training: the race date
+    NewPlanConfirm, // X Training: the new plan, to start
+    PlanAsk,        // X Training: the phone's new plan, start it or keep yours
     // Structured workouts
     WorkoutToday,
     WorkoutList,

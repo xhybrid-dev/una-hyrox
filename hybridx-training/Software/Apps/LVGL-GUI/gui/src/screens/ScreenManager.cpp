@@ -39,6 +39,7 @@
 #include "gui/screens/WeekScreen.hpp"
 #include "gui/screens/PlanScreen.hpp"
 #include "gui/screens/PacesScreen.hpp"
+#include "gui/screens/NewPlanScreens.hpp"
 #include "gui/screens/MenuVo2ProfileScreen.hpp"
 #include "gui/screens/Vo2PickerScreen.hpp"
 #include "gui/screens/TrackWorkoutStepScreen.hpp"
@@ -157,6 +158,12 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::PlanWeek:                  return new WeekScreen(m);
         case ScreenId::PlanOverview:              return new PlanScreen(m);
         case ScreenId::PlanPaces:                 return new PacesScreen(m);
+        case ScreenId::NewPlan:                   return new NewPlanScreen(m);
+        case ScreenId::NewPlanFiveK:              return new FiveKPickerScreen(m);
+        case ScreenId::NewPlanDays:               return new RunDaysScreen(m);
+        case ScreenId::NewPlanRace:               return new RaceDateScreen(m);
+        case ScreenId::NewPlanConfirm:            return new PlanConfirmScreen(m);
+        case ScreenId::PlanAsk:                   return new PlanAskScreen(m);
 
         case ScreenId::MenuIntervals:             return new MenuIntervalsScreen(m);
         case ScreenId::MenuIntervalsRepeats:      return new MenuIntervalsRepeatsScreen(m);

@@ -64,6 +64,8 @@ public:
     virtual void onPlanWeek() {}
     virtual void onPlanOverview() {}
     virtual void onPlanPaces() {}
+    virtual void onPlanSetup() {}     ///< the phone's set-up (Model::getPhoneSetup)
+    virtual void onPlanPreview() {}   ///< a new plan's calendar (Model::getPlanPreview)
 
 protected:
     Model* model;

@@ -242,6 +242,10 @@ void Service::run()
                     handleEvent(*static_cast<CustomMessage::PlanRequest*>(msg));
                 } break;
 
+                case CustomMessage::NEW_PLAN:  {       // X Training: New plan, the phone's ask
+                    handleEvent(*static_cast<CustomMessage::NewPlan*>(msg));
+                } break;
+
                 case CustomMessage::TREADMILL_DISTANCE:  {   // HybridX Run
                     handleEvent(*static_cast<CustomMessage::TreadmillDistance*>(msg));
                 } break;
@@ -588,11 +592,31 @@ void Service::handleEvent(const CustomMessage::TrackStop& event)
 void Service::handleEvent(const CustomMessage::SettingsSave& event)
 {
     bool updCaps = mSettings.phoneNotifEn != event.settings.phoneNotifEn;
+    // X Training: easy by heart rate is the phone's; reps by distance changes the sessions.
+    const bool easyChanged = mSettings.easyByHr != event.settings.easyByHr;
+    const bool repsChanged = mSettings.repsByDistance != event.settings.repsByDistance;
     mSettings = event.settings;
     mSettingsSerializer.save(event.settings);
 
     if (updCaps) {
         setCapabilities();
+    }
+    if (easyChanged && mConfig) {
+        // Written back, as Race does (Race NOTES 5.22), so the phone shows what the watch uses.
+        mConfig->setBool(TrainingConfig::kEasyByHr, mSettings.easyByHr);
+        if (!mConfig->save()) {
+            LOG_WARNING("Could not write easy by heart rate back to app_config.json\n");
+        }
+        mPhoneSetup.easyByHr = mSettings.easyByHr;
+        mPlan.setup.easyByHr = mSettings.easyByHr;
+    }
+    if (easyChanged || repsChanged) {
+        mPlan.setup.repsByDistance = mSettings.repsByDistance;
+        if (mPlan.setup.plan != XTraining::PlanId::None) {
+            savePlan();
+        }
+        updateToday();
+        sendPlanToday();
     }
 }
 
@@ -2447,6 +2471,7 @@ void Service::loadConfig()
     }
     p.longDay     = static_cast<uint8_t>(mConfig->getInt(TrainingConfig::kLongRunDay) - 1);
     p.easyByHr    = mConfig->getBool(TrainingConfig::kEasyByHr);
+    mSettings.easyByHr = p.easyByHr;   // the Settings menu's switch (TP3) shows the phone's value
     p.fiveKRecent = mConfig->getBool(TrainingConfig::kFiveKRecent);
 
     // The strings are read strictly here: the phone's patterns are not checked on the watch.
@@ -2515,12 +2540,20 @@ void Service::loadPlan()
         const PlanDef* def = PlanData::find(want.plan);
         PlanSetup& have = mPlan.setup;
         const bool samePlan = mPlan.active() && have.plan == want.plan && have.level == want.level
-                           && have.raceDate == want.raceDate;
-        if (!samePlan) {
+                           && have.raceDate == want.raceDate && !mForceNewPlan;
+        mPhoneAsks = false;
+        if (!samePlan && mPlan.active() && !mForceNewPlan) {
+            // A new plan from the phone would replace the one under way: Today asks first (brief
+            // 5.1). Until it is answered the plan under way stands, unchanged.
+            mPhoneAsks = true;
+            LOG_INFO("The phone asks for a new plan (plan %u, level %u, race %lu): asking on the watch\n",
+                     static_cast<unsigned>(want.plan), static_cast<unsigned>(want.level),
+                     static_cast<unsigned long>(want.raceDate));
+        } else if (!samePlan) {
             if (today == 0) {
                 LOG_WARNING("The watch's date is not set: the new plan waits for it\n");
             } else {
-                // A new plan (brief 5.1). TP3 asks first on the watch; for now it starts.
+                // A new plan: the first, or one confirmed on the watch (brief 5.1).
                 PlanState fresh;
                 fresh.setup = want;
                 fresh.setup.fiveKDate = today;
@@ -2557,6 +2590,12 @@ void Service::loadPlan()
                 changed = true;
             }
         }
+    }
+    mForceNewPlan = false;
+    // Reps by distance is a watch setting (settings.json); the plan keeps a copy (plan.json).
+    if (mPlan.setup.repsByDistance != mSettings.repsByDistance) {
+        mPlan.setup.repsByDistance = mSettings.repsByDistance;
+        changed = mPlan.setup.plan != PlanId::None;
     }
     if (changed) {
         savePlan();
@@ -2599,6 +2638,17 @@ void Service::updateToday()
     Info info{};
     const Ymd today = localDate();
     dayInfo(today, today, info, mToday);
+    if (mPhoneAsks) {
+        // The question first; today's session (of the plan under way) once it is answered.
+        const PlanDef* want = PlanData::find(mPhoneSetup.plan);
+        info = Info{};
+        info.date   = today;
+        info.status = Info::PhoneAsks;
+        copyText(info.name, sizeof(info.name), "New plan from your phone");
+        std::snprintf(info.what, sizeof(info.what), "%s, level %u", want != nullptr ? want->name : "",
+                      static_cast<unsigned>(mPhoneSetup.level));
+        mToday = DaySession{};
+    }
     // The next session: from tomorrow, or from the plan's first day before it starts.
     const PlanDef* def = PlanData::find(mPlan.setup.plan);
     if (def != nullptr && mPlan.active() && mPaces.ok && today != 0 && info.status != Info::Problem) {
@@ -2717,8 +2767,139 @@ void Service::handleEvent(const CustomMessage::PlanRequest& event)
     case Req::Paces:
         sendPlanPaces();
         break;
+    case Req::Setup: {
+        auto msg = SDK::make_msg<CustomMessage::PlanSetupUpd>(mKernel);
+        if (msg) {
+            msg->phone     = toSetupInfo(mPhoneSetup);
+            msg->current   = toSetupInfo(mPlan.setup);
+            msg->phoneAsks = mPhoneAsks;
+            msg.send();
+        }
+    } break;
     default:
         break;
+    }
+}
+
+CustomMessage::PlanSetupInfo Service::toSetupInfo(const XTraining::PlanSetup& s)
+{
+    CustomMessage::PlanSetupInfo i;
+    i.plan        = static_cast<uint8_t>(s.plan);
+    i.level       = s.level;
+    i.days        = static_cast<uint8_t>(s.days);
+    i.longDay     = s.longDay;
+    i.fiveKRecent = s.fiveKRecent;
+    i.fiveKSec    = s.fiveKSec;
+    i.raceDate    = s.raceDate;
+    return i;
+}
+
+const char* Service::checkSetup(const CustomMessage::PlanSetupInfo& i)
+{
+    // As loadConfig() checks the phone's values, in the watch's words.
+    using namespace XTraining;
+    if (PlanData::find(static_cast<PlanId>(i.plan)) == nullptr) {
+        return "Choose a plan";
+    }
+    if (i.fiveKSec < PaceConfig::kMin5kSec || i.fiveKSec > PaceConfig::kMax5kSec) {
+        return "Your 5K: 12:00 to 59:59";
+    }
+    if (i.level < 1 || i.level > 3) {
+        return "Choose a level";
+    }
+    if (!WeekLayout::valid(static_cast<DayMask>(i.days), i.longDay)) {
+        return "3 to 6 run days, long run on one";
+    }
+    if (i.raceDate != 0 && !Date::valid(i.raceDate)) {
+        return "Check the race date";
+    }
+    return nullptr;
+}
+
+void Service::handleEvent(const CustomMessage::NewPlan& event)
+{
+    using namespace XTraining;
+    using Act = CustomMessage::NewPlan;
+    if (mTrackState != Track::State::INACTIVE || !mConfig) {
+        return;
+    }
+    const CustomMessage::PlanSetupInfo& i = event.info;
+    switch (event.action) {
+    case Act::Preview: {
+        auto msg = SDK::make_msg<CustomMessage::PlanPreview>(mKernel);
+        if (!msg) {
+            return;
+        }
+        CustomMessage::PlanPreviewInfo& p = msg->info;
+        p = CustomMessage::PlanPreviewInfo{};
+        const char* problem = checkSetup(i);
+        const Ymd today = localDate();
+        const PlanDef* def = PlanData::find(static_cast<PlanId>(i.plan));
+        if (problem == nullptr && today == 0) {
+            problem = "Set the watch's date";
+        }
+        if (problem == nullptr && def != nullptr) {
+            const Calendar cal = PlanCalendar::make({today, i.raceDate, def->weekCount, def->minWeeks});
+            p.status    = static_cast<uint8_t>(cal.status);
+            p.weeks     = cal.weeks;
+            p.planWeeks = def->weekCount;
+            p.start     = cal.start;
+            if (!cal.usable()) {
+                problem = "The race is too close or past";
+            }
+        }
+        p.ok = problem == nullptr;
+        copyText(p.problem, sizeof(p.problem), problem != nullptr ? problem : "");
+        msg.send();
+    } break;
+    case Act::Apply: {
+        if (checkSetup(i) != nullptr) {
+            LOG_WARNING("New plan not started: %s\n", checkSetup(i));
+            return;
+        }
+        writeConfig(i);
+        mForceNewPlan = true;
+        LOG_INFO("New plan confirmed on the watch\n");
+        loadConfig();   // reads the values back, and starts the plan (loadPlan)
+        updateToday();
+        sendPlanToday();
+    } break;
+    case Act::KeepCurrent:
+        if (mPhoneAsks) {
+            // No to the phone: its values go back to the plan under way, so they agree again.
+            writeConfig(toSetupInfo(mPlan.setup));
+            LOG_INFO("The plan under way is kept; the phone's values are written back\n");
+            loadConfig();
+            updateToday();
+            sendPlanToday();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void Service::writeConfig(const CustomMessage::PlanSetupInfo& i)
+{
+    // The phone's fields for a plan (not the half, nor easy by heart rate, which stay as set).
+    char text[24] = {};
+    mConfig->setInt(TrainingConfig::kPlan, i.plan);
+    mConfig->setInt(TrainingConfig::kLevel, i.level);
+    std::snprintf(text, sizeof(text), "%u:%02u", static_cast<unsigned>(i.fiveKSec / 60),
+                  static_cast<unsigned>(i.fiveKSec % 60));
+    mConfig->setString(TrainingConfig::kFiveK, text);
+    mConfig->setBool(TrainingConfig::kFiveKRecent, i.fiveKRecent);
+    for (uint8_t d = 0; d < 7; ++d) {
+        mConfig->setBool(TrainingConfig::kRunDay[d], ((i.days >> d) & 1u) != 0);
+    }
+    mConfig->setInt(TrainingConfig::kLongRunDay, i.longDay + 1);
+    text[0] = '\0';
+    if (i.raceDate != 0) {
+        XTraining::TimeText::date(i.raceDate, text, sizeof(text));
+    }
+    mConfig->setString(TrainingConfig::kRaceDate, text);
+    if (!mConfig->save()) {
+        LOG_ERROR("Could not write the plan to app_config.json\n");
     }
 }
 
