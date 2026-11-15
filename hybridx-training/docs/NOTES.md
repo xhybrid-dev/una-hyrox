@@ -331,10 +331,10 @@ anything changed. The result:
 | Three run days: the long run is 50-55% of the week | Nothing to permit: **no share-of-week check exists,** only the level's range and 150 minutes. Measured on the nine golden plans, the long run's biggest share is 29-36% (5 days, level 3), 33-42% (4 days, level 2) and 45-60% (3 days, level 1; the 60% is the half's week 10). **Applied:** with three run days a long run's fast finish is at most 20 minutes (`kThreeDayFinishMaxMin`; the half plan's `HM 30` becomes 20) |
 | 32:00+ 5K: threshold meets 10K pace, so cap the 10K at the threshold | **Not applied: the premise is backwards.** Threshold is roughly one-hour race pace, so a 10K that takes over an hour *should* be slower than threshold; `min(10K pace, T)` would make the 10K pace faster than the model says. The crossover is at about 32:00 (6:40 both), not 33:30, and at 36:00 threshold is 7:27 and 10K 7:30. The note on the Paces screen the reviewer asks for is already planned (PLANS 2.3); it goes in with TP3 |
 | Reps by distance: not for 30-30s, hills or tempo | **Applied.** Tempo was the one timed session that went by distance with the option on; it is always timed now. 30-30s, hills and strides always were |
-| Half's gap: +10% long runs (to 135 min) when over 4% | **Not applied, Jon's decision** (PLANS section 9, question 4): it sits on top of the distance floor and the weekly growth, and a half run in heat or badly paced would trigger it. The words stay |
+| Half's gap: +10% long runs (to 135 min) when over 4% | **Not applied. Jon, 15 November 2026: words only;** the long runs stay as they are |
 | Race day: alerts opt-in, or "too fast" for the first 2 km | **Agreed, TP3.** The race step alerts both ways today, where the draft says "alerts as in Settings", and there is no Settings screen yet. TP3 adds "Race alerts: Off / First 2 km, too fast / Both", default Off |
 | After a plan: a recovery week at about 60% volume, then the choice | **Agreed, TP5** (plan memory) |
-| Keep the HybridX coaching platform's labels | **Jon:** I cannot see the platform. The watch uses Easy, Threshold, Interval, Repetition, Cruise, Strides, Tempo, Hills |
+| Keep the HybridX coaching platform's labels | **Jon, 15 November 2026: the names stand** (Easy, Threshold, Interval, Repetition, Cruise, Strides, Tempo, Hills) |
 | Lap-press protection on the warm-up before TT5, TT10 and RACE | **TP3.** R2 on that warm-up needs a hold of about 1 s, with a "Hold to start" hint. The GUI already receives the next step (`WorkoutStepInfo`) |
 | Distinct "too fast" and "too slow" haptics | **Already so:** `Service::playZoneAlert()` (UNA's) plays too fast as a double click with short rising notes, too slow as a 750 ms alert with long falling notes, and back in as a strong click with a rising triad |
 
@@ -346,6 +346,16 @@ you want one.
 Touched: `vo2max.plan` (and its generated header), `PlanBuilder` (`Scaling::runDays`,
 tempo always timed), `PlanSchedule` and `plan_print` (pass the run-day count), `PLANS.md`, two
 golden files and the review PDF. Two new tests; 62 in all.
+
+## The TP1 gate: passed (15 November 2026)
+
+Jon read the plans (`PLANS_REVIEW.pdf`), passed on a second coach's review, and accepted the
+result: "those are ok with the long run and sessions". The plan content stands as committed in
+`7d7c3b0`, with the two decisions above (no long-run boost for the half's gap; the session names
+stay). The content can still change at any time: it is text in `Tools/Plans/`.
+
+Still open from TP2's gate: Jon's first session on the watch (the steps are under "The gate
+(TP2)").
 
 ## TP3: the screens (next)
 

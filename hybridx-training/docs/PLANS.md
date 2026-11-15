@@ -364,9 +364,9 @@ None blocks TP1: every number above lives in a plan text file and is cheap to ch
 3. "Reps by distance" as an option, time as the default? (Applied as the coach review suggested:
    cruise, intervals, 10K and half pace and repetitions only; section 3.1.)
 4. The half's gap (2.4): words only, or should the plan change (longer long runs)? (The coach
-   review suggests 10% longer long runs, to 135 minutes, when the gap is over 4%. **Not applied,
-   yours to decide:** it would sit on top of the distance floor and the weekly growth, and a
-   half run in heat or badly paced would trigger it.)
+   review suggested 10% longer long runs, to 135 minutes, when the gap is over 4%. **Decided
+   (Jon, 15 November 2026): words only;** the long runs stay as the plan and the distance floor
+   set them.)
 5. Race day: run it in X Training with a race-pace band, as drafted? (The coach review
    suggests alerts off by default on race day, or "too fast" for the first 2 km only, as an
    opt-in setting. Agreed; it needs the Settings screen, so it is TP3's, in NOTES.)
@@ -374,7 +374,8 @@ None blocks TP1: every number above lives in a plan text file and is cheap to ch
    coach review suggests one recovery week at about 60% of the volume, then the choice. Agreed;
    it is plan memory, TP5.)
 7. Anything the HybridX coaching platform already does that these should match: session
-   names, pace names, how levels are described.
+   names, pace names, how levels are described. (**Decided (Jon, 15 November 2026):** the names
+   stand: Easy, Threshold, Interval, Repetition, Cruise, Strides, Tempo, Hills.)
 
 ## 10. Sources
 
