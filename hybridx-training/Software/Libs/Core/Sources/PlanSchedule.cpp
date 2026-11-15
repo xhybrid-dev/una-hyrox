@@ -55,7 +55,7 @@ bool week(const PlanSetup& setup, const PlanDef& plan, const Calendar& cal, cons
     const Week& wk = weekFor(plan, cal, runWeek, setup.fiveKRecent);
     Session written[7];
     WeekLayout::sessions(wk, layout, written);
-    const Scaling sc = PlanBuilder::scaling(plan, setup.level, paces);
+    const Scaling sc = PlanBuilder::scaling(plan, setup.level, paces, WeekLayout::dayCount(setup.days));
     const uint8_t keySlot = wk.key;
     for (uint8_t d = 0; d < 7; ++d) {
         DaySession& s = out[d];

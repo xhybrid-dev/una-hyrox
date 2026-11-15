@@ -506,3 +506,49 @@ TEST(PlanBuilder, DefaultJogs)
     EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Intervals, 300), 180);
     EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::PaceHalf, 600), 120);
 }
+
+TEST(PlanBuilder, ATempoRunIsAlwaysTimed)
+{
+    // Coach review: with "reps by distance" on, a tempo run stays a time. Run slowly, a
+    // distance would make it longer rather than easier.
+    const Paces paces = pacesFor(22 * 60);
+    auto p = std::make_unique<Program>();
+    SessionMeta m;
+    BuildOptions o;
+    o.repsByDistance = true;
+    ASSERT_TRUE(PlanBuilder::build(Session{Kind::Tempo, 0, 20, 0, 0}, paces, o, 0, *p, m));
+    ASSERT_EQ(p->stepCount, 3);
+    EXPECT_EQ(p->steps[1].end, StepEnd::Time);
+    EXPECT_EQ(p->steps[1].durationMs, 20u * 60000u);
+    // The rep sessions still go by distance when asked.
+    ASSERT_TRUE(PlanBuilder::build(Session{Kind::Cruise, 3, 600, 0, 0}, paces, o, 0, *p, m));
+    EXPECT_EQ(p->steps[1].end, StepEnd::Distance);
+    // 30-30s and hills are timed whatever the option says.
+    ASSERT_TRUE(PlanBuilder::build(Session{Kind::ThirtyThirty, 2, 8, 0, 0}, paces, o, 0, *p, m));
+    EXPECT_EQ(p->steps[1].end, StepEnd::Time);
+    ASSERT_TRUE(PlanBuilder::build(Session{Kind::Hills, 6, 45, 0, 0}, paces, o, 0, *p, m));
+    EXPECT_EQ(p->steps[1].end, StepEnd::Time);
+}
+
+TEST(PlanBuilder, ThreeRunDaysCapTheFastFinish)
+{
+    // Coach review: with three run days the long run is one of only three runs, so its fast
+    // finish is at most 20 minutes (level 1 is already under it).
+    const Paces paces = pacesFor(25 * 60);
+    const PlanDef* half = PlanData::find(PlanId::Half);
+    const Session finish{Kind::LongFinish, 0, 100, 30, 0};   // the half plan's week 10
+    for (uint8_t level = 1; level <= 3; ++level) {
+        SCOPED_TRACE(int(level));
+        const Session four = PlanBuilder::forLevel(finish, PlanBuilder::scaling(*half, level, paces, 4));
+        const Session three = PlanBuilder::forLevel(finish, PlanBuilder::scaling(*half, level, paces, 3));
+        EXPECT_LE(three.b, kThreeDayFinishMaxMin);
+        EXPECT_LE(three.b, four.b);
+        EXPECT_EQ(three.a, four.a) << "the run itself does not change";
+    }
+    EXPECT_EQ(PlanBuilder::forLevel(finish, PlanBuilder::scaling(*half, 2, paces, 4)).b, 30);
+    EXPECT_EQ(PlanBuilder::forLevel(finish, PlanBuilder::scaling(*half, 2, paces, 3)).b, 20);
+    EXPECT_EQ(PlanBuilder::forLevel(finish, PlanBuilder::scaling(*half, 3, paces, 3)).b, 20);
+    EXPECT_EQ(PlanBuilder::forLevel(finish, PlanBuilder::scaling(*half, 1, paces, 3)).b, 15);
+    // Five or six run days change nothing.
+    EXPECT_EQ(PlanBuilder::forLevel(finish, PlanBuilder::scaling(*half, 2, paces, 5)).b, 30);
+}

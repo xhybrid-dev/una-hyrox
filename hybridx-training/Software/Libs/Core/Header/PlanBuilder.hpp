@@ -65,7 +65,13 @@ struct Scaling {
     const PlanDef* plan = nullptr;
     uint8_t  level = 2;
     uint16_t longPermille = 1000;  ///< The half's distance floor: long runs x this / 1000.
+    /// The runner's run days a week. With three, a long run's fast finish is capped
+    /// (kThreeDayFinishMaxMin): the long run is then one of only three runs, and a hard one.
+    uint8_t  runDays = 4;
 };
+
+/// The longest fast finish of a long run for a runner with three run days, minutes.
+constexpr uint16_t kThreeDayFinishMaxMin = 20;
 
 struct SessionMeta {
     Session   session;              ///< As run, after forLevel().
@@ -86,8 +92,9 @@ uint16_t defaultJogSec(Kind k, uint16_t repSec);
 
 const LevelCaps& caps(uint8_t level);
 
-/// The scaling for a plan at a level; @p paces sets the half's distance floor.
-Scaling scaling(const PlanDef& plan, uint8_t level, const Paces& paces);
+/// The scaling for a plan at a level; @p paces sets the half's distance floor, @p runDays the
+/// fast-finish cap (three days).
+Scaling scaling(const PlanDef& plan, uint8_t level, const Paces& paces, uint8_t runDays = 4);
 
 /// The plan file's session at the runner's level, capped.
 Session forLevel(const Session& s, const Scaling& sc);

@@ -48,16 +48,16 @@ inline constexpr Week kHalfTrialWeek = Week{Phase::CutBack, 3, {Session{Kind::Ea
 
 // vo2max.plan
 inline constexpr Week kVo2maxWeeks[] = {
-    Week{Phase::Baseline, 3, {Session{Kind::EasyStrides, 0, 40, 0, 0}, Session{Kind::Easy, 0, 35, 0, 0}, Session{Kind::ThirtyThirty, 2, 6, 0, 0}, Session{Kind::TimeTrial5k, 0, 0, 0, 0}}},  // week 1
+    Week{Phase::Baseline, 3, {Session{Kind::EasyStrides, 0, 40, 0, 0}, Session{Kind::Easy, 0, 35, 0, 0}, Session{Kind::EasyStrides, 0, 35, 0, 0}, Session{Kind::TimeTrial5k, 0, 0, 0, 0}}},  // week 1
     Week{Phase::Build, 0, {Session{Kind::Intervals, 5, 180, 0, 0}, Session{Kind::EasyStrides, 0, 40, 0, 0}, Session{Kind::ThirtyThirty, 2, 8, 0, 0}, Session{Kind::Long, 0, 65, 0, 0}}},  // week 2
     Week{Phase::Build, 0, {Session{Kind::Intervals, 4, 240, 0, 0}, Session{Kind::EasyStrides, 0, 40, 0, 0}, Session{Kind::Hills, 8, 60, 0, 0}, Session{Kind::Long, 0, 70, 0, 0}}},  // week 3
     Week{Phase::CutBack, 0, {Session{Kind::Intervals, 4, 180, 0, 0}, Session{Kind::Easy, 0, 35, 0, 0}, Session{Kind::EasyStrides, 0, 35, 0, 0}, Session{Kind::Long, 0, 55, 0, 0}}},  // week 4
     Week{Phase::Build, 0, {Session{Kind::Intervals, 6, 180, 0, 0}, Session{Kind::EasyStrides, 0, 45, 0, 0}, Session{Kind::ThirtyThirty, 2, 10, 0, 0}, Session{Kind::Long, 0, 75, 0, 0}}},  // week 5
     Week{Phase::Build, 0, {Session{Kind::Intervals, 4, 240, 0, 120}, Session{Kind::EasyStrides, 0, 45, 0, 0}, Session{Kind::Hills, 10, 60, 0, 0}, Session{Kind::Long, 0, 75, 0, 0}}},  // week 6
-    Week{Phase::Peak, 0, {Session{Kind::Intervals, 6, 180, 0, 90}, Session{Kind::EasyStrides, 0, 45, 0, 0}, Session{Kind::ThirtyThirty, 3, 8, 0, 0}, Session{Kind::Long, 0, 80, 0, 0}}},  // week 7
+    Week{Phase::Peak, 0, {Session{Kind::Intervals, 6, 180, 0, 90}, Session{Kind::EasyStrides, 0, 45, 0, 0}, Session{Kind::ThirtyThirty, 2, 8, 0, 0}, Session{Kind::Long, 0, 80, 0, 0}}},  // week 7
     Week{Phase::Retest, 3, {Session{Kind::Intervals, 3, 180, 0, 0}, Session{Kind::Easy, 0, 30, 0, 0}, Session{Kind::Easy, 0, 25, 0, 0}, Session{Kind::TimeTrial5k, 0, 0, 0, 0}}},  // week 8
 };
-inline constexpr Week kVo2maxRecentWeek = Week{Phase::Baseline, 0, {Session{Kind::Intervals, 5, 120, 0, 0}, Session{Kind::EasyStrides, 0, 40, 0, 0}, Session{Kind::ThirtyThirty, 2, 6, 0, 0}, Session{Kind::Long, 0, 60, 0, 0}}};
+inline constexpr Week kVo2maxRecentWeek = Week{Phase::Baseline, 0, {Session{Kind::Intervals, 5, 120, 0, 0}, Session{Kind::EasyStrides, 0, 40, 0, 0}, Session{Kind::Hills, 6, 45, 0, 0}, Session{Kind::Long, 0, 60, 0, 0}}};
 
 inline constexpr PlanDef kPlans[] = {
     PlanDef{PlanId::TenK, "10K", 10, 6, 1000000u,

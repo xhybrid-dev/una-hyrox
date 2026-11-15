@@ -16,14 +16,20 @@ long     3 70 95
 
 # Week 1 opens with the time trial. With a 5K from the last six weeks it is
 # this instead (PLANS.md section 7).
-recentweek baseline | *INT 5x2 | E+S 40   | 30/30 2x6               | L 60
+# A hill session in place of the 30-30s: the neuromuscular load first, the 30-30s from week 2
+# (coach review, 15 November 2026).
+recentweek baseline | *INT 5x2 | E+S 40   | HILLS 6x45s              | L 60
 
 #    phase      first quality      easy        second quality          long
-week baseline | E+S 40           | E 35      | 30/30 2x6               | *TT5
+# Week 1 has no VO2max session before the time trial: a runner arrives at the baseline fresh
+# (the 30-30s that stood here two days before it were dropped, coach review, 15 November 2026).
+week baseline | E+S 40           | E 35      | E+S 35                  | *TT5
 week build    | *INT 5x3         | E+S 40    | 30/30 2x8               | L 65
 week build    | *INT 4x4         | E+S 40    | HILLS 8x60s             | L 70
 week cutback  | *INT 4x3         | E 35      | E+S 35                  | L 55
 week build    | *INT 6x3         | E+S 45    | 30/30 2x10              | L 75
 week build    | *INT 4x4 jog 2:00 | E+S 45   | HILLS 10x60s            | L 75
-week peak     | *INT 6x3 jog 90s | E+S 45    | 30/30 3x8               | L 80
+# Week 7 is the peak, and the retest follows: the 30-30s eased from 3 x 8 to 2 x 8 so the runner
+# does not carry 30 minutes of interval-pace work into it (coach review, 15 November 2026).
+week peak     | *INT 6x3 jog 90s | E+S 45    | 30/30 2x8               | L 80
 week retest   | INT 3x3          | E 30      | E 25                    | *TT5

@@ -317,8 +317,43 @@ The `.uapp` comes from CI once this push's run is green: **Actions → Watch bui
    pace targets, a lap per step); `Apps/HybridXTraining/plan.json` with today logged
    (`...,1,` for done) if you ran at least half of it. Send me the `.fit` and `plan.json`.
 
+## Coach review feedback (15 November 2026)
+
+Jon passed on a second coach's review of `PLANS.md` (refinements, edge cases, answers to the open
+questions, two watch-UX checks). Each point was tested against the plan data and the code before
+anything changed. The result:
+
+| Point | Done |
+|---|---|
+| VO2max week 1: 30-30s two days before the time trial | **Applied.** Week 1's Friday is `E+S 35`, so the baseline is run fresh. With a recent 5K, week 1's Friday is `HILLS 6 x 45 s` in place of the 30-30s (the first 30-30s are in week 2) |
+| VO2max week 7: 30 minutes of interval-pace work before the retest | **Applied.** Friday is `30/30 2 x 8` (was `3 x 8`): the 25:00 runner's week 7 goes from 4:03 and 38.4 km to 3:52 and 36.6 km |
+| "E+S ends right after a hard stride, with no cool-down" | **Not applied: it does not.** The builder's strides block is `6 x [Stride 20 s, Easy 1 min]`, so the last stride is followed by a minute's easy running, and a finished workout carries on as a free run until the runner saves |
+| Three run days: the long run is 50-55% of the week | Nothing to permit: **no share-of-week check exists,** only the level's range and 150 minutes. Measured on the nine golden plans, the long run's biggest share is 29-36% (5 days, level 3), 33-42% (4 days, level 2) and 45-60% (3 days, level 1; the 60% is the half's week 10). **Applied:** with three run days a long run's fast finish is at most 20 minutes (`kThreeDayFinishMaxMin`; the half plan's `HM 30` becomes 20) |
+| 32:00+ 5K: threshold meets 10K pace, so cap the 10K at the threshold | **Not applied: the premise is backwards.** Threshold is roughly one-hour race pace, so a 10K that takes over an hour *should* be slower than threshold; `min(10K pace, T)` would make the 10K pace faster than the model says. The crossover is at about 32:00 (6:40 both), not 33:30, and at 36:00 threshold is 7:27 and 10K 7:30. The note on the Paces screen the reviewer asks for is already planned (PLANS 2.3); it goes in with TP3 |
+| Reps by distance: not for 30-30s, hills or tempo | **Applied.** Tempo was the one timed session that went by distance with the option on; it is always timed now. 30-30s, hills and strides always were |
+| Half's gap: +10% long runs (to 135 min) when over 4% | **Not applied, Jon's decision** (PLANS section 9, question 4): it sits on top of the distance floor and the weekly growth, and a half run in heat or badly paced would trigger it. The words stay |
+| Race day: alerts opt-in, or "too fast" for the first 2 km | **Agreed, TP3.** The race step alerts both ways today, where the draft says "alerts as in Settings", and there is no Settings screen yet. TP3 adds "Race alerts: Off / First 2 km, too fast / Both", default Off |
+| After a plan: a recovery week at about 60% volume, then the choice | **Agreed, TP5** (plan memory) |
+| Keep the HybridX coaching platform's labels | **Jon:** I cannot see the platform. The watch uses Easy, Threshold, Interval, Repetition, Cruise, Strides, Tempo, Hills |
+| Lap-press protection on the warm-up before TT5, TT10 and RACE | **TP3.** R2 on that warm-up needs a hold of about 1 s, with a "Hold to start" hint. The GUI already receives the next step (`WorkoutStepInfo`) |
+| Distinct "too fast" and "too slow" haptics | **Already so:** `Service::playZoneAlert()` (UNA's) plays too fast as a double click with short rising notes, too slow as a 750 ms alert with long falling notes, and back in as a strong click with a rising triad |
+
+**Not enforced, though the review assumed it:** the "about four fifths easy" principle. It is by
+design, not by a check. Time on steps faster than easy is 10-22% of the time in the nine plans
+(the half's 25:00 runner 22%, race week included). A host test could pin an upper bound; say if
+you want one.
+
+Touched: `vo2max.plan` (and its generated header), `PlanBuilder` (`Scaling::runDays`,
+tempo always timed), `PlanSchedule` and `plan_print` (pass the run-day count), `PLANS.md`, two
+golden files and the review PDF. Two new tests; 62 in all.
+
 ## TP3: the screens (next)
 
 Today, This week, Plan, Paces and New plan; the Saved screen's lines; the short-rep result
 on the step card; "reps by distance" and the other watch settings; the text-fit audit and
 `capture_screens.sh`; X Run's unreachable VO2max screens deleted.
+
+From the coach review above: a **Race alerts** setting (Off, First 2 km "too fast", Both; default
+Off); **R2 held for about a second** on the open warm-up before a time trial or a race, with a
+"Hold to start" hint; a note on the Paces screen where threshold meets 10K pace ("Threshold is
+about your 10K pace").

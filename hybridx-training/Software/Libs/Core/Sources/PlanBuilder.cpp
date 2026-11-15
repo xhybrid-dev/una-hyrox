@@ -346,7 +346,7 @@ public:
         case Kind::Tempo:
             warmup(false);
             pacedRep(Intensity::Active, "Threshold", static_cast<uint32_t>(mS.a) * 60u, mPaces.threshold, 5,
-                     AlertMode::Both);
+                     AlertMode::Both, false);
             cooldown();
             break;
         case Kind::Cruise:
@@ -454,15 +454,17 @@ private:
         noteTarget(pace, pm);
     }
 
-    /// One paced rep by time, or by distance when the option is on.
-    void pacedRep(Intensity in, const char* name, uint32_t sec, uint16_t pace, uint16_t pm, AlertMode alert)
+    /// One paced rep by time, or by distance when the option is on and @p allowDistance (a tempo
+    /// run is always timed: run slow and a distance would make it longer, not easier).
+    void pacedRep(Intensity in, const char* name, uint32_t sec, uint16_t pace, uint16_t pm, AlertMode alert,
+                  bool allowDistance = true)
     {
         const TargetSpec t = band(pace, pm);
         const uint32_t m = pace == 0 ? 0 : roundTo(roundDiv(sec * 1000u, pace), 10);
         if (mMeta.repM == 0) {
             mMeta.repM = m;
         }
-        if (mOpt.repsByDistance && pace > 0) {
+        if (mOpt.repsByDistance && allowDistance && pace > 0) {
             uint32_t cm = roundTo(roundDiv(sec * 1000u, pace), 100) * 100u;
             if (cm < 10000u) {
                 cm = 10000u;
@@ -631,10 +633,11 @@ uint16_t defaultJogSec(Kind k, uint16_t repSec)
 
 const LevelCaps& caps(uint8_t level) { return capsAt(level); }
 
-Scaling scaling(const PlanDef& plan, uint8_t level, const Paces& paces)
+Scaling scaling(const PlanDef& plan, uint8_t level, const Paces& paces, uint8_t runDays)
 {
     Scaling sc;
     sc.plan = &plan;
+    sc.runDays = runDays;
     sc.level = level >= 1 && level <= kLevels ? level : 2;
     const uint32_t floorM = plan.longFloorM[sc.level - 1];
     const uint32_t mean = (static_cast<uint32_t>(paces.easyFast) + paces.easySlow) / 2u;
@@ -685,6 +688,9 @@ Session forLevel(const Session& in, const Scaling& sc)
         }
         if (b > c.finishMaxMin) {
             b = c.finishMaxMin;
+        }
+        if (sc.runDays <= 3 && b > kThreeDayFinishMaxMin) {
+            b = kThreeDayFinishMaxMin;   // one of only three runs, and a hard one
         }
         if (b < 5) {
             b = 5;

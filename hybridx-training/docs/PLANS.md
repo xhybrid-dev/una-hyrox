@@ -137,7 +137,10 @@ A jump of more than about 6% in one step (1:20 on a 22:00 5K) is asked about, no
 ### 3.1 Recipes
 
 Each becomes one `SDK::Workout::Program`. "min" is minutes at the intensity; the builder
-turns reps into steps by time (or, with "Reps by distance" on, by distance rounded to 100 m).
+turns reps into steps by time. With "Reps by distance" on, cruise intervals, intervals, 10K-pace and
+half-pace reps go by distance, rounded to 100 m (repetitions always do). A tempo run, the 30-30s,
+the hills and the strides are timed whatever the setting says: run slowly, a distance would make a
+session longer rather than easier, and a hill or a 30-second rep has no distance worth setting.
 
 | Code | On the watch | Steps | Purpose line |
 |---|---|---|---|
@@ -185,6 +188,18 @@ else 25% or 150 minutes. Turned into minutes at each level's typical week (C2):
 `PlanBuilder` enforces the caps whatever the plan file says. At level 2 a 22:00 runner's
 18 min of intervals is about 9% of a 40-47 km week, and the long run about a third of it at
 4 runs a week [computed]: just over Daniels' figures, which assume more runs.
+
+**With three run days a long run's fast finish is at most 20 minutes** (coach review, 15 November
+2026): the long run is then one of only three runs, and a hard one, so a half-marathon plan's
+30-minute finish becomes 20 (level 1 is already at 15). Nothing else changes with the number of
+days.
+
+**The long run's share of the week is not capped,** and no warning is shown. It cannot be kept
+near Daniels' 30% with few runs: in the nine plans printed for review its biggest share is 29%
+to 36% for the five-day level-3 runner, 33% to 42% for the four-day level-2 runner and 45% to
+60% for the three-day level-1 runner (the 60% is the half's week 10, scaled to reach its 16 km
+floor). The only
+long-run caps are the level's range and 150 minutes.
 
 ## 4. Levels and the week
 
@@ -297,16 +312,21 @@ its **main measure**. X Run's VO2max, where the runner has X Run, is the second.
 
 | Week | Phase | Tue | Wed | Fri | Sun |
 |---|---|---|---|---|---|
-| 1 | Baseline | `E+S 40` | `E 35` | `30/30 2 x 6` | `TT5` ★ |
+| 1 | Baseline | `E+S 40` | `E 35` | `E+S 35` | `TT5` ★ |
 | 2 | Build | `INT 5 x 3` ★ | `E+S 40` | `30/30 2 x 8` | `L 65` |
 | 3 | Build | `INT 4 x 4` ★ (Helgerud et al. 2007) | `E+S 40` | `HILLS 8 x 60 s` | `L 70` |
 | 4 | Cut-back | `INT 4 x 3` ★ | `E 35` | `E+S 35` | `L 55` |
 | 5 | Build | `INT 6 x 3` ★ | `E+S 45` | `30/30 2 x 10` | `L 75` |
 | 6 | Build | `INT 4 x 4`, 2 min jogs ★ | `E+S 45` | `HILLS 10 x 60 s` | `L 75` |
-| 7 | Peak | `INT 6 x 3`, 90 s jogs ★ | `E+S 45` | `30/30 3 x 8` | `L 80` |
+| 7 | Peak | `INT 6 x 3`, 90 s jogs ★ | `E+S 45` | `30/30 2 x 8` | `L 80` |
 | 8 | Retest | `INT 3 x 3` | `E 30` | `E 25` | `TT5` ★ |
 
-- With a recent 5K, week 1 is `INT 5 x 2` ★, `E+S 40`, `30/30 2 x 6`, `L 60` instead.
+- With a recent 5K, week 1 is `INT 5 x 2` ★, `E+S 40`, `HILLS 6 x 45 s`, `L 60` instead: the
+  neuromuscular load first, the 30-30s from week 2.
+- Week 1 has no VO2max session before the time trial, so the baseline is run fresh (the 30-30s
+  that stood two days before it were dropped), and week 7's Friday is `30/30 2 x 8`, not `3 x 8`,
+  so the runner does not carry 30 minutes of interval-pace work into the retest (coach review,
+  15 November 2026).
 - The progression is in density (shorter jogs), not only volume, within level 2's 18 minutes.
 - At the end the Plan screen shows, for example (made-up results): "5K 22:00 → 21:20.
   VO2max (X Run) 45.1 → 46.0".
@@ -341,10 +361,18 @@ None blocks TP1: every number above lives in a plan text file and is cheap to ch
 
 1. The shape of each plan: lengths (10, 12, 8 weeks) and the session mix.
 2. The level caps (3.3) and the level table (4.1).
-3. "Reps by distance" as an option, time as the default?
-4. The half's gap (2.4): words only, or should the plan change (longer long runs)?
-5. Race day: run it in X Training with a race-pace band, as drafted?
-6. After a plan: suggest a recovery week and then the VO2max block, or leave the choice?
+3. "Reps by distance" as an option, time as the default? (Applied as the coach review suggested:
+   cruise, intervals, 10K and half pace and repetitions only; section 3.1.)
+4. The half's gap (2.4): words only, or should the plan change (longer long runs)? (The coach
+   review suggests 10% longer long runs, to 135 minutes, when the gap is over 4%. **Not applied,
+   yours to decide:** it would sit on top of the distance floor and the weekly growth, and a
+   half run in heat or badly paced would trigger it.)
+5. Race day: run it in X Training with a race-pace band, as drafted? (The coach review
+   suggests alerts off by default on race day, or "too fast" for the first 2 km only, as an
+   opt-in setting. Agreed; it needs the Settings screen, so it is TP3's, in NOTES.)
+6. After a plan: suggest a recovery week and then the VO2max block, or leave the choice? (The
+   coach review suggests one recovery week at about 60% of the volume, then the choice. Agreed;
+   it is plan memory, TP5.)
 7. Anything the HybridX coaching platform already does that these should match: session
    names, pace names, how levels are described.
 

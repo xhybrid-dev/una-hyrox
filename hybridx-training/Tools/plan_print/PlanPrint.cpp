@@ -242,7 +242,7 @@ std::string printPlan(const PrintInput& in)
     if (in.raceDate != 0) {
         o += " Race " + dayDate(in.raceDate) + ".";
     }
-    const Scaling sc = PlanBuilder::scaling(*plan, in.level, p);
+    const Scaling sc = PlanBuilder::scaling(*plan, in.level, p, WeekLayout::dayCount(in.days));
     if (sc.longPermille != 1000) {
         o += fmt(" Long runs scaled by %u.%03u to reach the plan's %u km floor.",
                  static_cast<unsigned>(sc.longPermille / 1000), static_cast<unsigned>(sc.longPermille % 1000),
