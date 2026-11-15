@@ -100,3 +100,10 @@ hybridx-workout/Output/
 hybridx-workout/Software/Output/
 hybridx-workout/Software/SharedData/
 hybridx-workout/Software/Apps/LVGL-GUI/simulator/build/
+
+# HybridX Training
+hybridx-training/build-*/
+hybridx-training/Output/
+hybridx-training/Software/Output/
+hybridx-training/Software/Apps/LVGL-GUI/simulator/build*/
+hybridx-training/Tools/Plans/__pycache__/

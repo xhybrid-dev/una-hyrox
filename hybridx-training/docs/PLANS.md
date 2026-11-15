@@ -227,10 +227,12 @@ quality (Friday) and long (Sunday). The rule that places them:
 5. The remaining days are easy. Extra days (5 or 6 runs) are easy runs of the level's
    shorter length.
 
-Checked by brute force in a scratch script for every choice of 3 to 6 days and long-run day
-(392 cases): every one gets at least one quality day, none has quality the day after the
-long run, and Tuesday, Wednesday, Friday and Sunday (the default) give the tables' layout.
-The host tests repeat the check in TP1.
+The host test `WeekLayout.EveryChoiceOfDays` checks every choice of 3 to 6 days and long-run
+day (392 cases): 196 get two quality days and 196 one (in 7 of those, the day before the long
+run, the last resort); none has quality the day after the long run or two hard days running;
+Tuesday, Wednesday, Friday and Sunday (the default) give the tables' layout. (The TP0 scratch
+script allowed a pair to use the day before the long run, against rule 3; the code follows the
+rule.)
 
 ### 4.3 Missed sessions and weeks (C13, C14)
 
@@ -315,20 +317,23 @@ its **main measure**. X Run's VO2max, where the runner has X Run, is the second.
 ## 8. One week in full
 
 A 22:00 5K runner, level 2, running Tuesday, Wednesday, Friday and Sunday, in week 7 of the
-half plan [computed]:
+half plan, as `plan_print` prints it (TP1; the same code the watch will run):
 
 | Day | Today screen | Steps | About |
 |---|---|---|---|
 | Mon | REST DAY. Next: Tue, Intervals | — | — |
-| Tue | INTERVALS, 6 x 3 min @ 4:12-4:24 /km, about 700 m each. "Builds your VO2max" | Warm up 15 min; 6 x 3 min @ 4:12-4:24 with 2 min jogs; cool down 10 min | 10.0 km, 53 min |
-| Wed | EASY RUN, STRIDES, 45 min, easy: slower than 5:27 /km. "Easy, with strides for form" | 45 min easy; 6 x 20 s strides | 7.8 km, 45 min |
+| Tue | INTERVALS, 6 x 3 min @ 4:12-4:24 /km, about 700 m each. "Builds your VO2max" | Warm up 15 min; 6 x (3 min @ 4:12-4:24, 1:45 jog); cool down 10 min | 10.0 km, 54 min |
+| Wed | EASY RUN, STRIDES, 45 min, easy: slower than 5:27 /km. "Easy, with strides for form" | 45 min easy; 6 x (20 s stride, 1 min easy) | 9.2 km, 53 min |
 | Thu | REST DAY. Next: Fri, Half pace | — | — |
-| Fri | HALF PACE ★, 3 x 10 min @ 4:43-4:53 /km, about 2.1 km each. "Race pace" | Warm up 15 min; 3 x 10 min @ 4:43-4:53 with 2 min jogs; cool down 10 min | 11.2 km, 59 min |
+| Fri | HALF PACE ★, 3 x 10 min @ 4:43-4:53 /km, about 2.1 km each. "Race pace" | Warm up 15 min; 3 x (10 min @ 4:43-4:53, 2 min jog); cool down 10 min | 11.5 km, 61 min |
 | Sat | REST DAY. Next: Sun, Long run | — | — |
-| Sun | LONG RUN, 105 min, easy: slower than 5:27 /km. "Builds your endurance" | 105 min easy | 18.1 km, 105 min |
+| Sun | LONG RUN, 105 min, easy: slower than 5:27 /km. "Builds your endurance" | 105 min easy | 18.2 km, 105 min |
 
-The week is about 47 km: 18 minutes at interval pace (8.9% of the distance) and 30 at half
-pace, the rest easy.
+The week is about 49 km and 4:33: 18 minutes at interval pace and 30 at half pace, the rest
+easy. Two things the build settled that the draft left loose: each rep is followed by its
+recovery, the last one included (it leads into the cool-down, and keeps the watch's "rep 3 of
+6" count simple); and the interval jog is the rule's 1:45 (60% of 3 minutes), not 2 minutes,
+because the plan file gives none.
 
 ## 9. Open questions on the content (for Jon)
 

@@ -506,3 +506,13 @@ jobs:
           cmake -S hybridx-workout/Tests/Host -B ci-build/workout-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/workout-tests -j"$(nproc)"
           ctest --test-dir ci-build/workout-tests --output-on-failure
+      - name: HybridX Training host tests
+        # The pure core: paces from a race (Daniels-Gilbert), the plans (generated from Tools/Plans,
+        # and plan-data-current fails if the header is stale), day placement, the calendar, the
+        # session builder (every session at every level, run through the SDK's workout engine and
+        # round-tripped through a FIT file), the plan state, and the nine golden plan_print files.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S hybridx-training/Tests/Host -B ci-build/training-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/training-tests -j"$(nproc)"
+          ctest --test-dir ci-build/training-tests --output-on-failure

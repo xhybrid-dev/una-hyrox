@@ -102,35 +102,117 @@ produced the tables are not in the repository; TP1's `PaceModel` tests replace t
 
 ---
 
-## TP1: the plan for the pure core (not started)
+## TP1: the pure core (15 November 2026)
 
-To be confirmed in plan mode when TP1 starts. No app, no SDK service code, no screens.
+Jon: "Let's start with the build, please go as far as you can." The plan was the one recorded
+here at TP0 (order of work below), so it was followed without a separate plan-mode stop.
 
-**Order of work**
+### What was built
 
-1. `Tests/Host` scaffold, copied from X Run's: the SDK's test framework, the Workout and FIT
-   workout sources (for the round trip), the JSON reader and writer.
-2. `PaceModel`: fitness from a race; paces; bands; predictions; the half's gap. Integer
-   mm/s and ms out; floats inside (single precision; `exp` and `sqrt` only when a result
-   changes, never per second). Tests: the secondary table rows (`PLANS.md` §2.2), the race
-   table (RACE_PREDICTIONS §4.3), Riegel within 1%, monotonic in the 5K time, 5K from 12:00
-   to 59:59 never produces a zero or overflowing pace.
-3. The plan files and `gen_plans.py`: `Tools/Plans/10k.plan`, `half.plan`, `vo2max.plan`,
-   one line per slot in the notation of `PLANS.md`. The generator refuses unknown codes, a
-   week without a long slot, and two quality sessions beside a hard long run. Output:
-   `Core/Header/data/PlanData.hpp`.
-4. `WeekLayout`: `PLANS.md` §4.2, with all 392 combinations as a test.
-5. `PlanCalendar`: dates, the start rule, counting back from a race, truncation.
-6. `PlanBuilder`: recipe, paces and level into `SDK::Workout::Program`, raw fields included,
-   the caps of `PLANS.md` §3.3, reps by time or by distance. Tests: the reader's validity
-   rules; the caps; a FIT write and read gives the same program; totals match the recipe.
-7. `PlanState`: the log and its JSON, bounded. (The rules for missed weeks are TP5.)
-8. `PlanText`: names, purposes, the Today lines; ASCII only.
-9. `Tools/plan_print`: a whole plan for any input as Markdown. Golden outputs in
-   `Tests/Host/golden/` for the three gate runners in each plan (nine files), compared by a
-   test, so a content change is a visible diff.
+All in `Software/Libs/Core` (namespace `XTraining`), plus the tools:
 
-**The gate:** Jon reads the nine golden files and corrects the `.plan` files.
+| Piece | Files | What it does |
+|---|---|---|
+| Dates | `Date.hpp` (header-only) | yyyymmdd as the SDK's `Ymd`, day numbers, weekdays, Mondays |
+| Time strings | `TimeText.hpp` (header-only) | reads the phone's `mm:ss`, `h:mm:ss`, `YYYY-MM-DD` strictly (anything else is 0); writes paces and times |
+| Paces | `PaceModel.*` | fitness from a race, the training paces, bands in mm/s, predictions, the half's gap; single precision |
+| Plan types | `PlanTypes.hpp` (header-only) | sessions, weeks, plans, `isHard()` |
+| The plans | `Tools/Plans/*.plan` → `gen_plans.py` → `Header/data/PlanData.hpp` (generated, header-only) | the three plans as constexpr tables; the generator refuses bad edits |
+| Placing a week | `WeekLayout.*` | `PLANS.md` 4.2 on the runner's days |
+| Calendar | `PlanCalendar.*` | the start rule, counting back from a race, dropping base weeks, locating a day |
+| Schedule | `PlanSchedule.*` | the session on a day: trial and recent weeks, the race week round the race day, the level |
+| Builder | `PlanBuilder.*` | levels and caps (`PLANS.md` 3.3, 4.1), the half's distance floor, and the `SDK::Workout::Program`, raw FIT fields included, with each step's alert mode and the session's estimates |
+| State | `PlanState.*` | `plan.json`: set-up, calendar, a log of 84 days; bounded reader |
+| Words | `PlanText.hpp` (header-only) | names, short names, purposes, "4 x 4 min"; ASCII |
+| plan_print | `Tools/plan_print/` | a whole plan for any runner as Markdown; also writes the golden files |
 
-**Defaults assumed** (brief §14, "Proposed defaults"): time-dosed sessions, the level caps,
-seven run-day switches, weeks from Monday, no fitness number shown.
+### Decisions made while building (each cheap to change)
+
+- **Every rep is followed by its recovery**, the last one included: `[rep, jog] x n`, then the
+  cool-down. The alternative (UNA's `lastRest = false` layout) puts the last rep outside the
+  repeat block, which breaks the engine's "rep 3 of 6" count (`Intervals.hpp`,
+  `intervalsRepeat()`). The cost is one extra recovery of a minute or two.
+- **Short reps** (repetitions) are `AlertMode::AtEnd`; **strides and 30-30s** are
+  `AlertMode::None` with a band (the gauge has a value to show); **hills and time trials**
+  have no target. **Easy steps** (easy, long, warm-up, cool-down, the 3 minutes between 30-30
+  sets) are `FastOnly`. The service applies these modes in TP2.
+- **Strides** are at repetition pace, ±8 s/km; their recoveries, and all jogs, have no target.
+- **Time trials and races** start with a warm-up ended by a lap press; a time trial ends with
+  an open cool-down; a race has none.
+- **Level 1's hills** in place of repetitions are 45 s each, two thirds of the reps, at least 4.
+- **Estimates:** a jog is easy-slow pace plus 45 s/km; an open warm-up counts as 15 minutes; a
+  hill is threshold speed for half the distance, the jog down 1.5 times the rep.
+- **The fitness figure** is computed in single precision. The tests show it reproduces the
+  review's double-precision paces to the second.
+
+### Verified
+
+- **Host tests: 59, all passing** (`hybridx-training-host-tests`), and `plan-data-current`
+  (the generated header matches the plan files): `ctest` 2 of 2. Also run under
+  **AddressSanitizer and UBSan**: clean.
+  - Paces: the published table rows (`PLANS.md` 2.2) within 3 s/km; the race table at 50
+    within 10 s; Riegel within 1% at 10 km and the half for every 5K from 18:00 to 36:00;
+    ordered and monotonic for every second from 12:00 to 59:59; the 22:00 example exactly.
+  - Placement: all 392 choices of days: 196 with two quality days, 196 with one (7 of those
+    the day before the long run); never quality the day after the long run; never two hard
+    days running.
+  - **The builder: 49,104 programs** (every session of every plan, the trial and recent weeks
+    too, at every level, for every 5K from 15:00 to 45:00 by the minute, with each
+    combination of easy-by-heart-rate and reps-by-distance). Each is checked against the FIT
+    reader's validity rules and the caps, then **run to the end through the SDK's own
+    `WorkoutEngine`** by a simulated runner; the steps it ran match `totals()`, and where no
+    step is open the time matches the estimate within 2%.
+  - **FIT round trip:** 4,752 programs (the 132 sessions at three 5K times, three levels and the four option combinations) written with the SDK's `FitWorkoutWriter` and read
+    back with `FitWorkoutReader`: the same program, nothing degraded.
+  - The state file: round trip, every prefix, every one-byte change from a set of nine
+    characters, and nine bad files.
+- **Watch compile check of the core** (Ubuntu's `arm-none-eabi-g++` 13.2, `-mcpu=cortex-m33
+  -mfpu=fpv5-sp-d16 -mfloat-abi=hard`, `-Wall -Wextra -Wpedantic -Wconversion
+  -Wdouble-promotion`, no exceptions or RTTI): no warnings in our code. The core calls no
+  `malloc`, `new` or exception code; its only maths are `expf`, `sqrtf` and `lroundf`. About
+  11 KB of code at `-Os`. The header-only parts compile on their own, as the GUI will use
+  them. A compile check only: CI builds the watch app from TP2.
+  - **Found by it:** `Date::weekday` had two overloads (a day number and a date). On the
+    watch `uint32_t` is `unsigned long`, so a literal date matched neither exactly and did not
+    compile; on the host it did. The day-number one is now `weekdayOfDay`.
+- **CI:** a "HybridX Training host tests" step in the `host-tests` job (`ctest`, so the
+  generated header is checked too). Not yet run: it runs on the push.
+
+### The gate (TP1): what Jon reads
+
+The nine golden files in `Tests/Host/golden/`: each plan for the three gate runners (5K
+20:00 at level 3 on Tuesday, Wednesday, Thursday, Saturday and Sunday; 25:00 at level 2 on
+Tuesday, Wednesday, Friday and Sunday; 32:00 at level 1 on Tuesday, Thursday and Sunday; long
+runs on Sunday). Each has the paces, every week day by day with the steps and targets the
+watch would set, and a summary. Correct the `.plan` files (notation: `Tools/Plans/README.md`),
+or say what to change and I will.
+
+What I checked when reading them as a coach:
+- the level-1 half plan reaches 130 minutes (about 16 km at 7:45-8:40) because of the
+  distance floor; without it the peak would have been 105 minutes, 13 km;
+- level 3's five-day weeks keep quality on Tuesday and Thursday with an easy Wednesday
+  between, and reach 60 minutes of quality in a 66 km week at the peak of the 10K plan;
+- the race week counts the race as quality (the summaries' large last number).
+
+### Not done, and carried forward
+
+- Missed sessions and weeks, moves and pauses (`PLANS.md` 4.3), and recalibration (2.6): TP5.
+- The glance's file: TP6.
+- The book's table rows for the pace fixtures (TP0's open item).
+- `SessionBuilder` keeps about 1.2 KB of running totals on the stack while it builds. Fine on
+  the host; TP2 checks it against the service task's stack, or makes it a member.
+
+## TP2: the app (next)
+
+The order (brief section 11 and `REVIEW.md` E1):
+1. Copy `hybridx-run/Software` verbatim, in its own commit.
+2. Rename: folder `HybridXTraining`, name "X Training", development APP_ID `6E050D707D4D2D32`,
+   tags `training-v*`, the simulator's app ID; CI builds it into `watch-apps`.
+3. Strip what stays X Run's: the VO2max history, re-scoring and Trail ingest, the VO2 screens
+   and profile, the bests page, the VO2max glance. Keep the window builder for the Run link
+   (TP4).
+4. The core into `libs.cmake`; the config fields (brief 5.1) in the manifest and a field table;
+   `plan.json` read and written with `SafeFile`.
+5. Today's session built into the service's `mProgram` and started through `startWorkout`'s
+   three calls; the alert modes applied to `ZoneAlerts`; the result recorded at save.
+6. `docs/experiments/sim_plan.sh` (a session end to end in the simulator) and `fit_check.sh`.

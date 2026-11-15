@@ -1,0 +1,29 @@
+# X Training: the VO2max block (PLANS.md section 7).
+#
+# Written for level 2 and four runs a week. Notation: README.md. After
+# editing, run gen_plans.py and look at the golden files' diff.
+#
+# No race: the block opens and closes with a 5K time trial, its main measure.
+
+plan     vo2max
+id       3
+name     VO2max block
+race     0
+minweeks 8
+long     1 45 65
+long     2 60 80
+long     3 70 95
+
+# Week 1 opens with the time trial. With a 5K from the last six weeks it is
+# this instead (PLANS.md section 7).
+recentweek baseline | *INT 5x2 | E+S 40   | 30/30 2x6               | L 60
+
+#    phase      first quality      easy        second quality          long
+week baseline | E+S 40           | E 35      | 30/30 2x6               | *TT5
+week build    | *INT 5x3         | E+S 40    | 30/30 2x8               | L 65
+week build    | *INT 4x4         | E+S 40    | HILLS 8x60s             | L 70
+week cutback  | *INT 4x3         | E 35      | E+S 35                  | L 55
+week build    | *INT 6x3         | E+S 45    | 30/30 2x10              | L 75
+week build    | *INT 4x4 jog 2:00 | E+S 45   | HILLS 10x60s            | L 75
+week peak     | *INT 6x3 jog 90s | E+S 45    | 30/30 3x8               | L 80
+week retest   | INT 3x3          | E 30      | E 25                    | *TT5

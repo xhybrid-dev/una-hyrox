@@ -541,7 +541,8 @@ enters a recent 5K (and optionally a half) on the phone; the watch works out the
 (Daniels–Gilbert equations), the calendar and each day's workout, dosed by time, and runs it
 through the SDK's own workout engine, gauges and alerts. Later: a glance with today's workout.
 Joins the family (a new `act_training.json` slot for Streak; X Run's VO2max both ways).
-TP0 (decisions, the independent review, desk checks) is done; nothing is built.
+TP0 (decisions, the independent review, desk checks) and TP1 (the pure core, host-tested) are
+done; the app itself (TP2) is next.
 - **Docs:** brief, architecture, phases (TP0-TP7): `hybridx-training/docs/HYBRIDX_TRAINING_BRIEF.md`;
   the pace model, sessions and the three plans: `PLANS.md`; the independent engineering and
   coaching review: `REVIEW.md`; decisions, verified SDK facts and the TP1 plan: `NOTES.md`.
@@ -560,3 +561,13 @@ TP0 (decisions, the independent review, desk checks) is done; nothing is built.
   history and screens (`REVIEW.md` E1). The Streak slot is a family change (TP4; `REVIEW.md` E3).
 - **Watch builds will come from CI**, as for the others. Tags `training-vX.Y.Z`. App folder
   `HybridXTraining`; development APP_ID `6E050D707D4D2D32`.
+- **Commands:**
+  - host tests: `cmake -S hybridx-training/Tests/Host -B hybridx-training/build-tests && cmake --build hybridx-training/build-tests && hybridx-training/build-tests/hybridx-training-host-tests`
+    (`ctest --test-dir hybridx-training/build-tests` also checks the generated plan header);
+  - after editing a plan file: `python3 hybridx-training/Tools/Plans/gen_plans.py`, then
+    `XTRAINING_UPDATE_GOLDEN=1 hybridx-training/build-tests/hybridx-training-host-tests --gtest_filter='Golden.*'`
+    and read the diff of `Tests/Host/golden/` (`Tools/Plans/README.md`);
+  - a plan for any runner: `hybridx-training/build-tests/plan_print --plan half --5k 22:00 [--half 1:45:00]
+    [--level 2] [--days tue,wed,fri,sun] [--long sun] [--race 2027-03-28] [--not-recent] [--hr] [--distance]`;
+  - a watch compile check of the core: `arm-none-eabi-g++ -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard
+    -mthumb -std=c++17 -fno-exceptions -fno-rtti` on `Software/Libs/Core/Sources/*.cpp` (NOTES "TP1").

@@ -1,0 +1,33 @@
+# X Training: the half-marathon plan (PLANS.md section 6).
+#
+# Written for level 2 and four runs a week. Notation: README.md. After
+# editing, run gen_plans.py and look at the golden files' diff.
+
+plan     half
+id       2
+name     Half marathon
+race     21097.5
+minweeks 8
+long     1 60 105
+long     2 70 115
+long     3 80 130
+# The peak long run reaches at least this far, by level (PLANS.md 4.1, C9).
+floor    16000 18000 20000
+
+trialweek cutback | E+S 35 | E 35      | E 30              | *TT5
+
+#    phase      first quality      easy        second quality          long
+week base     | E+S 40           | E 35      | *CRUISE 3x6             | L 70
+week base     | HILLS 8x45s      | E+S 40    | *CRUISE 4x6             | L 75
+week base     | INT 5x3          | E+S 40    | *TEMPO 20               | L 85
+week cutback  | E+S 35           | E 35      | E 30                    | *TT5
+week build    | INT 4x4          | E+S 45    | *CRUISE 3x10            | L 95
+# Weeks 6 and 10 have a hard long run, so one other quality session (C8).
+week build    | *CRUISE 2x15     | E 45      | E+S 40                  | L 100 HM 20
+week build    | INT 6x3          | E+S 45    | *RPHM 3x10 jog 2:00     | L 105
+# Week 8: the 10K tune-up, four weeks before the race.
+week cutback  | E+S 35           | E 40      | E 30                    | *TT10
+week specific | CRUISE 3x10      | E+S 45    | *RPHM 2x20 jog 3:00     | L 115
+week specific | *TEMPO 20        | E 45      | E+S 40                  | L 100 HM 30
+week taper    | *CRUISE 3x8      | E+S 40    | RPHM 2x10 jog 2:00      | L 75
+week race     | *RPHM 3x8 jog 2:00 | E+S 30  | SHAKE                   | RACE
