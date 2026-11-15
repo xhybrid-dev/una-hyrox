@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# X Training in the PC simulator: today's planned session, end to end (TP2).
+# X Training in the PC simulator: today's planned session, end to end (TP2; TP3's Today).
 #
 # Makes a pretend watch on which today is a quality day of a plan already under
-# way, opens the app, checks that Start offers today's session, runs it through
+# way, opens the app, checks that Today offers today's session, runs it through
 # the SDK's workout engine (stepping through the steps with the lap button,
 # R2, as a runner may), saves it, and reports what the service logged, the
 # plan file, and the FIT file decoded (the workout and its targets, a lap per
@@ -76,8 +76,10 @@ snap() { [ -n "$SHOTS" ] && mkdir -p "$SHOTS" && DISPLAY=$DISP timeout 10 import
 
 echo "--- the plan, as the service read it"
 grep -E "Plan settings|New plan|Paces s/km|Today:" "$LOG" | sed 's/^ *//'
-snap 01-start                             # Start, with today's session under it
-key 3 1                                   # R1: Start -> the countdown
+snap 01-start                             # Today, with today's session under it (TP3)
+key 3 1                                   # R1: Today -> today's page
+snap 01b-today
+key 3 1                                   # R1: start it -> the countdown
 snap 02-countdown
 sleep 6                                   # the countdown runs out; the session starts
 snap 03-first-step

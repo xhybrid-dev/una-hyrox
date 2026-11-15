@@ -197,6 +197,9 @@ public:
 
     /// Ask for a workout in full; onWorkoutDetails() follows.
     void requestWorkoutDetails(uint16_t index);
+    /// X Training: the plan's session on @p date (0: today) as a program, answered as
+    /// onWorkoutDetails() with getWorkoutDetails() (null on a rest day).
+    void requestPlanDay(uint32_t date);
     /// The workout asked for, or null if it could not be read. Valid until
     /// the next request or run.
     const SDK::Workout::Program* getWorkoutDetails() const;

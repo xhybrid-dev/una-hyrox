@@ -20,12 +20,17 @@
 #include "gui/widgets/Widgets.hpp"
 #include "gui/widgets/WheelMenu.hpp"
 #include "gui/widgets/WorkoutLabel.hpp"
+#include "gui/widgets/TextStack.hpp"
 #include "SDK/Workout/WorkoutProgram.hpp"
 
 class WorkoutDetailsScreen : public Screen
 {
 public:
-    explicit WorkoutDetailsScreen(Model& model);
+    /// Library: a workout from UNA's list. Today (X Training): today's planned session,
+    /// its first page what the plan says of today, R1 to start it.
+    enum class Source : uint8_t { Library, Today };
+
+    explicit WorkoutDetailsScreen(Model& model, Source source = Source::Library);
     ~WorkoutDetailsScreen() override;
 
     // Screen
@@ -34,6 +39,8 @@ public:
 
     // ModelListener
     void onWorkoutDetails() override;
+    void onWorkoutList() override;   // X Training: today's session, again (PLAN_TODAY)
+    void onGpsFix(bool acquired) override;
 
 protected:
     void build() override;
@@ -56,11 +63,20 @@ private:
     void setEntry(const SDK::Workout::Library::Entry& entry);
     /// The steps, once the workout has been read; null if it could not be.
     void setProgram(const SDK::Workout::Program* program);
+    void setDescription();   ///< the program's description over three lines (Library)
+    void buildRows();        ///< the step rows and their wheel
     void showFirstPage(bool show);
     void showRow(uint16_t row);
     /// Label and hint for row @p row: duration or kind, then target.
     void rowText(uint16_t row, char* label, char* tip, size_t cap) const;
     void back();
+
+    // X Training: today.
+    /// The first page from the plan's word on today; asks for its steps if it has a session.
+    void setToday();
+    /// True when today has a session R1 can start (done or not).
+    bool todayStartable() const;
+    void startToday();
 
     const SDK::Workout::Program* mProgram = nullptr;
     bool     mImperial  = false;
@@ -72,6 +88,12 @@ private:
     std::unique_ptr<Row[]>             mRows;
     std::unique_ptr<WheelMenu::Item[]> mItems;
     std::unique_ptr<RowText[]>         mText;
+
+    Source       mSource;
+    TextStack    mStack;             ///< Today's first page
+    char         mStackText[TextStack::kMaxLines][48] = {};
+    bool         mGpsFix = false;
+    char         mTodayTitle[20] = "TODAY";
 
     WorkoutLabel mName1;
     WorkoutLabel mName2;

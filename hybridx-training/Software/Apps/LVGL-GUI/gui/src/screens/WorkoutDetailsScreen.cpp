@@ -11,6 +11,10 @@
 #include "gui/WorkoutUi.hpp"
 
 #include "SDK/Workout/StepLabel.hpp"
+#include "PlanText.hpp"   // X Training: header-only
+#include "TimeText.hpp"
+
+#include "Commands.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -25,8 +29,9 @@ constexpr int32_t kName1Y = 66;
 constexpr int32_t kName2Y = 94;
 } // namespace
 
-WorkoutDetailsScreen::WorkoutDetailsScreen(Model& model)
+WorkoutDetailsScreen::WorkoutDetailsScreen(Model& model, Source source)
     : Screen(model)
+    , mSource(source)
 {
 }
 
@@ -39,9 +44,13 @@ void WorkoutDetailsScreen::build()
     // View only: R2 goes back.
     mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,
                   Widgets::Buttons::NONE, Widgets::Buttons::WHITE);
-    mTitle = std::make_unique<Widgets::Title>(mRoot, "DETAILS");
+    mTitle = std::make_unique<Widgets::Title>(mRoot, mSource == Source::Today ? "TODAY" : "DETAILS");
     mInfo  = Theme::label(mRoot, F::Italic18, "", 35, 57, 170, LV_TEXT_ALIGN_CENTER, Color::TEAL);
 
+    if (mSource == Source::Today) {
+        mStack.init(mRoot);
+        return;
+    }
     mName1.init(mRoot, F::SemiBold25, Color::WHITE);
     mName2.init(mRoot, F::SemiBold25, Color::WHITE);
     mTotals.init(mRoot, F::Italic18, Color::GRAY);
@@ -55,7 +64,12 @@ void WorkoutDetailsScreen::onShow()
 {
     mModel.resetIdleTimer();
     mImperial = mModel.isUnitsImperial();
+    mGpsFix   = mModel.hasGpsFix();
     showFirstPage(true);
+    if (mSource == Source::Today) {
+        setToday();
+        return;
+    }
 
     const SDK::Workout::Library* lib = mModel.getWorkoutLibrary();
     const uint16_t chosen = mModel.getChosenWorkout();
@@ -112,12 +126,21 @@ void WorkoutDetailsScreen::setProgram(const SDK::Workout::Program* program)
     if (mProgram == nullptr) {
         // The file could not be read: the first page keeps only what the
         // list knew, and there are no steps to go to.
-        for (WorkoutLabel& line : mDesc) {
-            line.setText("");
+        if (mSource == Source::Library) {
+            for (WorkoutLabel& line : mDesc) {
+                line.setText("");
+            }
         }
         return;
     }
+    if (mSource == Source::Library) {
+        setDescription();
+    }
+    buildRows();
+}
 
+void WorkoutDetailsScreen::setDescription()
+{
     // The description, word-wrapped over three lines and cut after the last:
     // no more of it than three lines can hold.
     char text[160];
@@ -141,7 +164,10 @@ void WorkoutDetailsScreen::setProgram(const SDK::Workout::Program* program)
         }
         mDesc[k].setText(line);
     }
+}
 
+void WorkoutDetailsScreen::buildRows()
+{
     // Rows in reading order: each repeat heads the steps it repeats, outer
     // repeats first; a repeat step itself comes after its block in the file.
     // Each step makes one row at most.
@@ -187,6 +213,16 @@ void WorkoutDetailsScreen::showFirstPage(bool show)
 {
     mFirstPage = show;
     Theme::setHidden(mMenuBox, show);
+    if (mSource == Source::Today) {
+        mStack.setVisible(show);
+        if (show) {
+            Theme::setHidden(mInfo, true);
+            mTitle->setText(mTodayTitle);
+        } else if (mMenu) {
+            showRow(mMenu->selected());
+        }
+        return;
+    }
     mName1.setVisible(show);
     mName2.setVisible(show);
     mTotals.setVisible(show);
@@ -317,10 +353,162 @@ void WorkoutDetailsScreen::onKey(uint8_t code)
                 }
             }
             break;
+        case Btn::R1:
+            if (mSource == Source::Today && todayStartable()) {
+                startToday();
+            }
+            break;
         case Btn::R2:
-            back();
+            if (mSource == Source::Today) {
+                ScreenManager::instance().goTo(ScreenId::Main);
+            } else {
+                back();
+            }
             break;
         default:
             break;
+    }
+}
+
+// -- X Training: today -------------------------------------------------------------------
+
+void WorkoutDetailsScreen::onWorkoutList()
+{
+    if (mSource == Source::Today) {
+        setToday();   // the service's word on today, again
+    }
+}
+
+void WorkoutDetailsScreen::onGpsFix(bool acquired)
+{
+    mGpsFix = acquired;
+}
+
+bool WorkoutDetailsScreen::todayStartable() const
+{
+    using Info = CustomMessage::PlanTodayInfo;
+    const uint8_t st = mModel.getPlanToday().status;
+    return st == Info::Session || st == Info::Done;
+}
+
+void WorkoutDetailsScreen::startToday()
+{
+    // As Start with a workout armed: the countdown, or first the question when there is no
+    // fix. A planned session is always outdoors (brief, decision 9).
+    mModel.armWorkout(Model::kPlanSession);
+    mModel.setPendingIntervalsMode(false);
+    ScreenManager::instance().goTo(mGpsFix ? ScreenId::TrackIntervalsCountdown : ScreenId::TrackStartConfirm);
+}
+
+void WorkoutDetailsScreen::setToday()
+{
+    using namespace XTraining;
+    using Info = CustomMessage::PlanTodayInfo;
+    using Line = TextStack::Line;
+    const Info& t = mModel.getPlanToday();
+    const Kind kind = static_cast<Kind>(t.kind);
+    char (&txt)[TextStack::kMaxLines][48] = mStackText;
+    for (auto& line : txt) {
+        line[0] = '\0';
+    }
+    Line lines[TextStack::kMaxLines];
+    uint8_t n = 0;
+    auto add = [&](const char* text, F font, F smaller, uint32_t color) {
+        if (n < TextStack::kMaxLines) {
+            lines[n++] = Line{ text, font, smaller, color };
+        }
+    };
+    // Two lines of plain text, wrapped at the face's middle width.
+    auto addWrapped = [&](const char* text, uint8_t slot1, uint8_t slot2, uint32_t color) {
+        WorkoutUi::wrapTwo(text, txt[slot1], txt[slot2], sizeof(txt[slot1]), Theme::font(F::Medium18), 190, 170);
+        add(txt[slot1], F::Medium18, F::Regular16, color);
+        add(txt[slot2], F::Medium18, F::Regular16, color);
+    };
+    auto week = [&](uint8_t slot) {
+        if (t.weeks != 0) {
+            snprintf(txt[slot], sizeof(txt[slot]), "Week %u of %u", static_cast<unsigned>(t.runWeek + 1),
+                     static_cast<unsigned>(t.weeks));
+        }
+        add(txt[slot], F::Italic18, F::Italic18, Color::TEAL);
+    };
+    auto next = [&](uint8_t slot) {
+        if (t.nextDate == 0) {
+            return;
+        }
+        char day[20];
+        TimeText::dayDate(t.nextDate, day, sizeof(day));
+        snprintf(txt[slot], sizeof(txt[slot]), "Next: %s", day);
+        add(txt[slot], F::Italic18, F::Italic18, Color::TEAL);
+        add(PlanText::name(static_cast<Kind>(t.nextKind)), F::Medium18, F::Regular16, Color::WHITE);
+        add(t.nextWhat, F::Medium18, F::Regular16, Color::WHITE);
+    };
+
+    switch (t.status) {
+        case Info::Session:
+        case Info::Done: {
+            // The name and what it is for across the middle, where the face is widest; the
+            // estimate (at the middle of each step's band) at the foot.
+            add(t.name, F::SemiBold25, F::SemiBold20, Color::WHITE);
+            if (t.status == Info::Done) {
+                add("Done today", F::Italic18, F::Italic18, Color::GREEN);
+            } else {
+                add(PlanText::purpose(kind), F::Italic18, F::Italic18, Color::GRAY);
+            }
+            add(t.what, F::Medium25, F::Medium18, Color::TEAL);
+            add(t.target, F::Medium18, F::Regular16, Color::WHITE);
+            if (t.plannedSec != 0) {
+                const unsigned min = static_cast<unsigned>((t.plannedSec + 30) / 60);
+                const uint32_t m = mImperial ? static_cast<uint32_t>(t.plannedM * 1000ull / 1609344ull) : t.plannedM;
+                const unsigned tenths = static_cast<unsigned>((m + 50) / 100);
+                snprintf(txt[1], sizeof(txt[1]), "%u.%u %s, %u min", tenths / 10, tenths % 10,
+                         mImperial ? "mi" : "km", min);
+            }
+            add(txt[1], F::Italic18, F::Italic18, Color::GRAY);
+        } break;
+        case Info::RestDay:
+            week(0);
+            add("Rest day", F::SemiBold25, F::SemiBold20, Color::WHITE);
+            add(PlanText::purpose(Kind::Rest), F::Italic18, F::Italic18, Color::GRAY);
+            next(1);
+            break;
+        case Info::BeforeStart:
+            add(t.name, F::SemiBold25, F::SemiBold20, Color::WHITE);   // "Plan starts"
+            add(t.what, F::Medium25, F::Medium18, Color::TEAL);        // "Mon 16 Nov"
+            next(1);
+            break;
+        case Info::Finished:
+            add("Plan complete", F::SemiBold25, F::SemiBold20, Color::WHITE);
+            add("Well done", F::Italic18, F::Italic18, Color::TEAL);
+            addWrapped("Choose a new plan in the UNA app", 1, 2, Color::GRAY);
+            break;
+        case Info::Problem:
+            add("Check your plan", F::SemiBold25, F::SemiBold20, Color::WHITE);
+            addWrapped(t.name, 1, 2, Color::YELLOW);
+            break;
+        case Info::NoPlan:
+        default:
+            add("No plan", F::SemiBold25, F::SemiBold20, Color::WHITE);
+            addWrapped("Choose one in the UNA app", 1, 2, Color::GRAY);
+            break;
+    }
+    mStack.set(lines, n);
+    mStack.setVisible(mFirstPage);
+    // The title: the week, on a day of the plan with a session.
+    if (t.weeks != 0 && (t.status == Info::Session || t.status == Info::Done)) {
+        snprintf(mTodayTitle, sizeof(mTodayTitle), "WEEK %u OF %u", static_cast<unsigned>(t.runWeek + 1),
+                 static_cast<unsigned>(t.weeks));
+    } else {
+        snprintf(mTodayTitle, sizeof(mTodayTitle), "TODAY");
+    }
+    if (mFirstPage) {
+        mTitle->setText(mTodayTitle);
+    }
+
+    const bool startable = todayStartable();
+    mButtons->setR1(startable ? Widgets::Buttons::AMBER : Widgets::Buttons::NONE);
+    if (startable) {
+        mModel.requestPlanDay(0);   // the steps, a scroll away
+    } else {
+        setProgram(nullptr);
     }
 }

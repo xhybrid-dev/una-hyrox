@@ -49,10 +49,13 @@ private:
     bool treadmill() const { return mModel.getSettings().treadmill; }
     /// Offer today's scheduled workout, once, when the list arrives.
     void checkTodayPrompt();
+    /// X Training: Today's hint from the plan's word on today.
+    void setTodayTip();
 
     bool mGpsFix = false;
     bool mArmed  = false;
     char mArmedName[64] = "";
+    char mTodayTip[64]  = "";   ///< X Training: what today is, under Today
     WheelMenu::Item mItems[Menu::ID_COUNT] {};
 
     std::unique_ptr<Widgets::Title>           mTitle;

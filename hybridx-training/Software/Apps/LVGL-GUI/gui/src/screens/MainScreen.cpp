@@ -11,6 +11,8 @@
 #include "gui/Assets.hpp"
 #include "gui/Strings.hpp"
 #include "gui/WorkoutUi.hpp"
+#include "PlanText.hpp"   // X Training: header-only
+#include "TimeText.hpp"
 
 
 #define LOG_MODULE_PRX      "MainScreen"
@@ -24,16 +26,14 @@ namespace
 // Same items and geometry as MainView::setupItems() in the TouchGFX app.
 using Style = WheelMenu::Item::Style;
 const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
-    // ID_START: a Tip naming the workout when one is armed (onWorkoutList)
-    { Style::Simple, "Start", nullptr, &poppins_semibold_35 },
-    // ID_TREADMILL (HybridX Run): on, Start records a treadmill run (no GPS)
+    // ID_TODAY (X Training): a Tip saying what today is (onWorkoutList)
+    { Style::Tip, "Today", nullptr, &poppins_semibold_35 },
+    // ID_START: "Free run", or "Start" with a Tip naming the UNA workout armed
+    { Style::Simple, "Free run", nullptr, &poppins_semibold_30 },
+    // ID_TREADMILL (HybridX Run): on, a free run is a treadmill run (no GPS)
     { Style::Toggle, "Treadmill", nullptr, &poppins_semibold_25 },   // the intervals menu's switches' face
-    // ID_WORKOUTS
+    // ID_WORKOUTS: UNA's library
     { Style::Simple, "Workouts" },
-    // ID_INTERVALS: icon beside left-aligned text, in both slots
-    { Style::Icon, "Intervals", nullptr, &poppins_semibold_30, nullptr, Color::WHITE, false,
-      &img_intervals_40x43, { 30, 10, 87, 140 },
-      &img_intervals_24x26, { 62, 17, 97, 130 } },
     // ID_SETTINGS
     { Style::Simple, "Settings" },
 };
@@ -64,6 +64,10 @@ void MainScreen::build()
 
 void MainScreen::onShow()
 {
+    // X Training: back on the menu, today's session is no longer about to start.
+    if (mModel.getArmedWorkout() == Model::kPlanSession) {
+        mModel.armWorkout(Model::kNoWorkout);
+    }
     mMenu->select(mModel.menu().get());
     mModel.menu().resetChildren();
     mModel.resetIdleTimer();
@@ -93,34 +97,65 @@ void MainScreen::onWorkoutList()
     const int16_t armed = mModel.getArmedWorkout();
     mArmed = lib != nullptr && armed >= 0 && static_cast<size_t>(armed) < lib->size();
     mItems[Menu::ID_TREADMILL].toggleState = treadmill();
+    setTodayTip();
     WheelMenu::Item& start = mItems[Menu::ID_START];
     if (treadmill()) {
-        // HybridX Run: Start records a plain treadmill run; an armed workout waits.
+        // HybridX Run: a plain treadmill run; an armed workout waits.
+        start.text    = "Free run";
         start.style   = Style::Tip;
         start.tip     = "Treadmill";
         start.itemTip = "";
-    } else if (armed == Model::kPlanSession) {
-        // X Training: today's planned session, e.g. "Intervals 6 x 3 min".
-        const CustomMessage::PlanTodayInfo& t = mModel.getPlanToday();
-        mArmed = true;
-        std::snprintf(mArmedName, sizeof(mArmedName), "%.31s %.31s", t.name, t.what);
-        WorkoutUi::fitWidth(mArmedName, sizeof(mArmedName), Theme::font(Theme::Font::Italic18), 180);
-        start.style   = Style::Tip;
-        start.tip     = mArmedName;
-        start.itemTip = "";
     } else if (mArmed) {
+        start.text    = "Start";
         WorkoutUi::toText(lib->entry(static_cast<size_t>(armed)).name, mArmedName, sizeof(mArmedName));
         WorkoutUi::fitWidth(mArmedName, sizeof(mArmedName), Theme::font(Theme::Font::Italic18), 180);
         start.style   = Style::Tip;
         start.tip     = mArmedName;
         start.itemTip = "";
     } else {
+        start.text    = "Free run";
         start.style   = Style::Simple;
         start.tip     = nullptr;
         start.itemTip = nullptr;
     }
     mMenu->refresh();
     checkTodayPrompt();
+}
+
+void MainScreen::setTodayTip()
+{
+    // What today is, in a line: "Easy run 40 min", "Rest day", "Starts Mon 16 Nov".
+    using Info = CustomMessage::PlanTodayInfo;
+    const Info& t = mModel.getPlanToday();
+    switch (t.status) {
+        case Info::Session:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "%.31s %.31s", t.name, t.what);
+            break;
+        case Info::Done:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Done: %.31s", t.name);
+            break;
+        case Info::RestDay:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Rest day");
+            break;
+        case Info::BeforeStart:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Starts %.31s", t.what);
+            break;
+        case Info::Finished:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Plan complete");
+            break;
+        case Info::Problem:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Check your plan");
+            break;
+        case Info::NoPlan:
+        default:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "No plan");
+            break;
+    }
+    WorkoutUi::fitWidth(mTodayTip, sizeof(mTodayTip), Theme::font(Theme::Font::Italic18), 180);
+    WheelMenu::Item& today = mItems[Menu::ID_TODAY];
+    today.style   = Style::Tip;
+    today.tip     = mTodayTip;
+    today.itemTip = "";
 }
 
 void MainScreen::checkTodayPrompt()
@@ -151,6 +186,9 @@ void MainScreen::onKey(uint8_t code)
 void MainScreen::confirm()
 {
     switch (mMenu->selected()) {
+        case Menu::ID_TODAY:
+            ScreenManager::instance().goTo(ScreenId::PlanToday);
+            break;
         case Menu::ID_START:
             if (treadmill()) {
                 // HybridX Run: indoors there is no GPS to wait for.
@@ -173,11 +211,6 @@ void MainScreen::confirm()
             break;
         case Menu::ID_WORKOUTS:
             ScreenManager::instance().goTo(ScreenId::WorkoutList);
-            break;
-        case Menu::ID_INTERVALS:
-            // No GPS-fix check here: the intervals menu is always reachable so
-            // the workout can be configured indoors. The check happens on Start.
-            ScreenManager::instance().goTo(ScreenId::MenuIntervals);
             break;
         case Menu::ID_SETTINGS:
             ScreenManager::instance().goTo(ScreenId::MenuSettings);

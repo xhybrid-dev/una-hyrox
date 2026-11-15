@@ -55,10 +55,11 @@ struct Position {
 // -----------------------------------------------------------------------------
 
 struct Root {
-    // X Training: X Run's ID_VO2 is not here (its VO2max page stays X Run's).
-    // HybridX Run: ID_TREADMILL (an on/off switch) under Start (NOTES, "Treadmill").
-    enum Id { ID_START = 0, ID_TREADMILL, ID_WORKOUTS, ID_INTERVALS, ID_SETTINGS,
-              ID_COUNT, ID_DEFAULT = ID_START };
+    // X Training: Today first, then a free run (ID_START: an armed UNA workout, else a
+    // free run) with the treadmill switch under it (HybridX Run's, NOTES "Treadmill").
+    // X Run's ID_VO2 and RunLVGL's Intervals are not here (brief 8.1, decision 10).
+    enum Id { ID_TODAY = 0, ID_START, ID_TREADMILL, ID_WORKOUTS, ID_SETTINGS,
+              ID_COUNT, ID_DEFAULT = ID_TODAY };
 
     // The workout list: a Free run row while a workout is armed, then one
     // row per workout. Built at runtime -- no fixed enum.

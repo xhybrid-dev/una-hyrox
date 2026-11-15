@@ -144,10 +144,10 @@ session longer rather than easier, and a hill or a 30-second rep has no distance
 
 | Code | On the watch | Steps | Purpose line |
 |---|---|---|---|
-| `E t` | Easy run | t min easy | "Easy: you should be able to talk" |
-| `E+S t` | Easy run, strides | t min easy, then 6 x (20 s fast, 60 s easy) | "Easy, with strides for form" |
+| `E t` | Easy run | t min easy | "Easy enough to talk" |
+| `E+S t` | Easy run, strides | t min easy, then 6 x (20 s fast, 60 s easy) | "Easy, strides for form" |
 | `L t` | Long run | t min easy | "Builds your endurance" |
-| `L t (x HM)` | Long run, fast finish | t − x min easy, then x min at HM. **A hard day** | "Endurance, finishing at race pace" |
+| `L t (x HM)` | Long run, fast finish | t − x min easy, then x min at HM. **A hard day** | "Endurance, then race pace" |
 | `TEMPO t` | Tempo run | WU, t min at T, CD | "Raises your threshold" |
 | `CRUISE n x t` | Cruise intervals | WU, n x (t min at T), jogs of 1 min per 5 min of rep, CD [secondary: Daniels' mile reps with 1 min] | "Threshold in pieces" |
 | `INT n x t` | Intervals | WU, n x (t min at I), jogs of about 60% of the rep unless the table says otherwise, CD | "Builds your VO2max" |
@@ -343,7 +343,7 @@ half plan, as `plan_print` prints it (TP1; the same code the watch will run):
 |---|---|---|---|
 | Mon | REST DAY. Next: Tue, Intervals | — | — |
 | Tue | INTERVALS, 6 x 3 min @ 4:12-4:24 /km, about 700 m each. "Builds your VO2max" | Warm up 15 min; 6 x (3 min @ 4:12-4:24, 1:45 jog); cool down 10 min | 10.0 km, 54 min |
-| Wed | EASY RUN, STRIDES, 45 min, easy: slower than 5:27 /km. "Easy, with strides for form" | 45 min easy; 6 x (20 s stride, 1 min easy) | 9.2 km, 53 min |
+| Wed | EASY RUN, STRIDES, 45 min, easy: slower than 5:27 /km. "Easy, strides for form" | 45 min easy; 6 x (20 s stride, 1 min easy) | 9.2 km, 53 min |
 | Thu | REST DAY. Next: Fri, Half pace | — | — |
 | Fri | HALF PACE ★, 3 x 10 min @ 4:43-4:53 /km, about 2.1 km each. "Race pace" | Warm up 15 min; 3 x (10 min @ 4:43-4:53, 2 min jog); cool down 10 min | 11.5 km, 61 min |
 | Sat | REST DAY. Next: Sun, Long run | — | — |

@@ -170,7 +170,8 @@ void Model::trackStart(bool intervalsMode)
     // it is used up by this run.
     // HybridX Run: a treadmill run is a plain run for now (NOTES, "Treadmill"), so it follows
     // no workout; the service reads the same setting.
-    const bool    treadmill = mSettings.treadmill && !intervalsMode;
+    // X Training: a planned session is always outdoors (brief, decision 9).
+    const bool    treadmill = mSettings.treadmill && !intervalsMode && mArmedWorkout != kPlanSession;
     const int16_t workout   = (intervalsMode || treadmill) ? kNoWorkout : mArmedWorkout;
     mArmedWorkout = kNoWorkout;
 
@@ -340,6 +341,13 @@ void Model::requestWorkoutDetails(uint16_t index)
 {
     mWorkoutDetails = nullptr;
     SDK::send_msg<CustomMessage::WorkoutDetailsRequest>(mKernel, index);
+}
+
+void Model::requestPlanDay(uint32_t date)
+{
+    mWorkoutDetails = nullptr;
+    mChosenWorkout  = CustomMessage::WorkoutDetailsRequest::kPlanDay;   // the answer's index
+    SDK::send_msg<CustomMessage::WorkoutDetailsRequest>(mKernel, CustomMessage::WorkoutDetailsRequest::kPlanDay, date);
 }
 
 const SDK::Workout::Program* Model::getWorkoutDetails() const
@@ -546,15 +554,9 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
         } break;
 
         case CustomMessage::PLAN_TODAY: {   // X Training: today's planned session
+            // The Today screen starts the session (it arms kPlanSession); the main menu's
+            // Today item shows what it is (TP3).
             mPlanToday = static_cast<CustomMessage::PlanToday*>(message)->info;
-            // Start runs today's session unless another workout is armed; once it is done
-            // (or there is none) Start is a plain run again.
-            const bool session = mPlanToday.status == CustomMessage::PlanTodayInfo::Session;
-            if (session && mArmedWorkout == kNoWorkout && !isTrackActive()) {
-                mArmedWorkout = kPlanSession;
-            } else if (!session && mArmedWorkout == kPlanSession) {
-                mArmedWorkout = kNoWorkout;
-            }
             modelListener->onWorkoutList();
         } break;
 

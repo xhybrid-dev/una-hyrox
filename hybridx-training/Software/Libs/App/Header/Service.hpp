@@ -313,6 +313,13 @@ private:
     void loadPlan();             ///< plan.json, reconciled with the phone's settings
     void savePlan();
     void updateToday();          ///< today's session from the plan and the watch's date
+    /// The plan's session on @p date (a rest day included); false outside the plan.
+    bool planDay(SDK::Workout::Ymd date, XTraining::DaySession& out) const;
+    /// The first day from @p from (within two weeks) with a run on it.
+    bool nextSession(SDK::Workout::Ymd from, XTraining::DaySession& out) const;
+    /// @p date's session built into mProgram for the step list; false on a rest day,
+    /// outside the plan, or during a run.
+    bool buildPlanDay(SDK::Workout::Ymd date);
     void sendPlanToday();
     bool startPlannedSession();  ///< build today's program into mProgram and start it
     void recordPlannedRun(const ActivityWriter::TrackData& track);

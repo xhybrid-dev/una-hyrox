@@ -357,11 +357,54 @@ stay). The content can still change at any time: it is text in `Tools/Plans/`.
 Still open from TP2's gate: Jon's first session on the watch (the steps are under "The gate
 (TP2)").
 
-## TP3: the screens (next)
+## TP3: the screens (under way)
 
 Today, This week, Plan, Paces and New plan; the Saved screen's lines; the short-rep result
 on the step card; "reps by distance" and the other watch settings; the text-fit audit and
-`capture_screens.sh`; X Run's unreachable VO2max screens deleted.
+`capture_screens.sh`; X Run's unreachable VO2max screens deleted. Five steps, each committed
+and pushed so CI makes a `.uapp`: (1) the main menu and Today; (2) This week, Plan, Paces;
+(3) Settings and New plan; (4) during and after the run; (5) the audit, captures, clean-up.
+
+### Jon's first install (15 November 2026): the plan was made, but nothing showed it
+
+Jon installed the TP2 build and copied in `app_config.json` (the 10K plan, level 2, 5K 22:00,
+Tue, Wed, Fri and Sun, long run Sunday). The app "doesn't load a training session, only asks
+to load in a fit file on the Workouts menu". His `plan.json` shows the service did its part on
+the watch: `"s":[1,2,86,6,0,0,0,1320,20261115,1,0,0]` is that set-up, dated that Sunday, and
+`"c":[0,20261116,0,10]` a calendar of 10 weeks from Monday 16 November (set up on a Sunday, a
+plan starts the next Monday). Monday is not one of his days, so his first session is Tuesday
+17 November, "Easy run, strides, 40 min" (`plan_print`). TP2's main menu spoke of the plan only
+on a day with a session (Start's hint); on any other day Start was plain, and the only
+workout-like item, Workouts, is UNA's library of FIT workouts, empty on his watch. So the
+watch test passed its first half (settings read, plan made and saved, on the watch) and showed
+the gap TP3 fills first.
+
+### Step 1: the main menu and Today
+
+- **Main menu** (brief 8.1): Today, Free run, Treadmill, Workouts, Settings. Today's hint always
+  says what today is: "Intervals 5 x 3 min", "Done: Intervals", "Rest day", "Starts Mon 16 Nov",
+  "Plan complete", "Check your plan" or "No plan". Free run is X Run's Start (it reads "Start",
+  with the workout's name, when a UNA workout is armed from Workouts). RunLVGL's Intervals is off
+  the menu (decision 10); its screens go in step 5.
+- **Today** (`WorkoutDetailsScreen`, `Source::Today`): on a day with a session, the week in the
+  title ("WEEK 5 OF 10"), then the name, what it is for, what ("5 x 3 min"), the target and the
+  estimate ("9.1 km, 49 min"); L2 scrolls the steps, drawn as for a UNA workout from the
+  service's program; R1 starts it (the countdown, or the no-GPS question first). On any other
+  day the state and the next session ("Next: Tue 17 Nov / Cruise intervals / 3 x 6 min"). A
+  planned session is always outdoors: the treadmill switch applies to free runs only (decision 9).
+- **The service:** `PlanTodayInfo` gains today's date and the next session (`nextSession()`,
+  from tomorrow, or from the plan's first day before it starts); the details request takes
+  `kPlanDay` and a date (`buildPlanDay()`), so the step list is the program Start would run.
+- **Fitting the round face:** a `TextStack` lays the lines out as a block and fits each to the
+  width that keeps it clear of the buttons' arcs (radius 108), in a smaller face if need be. The
+  first Today page put the purpose at the foot, where the face is narrow, and cut it; it now sits
+  under the name. Three purpose lines were too long for one line anywhere and are shorter
+  (`PlanText`, `PLANS.md` 3.1): "Easy enough to talk", "Easy, strides for form", "Endurance, then
+  race pace".
+- **Checked:** `capture_screens.sh` (seven pretend watches: before the start, a rest day, a
+  session day with its steps and countdown, done, finished, no plan, a problem) into
+  `docs/screens/tp3-*.png`, each looked at; `sim_plan.sh` (now Today, R1, R1) runs a session
+  and saves the FIT file as before; 63 host tests; the watch target compiles.
 
 From the coach review above: a **Race alerts** setting (Off, First 2 km "too fast", Both; default
 Off); **R2 held for about a second** on the open warm-up before a time trial or a race, with a

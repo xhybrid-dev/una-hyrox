@@ -22,6 +22,7 @@ class Screen;
 
 enum class ScreenId : uint8_t {
     Main,
+    PlanToday,   // X Training: today's planned session
     // Structured workouts
     WorkoutToday,
     WorkoutList,

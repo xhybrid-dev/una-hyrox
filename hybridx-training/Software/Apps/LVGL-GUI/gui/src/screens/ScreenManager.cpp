@@ -149,6 +149,7 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::WorkoutList:               return new WorkoutListScreen(m);
         case ScreenId::WorkoutMenu:               return new WorkoutMenuScreen(m, WorkoutMenuScreen::Kind::Chosen);
         case ScreenId::WorkoutDetails:            return new WorkoutDetailsScreen(m);
+        case ScreenId::PlanToday:                 return new WorkoutDetailsScreen(m, WorkoutDetailsScreen::Source::Today);
 
         case ScreenId::MenuIntervals:             return new MenuIntervalsScreen(m);
         case ScreenId::MenuIntervalsRepeats:      return new MenuIntervalsRepeatsScreen(m);

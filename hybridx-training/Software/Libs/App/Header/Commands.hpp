@@ -504,15 +504,20 @@ namespace CustomMessage {
         }
     };
 
-    /// Read a workout from the list in full, for its details screen.
+    /// Read a workout from the list in full, for its details screen. X Training: index
+    /// kPlanDay asks for the plan's session on @p date instead (0: today), built by the
+    /// service; the answer carries the same index.
     struct WorkoutDetailsRequest : public SDK::MessageBase {
+        static constexpr uint16_t kPlanDay = 0xFFFE;
         uint16_t index;
-        WorkoutDetailsRequest() : SDK::MessageBase(WORKOUT_DETAILS_REQUEST), index(0) {}
+        uint32_t date;
+        WorkoutDetailsRequest() : SDK::MessageBase(WORKOUT_DETAILS_REQUEST), index(0), date(0) {}
 
-        explicit WorkoutDetailsRequest(uint16_t index)
+        explicit WorkoutDetailsRequest(uint16_t index, uint32_t date = 0)
             : WorkoutDetailsRequest()
         {
             this->index = index;
+            this->date  = date;
         }
     };
 
@@ -581,17 +586,23 @@ namespace CustomMessage {
             Finished,        ///< The plan's last day has passed.
             Problem,         ///< The set-up cannot make a plan; see text.
         };
-        static constexpr size_t kText = 40;
+        static constexpr size_t kText = 36;
         uint8_t  status     = NoPlan;
         uint8_t  kind       = 0;      ///< XTraining::Kind of today's session
-        uint8_t  runWeek    = 0;      ///< 0-based
+        uint8_t  runWeek    = 0;      ///< 0-based; for BeforeStart, 0
         uint8_t  weeks      = 0;
         bool     key        = false;
+        uint32_t date       = 0;      ///< today, YYYYMMDD; 0 if the watch's date is not set
         uint32_t plannedSec = 0;
         uint32_t plannedM   = 0;
         char     name[kText]   = {};  ///< "Intervals"; for Problem, what is wrong
-        char     what[kText]   = {};  ///< "6 x 3 min"
+        char     what[kText]   = {};  ///< "6 x 3 min"; for BeforeStart, the start date
         char     target[kText] = {};  ///< "4:12-4:24 /km"
+        // The next session after today (or the plan's first, before it starts); nextDate 0
+        // for none (no plan, a problem, or the plan's last session is today or past).
+        uint32_t nextDate   = 0;
+        uint8_t  nextKind   = 0;
+        char     nextWhat[kText] = {};   ///< "40 min"
     };
 
     struct PlanToday : public SDK::MessageBase {
@@ -599,6 +610,7 @@ namespace CustomMessage {
         PlanToday() : SDK::MessageBase(PLAN_TODAY), info{} {}
         explicit PlanToday(const PlanTodayInfo& i) : PlanToday() { info = i; }
     };
+    static_assert(sizeof(PlanToday) <= kMaxMessageBytes, "PlanToday exceeds the 256-byte kernel pool block");
 
 } // namespace CustomMessage
 

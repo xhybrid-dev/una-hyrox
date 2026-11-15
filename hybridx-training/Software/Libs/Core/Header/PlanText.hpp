@@ -72,15 +72,16 @@ inline const char* shortName(Kind k)
     return "";
 }
 
-/// What the session is for (PLANS.md section 3.1).
+/// What the session is for (PLANS.md section 3.1). Each fits one line across the
+/// middle of the face (the text-fit audit checks).
 inline const char* purpose(Kind k)
 {
     switch (k) {
     case Kind::Rest:         return "Rest is training too";
-    case Kind::Easy:         return "Easy: you should be able to talk";
-    case Kind::EasyStrides:  return "Easy, with strides for form";
+    case Kind::Easy:         return "Easy enough to talk";
+    case Kind::EasyStrides:  return "Easy, strides for form";
     case Kind::Long:         return "Builds your endurance";
-    case Kind::LongFinish:   return "Endurance, finishing at race pace";
+    case Kind::LongFinish:   return "Endurance, then race pace";
     case Kind::Tempo:        return "Raises your threshold";
     case Kind::Cruise:       return "Threshold in pieces";
     case Kind::Intervals:    return "Builds your VO2max";

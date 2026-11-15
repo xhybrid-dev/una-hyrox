@@ -45,9 +45,10 @@ void WorkoutListScreen::build()
     mInfo  = Theme::label(mRoot, F::Italic18, "", 35, 57, 170, LV_TEXT_ALIGN_CENTER, Color::TEAL);
 
     // Shown instead of the list when there are no workout files.
-    mEmpty[0] = centred(mRoot, F::SemiBold25, "No workouts", 104, Color::WHITE);
-    mEmpty[1] = centred(mRoot, F::Medium18, "Copy .fit files to", 142, Color::GRAY);
-    mEmpty[2] = centred(mRoot, F::Medium18, "the Workouts folder", 165, Color::GRAY);
+    // X Training: this is UNA's library; the plan's sessions are under Today.
+    mEmpty[0] = centred(mRoot, F::SemiBold25, "No UNA workouts", 104, Color::WHITE);
+    mEmpty[1] = centred(mRoot, F::Medium18, "Your plan's sessions", 142, Color::GRAY);
+    mEmpty[2] = centred(mRoot, F::Medium18, "are under Today", 165, Color::GRAY);
 }
 
 void WorkoutListScreen::onShow()

@@ -1928,6 +1928,12 @@ bool Service::readWorkout(uint16_t index)
 void Service::handleEvent(const CustomMessage::WorkoutDetailsRequest& event)
 {
     // Only before a run: during one, mProgram holds the workout being run.
+    if (event.index == CustomMessage::WorkoutDetailsRequest::kPlanDay) {
+        // X Training: a day of the plan (0: today). Start builds today's again.
+        const bool ok = buildPlanDay(event.date != 0 ? event.date : localDate());
+        SDK::send_msg<CustomMessage::WorkoutDetails>(mKernel, event.index, ok ? &mProgram : nullptr);
+        return;
+    }
     const bool ok = mTrackState == Track::State::INACTIVE && readWorkout(event.index);
     SDK::send_msg<CustomMessage::WorkoutDetails>(mKernel, event.index, ok ? &mProgram : nullptr);
 }
@@ -2590,6 +2596,7 @@ void Service::updateToday()
     mToday = DaySession{};
     const PlanDef* def = PlanData::find(mPlan.setup.plan);
     const Ymd today = localDate();
+    info.date = today;
     if (mPhoneSetup.plan == PlanId::None) {
         info.status = Info::NoPlan;
     } else if (mSetupProblem != nullptr) {
@@ -2611,7 +2618,7 @@ void Service::updateToday()
         if (where.where == DayPlace::Where::Before) {
             info.status = Info::BeforeStart;
             copyText(info.name, sizeof(info.name), "Plan starts");
-            TimeText::date(mPlan.calendar.start, info.what, sizeof(info.what));
+            TimeText::dayDate(mPlan.calendar.start, info.what, sizeof(info.what));
         } else if (where.where != DayPlace::Where::In
                    || !PlanSchedule::day(mPlan.setup, *def, mPlan.calendar, mPaces.paces, today, mToday)) {
             info.status = Info::Finished;
@@ -2652,9 +2659,61 @@ void Service::updateToday()
             }
         }
     }
+    // The next session: from tomorrow, or from the plan's first day before it starts.
+    if (def != nullptr && mPlan.active() && mPaces.ok && today != 0 && info.status != Info::Problem) {
+        DaySession next;
+        const Ymd from = info.status == Info::BeforeStart ? mPlan.calendar.start : Date::addDays(today, 1);
+        if (nextSession(from, next)) {
+            info.nextDate = next.date;
+            info.nextKind = static_cast<uint8_t>(next.asRun.kind);
+            PlanText::what(next.asRun, def->raceCm, info.nextWhat, sizeof(info.nextWhat));
+        }
+    }
     mTodayInfo = info;
-    LOG_INFO("Today: status %u, %s %s %s (week %u of %u)\n", static_cast<unsigned>(info.status), info.name, info.what,
-             info.target, static_cast<unsigned>(info.runWeek + 1), static_cast<unsigned>(info.weeks));
+    LOG_INFO("Today: status %u, %s %s %s (week %u of %u); next %lu %s %s\n", static_cast<unsigned>(info.status),
+             info.name, info.what, info.target, static_cast<unsigned>(info.runWeek + 1),
+             static_cast<unsigned>(info.weeks), static_cast<unsigned long>(info.nextDate),
+             PlanText::name(static_cast<Kind>(info.nextKind)), info.nextWhat);
+}
+
+bool Service::planDay(SDK::Workout::Ymd date, XTraining::DaySession& out) const
+{
+    using namespace XTraining;
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    if (def == nullptr || !mPlan.active() || !mPaces.ok || date == 0) {
+        return false;
+    }
+    return PlanSchedule::day(mPlan.setup, *def, mPlan.calendar, mPaces.paces, date, out);
+}
+
+bool Service::nextSession(SDK::Workout::Ymd from, XTraining::DaySession& out) const
+{
+    // At most two weeks on: every week of every plan has a run in it.
+    using namespace XTraining;
+    for (int32_t d = 0; d < 14; ++d) {
+        if (planDay(Date::addDays(from, d), out) && out.asRun.kind != Kind::Rest) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Service::buildPlanDay(SDK::Workout::Ymd date)
+{
+    // A day's session into mProgram, for the GUI's step list. Only before a run.
+    using namespace XTraining;
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    DaySession day;
+    if (mTrackState != Track::State::INACTIVE || def == nullptr || !planDay(date, day)
+        || day.asRun.kind == Kind::Rest) {
+        return false;
+    }
+    BuildOptions o;
+    o.level = mPlan.setup.level;
+    o.easyByHr = mPlan.setup.easyByHr;
+    o.repsByDistance = mPlan.setup.repsByDistance;
+    SessionMeta meta;
+    return PlanBuilder::build(day.asRun, mPaces.paces, o, def->raceCm, mProgram, meta);
 }
 
 void Service::sendPlanToday()
