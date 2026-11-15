@@ -4,8 +4,9 @@
 # docs/screens/w3-*.png: choosing a kind and its settings on the main menu, a
 # whole strength workout (sets, a rest that runs out, a rest skipped, the end
 # of the plan, the done menu, End, the summary and its laps), a glance at EMOM,
-# AMRAP and Tabata (each discarded), and a whole circuit. Then the two files
-# are checked (sport, laps, sets) and act_workout.json (Strength 4, Hybrid 6).
+# AMRAP and Tabata (each discarded), a whole circuit, and open sets (set, rest, set on
+# R2, ended from the menu). Then the three files are checked (sport, laps, sets) and
+# act_workout.json (Strength 4, Strength 4, Hybrid 6).
 #
 # The plan's numbers start short (settings.json: 2 sets with 15 s rests, 1 round
 # of 100 m), so the run takes about 4 minutes; the kind is chosen on screen.
@@ -77,6 +78,21 @@ sleep 3.8; snap 21-summary-strength
 key 2; key 2; key 2 1.5; snap 22-summary-strength-laps
 key 4 1.5
 
+# -- Open sets: set, rest, set on R2, ended from the menu (a rest-free ending: Jon's user asked
+# for the sets and rests to have no numbers) -----------------------------------------------
+key 2; key 3; key 1                              # Type: Open sets, back up to Start
+snap 35-main-open-sets
+key 3 1.5; sleep 3; snap 36-opensets-set1
+key 4 0.6; snap 37-toast-opensets-rest           # R2: the set done, the rest begins
+sleep 4; snap 38-opensets-rest
+key 4 0.6; snap 39-toast-opensets-set2           # R2: the rest done, set 2 begins
+sleep 4; snap 40-opensets-set2
+key 3 1; key 2; key 2; snap 41-action-opensets-end   # the menu opens on Resume; End is two down
+down 3; sleep 1.8; up 3                          # End
+sleep 4.2; snap 42-summary-opensets
+key 2; key 2; key 2 1.5; snap 43-summary-opensets-laps
+key 4 1.5
+
 # -- EMOM, AMRAP and Tabata, a look at each, discarded -----------------------------
 key 2; key 3; key 1                              # Type: EMOM, back up to Start
 key 3 1.5; sleep 3; snap 23-emom-live
@@ -120,8 +136,9 @@ def check(c, what):
     global ok
     print(("  ok   " if c else "  FAIL ") + what)
     ok &= bool(c)
-check(len(fits) == 2, f"two files (strength and circuit; the three looks were discarded): {len(fits)}")
-want = [("training", "strength_training", "Strength", 5), ("training", "cardio_training", "Circuit", 2)]
+check(len(fits) == 3, f"three files (strength, open sets and circuit; the three looks were discarded): {len(fits)}")
+want = [("training", "strength_training", "Strength", 5), ("training", "strength_training", "Strength", 3),
+        ("training", "cardio_training", "Circuit", 2)]
 for fit, (sport, sub, name, nlaps) in zip(fits, want):
     msgs = {}
     with fitdecode.FitReader(fit) as r:
@@ -134,10 +151,11 @@ for fit, (sport, sub, name, nlaps) in zip(fits, want):
     check(len(msgs.get("lap", [])) == nlaps, f"{name}: {len(msgs.get('lap', []))} laps, want {nlaps}")
     if name == "Strength":
         kinds = [l.get("intensity") for l in msgs["lap"]]
-        check(kinds == ["active", "rest", "active", "rest", "active"], f"Strength laps {kinds}")
-        check(len(msgs.get("set", [])) == 5, f"Strength: {len(msgs.get('set', []))} set messages")
+        want_k = ["active", "rest", "active", "rest", "active"][:nlaps]
+        check(kinds == want_k, f"Strength laps {kinds}")
+        check(len(msgs.get("set", [])) == nlaps, f"Strength: {len(msgs.get('set', []))} set messages")
 act = json.load(open(sys.argv[2]))
-check([e[6] for e in act["a"]] == [4, 6], f"act_workout.json sports {[e[6] for e in act['a']]} == [4, 6]")
+check([e[6] for e in act["a"]] == [4, 4, 6], f"act_workout.json sports {[e[6] for e in act['a']]} == [4, 4, 6]")
 sys.exit(0 if ok else 1)
 EOF
 rm -f "$FS/settings.json" "$FS/settings.json.bak"   # leave the simulator on its defaults

@@ -160,6 +160,7 @@ TEST(SessionFit, EachKindOfWorkoutHasItsSport)
     const Want want[] = {
         {SessionType::Plain,    0,  0,  "Workout"},
         {SessionType::Strength, 10, 20, "Strength"},
+        {SessionType::OpenSets, 10, 20, "Strength"},
         {SessionType::Emom,     62, 74, "EMOM"},
         {SessionType::Amrap,    62, 73, "AMRAP"},
         {SessionType::Tabata,   62, 75, "Tabata"},
@@ -174,6 +175,7 @@ TEST(SessionFit, EachKindOfWorkoutHasItsSport)
         EXPECT_LE(std::strlen(s.profileName), 15u) << w.name;   // ActivityWriter::kProfileNameMax
     }
     EXPECT_TRUE(writesSets(SessionType::Strength));
+    EXPECT_TRUE(writesSets(SessionType::OpenSets));
     for (SessionType t : {SessionType::Plain, SessionType::Emom, SessionType::Amrap, SessionType::Tabata,
                           SessionType::Custom, SessionType::Circuit}) {
         EXPECT_FALSE(writesSets(t)) << int(t);
@@ -183,6 +185,7 @@ TEST(SessionFit, EachKindOfWorkoutHasItsSport)
 TEST(SessionFit, TheLinkSportCodesAreTheLinksOwn)
 {
     EXPECT_EQ(linkSportCodeOf(SessionType::Strength), uint8_t(HybridXLink::Sport::Strength));
+    EXPECT_EQ(linkSportCodeOf(SessionType::OpenSets), uint8_t(HybridXLink::Sport::Strength));
     EXPECT_EQ(linkSportCodeOf(SessionType::Circuit), uint8_t(HybridXLink::Sport::Hybrid));
     for (SessionType t : {SessionType::Plain, SessionType::Emom, SessionType::Amrap, SessionType::Tabata,
                           SessionType::Custom}) {

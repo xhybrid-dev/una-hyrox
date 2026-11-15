@@ -120,6 +120,82 @@ TEST(PlanRunner, StrengthSetsRestsAndTheLastSetEndsIt)
     }
 }
 
+TEST(PlanRunner, OpenSetsSwapSetAndRestOnTheButtonAndNothingElse)
+{
+    for (uint32_t s0 : kStarts) {
+        Fixture f;
+        f.start(of(SessionType::OpenSets), s0);
+        // A set of 20 minutes, a rest of 10: nothing ends either by itself.
+        f.run(0, 1200000, 5000);
+        EXPECT_TRUE(f.cues.empty());                  // no warning, no cap
+        PlanView v = f.r.view(f.m, s0 + 1200000);
+        EXPECT_EQ(v.kind, uint8_t(StepKind::Work));
+        EXPECT_EQ(v.round, 1);
+        EXPECT_EQ(v.rounds, 0);
+        EXPECT_EQ(v.remainingMs, 0u);
+        EXPECT_EQ(v.stepMs, 1200000u);
+
+        EXPECT_EQ(f.press(1200000), Cue::Rest);
+        EXPECT_EQ(f.m.lapAt(0).activeMs, 1200000u);
+        EXPECT_FALSE(f.m.lapAt(0).autoEnded);         // the button ended it
+        f.run(1205000, 1800000, 5000);
+        EXPECT_EQ(f.cues.size(), 1u);                 // the rest ran 10 minutes without a cue
+        v = f.r.view(f.m, s0 + 1800000);
+        EXPECT_EQ(v.kind, uint8_t(StepKind::Rest));
+        EXPECT_EQ(v.round, 1);
+        EXPECT_EQ(v.remainingMs, 0u);
+
+        EXPECT_EQ(f.press(1800000), Cue::Work);
+        EXPECT_EQ(f.r.view(f.m, s0 + 1800000).round, 2);
+        EXPECT_EQ(f.press(1900000), Cue::Rest);
+        EXPECT_EQ(f.press(1950000), Cue::Work);
+        ASSERT_EQ(f.m.lapCount(), 5);
+        const StepKind want[] = {StepKind::Work, StepKind::Rest, StepKind::Work, StepKind::Rest, StepKind::Work};
+        const uint8_t round[] = {1, 1, 2, 2, 3};
+        for (uint8_t i = 0; i < 5; ++i) {
+            EXPECT_EQ(f.m.lapAt(i).kind, uint8_t(want[i])) << int(i);
+            EXPECT_EQ(f.m.lapAt(i).round, round[i]) << int(i);
+        }
+        EXPECT_FALSE(f.r.done());
+        EXPECT_EQ(f.m.config().autoLapMs, 0u);
+    }
+}
+
+TEST(PlanRunner, OpenSetsPauseStopsTheClockAndIgnoresTheButton)
+{
+    Fixture f;
+    f.start(of(SessionType::OpenSets));
+    f.run(0, 30000);
+    f.m.pause(30000);
+    EXPECT_EQ(f.press(31000), Cue::None);             // paused: not running
+    EXPECT_EQ(f.m.lapCount(), 1);
+    f.m.resume(40000);
+    f.run(41000, 50000);
+    EXPECT_EQ(f.r.view(f.m, 50000).stepMs, 40000u);   // the 10 s pause not counted
+}
+
+TEST(PlanRunner, OpenSetsRunOutOfLapsAfterTheirLastSet)
+{
+    Fixture f;
+    f.start(of(SessionType::OpenSets));
+    uint32_t t = 0;
+    // 31 sets, each with its rest, then set 32.
+    for (int i = 0; i < 62; ++i) {
+        t += 20000;
+        f.run(t - 19000, t);
+        EXPECT_EQ(f.press(t), i % 2 == 0 ? Cue::Rest : Cue::Work) << i;
+    }
+    EXPECT_EQ(f.m.lapCount(), 63);
+    EXPECT_EQ(f.r.view(f.m, t).round, kOpenSetsMax);
+    EXPECT_FALSE(f.r.done());
+    t += 20000;
+    EXPECT_EQ(f.press(t), Cue::Done);                 // the 32nd set ends the plan
+    EXPECT_TRUE(f.r.done());
+    EXPECT_EQ(f.m.state(), RunState::Paused);
+    EXPECT_EQ(f.m.lapCount(), 63);                    // no 64th, empty lap
+    EXPECT_EQ(f.press(t + 1000), Cue::None);
+}
+
 TEST(PlanRunner, AStrengthSetEndsByItselfAtItsCap)
 {
     Fixture f;
