@@ -49,6 +49,9 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type TREADMILL_ASK             = 0x0000001C;   // HybridX Run: the treadmill's distance, please
     constexpr SDK::MessageType::Type BESTS_UPDATE              = 0x0000001E;   // HybridX Run: personal bests
     constexpr SDK::MessageType::Type STREAK_LINE               = 0x0000001F;   // the Streak line after a save
+    // X Training: our own, after X Run's (0x19-0x1F; VO2_UPDATE, VO2_PROFILE_SAVE and
+    // BESTS_UPDATE are X Run's and never sent here).
+    constexpr SDK::MessageType::Type PLAN_TODAY                = 0x00000020;   // X Training: today's session
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -486,6 +489,8 @@ namespace CustomMessage {
 
     struct TrackStart : public SDK::MessageBase {
         static constexpr int16_t kNoWorkout = -1;
+        /// X Training: follow today's planned session (built by the service from the plan).
+        static constexpr int16_t kPlanSession = -2;
 
         bool    intervalsMode = false;
         int16_t workout       = kNoWorkout;  ///< Index in the workout list to follow; wins over intervalsMode
@@ -561,6 +566,39 @@ namespace CustomMessage {
     // The kernel's largest message block is 256 bytes.
     static_assert(sizeof(WorkoutData) <= 256, "WorkoutData must fit a message block");
     static_assert(sizeof(WorkoutStep) <= 256, "WorkoutStep must fit a message block");
+
+    // -- X Training: today's planned session (docs/HYBRIDX_TRAINING_BRIEF.md 8.1) -----------
+
+    /// What the GUI shows of today: fixed-size text, worked out by the service from the
+    /// plan, so the GUI needs no plan code beyond the header-only words.
+    struct PlanTodayInfo {
+        enum Status : uint8_t {
+            NoPlan = 0,      ///< No plan chosen (the phone's "plan" is 0).
+            Session,         ///< A session today, not yet done.
+            RestDay,
+            Done,            ///< Today's session is done (or part done).
+            BeforeStart,     ///< The plan starts on a later day.
+            Finished,        ///< The plan's last day has passed.
+            Problem,         ///< The set-up cannot make a plan; see text.
+        };
+        static constexpr size_t kText = 40;
+        uint8_t  status     = NoPlan;
+        uint8_t  kind       = 0;      ///< XTraining::Kind of today's session
+        uint8_t  runWeek    = 0;      ///< 0-based
+        uint8_t  weeks      = 0;
+        bool     key        = false;
+        uint32_t plannedSec = 0;
+        uint32_t plannedM   = 0;
+        char     name[kText]   = {};  ///< "Intervals"; for Problem, what is wrong
+        char     what[kText]   = {};  ///< "6 x 3 min"
+        char     target[kText] = {};  ///< "4:12-4:24 /km"
+    };
+
+    struct PlanToday : public SDK::MessageBase {
+        PlanTodayInfo info;
+        PlanToday() : SDK::MessageBase(PLAN_TODAY), info{} {}
+        explicit PlanToday(const PlanTodayInfo& i) : PlanToday() { info = i; }
+    };
 
 } // namespace CustomMessage
 

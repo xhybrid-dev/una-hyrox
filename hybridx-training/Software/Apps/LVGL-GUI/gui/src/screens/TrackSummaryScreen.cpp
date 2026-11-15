@@ -14,7 +14,6 @@
 
 #include "FormText.hpp"   // HybridX Run
 #include "RunStatsText.hpp"   // HybridX Run
-#include "Vo2Text.hpp"   // HybridX Run
 
 using namespace SDK::GUI;
 using F = Theme::Font;
@@ -47,7 +46,6 @@ void TrackSummaryScreen::destroyFace()
 
     mMapDistance = mMapUnits = mOverviewDistance = mOverviewUnits = mAvgPace = mTimer = nullptr;
     mMaxHr = mAvgHr = nullptr;
-    mVo2Run = mVo2RunLabel = mVo2RecentLabel = mVo2Confidence = mVo2MaxHr = nullptr;
     mFormCadence = mFormStep = nullptr;
     for (auto& o : mZoneBar) {
         o = nullptr;
@@ -74,7 +72,6 @@ void TrackSummaryScreen::buildFace(uint8_t face)
         case FACE_MAP:       buildFaceMap(); break;
         case FACE_OVERVIEW:  buildFaceOverview(); break;
         case FACE_HEARTRATE: buildFaceHeartRate(); break;
-        case FACE_VO2:       buildFaceVo2(); break;
         case FACE_FORM:      buildFaceForm(); break;
         case FACE_ZONES:     buildFaceZones(); break;
         case FACE_SPLITS:    buildFaceSplits(); break;
@@ -130,23 +127,6 @@ void TrackSummaryScreen::buildFaceHeartRate()
     mAvgHr = Theme::label(f, F::SemiBold40, Strings::kNoValue, 70, 150, 100);
     Theme::image(f, &img_heart_30x30, 105, 48);
     mTitle = std::make_unique<Widgets::Title>(f, "HEART RATE");
-}
-
-// HybridX Run: this run's VO2max (ml/kg/min) and the recent figure. Without
-// an estimate, the reason sits where "THIS RUN" would.
-void TrackSummaryScreen::buildFaceVo2()
-{
-    lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
-    Theme::label(f, F::Regular14, "ml/kg/min", 70, 52, 100, LV_TEXT_ALIGN_CENTER, Color::GRAY);
-    mVo2Run      = Theme::label(f, F::SemiBold40, Strings::kNoValue, 70, 77, 100);
-    mVo2RunLabel = Theme::label(f, F::SemiBold20, "THIS RUN", 20, 118, 200);
-    Theme::hline(f, 25, 147, 190);
-    mVo2RecentLabel = Theme::label(f, F::Medium18, "", 20, 160, 200);
-    // P3: how much to trust this run's figure. Narrower lower down: the round face's chord is
-    // about 150 px at the second line's foot.
-    mVo2Confidence = Theme::label(f, F::Regular14, "", 30, 184, 180, LV_TEXT_ALIGN_CENTER, Color::GRAY);
-    mVo2MaxHr      = Theme::label(f, F::Regular14, "", 45, 200, 150, LV_TEXT_ALIGN_CENTER, Color::GRAY);
-    mTitle = std::make_unique<Widgets::Title>(f, "VO2MAX");
 }
 
 // HybridX Run: the run's average cadence and step length, laid out as the heart rate face.
@@ -291,13 +271,6 @@ void TrackSummaryScreen::onBests()
     }
 }
 
-void TrackSummaryScreen::onVo2Info(const CustomMessage::Vo2Info& /*info*/)
-{
-    if (mFaceId == FACE_VO2) {
-        fillFace();
-    }
-}
-
 void TrackSummaryScreen::setSummary(const ActivitySummary& s)
 {
     // What every face shares: the lap pages behind the indicator.
@@ -314,57 +287,6 @@ void TrackSummaryScreen::fillFace()
     }
     char buf[24];
 
-    if (mFaceId == FACE_VO2) {   // HybridX Run
-        const CustomMessage::Vo2Info& info = mModel.getVo2Info();
-        char v[8];
-        if (mModel.getTrackData().treadmill) {
-            // HybridX Run: no VO2max from a treadmill run (NOTES, "Treadmill"); the recent
-            // figure below is still the outdoor runs'.
-            lv_label_set_text(mVo2Run, Strings::kNoValue);
-            lv_label_set_text(mVo2RunLabel, "Not on treadmill");
-            lv_obj_set_style_text_font(mVo2RunLabel, Theme::font(F::Regular16), 0);
-        } else if (!info.hasRun) {
-            // Paused: the estimate is made when the run is saved.
-            lv_label_set_text(mVo2Run, Strings::kNoValue);
-            lv_label_set_text(mVo2RunLabel, "After saving");
-        } else {
-            RunVo2::RunResult r;
-            r.status        = static_cast<RunVo2::RunStatus>(info.runStatus);
-            r.profileStatus = static_cast<RunVo2::ProfileStatus>(info.profileStatus);
-            lv_label_set_text(mVo2Run, RunVo2::Text::formatX10(info.runX10, v, sizeof(v)));
-            const char* why = RunVo2::Text::reason(r);
-            lv_label_set_text(mVo2RunLabel, why[0] ? why : "THIS RUN");
-            lv_obj_set_style_text_font(mVo2RunLabel, Theme::font(why[0] ? F::Regular16 : F::SemiBold20), 0);
-        }
-        // P3: the steady minutes behind this run's figure and how far they spread, and the max HR.
-        if (!info.hasRun || info.runX10 == 0) {
-            lv_label_set_text(mVo2Confidence, "");
-        } else {
-            char sp[8];
-            // Short: the worst case, "240 min, spread 99.9", is about 145 px (checked in the simulator).
-            lv_label_set_text_fmt(mVo2Confidence, "%u min, spread %s", static_cast<unsigned>(info.windowsUsed),
-                                  RunVo2::Text::formatX10(info.spreadX10, sp, sizeof(sp)));
-        }
-        if (!info.hasRun || info.maxHr == 0) {
-            lv_label_set_text(mVo2MaxHr, "");
-        } else {
-            const char* src = RunVo2::Text::maxSourceLabel(static_cast<RunVo2::MaxHrSource>(info.maxSource));
-            if (src[0]) {
-                lv_label_set_text_fmt(mVo2MaxHr, "Max HR %u (%s)", static_cast<unsigned>(info.maxHr), src);
-            } else {
-                lv_label_set_text_fmt(mVo2MaxHr, "Max HR %u", static_cast<unsigned>(info.maxHr));
-            }
-        }
-        if (info.rollingX10 == 0) {
-            lv_label_set_text(mVo2RecentLabel, "");
-        } else {
-            const unsigned runs = info.runs < RunVo2::Config::kRollingRuns ? info.runs : RunVo2::Config::kRollingRuns;
-            lv_label_set_text_fmt(mVo2RecentLabel, "Recent %s (%u %s)",
-                                  RunVo2::Text::formatX10(info.rollingX10, v, sizeof(v)), runs,
-                                  runs == 1 ? "run" : "runs");
-        }
-        return;
-    }
 
     if (mFaceId == FACE_ZONES || mFaceId == FACE_SPLITS || mFaceId == FACE_PACING) {   // HybridX Run
         fillDetail();

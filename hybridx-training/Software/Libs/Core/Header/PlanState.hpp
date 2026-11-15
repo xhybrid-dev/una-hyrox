@@ -60,6 +60,19 @@ struct LogEntry {
     uint32_t  startUtc = 0;  ///< The activity's start, 0 if none.
 };
 
+/// How a saved planned session counts (brief section 9). Done: it reached its end and ran
+/// at least half the planned time; part done: at least half the planned time without the
+/// end. Anything shorter does not count (false), so skipping through the steps with the
+/// lap button is not a session done.
+inline bool judgeSession(bool reachedEnd, uint32_t activeSec, uint32_t plannedSec, DayStatus& out)
+{
+    if (plannedSec == 0 || static_cast<uint64_t>(activeSec) * 2u < plannedSec) {
+        return false;
+    }
+    out = reachedEnd ? DayStatus::Done : DayStatus::PartDone;
+    return true;
+}
+
 class PlanState {
 public:
     static constexpr uint8_t kMaxLog = 84;  ///< 12 weeks of days.

@@ -113,10 +113,6 @@ public:
         // HybridX Run: the run's average cadence (steps/min) and step length (m); 0 = none.
         float       cadenceAvgSpm   = 0.0f;
         float       stepLengthAvgM  = 0.0f;
-        // HybridX Run (docs/NOTES.md, R4): written to the session as developer
-        // fields, and the recent figure also as the standard max_met_data.
-        uint16_t    vo2maxX10       = 0;   // this run's estimate x 10; 0 = none
-        uint16_t    vo2maxRecentX10 = 0;   // the figure shown (latest runs) x 10; 0 = none
         // HybridX Run (NOTES, "Treadmill"): sub_sport treadmill, and the distance worked out
         // from cadence before the athlete's correction, as a developer field; 0 = none.
         bool        treadmill          = false;
@@ -167,7 +163,6 @@ private:
         L_ACTIVITY,
         L_WORKOUT,
         L_WORKOUT_STEP,
-        L_MAX_MET,      // HybridX Run: max_met_data (VO2max)
         L_MEMO_GLOB,
     };
 
@@ -178,8 +173,7 @@ private:
         DF_HR_SOURCE       = 4,
         DF_HR_OPTICAL      = 5,
         DF_HR_EXTERNAL     = 6,
-        DF_VO2MAX          = 7,   // HybridX Run: session, float32 ml/kg/min
-        DF_VO2MAX_RECENT   = 8,   // HybridX Run: session, float32 ml/kg/min
+        // 7 and 8 were X Run's VO2max fields; not used here.
         DF_DISTANCE_EST    = 9,   // HybridX Run: session, float32 m; a treadmill run's distance before correction
     };
 

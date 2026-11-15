@@ -545,6 +545,19 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             modelListener->onTreadmillAsk(mTreadEstimateM);
         } break;
 
+        case CustomMessage::PLAN_TODAY: {   // X Training: today's planned session
+            mPlanToday = static_cast<CustomMessage::PlanToday*>(message)->info;
+            // Start runs today's session unless another workout is armed; once it is done
+            // (or there is none) Start is a plain run again.
+            const bool session = mPlanToday.status == CustomMessage::PlanTodayInfo::Session;
+            if (session && mArmedWorkout == kNoWorkout && !isTrackActive()) {
+                mArmedWorkout = kPlanSession;
+            } else if (!session && mArmedWorkout == kPlanSession) {
+                mArmedWorkout = kNoWorkout;
+            }
+            modelListener->onWorkoutList();
+        } break;
+
         case CustomMessage::WORKOUT_LIST: {
             LOG_DEBUG("WORKOUT_LIST\n");
             auto* msg       = static_cast<CustomMessage::WorkoutList*>(message);

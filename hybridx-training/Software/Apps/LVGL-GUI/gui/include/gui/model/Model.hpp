@@ -143,6 +143,10 @@ public:
 
     // Structured workouts
     static constexpr int16_t kNoWorkout = CustomMessage::TrackStart::kNoWorkout;
+    /// X Training: armed when today's planned session is the one Start runs.
+    static constexpr int16_t kPlanSession = CustomMessage::TrackStart::kPlanSession;
+    /// X Training: today's session, as the service last sent it.
+    const CustomMessage::PlanTodayInfo& getPlanToday() const { return mPlanToday; }
 
     /// What the workout faces show, from the latest WORKOUT_DATA.
     struct WorkoutFace {
@@ -265,6 +269,7 @@ private:
     bool            mTodayPrompted  = false;
     uint16_t        mChosenWorkout  = 0;
     int16_t         mArmedWorkout   = kNoWorkout;
+    CustomMessage::PlanTodayInfo mPlanToday {};   ///< X Training
     bool            mStepCard       = false;
     bool            mDetailsFromToday = false;
     WorkoutFace     mWorkoutFace    {};

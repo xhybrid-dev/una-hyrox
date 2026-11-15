@@ -27,7 +27,6 @@ public:
     void onShow() override;
     void onKey(uint8_t code) override;
     void onActivitySummary(const ActivitySummary& summary) override;
-    void onVo2Info(const CustomMessage::Vo2Info& info) override;   // HybridX Run
     void onRunStats(const RunVo2::RunStatsResult& stats) override;  // HybridX Run: the detail faces
     void onBests() override;                                         // HybridX Run: the PB tags
 
@@ -35,11 +34,11 @@ protected:
     void build() override;
 
 private:
-    // HybridX Run: FACE_VO2 added between heart rate and the laps, then FACE_FORM (cadence and
+    // HybridX Run: (X Run's FACE_VO2 is not in X Training) FACE_FORM (cadence and
     // step length).
     // Then the run detail: FACE_ZONES (time in heart-rate zones), FACE_SPLITS (best splits and the
     // halves) and FACE_PACING (grade-adjusted pace and drift).
-    enum Face : uint8_t { FACE_MAP = 0, FACE_OVERVIEW, FACE_HEARTRATE, FACE_VO2, FACE_FORM, FACE_ZONES,
+    enum Face : uint8_t { FACE_MAP = 0, FACE_OVERVIEW, FACE_HEARTRATE, FACE_FORM, FACE_ZONES,
                           FACE_SPLITS, FACE_PACING, FACE_LAPS, FACE_COUNT };
 
     static constexpr uint8_t kLapPageSize = 3;   ///< rows advanced per L1/L2 press
@@ -56,7 +55,6 @@ private:
     void buildFaceMap();
     void buildFaceOverview();
     void buildFaceHeartRate();
-    void buildFaceVo2();
     void buildFaceForm();
     void buildFaceZones();
     void buildFaceSplits();
@@ -85,11 +83,6 @@ private:
     lv_obj_t* mAvgHr = nullptr;
 
     // VO2max (HybridX Run)
-    lv_obj_t* mVo2Run         = nullptr;
-    lv_obj_t* mVo2RunLabel    = nullptr;
-    lv_obj_t* mVo2RecentLabel = nullptr;
-    lv_obj_t* mVo2Confidence  = nullptr;   ///< steady minutes and the spread (P3)
-    lv_obj_t* mVo2MaxHr       = nullptr;   ///< the max HR used, and where it came from (P3)
 
     // Form (HybridX Run)
     lv_obj_t* mFormCadence = nullptr;

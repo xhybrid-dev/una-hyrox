@@ -202,17 +202,119 @@ What I checked when reading them as a coach:
 - `SessionBuilder` keeps about 1.2 KB of running totals on the stack while it builds. Fine on
   the host; TP2 checks it against the service task's stack, or makes it a member.
 
-## TP2: the app (next)
+## TP2: the app (15 November 2026)
 
-The order (brief section 11 and `REVIEW.md` E1):
-1. Copy `hybridx-run/Software` verbatim, in its own commit.
-2. Rename: folder `HybridXTraining`, name "X Training", development APP_ID `6E050D707D4D2D32`,
-   tags `training-v*`, the simulator's app ID; CI builds it into `watch-apps`.
-3. Strip what stays X Run's: the VO2max history, re-scoring and Trail ingest, the VO2 screens
-   and profile, the bests page, the VO2max glance. Keep the window builder for the Run link
-   (TP4).
-4. The core into `libs.cmake`; the config fields (brief 5.1) in the manifest and a field table;
-   `plan.json` read and written with `SafeFile`.
-5. Today's session built into the service's `mProgram` and started through `startWorkout`'s
-   three calls; the alert modes applied to `ZoneAlerts`; the result recorded at save.
-6. `docs/experiments/sim_plan.sh` (a session end to end in the simulator) and `fit_check.sh`.
+### What was done, in four commits
+
+1. **X Run copied verbatim** (`bbac03d`): `hybridx-run/Software` at `c9b6618`, its icons and
+   manifest. X Run's `Libs/Core` is `Libs/RunCore` (X Training's own core already had the
+   name); the VO2max glance was left out.
+2. **Renamed** (`01cd895`): `Apps/HybridXTraining-CMake`, app folder `HybridXTraining`, "X
+   Training" on the watch, development APP_ID `6E050D707D4D2D32`, `training-v*` tags,
+   `HybridXTrainingSimulator`; `libs.cmake` builds X Training's core with RunCore, App and Link.
+3. **X Run's own parts removed, the plan wired in** (this commit):
+   - **Out of the service:** the VO2max history, its tuning log, re-scoring and window files,
+     the Trail ingest, the public `vo2max.json`, the personal bests and `bests.json`, and the
+     daily resting-HR sensor. **Out of the FIT file:** X Run's `vo2max` and `vo2max_recent`
+     developer fields and its `max_met_data` (the UNA app makes a card of every developer
+     field: X Sauna's finding). **Out of the GUI:** the VO2max main-menu item and the
+     summary's VO2max page. X Run's VO2max and profile screens are still compiled but
+     unreachable; TP3 deletes them with the screen rework. RunCore's files stay for now
+     (`--gc-sections` drops what nothing calls).
+   - **No shared file is written.** The activity link would write X Run's `act_run.json`,
+     which breaks the link's one-writer rule, so `closeActivity()` no longer calls
+     `writeActivityLink()` until X Training has its own slot (TP4). The Streak line is read
+     as before.
+   - **Phone settings:** the 15 fields of brief 5.1 (`AppConfigFields.cpp`,
+     `Resources/app-manifest.json`; the SDK's `validate_app_config.py` accepts both and the
+     patterns). The watch reads the strings again strictly (`TimeText`).
+   - **The plan in the service:** `loadConfig()` reads the settings and names any problem
+     ("Set your 5K in the UNA app", "Choose 3 to 6 run days", ...); `loadPlan()` reads
+     `plan.json` (the family's `SafeFile`) and reconciles it: a different plan, level or race
+     date starts a new plan from today (TP3 will ask first); new run days, a new 5K or half
+     (dated today) and the options carry over. The half is ignored after 183 days.
+     `updateToday()` works out today's session at every GUI start, and `startPlannedSession()`
+     builds it into the service's `mProgram` and starts it with the three calls
+     `startWorkout()` uses. At save, `recordPlannedRun()` logs it done or part done
+     (`judgeSession()`, host-tested: at least half the planned time, so skipping through the
+     steps with the lap button is not a session done).
+   - **Alerts:** a planned session's easy steps only say "too fast", short reps and strides
+     never alert live, and a held-back "too slow" has no "back in" (`zoneAlertAllowed()`).
+     UNA's own workouts from the library alert as before.
+   - **The GUI, minimally (TP3 is the real screens):** the service sends `PLAN_TODAY`
+     (0x20, a fixed-size `PlanTodayInfo`), the model arms today's session as a workout
+     (`kPlanSession`, -2), Start shows it ("Intervals 5 x 3 min"), and the countdown shows
+     its name, what and target. The Workouts list's "Free run" row disarms it. The main
+     screen's title is "TRAINING".
+4. CI: the app in `watch-apps`, its settings declaration checked, X Training's copy of the
+   link library in `check-link-copies.sh`.
+
+### Verified
+
+- **Host tests: 60** (one new: `judgeSession`), green.
+- **Simulator** (`docs/experiments/sim_plan.sh`, with `fit_plan_report.py`): a pretend watch
+  on which today is the first quality day of week 5 of the 10K plan.
+  - The service read the settings and the plan, worked out the paces (easy 5:27-6:08, half
+    4:48, threshold 4:40, 10K 4:34, interval 4:18, repetition 4:03 /km) and today:
+    "Intervals 5 x 3 min, 4:12-4:24 /km, week 5 of 10".
+  - Start showed "Intervals 5 x 3 min"; the countdown its name, "5 x 3 min" and the band;
+    the first step card "WARM UP, 15 min, 5:27-6:08 /km"; the gauge face the live pace
+    against the band and the time left.
+  - Stepped through with R2, the workout completed; saved.
+  - **The FIT file:** the workout "Intervals 5 x 3 min" with its five steps and their
+    targets (warm-up 5:27-6:08, intervals 4:12-4:24 as speed bands, open jogs, the repeat,
+    cool-down 5:27-6:08), twelve laps each linked to its step (warm-up, five intervals and
+    jogs, cool-down) and the session-end lap; a running session; developer fields
+    `batteryLevel`, `battVoltage`, `hr_source`, `hr_optical`, `hr_external`,
+    `distance_estimate` and no VO2max.
+  - `plan.json`: before `judgeSession`, the run was logged done (`[20261115,7,1,...]`); with
+    it, a 72-second skip-through is "too short to count: 72 of 2925 s" and nothing is
+    logged. No file appeared in `SharedData`.
+- **Watch build, local compile check** (Ubuntu's `arm-none-eabi-gcc` with Race's syscall
+  stubs: **not for a watch**): `HybridXTraining_0.0.0-dev.uapp`, 513,736 bytes, no warnings in
+  our code.
+- **Not verified:** anything on a watch; a whole session at real speed (49 minutes); the
+  "done" path with the new rule end to end (the host test covers the rule); imperial units;
+  a GUI started on a day after the service started (it re-works today at every GUI start).
+
+### Found along the way
+
+- A simulator run of the unmodified copy wrote X Run's `vo2max.json` into
+  `Software/SharedData`, and the folder was not git-ignored, so it was briefly committed
+  (amended out before the push). Exactly why the strip had to come before any watch install.
+- The "Workout completed" screen takes the first button press for 5 s, so a script must wait
+  before opening the action menu.
+
+### The gate (TP2): what Jon tests on the watch
+
+The `.uapp` comes from CI once this push's run is green: **Actions → Watch builds → the run
+→ Artifacts → watch-apps → `HybridXTraining_*.uapp`**.
+
+1. **Install:** connect the watch by USB, make the folder `Apps/HybridXTraining/`, copy the
+   `.uapp` into it, eject safely, power-cycle. "X Training" is in the app list.
+2. **Your plan, by USB** (until the app is on the store the phone cannot set it): open the
+   app once, then copy this as `Apps/HybridXTraining/app_config.json`, with your own 5K, and
+   your days (`true` for a day you can run):
+
+   ```
+   {"schema":1,"values":{"plan":1,"fiveK":"22:00","fiveKRecent":true,"halfTime":"",
+   "raceDate":"","level":2,"runMon":false,"runTue":true,"runWed":true,"runThu":false,
+   "runFri":true,"runSat":false,"runSun":true,"longRunDay":7,"easyByHr":false}}
+   ```
+
+   A new plan starts this week if set up Monday to Wednesday, else next Monday, so for a
+   session today pick a race date or days that make today a run day of week 1 (`plan_print`
+   shows which).
+3. **Open the app:** Start should show today's session ("Easy run, strides 40 min", ...) or
+   be a plain Start on a rest day.
+4. **Run it:** Start, the countdown, then the steps with their targets; the easy steps should
+   only ever buzz "too fast".
+5. **Afterwards:** the activity in the UNA app and Strava (the workout's steps with their
+   pace targets, a lap per step); `Apps/HybridXTraining/plan.json` with today logged
+   (`...,1,` for done) if you ran at least half of it. Send me the `.fit` and `plan.json`.
+
+## TP3: the screens (next)
+
+Today, This week, Plan, Paces and New plan; the Saved screen's lines; the short-rep result
+on the step card; "reps by distance" and the other watch settings; the text-fit audit and
+`capture_screens.sh`; X Run's unreachable VO2max screens deleted.

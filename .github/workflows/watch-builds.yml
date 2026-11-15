@@ -104,6 +104,9 @@ jobs:
           # HybridX Workout: gym and HIIT sessions that count in HybridX Streak
           # -- see hybridx-workout/docs/NOTES.md.
           build hybridx-workout/Software/Apps/HybridXWorkout-CMake workout
+          # HybridX Training ("X Training"): X Run's recording plus built-in training
+          # plans -- see hybridx-training/docs/HYBRIDX_TRAINING_BRIEF.md and NOTES.md.
+          build hybridx-training/Software/Apps/HybridXTraining-CMake training
 
       - name: Collect
         run: |
@@ -126,6 +129,7 @@ jobs:
           cp hybridx-ride/Tools/Probe/Output/*.uapp watch-apps/
           cp hybridx-ride/Output/*.uapp watch-apps/
           cp hybridx-workout/Output/*.uapp watch-apps/
+          cp hybridx-training/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -506,6 +510,14 @@ jobs:
           cmake -S hybridx-workout/Tests/Host -B ci-build/workout-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/workout-tests -j"$(nproc)"
           ctest --test-dir ci-build/workout-tests --output-on-failure
+      - name: HybridX Training settings declaration
+        # The manifest's configFields and the app's AppConfig table must agree
+        # (una-sdk Docs/app-config-fields.md 5.1).
+        run: |
+          python3 una-sdk/Utilities/Scripts/app_packer/validate_app_config.py \
+            --check hybridx-training/Resources/app-manifest.json \
+            --check-bounds hybridx-training/Software/Libs/App/Sources/AppConfigFields.cpp
+
       - name: HybridX Training host tests
         # The pure core: paces from a race (Daniels-Gilbert), the plans (generated from Tools/Plans,
         # and plan-data-current fails if the header is stale), day placement, the calendar, the

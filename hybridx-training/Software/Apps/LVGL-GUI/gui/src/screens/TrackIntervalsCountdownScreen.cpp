@@ -51,6 +51,9 @@ bool TrackIntervalsCountdownScreen::isWorkout() const
     }
     const SDK::Workout::Library* lib = mModel.getWorkoutLibrary();
     const int16_t armed = mModel.getArmedWorkout();
+    if (armed == Model::kPlanSession) {
+        return true;   // X Training: today's planned session
+    }
     return lib != nullptr && armed >= 0 && static_cast<size_t>(armed) < lib->size();
 }
 
@@ -60,7 +63,20 @@ void TrackIntervalsCountdownScreen::onShow()
 
     const bool imperial = mModel.isUnitsImperial();
     char buf[64];
-    if (isWorkout()) {
+    if (mModel.getArmedWorkout() == Model::kPlanSession && !mModel.isPendingIntervalsMode()) {
+        // X Training: today's session, what it is and its target.
+        const CustomMessage::PlanTodayInfo& t = mModel.getPlanToday();
+        const lv_font_t* font = Theme::font(Theme::Font::Medium18);
+        snprintf(buf, sizeof(buf), "%s", t.name);
+        WorkoutUi::fitWidth(buf, sizeof(buf), font, kLineW);
+        lv_label_set_text(mReps, buf);
+        snprintf(buf, sizeof(buf), "%s", t.what);
+        WorkoutUi::fitWidth(buf, sizeof(buf), font, kLineW);
+        lv_label_set_text(mRun, buf);
+        snprintf(buf, sizeof(buf), "%s", t.target);
+        WorkoutUi::fitWidth(buf, sizeof(buf), font, kLineW);
+        lv_label_set_text(mRest, buf);
+    } else if (isWorkout()) {
         // The workout's name, totals and steps.
         const SDK::Workout::Library::Entry& e =
             mModel.getWorkoutLibrary()->entry(static_cast<size_t>(mModel.getArmedWorkout()));

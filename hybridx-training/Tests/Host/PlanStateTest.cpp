@@ -141,3 +141,18 @@ TEST(PlanState, RefusesBadValues)
     PlanState s;
     EXPECT_FALSE(s.fromJson(nullptr, 0));
 }
+
+TEST(PlanState, JudgingASavedSession)
+{
+    DayStatus st = DayStatus::Missed;
+    EXPECT_TRUE(judgeSession(true, 3000, 2925, st));
+    EXPECT_EQ(st, DayStatus::Done);
+    EXPECT_TRUE(judgeSession(false, 1463, 2925, st));   // half, not the end
+    EXPECT_EQ(st, DayStatus::PartDone);
+    EXPECT_TRUE(judgeSession(true, 1463, 2925, st));    // the end, and half the time
+    EXPECT_EQ(st, DayStatus::Done);
+    // Skipped through with the lap button: the end, but 96 s of a 49-minute session.
+    EXPECT_FALSE(judgeSession(true, 96, 2925, st));
+    EXPECT_FALSE(judgeSession(false, 1000, 2925, st));
+    EXPECT_FALSE(judgeSession(true, 100, 0, st));
+}

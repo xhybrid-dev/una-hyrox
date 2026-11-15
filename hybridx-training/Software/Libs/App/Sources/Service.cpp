@@ -36,14 +36,14 @@
 
 // HybridX Run
 #include "AppConfigFields.hpp"
+#include "PlanText.hpp"   // X Training
+#include "TimeText.hpp"
+#include "data/PlanData.hpp"
 #include "SafeFile.hpp"
 #include "ActivityLink.hpp"
 #include "StreakNow.hpp"
 #include "TrainingLoad.hpp"
-#include "Vo2TrailIngest.hpp"
 #include "Treadmill.hpp"
-#include "Vo2Rescore.hpp"
-#include "Vo2WindowFile.hpp"
 
 #include "SDK/Calibration/StrideMath.hpp"
 #include "SDK/Workout/StepLabel.hpp"
@@ -71,18 +71,9 @@ static float speedFromTotals(float distanceM, float activeTimeS)
     return (activeTimeS > 0.0f) ? (distanceM / activeTimeS) : 0.0f;
 }
 
-// HybridX Run: where the VO2max history and its public copy live.
-constexpr const char* kVo2File    = "vo2.json";
-constexpr const char* kBestsFile  = "bests.json";   // HybridX Run: personal bests
-constexpr const char* kSharedDir  = "../SharedData/HybridX";
-constexpr const char* kSharedFile = "../SharedData/HybridX/vo2max.json";
-
-// A latched HR or speed reading counts for the VO2max windows only while it is
-// this recent (both sensors report once a second).
-constexpr uint32_t kVo2FreshMs = 2500;
 /// A cadence sample older than this is not shown, recorded or averaged (a stalled sensor
-/// must not leave its last value on the screen). The same limit as the VO2max inputs.
-constexpr uint32_t kFormFreshMs = kVo2FreshMs;
+/// must not leave its last value on the screen). X Run's limit for its VO2max inputs.
+constexpr uint32_t kFormFreshMs = 2500;
 
 } // namespace
 
@@ -108,7 +99,6 @@ Service::Service(SDK::Kernel &kernel)
         , mSensorGrade(SDK::Sensor::Type::GRADE, skSamplePeriod, skSampleLatency)
         // A daily figure: once a minute is plenty. With the default period 0
         // the simulator's sensor never reported (its timer needs a period).
-        , mSensorHrMetrics(SDK::Sensor::Type::HEART_RATE_METRICS_DAILY, 60000)
         , mTimeTracker(kernel.sys)
         , mAltitudeFilter(0.8f)
         , mAltitudeCounter()
@@ -138,7 +128,6 @@ Service::Service(SDK::Kernel &kernel)
 
 Service::~Service()
 {
-    closeVo2Log(false);   // HybridX Run: keep what a stopped app had logged
     disconnect();   // Cleanup resources
 }
 
@@ -159,9 +148,8 @@ void Service::run()
         LOG_WARNING("Failed to load activity summary\n");
     }
 
-    // HybridX Run: the athlete's numbers and the VO2max history, and the personal bests.
-    loadVo2();
-    loadBests();
+    // X Training: the phone's settings (app_config.json).
+    loadConfig();
 
     // Recover any activity a previous boot left unfinished (power loss /
     // crash mid-recording), before any new track can start.
@@ -213,10 +201,6 @@ void Service::run()
                 case CustomMessage::SETTINGS_SAVE:  {
                     LOG_DEBUG("SETTINGS_SAVE\n");
                     handleEvent(*static_cast<CustomMessage::SettingsSave*>(msg));
-                } break;
-
-                case CustomMessage::VO2_PROFILE_SAVE:  {   // HybridX Run
-                    handleEvent(*static_cast<CustomMessage::Vo2ProfileSave*>(msg));
                 } break;
 
                 case CustomMessage::TRACK_START:  {
@@ -423,8 +407,6 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
             mGpsSpeedValid    = parser.isSpeedValid();
             mGpsDeadReckoning = parser.isDeadReckoning();
             mGpsSpeedFresh    = true;   // consumed by the speed filter each tick
-            mSpeedLastMs      = mKernel.sys.getTimeMs();   // HybridX Run
-            mSpeedSeen        = true;
             if (mGpsSpeedValid && mGpsSpeedMs > mGpsSpeedPeakMs &&
                 mGpsSpeedMs <= mSpeedCounter.getMaxValid()) {
                 mGpsSpeedPeakMs = mGpsSpeedMs;   // for the maxima; see processTrack()
@@ -437,8 +419,6 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
         if (parser.isDataValid()) {
             mGradeData.gradePct   = parser.getGradePct();
             mGradeData.gradeValid = parser.isGradeValid();
-            mGradeLastMs          = mKernel.sys.getTimeMs();   // HybridX Run
-            mGradeSeen            = true;
             LOG_DEBUG("Grade:    %.2f %% (valid %u)\n",
                       mGradeData.gradePct, mGradeData.gradeValid);
         }
@@ -469,31 +449,9 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
             mHrSource     = static_cast<uint8_t>(parser.getSource());
             mHrOpticalBpm = static_cast<uint8_t>(parser.getOpticalBpm());
             mHrExternalBpm= static_cast<uint8_t>(parser.getExternalBpm());
-            mHrLastMs     = mKernel.sys.getTimeMs();   // HybridX Run
-            mHrSeen       = true;
             LOG_DEBUG("HR %.1f trust %.1f src %u (opt %u ext %u)\n",
                       parser.getBpm(), parser.getTrustLevel(), mHrSource,
                       mHrOpticalBpm, mHrExternalBpm);
-        }
-    } else if (mSensorHrMetrics.matchesDriver(handle)) {
-        // HybridX Run: the watch's daily resting HR, for the VO2max estimate.
-        SDK::SensorDataParser::HeartRateMetrics parser(data[0]);
-        if (parser.isDataValid()) {
-            // Only a plausible figure replaces the last one: the daily value
-            // reads 0 after midnight until today's exists, and a run that
-            // crosses midnight must not lose it. Kept in vo2.json too, for a
-            // run that ends before the sensor first reports.
-            const float   rhr = parser.getRhr();
-            const uint8_t bpm = (rhr > 0.0f && rhr < 255.0f) ? static_cast<uint8_t>(rhr + 0.5f) : 0;
-            if (RunVo2::plausibleRestHr(bpm)) {
-                if (bpm != mVo2Input.watchRestHr) {
-                    LOG_INFO("Resting HR from the watch: %u\n", bpm);
-                }
-                mVo2Input.watchRestHr = bpm;
-                mVo2History.setWatchRestHr(bpm);
-            } else {
-                LOG_DEBUG("Resting HR from the watch ignored: %u\n", bpm);
-            }
         }
     } else if (mSensorBatteryLevel.matchesDriver(handle)) {
         SDK::SensorDataParser::BatteryLevel parser(data[0]);
@@ -574,7 +532,6 @@ void Service::onStartGUI()
     }
 
     mSensorWristMotion.connect();
-    mSensorHrMetrics.connect();   // HybridX Run: resting HR
 
     sendInitialInfoToGui();
     scanWorkouts();
@@ -594,7 +551,6 @@ void Service::onStopGUI()
 
     requestAccessoryRelease();
     mSensorWristMotion.disconnect();
-    mSensorHrMetrics.disconnect();
 }
 
 void Service::handleEvent(const CustomMessage::TrackStart& event)
@@ -909,8 +865,10 @@ void Service::sendInitialInfoToGui()
     SDK::send_msg<CustomMessage::SettingsUpd>(mKernel, mSettings, mIsImperial, mTimeFormat12h, hrThresholds, CustomMessage::kHrThresholdsCount);
     SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
     SDK::send_msg<CustomMessage::Battery>(mKernel, static_cast<uint8_t>(mBatterySoc.get()));
-    sendVo2Info();
-    sendBests(0);
+    // X Training: today's session, worked out again each time the GUI starts (the date may
+    // have changed since the service did).
+    updateToday();
+    sendPlanToday();
 }
 
 void Service::startTrack(std::time_t utc)
@@ -950,7 +908,6 @@ void Service::startTrack(std::time_t utc)
         mRunStats->setTreadmill(mTreadmill);
     }
     sendRunStats();   // a new run: the page starts from nothing
-    sendBests(0);     // HybridX Run: and no best is this run's yet
 
     // Outdoor stride calibrator: reset latched inputs and load the stored LUT
     // for this session.
@@ -986,21 +943,6 @@ void Service::startTrack(std::time_t utc)
     mLapNotEmpty = false;
     mLapCarryMs = 0;
 
-    // HybridX Run: a fresh VO2max run; the last run's figures leave the screens.
-    mVo2Run.reset();
-    mVo2Info.hasRun = false;
-    mVo2Info.runTreadmill = false;
-    sendVo2Info();
-    if (!mTreadmill) {
-        openVo2Log(utc);   // no tuning log for a treadmill run: it has no VO2max
-        if (!mRunWin) {
-            mRunWin.reset(new (std::nothrow) RunVo2::WindowRecord[RunVo2::kWindowFileMaxWindows]);
-            if (!mRunWin) {
-                LOG_WARNING("No memory to keep this run's windows: it cannot be re-scored\n");
-            }
-        }
-    }
-    mRunWinCount = 0;
 
     // Intervals mode initialization
     mIntervalsCompleted = false;
@@ -1014,7 +956,10 @@ void Service::startTrack(std::time_t utc)
     mWorkoutReachedEnd = false;
     mWorkoutDate       = 0;
     mWorkoutFile[0]    = '\0';
-    if (!mIntervalsMode && mWorkoutRequested >= 0) {
+    mPlannedRun        = false;   // X Training: set by startPlannedSession()
+    if (!mIntervalsMode && mWorkoutRequested == CustomMessage::TrackStart::kPlanSession) {
+        mWorkoutMode = startPlannedSession();
+    } else if (!mIntervalsMode && mWorkoutRequested >= 0) {
         mWorkoutMode = startWorkout(static_cast<uint16_t>(mWorkoutRequested));
     }
     mTrackData.workoutMode = mWorkoutMode;
@@ -1162,9 +1107,6 @@ void Service::processTrack()
 
     // HybridX Run: cadence and step length for this tick (screen, record, averages).
     updateForm();
-
-    // HybridX Run: one second of the VO2max windows (a pause breaks a window).
-    feedVo2();
 
     // Intervals state machine - only while actively running (not paused)
     if (mIntervalsMode && mTrackState == Track::State::ACTIVE) {
@@ -1459,30 +1401,14 @@ void Service::stopTrack(bool discard)
                 mTreadSteps[i] = hist[i];
             }
             mAwaitingDistance = true;
-            mVo2Info.hasRun       = true;
-            mVo2Info.runTreadmill = true;
-            mVo2Info.runX10       = 0;
-            mVo2Info.windowsUsed  = 0;
-            mVo2Info.maxHr        = 0;   // nothing about this run's max is shown
-            sendVo2Info();
             SDK::send_msg<CustomMessage::TreadmillAsk>(mKernel, mTreadEstimateM);
             LOG_INFO("Treadmill run: waiting for the distance (estimate %lu m)\n",
                      static_cast<unsigned long>(mTreadEstimateM + 0.5f));
         } else {
-            // HybridX Run: this run's VO2max, into the history, onto the summary
-            // and into the FIT file (NOTES, R4).
-            finishVo2(endUtc);
-            fitTrack.vo2maxX10       = mVo2Info.runX10;
-            fitTrack.vo2maxRecentX10 = mVo2Info.rollingX10;
-            // HybridX Run: personal bests, from a GPS run only (a treadmill's distance is an
-            // estimate). Offered before the file closes, as the splits are this run's whatever
-            // the file does; mRunStats still holds them here.
-            updateBests(static_cast<uint32_t>(mStartUtc));
             closeActivity(fitTrack);
         }
     } else {
         mActivityWriter.discard();
-        closeVo2Log(true);   // HybridX Run: a discarded run's log goes too
     }
 
     mTrackState  = Track::State::INACTIVE;
@@ -1561,7 +1487,12 @@ bool Service::closeActivity(const ActivityWriter::TrackData& track)
         return false;
     }
     notifyNewActivity();
-    writeActivityLink(track);   // only for a run whose .fit is safely saved
+    if (mPlannedRun) {
+        recordPlannedRun(track);   // X Training: only for a session whose .fit is safely saved
+    }
+    // X Training: no activity link yet. Its own slot (act_training.json) needs a change to
+    // hybridx-link and a Streak release (TP4, REVIEW.md E3); writing X Run's act_run.json
+    // would break the link's one-writer rule. writeActivityLink() stays for TP4.
     sendStreakLine();
     // A scheduled workout counts as done only once its activity is
     // saved, and only if completion was reached. started() again
@@ -1615,61 +1546,6 @@ void Service::finishTreadmill(float metres)
              static_cast<unsigned long>(t.distanceM + 0.5f), static_cast<unsigned long>(mTreadEstimateM + 0.5f),
              static_cast<unsigned long>(metres > 0.0f ? metres + 0.5f : 0.0f),
              res.dActualAccepted ? 1u : 0u, res.deltaLutUpdated ? 1u : 0u);
-}
-
-// -- HybridX Run: personal bests (docs/NOTES.md "Personal bests") ---------------------------
-
-void Service::loadBests()
-{
-    char buf[RunVo2::Bests::kMaxJsonBytes];
-    size_t len = RunVo2::SafeFile::read(mKernel.fs, kBestsFile, false, buf, sizeof(buf));
-    if (len == 0 || !mBests.fromJson(buf, len)) {
-        len = RunVo2::SafeFile::read(mKernel.fs, kBestsFile, true, buf, sizeof(buf));
-        if (len == 0 || !mBests.fromJson(buf, len)) {
-            mBests.clear();
-            LOG_INFO("No personal bests yet\n");
-        } else {
-            LOG_WARNING("bests.json unreadable: using the backup\n");
-        }
-    }
-}
-
-void Service::updateBests(uint32_t runUtc)
-{
-    if (!mRunStats) {
-        return;
-    }
-    const RunVo2::RunStatsResult r = mRunStats->result();
-    const uint8_t improved = mBests.update(r.bestMs, runUtc);
-    if (improved != 0) {
-        char buf[RunVo2::Bests::kMaxJsonBytes];
-        const size_t len = mBests.toJson(buf, sizeof(buf));
-        if (len == 0 || !RunVo2::SafeFile::write(mKernel.fs, kBestsFile, buf, len)) {
-            LOG_WARNING("Could not save bests.json\n");
-        }
-    }
-    // Integers only. Read back by the simulator checks.
-    LOG_INFO("Personal bests: %lu/%lu/%lu ms, new %u\n", static_cast<unsigned long>(mBests.at(0).ms),
-             static_cast<unsigned long>(mBests.at(1).ms), static_cast<unsigned long>(mBests.at(2).ms),
-             static_cast<unsigned>(improved));
-    sendBests(improved);
-}
-
-void Service::sendBests(uint8_t newMask)
-{
-    if (auto msg = SDK::make_msg<CustomMessage::BestsUpd>(mKernel)) {
-        for (uint8_t i = 0; i < RunVo2::Bests::kCount && i < 3; ++i) {
-            msg->ms[i]  = mBests.at(i).ms;
-            msg->utc[i] = mBests.at(i).utc;
-            if (msg->ms[i] != 0) {
-                const std::tm t = mTimeTracker.getLocalTime(static_cast<std::time_t>(msg->utc[i]));
-                msg->day[i]   = static_cast<uint8_t>(t.tm_mday);
-                msg->month[i] = static_cast<uint8_t>(t.tm_mon + 1);
-            }
-        }
-        msg->newMask = newMask;
-        msg.send();
-    }
 }
 
 void Service::pauseTrack(bool pause)
@@ -2116,6 +1992,7 @@ void Service::startWorkoutStep()
 {
     const SDK::Workout::Step& s = mProgram.steps[mEngine.status().step];
     mZoneAlerts.stepStarted();
+    mOutAlerted = false;   // X Training: see zoneAlertAllowed()
     mAlertRepeat = nullptr;   // the last step's alert does not repeat into this one
     mBandLow  = 0.0f;
     mBandHigh = 0.0f;
@@ -2172,7 +2049,8 @@ void Service::processWorkout()
 
     const auto alert = mZoneAlerts.tick(targetZone());
     const bool beep  = mLeadIn.tick(st);
-    if (alert != SDK::Workout::ZoneAlerts::Alert::None) {
+    // X Training: a planned session's easy steps say only "too fast" (PLANS.md 2.5).
+    if (alert != SDK::Workout::ZoneAlerts::Alert::None && zoneAlertAllowed(alert)) {
         playZoneAlert(alert);
     } else if (beep) {
         playBuzzerPattern(skLeadInBeepMs);
@@ -2400,56 +2278,7 @@ void Service::playZoneAlert(SDK::Workout::ZoneAlerts::Alert alert)
     }
 }
 
-// -- HybridX Run: the VO2max estimate (docs/NOTES.md) ----------------------------------
-
-void Service::loadVo2()
-{
-    // Read once at start, as the SDK intends (Docs/app-config-fields.md 7.2):
-    // a change on the phone applies the next time the app opens. On the heap,
-    // once, as HybridX Race and Streak do: not in the 1 Hz path.
-    // Kept (R5), so a change made on the watch is written back to the same
-    // file the phone writes, as HybridX Race does.
-    mConfig.reset(new SDK::AppConfig(mKernel, RunConfig::kFileName, RunConfig::kFields, RunConfig::kFieldCount));
-    mVo2Input.birthYear     = static_cast<uint16_t>(mConfig->getInt(RunConfig::kBirthYear));
-    mVo2Input.birthMonth    = static_cast<uint8_t>(mConfig->getInt(RunConfig::kBirthMonth));
-    mVo2Input.enteredMaxHr  = static_cast<uint8_t>(mConfig->getInt(RunConfig::kMaxHr));
-    mVo2Input.enteredRestHr = static_cast<uint8_t>(mConfig->getInt(RunConfig::kRestingHr));
-    mVo2TuningLog           = mConfig->getBool(RunConfig::kTuningLog);
-    LOG_INFO("VO2 profile: born %u/%u, max HR %u, resting HR %u (0 = not set), tuning log %u\n",
-             mVo2Input.birthMonth, mVo2Input.birthYear, mVo2Input.enteredMaxHr, mVo2Input.enteredRestHr,
-             mVo2TuningLog);
-
-    char buf[RunVo2::Vo2History::kMaxJsonBytes];
-    size_t len = RunVo2::SafeFile::read(mKernel.fs, kVo2File, false, buf, sizeof(buf));
-    if (len == 0 || !mVo2History.fromJson(buf, len)) {
-        len = RunVo2::SafeFile::read(mKernel.fs, kVo2File, true, buf, sizeof(buf));
-        if (len == 0 || !mVo2History.fromJson(buf, len)) {
-            mVo2History.clear();
-            LOG_INFO("No VO2max history yet\n");
-        } else {
-            LOG_WARNING("vo2.json unreadable: using the backup\n");
-        }
-    }
-    mVo2Input.autoMaxHr   = mVo2History.autoMaxHr();
-    mVo2Input.watchRestHr = mVo2History.watchRestHr();   // until the sensor reports
-
-    // Runs HybridX Trail has recorded since this app last opened count too.
-    ingestTrailRuns();
-
-    // The kept runs, scored again if the athlete's numbers or the method changed since.
-    rescoreIfNeeded();
-
-    // Also at start (R6), so the glance gets the version 2 file (with the
-    // trend) after an update, before the next run is saved.
-    writeSharedVo2();
-
-    mVo2Info            = CustomMessage::Vo2Info{};
-    mVo2Info.rollingX10 = mVo2History.rollingX10();
-    mVo2Info.runs       = mVo2History.size();
-    LOG_INFO("VO2max history: %u runs, shown %u (x10), auto max HR %u from %u runs, resting HR %u\n",
-             mVo2Info.runs, mVo2Info.rollingX10, mVo2Input.autoMaxHr, mVo2History.runMaxCount(),
-             mVo2Input.watchRestHr);
-}
+// -- X Run's run statistics, form and activity link (kept) ------------------------------
 
 void Service::sendRunStats()
 {
@@ -2517,152 +2346,6 @@ void Service::updateForm()
     mTrackData.stepLengthAvgMm = mForm.stepAvgMm();
 }
 
-void Service::feedVo2()
-{
-    const uint32_t nowMs = mKernel.sys.getTimeMs();
-    // Unsigned deltas: the ms clock wraps.
-    const bool hrFresh    = mHrSeen && static_cast<uint32_t>(nowMs - mHrLastMs) <= kVo2FreshMs;
-    const bool speedFresh = mSpeedSeen && static_cast<uint32_t>(nowMs - mSpeedLastMs) <= kVo2FreshMs;
-    const bool gradeFresh = mGradeSeen && static_cast<uint32_t>(nowMs - mGradeLastMs) <= kVo2FreshMs;
-
-    const float hr    = mHrCounter.getCurrent();
-    const float trust = mTrackData.hrTrustLevel;
-
-    RunVo2::Sample s;
-    s.active        = (mTrackState == Track::State::ACTIVE);
-    // The corrected speed, not the receiver's raw one: the AG3335's speed over ground reads
-    // 0.7% (open road) to 5.8% (tree cover) low against the position track, and the ACSM cost is
-    // proportional to speed, so the raw figure biased VO2max low by about the same amount.
-    // getInstantSpeed() is the latest sample times the filter's scale, at the same 1 Hz as the
-    // raw feed was; hasCurrentSample() is false on a tick without a current fix. The filter was
-    // ticked earlier in processTrack(). (R6b)
-    s.speedMs       = mSpeedFilter.getInstantSpeed();
-    s.speedValid    = mSpeedFilter.hasCurrentSample() && speedFresh;
-    s.speedScale    = mSpeedFilter.getScale();
-    s.deadReckoning = mGpsDeadReckoning;
-    s.gradePct      = mGradeData.gradePct;
-    s.gradeValid    = mGradeData.gradeValid && gradeFresh;   // stale: taken as level
-    s.hrBpm         = (hrFresh && hr > 0.0f && hr < 255.0f) ? static_cast<uint8_t>(hr + 0.5f) : 0;
-    s.hrTrust       = trust;   // the raw value: the core applies RunLVGL's 1-3 test
-    if (mTreadmill) {
-        // A treadmill run counts towards the detail page only (zones, splits, halves): its
-        // speed is worked out from cadence and its incline is unknown, so it has no VO2max
-        // (Jon, 27 October 2026; NOTES, "Treadmill").
-        s.speedMs       = mTreadEstimator.speedMps();
-        s.speedValid    = mTreadEstimator.speedValid();
-        s.speedScale    = 1.0f;
-        s.deadReckoning = false;
-        s.gradeValid    = false;
-        if (mRunStats) {
-            mRunStats->addSecond(s, mDistanceCounter.getValueActive());
-        }
-        return;
-    }
-    mVo2Run.addSecond(s);
-    if (mRunStats) {
-        mRunStats->addSecond(s, mDistanceCounter.getValueActive());   // HybridX Run: the detail page
-    }
-
-    // The tuning log: one row per closed window (about once a minute).
-    RunVo2::WindowLog w;
-    if (mVo2Run.popWindowLog(w)) {
-        // Every window as built, kept for this run's Runs/ file (re-scoring): the first two hours.
-        if (mRunWin && mRunWinCount < RunVo2::kWindowFileMaxWindows) {
-            mRunWin[mRunWinCount++] = mVo2Run.lastWindow();
-        }
-        if (mVo2LogFile) {
-            writeVo2Log(RunVo2::Log::windowLine(w, mVo2LogLine, sizeof(mVo2LogLine)));
-        }
-    }
-}
-
-void Service::finishVo2(std::time_t endUtc)
-{
-    // This run's sustained max joins the last runs'; the auto max is the
-    // second-highest of them (Vo2Config kAutoMaxConfirmRuns), so one artefact
-    // cannot raise it. Recorded even when a max HR is entered, so clearing
-    // that later finds candidates; used only when none is entered.
-    mVo2History.addRunMax(mVo2Run.sustainedMaxHr());
-    mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
-
-    const RunVo2::Profile   profile = RunVo2::resolveProfile(mVo2Input, endUtc);
-    const RunVo2::RunResult result  = mVo2Run.estimate(profile);
-    const RunVo2::WindowCounts& c   = mVo2Run.counts();
-    LOG_INFO("VO2 windows: %u kept (%u after a change of pace), %u warm-up, %u gaps, %u unsteady, %u grade, "
-             "%u overflow, %u lagged\n",
-             c.accepted, c.afterChange, c.warmUp, c.gaps, c.unsteady, c.grade, c.overflow, c.lagged);
-    LOG_INFO("VO2 run: status %u (profile %u), %u (x10) from %u windows (%u too easy, %u above max, %u implausible); "
-             "max HR %u (source %u), rest %u, run max %u\n",
-             static_cast<unsigned>(result.status), static_cast<unsigned>(result.profileStatus),
-             result.vo2x10, result.windowsUsed, result.tooEasy, result.aboveMax, result.implausible,
-             profile.maxHr, static_cast<unsigned>(profile.maxSource), profile.restHr,
-             mVo2Run.sustainedMaxHr());
-
-    {
-        // The run's average pace as if level (L3 shows it; for now the log has it).
-        const float gap = mVo2Run.avgGradeAdjustedSpeedMs();
-        LOG_INFO("Average grade-adjusted pace: %u s/km over %lu s moving\n",
-                 gap > 0.0f ? static_cast<unsigned>(1000.0f / gap + 0.5f) : 0u,
-                 static_cast<unsigned long>(mVo2Run.movingSec()));
-    }
-
-    if (result.status == RunVo2::RunStatus::Ok) {
-        uint32_t before[RunVo2::Config::kHistoryRuns];
-        const uint8_t n = historyUtcs(before);
-        mVo2History.add(RunVo2::RunRecord{static_cast<uint32_t>(endUtc), result.vo2x10, result.windowsUsed});
-        // Its windows, so it can be scored again (re-scoring); the run that left the history goes.
-        if (mRunWin && mRunWinCount > 0) {
-            std::unique_ptr<char[]> buf(new (std::nothrow) char[RunVo2::kWindowFileBytes]);
-            const size_t len = buf ? RunVo2::writeWindowFile(buf.get(), RunVo2::kWindowFileBytes,
-                                                              static_cast<uint32_t>(endUtc),
-                                                              mVo2Run.sustainedMaxHr(), mRunWin.get(), mRunWinCount)
-                                   : 0;
-            writeRunFile(static_cast<uint32_t>(endUtc), buf.get(), len);
-        }
-        pruneRunFiles(before, n);
-    }
-    LOG_INFO("Run windows collected for re-scoring: %u (kept with the run only if it has a figure)\n",
-             static_cast<unsigned>(mRunWinCount));
-    mRunWin.reset();   // the 3 KB goes back until the next GPS run
-    mRunWinCount = 0;
-    // P3, measured first: what the guards and the age limit would give. Nothing below uses them.
-    const uint16_t shownWithin = mVo2History.rollingX10Within(static_cast<uint32_t>(endUtc));
-    LOG_INFO("VO2 what-if: without lag %u, halves %u/%u, spread %u (x10); shown %u, %u-day limit %u\n",
-             result.withoutLagX10, result.firstHalfX10, result.secondHalfX10, result.spreadX10,
-             mVo2History.rollingX10(), static_cast<unsigned>(RunVo2::Config::kMaxRunAgeDays), shownWithin);
-    if (mVo2LogFile) {
-        writeVo2Log(RunVo2::Log::resultLine(result, profile, mVo2Run.sustainedMaxHr(),
-                                            mVo2LogLine, sizeof(mVo2LogLine)));
-        writeVo2Log(RunVo2::Log::whatIfLine(result, mVo2History.rollingX10(), shownWithin,
-                                            mVo2LogLine, sizeof(mVo2LogLine)));
-        closeVo2Log(false);
-    }
-
-    saveVo2Files();
-
-    mVo2Info.rollingX10    = mVo2History.rollingX10();
-    mVo2Info.runs          = mVo2History.size();
-    mVo2Info.hasRun        = true;
-    mVo2Info.runStatus     = static_cast<uint8_t>(result.status);
-    mVo2Info.profileStatus = static_cast<uint8_t>(result.profileStatus);
-    mVo2Info.runX10        = result.status == RunVo2::RunStatus::Ok ? result.vo2x10 : 0;
-    mVo2Info.windowsUsed   = result.windowsUsed;
-    mVo2Info.spreadX10     = result.status == RunVo2::RunStatus::Ok ? result.spreadX10 : 0;
-    mVo2Info.maxHr         = profile.maxHr;
-    mVo2Info.maxSource     = static_cast<uint8_t>(profile.maxSource);
-    mVo2Info.restHr        = profile.restHr;
-    sendVo2Info();
-}
-
-void Service::writeSharedVo2()
-{
-    char buf[RunVo2::Vo2History::kMaxSharedJsonBytes];
-    const size_t len = mVo2History.toSharedJson(buf, sizeof(buf));
-    if (len == 0 || !mKernel.fs.mkdir(kSharedDir)
-        || !RunVo2::SafeFile::write(mKernel.fs, kSharedFile, buf, len)) {
-        LOG_WARNING("Could not save the public vo2max.json\n");
-    }
-}
 
 void Service::writeActivityLink(const ActivityWriter::TrackData& track)
 {
@@ -2706,338 +2389,355 @@ void Service::writeActivityLink(const ActivityWriter::TrackData& track)
     }
 }
 
-void Service::saveVo2Files()
-{
-    char buf[RunVo2::Vo2History::kMaxJsonBytes];
-    const size_t len = mVo2History.toJson(buf, sizeof(buf));
-    if (len == 0 || !RunVo2::SafeFile::write(mKernel.fs, kVo2File, buf, len)) {
-        LOG_ERROR("Could not save vo2.json\n");
-    }
-    writeSharedVo2();
-}
+// -- X Training: the plan (docs/HYBRIDX_TRAINING_BRIEF.md sections 5, 7 and 9) ------------
 
 namespace
 {
 
-/// One of Trail's files: the primary, else its backup, whichever has a header
-/// that reads. Returns the length, or 0.
-size_t readTrailSlot(SDK::Interface::IFileSystem& fs, uint8_t slot, char* buf, size_t cap,
-                     RunVo2::WindowFileInfo& info)
+constexpr const char* kPlanFile = "plan.json";
+/// A half entered longer ago than this is not used for paces (PLANS.md 2.4).
+constexpr int32_t kHalfMaxAgeDays = 183;
+
+void copyText(char* dst, size_t cap, const char* src)
 {
-    for (int backup = 0; backup < 2; ++backup) {
-        const size_t len = RunVo2::SafeFile::read(fs, RunVo2::kWindowFilePaths[slot], backup != 0, buf, cap);
-        if (len > 0) {
-            RunVo2::WindowFileReader reader(buf, len);
-            if (reader.open(info)) {
-                return len;
-            }
-        }
+    std::snprintf(dst, cap, "%s", src != nullptr ? src : "");
+}
+
+/// "4:12-4:24 /km" (or per mile) for a pace band in s/km.
+void paceBand(char* buf, size_t cap, uint16_t pace, uint16_t pm, bool imperial)
+{
+    uint32_t fast = pace > pm ? static_cast<uint32_t>(pace - pm) : pace;
+    uint32_t slow = static_cast<uint32_t>(pace) + pm;
+    if (imperial) {
+        fast = (fast * 1609u + 500u) / 1000u;
+        slow = (slow * 1609u + 500u) / 1000u;
     }
-    info = RunVo2::WindowFileInfo{};
-    return 0;
+    std::snprintf(buf, cap, "%u:%02u-%u:%02u %s", static_cast<unsigned>(fast / 60), static_cast<unsigned>(fast % 60),
+                  static_cast<unsigned>(slow / 60), static_cast<unsigned>(slow % 60), imperial ? "/mi" : "/km");
 }
 
 }  // namespace
 
-void Service::ingestTrailRuns()
+void Service::loadConfig()
 {
-    // Each run Trail left (newest three) above the history's Trail mark, oldest
-    // first: its windows are judged by this app's rules and profile, exactly as a
-    // run recorded here, and the run joins the history in time order. Once, at
-    // start: the apps never run together. A temporary 8 KB buffer, not a stack
-    // array (10 KB stack).
-    std::unique_ptr<char[]> buf(new (std::nothrow) char[RunVo2::kWindowFileBytes]);
-    if (!buf) {
-        LOG_WARNING("No memory to read Trail's runs\n");
-        return;
-    }
-
-    uint32_t ids[RunVo2::kWindowFileSlots] = {};
-    for (uint8_t i = 0; i < RunVo2::kWindowFileSlots; ++i) {
-        RunVo2::WindowFileInfo info;
-        if (readTrailSlot(mKernel.fs, i, buf.get(), RunVo2::kWindowFileBytes, info) > 0) {
-            ids[i] = info.runId;
+    // Read once at start, as the SDK intends (Docs/app-config-fields.md 7.2): a change on the
+    // phone applies the next time the app opens. On the heap, once; kept for write-back.
+    using namespace XTraining;
+    mConfig.reset(new SDK::AppConfig(mKernel, TrainingConfig::kFileName, TrainingConfig::kFields,
+                                     TrainingConfig::kFieldCount));
+    PlanSetup& p = mPhoneSetup;
+    p = PlanSetup{};
+    p.plan  = static_cast<PlanId>(mConfig->getInt(TrainingConfig::kPlan));
+    p.level = static_cast<uint8_t>(mConfig->getInt(TrainingConfig::kLevel));
+    p.days  = 0;
+    for (uint8_t d = 0; d < 7; ++d) {
+        if (mConfig->getBool(TrainingConfig::kRunDay[d])) {
+            p.days = static_cast<DayMask>(p.days | (1u << d));
         }
     }
+    p.longDay     = static_cast<uint8_t>(mConfig->getInt(TrainingConfig::kLongRunDay) - 1);
+    p.easyByHr    = mConfig->getBool(TrainingConfig::kEasyByHr);
+    p.fiveKRecent = mConfig->getBool(TrainingConfig::kFiveKRecent);
 
-    const std::time_t now = std::time(nullptr);
+    // The strings are read strictly here: the phone's patterns are not checked on the watch.
+    char fiveK[TrainingConfig::kFiveKBytes] = {};
+    char half[TrainingConfig::kHalfBytes]   = {};
+    char race[TrainingConfig::kDateBytes]   = {};
+    mConfig->getString(TrainingConfig::kFiveK, fiveK, sizeof(fiveK));
+    mConfig->getString(TrainingConfig::kHalfTime, half, sizeof(half));
+    mConfig->getString(TrainingConfig::kRaceDate, race, sizeof(race));
+    p.fiveKSec = TimeText::parseMinSec(fiveK);
+    p.halfSec  = TimeText::parseHms(half);
+    p.raceDate = TimeText::parseDate(race);
+    if (half[0] != '\0' && (p.halfSec < PaceConfig::kMinHalfSec || p.halfSec > PaceConfig::kMaxHalfSec)) {
+        LOG_WARNING("Half marathon time '%s' not used: h:mm:ss, 0:55:00 to 3:59:59\n", half);
+        p.halfSec = 0;
+    }
+
+    mSetupProblem = nullptr;
+    if (p.plan != PlanId::None) {
+        if (PlanData::find(p.plan) == nullptr) {
+            mSetupProblem = "Choose a plan in the UNA app";
+        } else if (p.fiveKSec < PaceConfig::kMin5kSec || p.fiveKSec > PaceConfig::kMax5kSec) {
+            mSetupProblem = "Set your 5K in the UNA app";
+        } else if (race[0] != '\0' && p.raceDate == 0) {
+            mSetupProblem = "Check the race date";
+        } else if (!WeekLayout::valid(p.days, p.longDay)) {
+            mSetupProblem = "Choose 3 to 6 run days";
+        }
+    }
+    LOG_INFO("Plan settings: plan %u, level %u, days 0x%02x, long day %u, 5K %lu s (%s), half %lu s, race %lu, "
+             "easy by HR %u: %s\n",
+             static_cast<unsigned>(p.plan), static_cast<unsigned>(p.level), static_cast<unsigned>(p.days),
+             static_cast<unsigned>(p.longDay), static_cast<unsigned long>(p.fiveKSec), p.fiveKRecent ? "recent" : "old",
+             static_cast<unsigned long>(p.halfSec), static_cast<unsigned long>(p.raceDate),
+             static_cast<unsigned>(p.easyByHr), mSetupProblem != nullptr ? mSetupProblem : "ok");
+    loadPlan();
+}
+
+void Service::loadPlan()
+{
+    using namespace XTraining;
+    // The file's buffer on the heap, not the 10 KB stack; freed at the end.
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[PlanState::kMaxJsonBytes]);
+    PlanState stored;
+    bool have = false;
+    for (int backup = 0; buf && backup < 2 && !have; ++backup) {
+        const size_t len = RunVo2::SafeFile::read(mKernel.fs, kPlanFile, backup != 0, buf.get(), PlanState::kMaxJsonBytes);
+        have = len > 0 && stored.fromJson(buf.get(), len);
+        if (have && backup != 0) {
+            LOG_WARNING("plan.json unreadable: using the backup\n");
+        }
+    }
+    buf.reset();
+    mPlan = have ? stored : PlanState{};
+
+    const Ymd today = localDate();
+    const PlanSetup& want = mPhoneSetup;
     bool changed = false;
-    for (uint8_t step = 0; step < RunVo2::kWindowFileSlots; ++step) {
-        const int slot = RunVo2::nextWindowFileSlot(ids, RunVo2::kWindowFileSlots, mVo2History.trailMarkUtc());
-        if (slot < 0) {
-            break;
+    if (want.plan == PlanId::None) {
+        if (mPlan.setup.plan != PlanId::None) {
+            LOG_INFO("Plan ended: none chosen in the settings\n");
+            mPlan.clear();
+            changed = true;
         }
-        ids[slot] = 0;
-
-        // Without a profile there is nothing to score against: leave the run
-        // for another day (the mark is not moved).
-        if (RunVo2::resolveProfile(mVo2Input, now).status != RunVo2::ProfileStatus::Ok) {
-            LOG_INFO("Trail run waiting: no VO2 profile yet\n");
-            break;
-        }
-
-        RunVo2::WindowFileInfo info;
-        const size_t len = readTrailSlot(mKernel.fs, static_cast<uint8_t>(slot), buf.get(),
-                                         RunVo2::kWindowFileBytes, info);
-        if (len == 0) {
-            continue;
-        }
-        const RunVo2::IngestStatus st =
-            RunVo2::judgeWindowFile(buf.get(), len, mVo2History.trailMarkUtc(), mVo2Run, info);
-        if (st == RunVo2::IngestStatus::NotAFile || st == RunVo2::IngestStatus::AlreadyCounted) {
-            continue;
-        }
-        mVo2History.setTrailMarkUtc(info.runId);   // counted, or corrupt and never retried
-        changed = true;
-        if (st == RunVo2::IngestStatus::Corrupt) {
-            LOG_WARNING("Trail run %lu: a window is out of range, run skipped\n",
-                        static_cast<unsigned long>(info.runId));
-            continue;
-        }
-
-        mVo2History.addRunMax(mVo2Run.sustainedMaxHr());
-        mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
-        const RunVo2::Profile   profile = RunVo2::resolveProfile(mVo2Input, now);
-        const RunVo2::RunResult result  = mVo2Run.estimate(profile);
-        const RunVo2::WindowCounts& c   = mVo2Run.counts();
-        LOG_INFO("Trail run %lu: %u windows, %u kept, %u unsteady, %u grade; status %u, %u (x10)\n",
-                 static_cast<unsigned long>(info.runId), info.count, c.accepted, c.unsteady, c.grade,
-                 static_cast<unsigned>(result.status), result.vo2x10);
-        if (result.status == RunVo2::RunStatus::Ok) {
-            uint32_t before[RunVo2::Config::kHistoryRuns];
-            const uint8_t n = historyUtcs(before);
-            mVo2History.addSorted(RunVo2::RunRecord{info.runId, result.vo2x10, result.windowsUsed,
-                                                    static_cast<uint8_t>(RunVo2::RunSource::Trail)});
-            writeRunFile(info.runId, buf.get(), len);   // Trail's file as it is, for re-scoring
-            pruneRunFiles(before, n);
+    } else if (mSetupProblem == nullptr) {
+        const PlanDef* def = PlanData::find(want.plan);
+        PlanSetup& have = mPlan.setup;
+        const bool samePlan = mPlan.active() && have.plan == want.plan && have.level == want.level
+                           && have.raceDate == want.raceDate;
+        if (!samePlan) {
+            if (today == 0) {
+                LOG_WARNING("The watch's date is not set: the new plan waits for it\n");
+            } else {
+                // A new plan (brief 5.1). TP3 asks first on the watch; for now it starts.
+                PlanState fresh;
+                fresh.setup = want;
+                fresh.setup.fiveKDate = today;
+                fresh.setup.halfDate  = want.halfSec != 0 ? today : 0;
+                fresh.calendar = PlanCalendar::make({today, want.raceDate, def->weekCount, def->minWeeks});
+                mPlan = fresh;
+                changed = true;
+                LOG_INFO("New plan: %s, level %u, from %lu, %u weeks from week %u (calendar status %u)\n", def->name,
+                         static_cast<unsigned>(want.level), static_cast<unsigned long>(mPlan.calendar.start),
+                         static_cast<unsigned>(mPlan.calendar.weeks), static_cast<unsigned>(mPlan.calendar.firstWeek + 1),
+                         static_cast<unsigned>(mPlan.calendar.status));
+            }
+        } else {
+            // The same plan: new run days place the weeks to come; a new time is dated today.
+            if (have.days != want.days || have.longDay != want.longDay) {
+                have.days = want.days;
+                have.longDay = want.longDay;
+                changed = true;
+            }
+            if (have.fiveKSec != want.fiveKSec) {
+                have.fiveKSec  = want.fiveKSec;
+                have.fiveKDate = today;
+                changed = true;
+                LOG_INFO("A new 5K: %lu s, from today\n", static_cast<unsigned long>(want.fiveKSec));
+            }
+            if (have.halfSec != want.halfSec) {
+                have.halfSec  = want.halfSec;
+                have.halfDate = want.halfSec != 0 ? today : 0;
+                changed = true;
+            }
+            if (have.easyByHr != want.easyByHr || have.fiveKRecent != want.fiveKRecent) {
+                have.easyByHr = want.easyByHr;
+                have.fiveKRecent = want.fiveKRecent;
+                changed = true;
+            }
         }
     }
-    mVo2Run.reset();
-
     if (changed) {
-        mVo2Input.autoMaxHr = mVo2History.autoMaxHr();
-        saveVo2Files();
+        savePlan();
+    }
+
+    uint32_t half = mPlan.setup.halfSec;
+    if (half != 0 && (today == 0 || mPlan.setup.halfDate == 0
+                      || Date::toDayNum(today) - Date::toDayNum(mPlan.setup.halfDate) > kHalfMaxAgeDays)) {
+        half = 0;
+    }
+    mPaces = PaceModel::compute({mPlan.setup.fiveKSec, half});
+    if (mPaces.ok) {
+        const Paces& q = mPaces.paces;
+        LOG_INFO("Paces s/km: easy %u-%u, half %u, threshold %u, 10K %u, interval %u, repetition %u\n",
+                 q.easyFast, q.easySlow, q.half, q.threshold, q.tenK, q.interval, q.repetition);
     }
 }
 
-void Service::sendVo2Info()
+void Service::savePlan()
 {
-    fillVo2Page();
-    SDK::send_msg<CustomMessage::Vo2Upd>(mKernel, mVo2Info);
-}
-
-void Service::fillVo2Page()
-{
-    CustomMessage::Vo2Info& v = mVo2Info;
-    v.rollingX10 = mVo2History.rollingX10();
-    v.beforeX10  = mVo2History.rollingX10Before();
-    v.runs       = mVo2History.size();
-
-    // The last runs, newest first, by local date.
-    v.rowCount = 0;
-    for (uint8_t i = mVo2History.size(); i > 0 && v.rowCount < CustomMessage::Vo2Info::kMaxRows; --i) {
-        const RunVo2::RunRecord& r  = mVo2History.at(static_cast<uint8_t>(i - 1));
-        const std::tm            tm = mTimeTracker.getLocalTime(static_cast<std::time_t>(r.utc));
-        CustomMessage::Vo2Info::Row& row = v.rows[v.rowCount++];
-        row.day    = static_cast<uint8_t>(tm.tm_mday);
-        row.month  = static_cast<uint8_t>(tm.tm_mon + 1);
-        row.vo2x10 = r.vo2x10;
-    }
-
-    const RunVo2::Profile now = RunVo2::resolveProfile(mVo2Input, mTimeTracker.getExpectedUTC());
-    v.nowStatus     = static_cast<uint8_t>(now.status);
-    v.nowAge        = now.ageYears;
-    v.nowMaxHr      = now.maxHr;
-    v.nowMaxSource  = static_cast<uint8_t>(now.maxSource);
-    v.nowRestHr     = now.restHr;
-    v.nowRestSource = static_cast<uint8_t>(now.restSource);
-
-    v.birthYear  = mVo2Input.birthYear;
-    v.birthMonth = mVo2Input.birthMonth;
-    v.setMaxHr   = mVo2Input.enteredMaxHr;
-    v.setRestHr  = mVo2Input.enteredRestHr;
-    v.tuningLog  = mVo2TuningLog;
-}
-
-void Service::handleEvent(const CustomMessage::Vo2ProfileSave& event)
-{
-    mVo2Input.birthYear     = event.birthYear;
-    mVo2Input.birthMonth    = event.birthMonth;
-    mVo2Input.enteredMaxHr  = event.maxHr;
-    mVo2Input.enteredRestHr = event.restHr;
-    mVo2TuningLog           = event.tuningLog;
-    LOG_INFO("VO2 profile set on the watch: born %u/%u, max HR %u, resting HR %u, tuning log %u\n",
-             event.birthMonth, event.birthYear, event.maxHr, event.restHr, event.tuningLog);
-
-    // Written back to the file the phone writes (setInt clamps to the field's
-    // range), so the two agree; last writer wins, as in HybridX Race.
-    if (mConfig) {
-        mConfig->setInt(RunConfig::kBirthYear, event.birthYear);
-        mConfig->setInt(RunConfig::kBirthMonth, event.birthMonth);
-        mConfig->setInt(RunConfig::kMaxHr, event.maxHr);
-        mConfig->setInt(RunConfig::kRestingHr, event.restHr);
-        mConfig->setBool(RunConfig::kTuningLog, event.tuningLog);
-        if (!mConfig->save()) {
-            LOG_WARNING("Could not save app_config.json\n");
-        }
-    }
-    // New numbers: the kept runs are scored with them (only between runs; this screen is not
-    // reachable during one).
-    if (mTrackState == Track::State::INACTIVE) {
-        rescoreIfNeeded();
-        mVo2Info.rollingX10 = mVo2History.rollingX10();
-        mVo2Info.runs       = mVo2History.size();
-    }
-    sendVo2Info();
-}
-
-// -- HybridX Run: re-scoring the kept runs (docs/NOTES.md "VO2max switched on") -------------
-
-uint8_t Service::historyUtcs(uint32_t* out) const
-{
-    const uint8_t n = mVo2History.size();
-    for (uint8_t i = 0; i < n; ++i) {
-        out[i] = mVo2History.at(i).utc;
-    }
-    return n;
-}
-
-void Service::writeRunFile(uint32_t utc, const char* text, size_t len)
-{
-    char path[32];
-    if (text == nullptr || len == 0 || RunVo2::runFilePath(path, sizeof(path), utc) == 0) {
-        LOG_WARNING("Run %lu: its windows were not kept\n", static_cast<unsigned long>(utc));
-        return;
-    }
-    if (!mKernel.fs.mkdir("Runs") || !RunVo2::SafeFile::write(mKernel.fs, path, text, len)) {
-        LOG_WARNING("Could not save %s\n", path);
-    }
-}
-
-void Service::pruneRunFiles(const uint32_t* before, uint8_t count)
-{
-    for (uint8_t i = 0; i < count; ++i) {
-        bool kept = false;
-        for (uint8_t k = 0; k < mVo2History.size() && !kept; ++k) {
-            kept = mVo2History.at(k).utc == before[i];
-        }
-        if (!kept) {
-            char path[32];
-            if (RunVo2::runFilePath(path, sizeof(path), before[i]) > 0) {
-                mKernel.fs.remove(path);   // absent for a run from before re-scoring: no matter
-                char bak[40];
-                std::snprintf(bak, sizeof(bak), "%s.bak", path);
-                mKernel.fs.remove(bak);
-            }
-        }
-    }
-}
-
-void Service::rescoreIfNeeded()
-{
-    const uint32_t key = RunVo2::profileKey(mVo2Input);
-    if (key == mVo2History.profileKey()) {
-        return;
-    }
-    const RunVo2::Profile profile = RunVo2::resolveProfile(mVo2Input, std::time(nullptr));
-    if (profile.status != RunVo2::ProfileStatus::Ok) {
-        LOG_INFO("Re-score waiting: no VO2 profile yet\n");
-        return;   // the key is not moved: scored once there is a profile
-    }
-    std::unique_ptr<char[]> buf(new (std::nothrow) char[RunVo2::kWindowFileBytes]);
+    using namespace XTraining;
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[PlanState::kMaxJsonBytes]);
     if (!buf) {
-        LOG_WARNING("No memory to re-score the runs\n");
+        LOG_WARNING("No memory to save plan.json\n");
         return;
     }
+    const size_t len = mPlan.toJson(buf.get(), PlanState::kMaxJsonBytes);
+    if (len == 0 || !RunVo2::SafeFile::write(mKernel.fs, kPlanFile, buf.get(), len)) {
+        LOG_ERROR("Could not save plan.json\n");
+    }
+}
 
-    uint8_t scored = 0, dropped = 0, kept = 0;
-    // Newest first, so removing a run does not move the ones still to do.
-    for (int i = static_cast<int>(mVo2History.size()) - 1; i >= 0; --i) {
-        const RunVo2::RunRecord r = mVo2History.at(static_cast<uint8_t>(i));
-        char path[32];
-        size_t len = 0;
-        if (RunVo2::runFilePath(path, sizeof(path), r.utc) > 0) {
-            len = RunVo2::SafeFile::read(mKernel.fs, path, false, buf.get(), RunVo2::kWindowFileBytes);
-            if (len == 0) {
-                len = RunVo2::SafeFile::read(mKernel.fs, path, true, buf.get(), RunVo2::kWindowFileBytes);
+void Service::updateToday()
+{
+    using namespace XTraining;
+    using Info = CustomMessage::PlanTodayInfo;
+    if (mTrackState != Track::State::INACTIVE) {
+        return;   // mProgram holds the session being run; keep what was sent
+    }
+    Info info{};
+    mToday = DaySession{};
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    const Ymd today = localDate();
+    if (mPhoneSetup.plan == PlanId::None) {
+        info.status = Info::NoPlan;
+    } else if (mSetupProblem != nullptr) {
+        info.status = Info::Problem;
+        copyText(info.name, sizeof(info.name), mSetupProblem);
+    } else if (today == 0) {
+        info.status = Info::Problem;
+        copyText(info.name, sizeof(info.name), "Set the watch's date");
+    } else if (def == nullptr || !mPlan.active()) {
+        info.status = Info::Problem;
+        copyText(info.name, sizeof(info.name), mPlan.calendar.status == Calendar::Status::RaceGone
+                                                   ? "The race is too close or past" : "Check the plan's settings");
+    } else if (!mPaces.ok) {
+        info.status = Info::Problem;
+        copyText(info.name, sizeof(info.name), "Check your 5K time");
+    } else {
+        info.weeks = mPlan.calendar.weeks;
+        const DayPlace where = PlanCalendar::locate(mPlan.calendar, today);
+        if (where.where == DayPlace::Where::Before) {
+            info.status = Info::BeforeStart;
+            copyText(info.name, sizeof(info.name), "Plan starts");
+            TimeText::date(mPlan.calendar.start, info.what, sizeof(info.what));
+        } else if (where.where != DayPlace::Where::In
+                   || !PlanSchedule::day(mPlan.setup, *def, mPlan.calendar, mPaces.paces, today, mToday)) {
+            info.status = Info::Finished;
+            copyText(info.name, sizeof(info.name), "Plan complete");
+        } else {
+            info.runWeek = mToday.runWeek;
+            info.kind    = static_cast<uint8_t>(mToday.asRun.kind);
+            info.key     = mToday.key;
+            copyText(info.name, sizeof(info.name), PlanText::name(mToday.asRun.kind));
+            if (mToday.asRun.kind == Kind::Rest) {
+                info.status = Info::RestDay;
+            } else {
+                const LogEntry* done = mPlan.find(today);
+                info.status = done != nullptr && (done->status == DayStatus::Done || done->status == DayStatus::PartDone)
+                            ? Info::Done : Info::Session;
+                PlanText::what(mToday.asRun, def->raceCm, info.what, sizeof(info.what));
+                // The estimates and the main target, from the program as it will be built. mProgram
+                // is free: no run is going.
+                BuildOptions o;
+                o.level = mPlan.setup.level;
+                o.easyByHr = mPlan.setup.easyByHr;
+                o.repsByDistance = mPlan.setup.repsByDistance;
+                if (PlanBuilder::build(mToday.asRun, mPaces.paces, o, def->raceCm, mProgram, mSessionMeta)) {
+                    info.plannedSec = mSessionMeta.plannedSec;
+                    info.plannedM   = mSessionMeta.plannedM;
+                    if (mSessionMeta.targetPace != 0) {
+                        paceBand(info.target, sizeof(info.target), mSessionMeta.targetPace,
+                                 mSessionMeta.targetPlusMinus, mIsImperial);
+                    } else if (mPlan.setup.easyByHr) {
+                        copyText(info.target, sizeof(info.target), "easy, zone 2");
+                    } else {
+                        char band[24];
+                        paceBand(band, sizeof(band), static_cast<uint16_t>((mPaces.paces.easyFast + mPaces.paces.easySlow) / 2),
+                                 static_cast<uint16_t>((mPaces.paces.easySlow - mPaces.paces.easyFast) / 2), mIsImperial);
+                        std::snprintf(info.target, sizeof(info.target), "easy %s", band);
+                    }
+                }
             }
         }
-        const bool trail = r.source == static_cast<uint8_t>(RunVo2::RunSource::Trail);
-        uint16_t vo2 = 0, win = 0;
-        switch (RunVo2::rescoreRun(buf.get(), len, trail, profile, mVo2Run, vo2, win)) {
-            case RunVo2::RescoreOutcome::Scored:
-                LOG_INFO("Re-score run %lu: %u -> %u (x10), %u windows\n", static_cast<unsigned long>(r.utc),
-                         r.vo2x10, vo2, win);
-                mVo2History.setRun(static_cast<uint8_t>(i), vo2, win);
-                ++scored;
-                break;
-            case RunVo2::RescoreOutcome::NoFigure:
-                LOG_INFO("Re-score run %lu: no figure now, removed\n", static_cast<unsigned long>(r.utc));
-                mVo2History.removeAt(static_cast<uint8_t>(i));
-                mKernel.fs.remove(path);
-                ++dropped;
-                break;
-            case RunVo2::RescoreOutcome::NoFile:
-                ++kept;   // saved before re-scoring: its figure stays
-                break;
+    }
+    mTodayInfo = info;
+    LOG_INFO("Today: status %u, %s %s %s (week %u of %u)\n", static_cast<unsigned>(info.status), info.name, info.what,
+             info.target, static_cast<unsigned>(info.runWeek + 1), static_cast<unsigned>(info.weeks));
+}
+
+void Service::sendPlanToday()
+{
+    SDK::send_msg<CustomMessage::PlanToday>(mKernel, mTodayInfo);
+}
+
+bool Service::startPlannedSession()
+{
+    using namespace XTraining;
+    updateToday();   // the day may have changed since the GUI started
+    using Info = CustomMessage::PlanTodayInfo;
+    if (mTodayInfo.status != Info::Session && mTodayInfo.status != Info::Done) {
+        LOG_WARNING("No planned session today; this is a free run\n");
+        return false;
+    }
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    BuildOptions o;
+    o.level = mPlan.setup.level;
+    o.easyByHr = mPlan.setup.easyByHr;
+    o.repsByDistance = mPlan.setup.repsByDistance;
+    if (def == nullptr || !PlanBuilder::build(mToday.asRun, mPaces.paces, o, def->raceCm, mProgram, mSessionMeta)) {
+        LOG_WARNING("Today's session could not be built; this is a free run\n");
+        return false;
+    }
+    mEngine.start(mProgram, 0, 0);
+    mLeadIn.stepStarted();
+    startWorkoutStep();
+    mPlannedRun  = true;
+    mPlannedDate = mToday.date;
+    LOG_INFO("Planned session started: %s, %u steps, about %lu s and %lu m (week %u of %u)\n", mProgram.name,
+             static_cast<unsigned>(mProgram.stepCount), static_cast<unsigned long>(mSessionMeta.plannedSec),
+             static_cast<unsigned long>(mSessionMeta.plannedM), static_cast<unsigned>(mToday.runWeek + 1),
+             static_cast<unsigned>(mPlan.calendar.weeks));
+    return true;
+}
+
+void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
+{
+    using namespace XTraining;
+    mPlannedRun = false;
+    // Done, part done, or too short to count (PlanState.hpp, judgeSession()).
+    DayStatus status = DayStatus::Missed;
+    if (!judgeSession(mWorkoutReachedEnd, static_cast<uint32_t>(track.duration), mSessionMeta.plannedSec, status)) {
+        LOG_INFO("Planned session too short to count: %lu of %lu s\n", static_cast<unsigned long>(track.duration),
+                 static_cast<unsigned long>(mSessionMeta.plannedSec));
+        return;
+    }
+    mPlan.record({mPlannedDate, mSessionMeta.session.kind, status, static_cast<uint32_t>(mStartUtc)});
+    savePlan();
+    LOG_INFO("Planned session %s: %lu, %s\n", status == DayStatus::Done ? "done" : "part done",
+             static_cast<unsigned long>(mPlannedDate), PlanText::name(mSessionMeta.session.kind));
+}
+
+bool Service::zoneAlertAllowed(SDK::Workout::ZoneAlerts::Alert alert)
+{
+    using XTraining::AlertMode;
+    using Alert = SDK::Workout::ZoneAlerts::Alert;
+    if (!mPlannedRun) {
+        return true;   // a workout from UNA's library alerts as UNA's does
+    }
+    const uint16_t step = mEngine.status().step;
+    const AlertMode mode = step < SDK::Workout::kMaxSteps ? mSessionMeta.alert[step] : AlertMode::Both;
+    switch (alert) {
+    case Alert::Above:
+        if (mode == AlertMode::None || mode == AlertMode::AtEnd) {
+            return false;
         }
+        mOutAlerted = true;
+        return true;
+    case Alert::Below:
+        if (mode != AlertMode::Both) {
+            return false;   // easy steps never say "too slow" (REVIEW.md C3)
+        }
+        mOutAlerted = true;
+        return true;
+    case Alert::BackIn: {
+        // Only after an alert that played: a held-back "too slow" has no "back in".
+        const bool ok = mOutAlerted;
+        mOutAlerted = false;
+        return ok;
     }
-    mVo2History.recomputeShown();   // the trend, under today's rules (the 42-day limit)
-    mVo2History.setProfileKey(key);
-    LOG_INFO("Re-scored: %u runs, %u removed, %u kept as they were (no windows); shown %u (x10)\n",
-             scored, dropped, kept, mVo2History.rollingX10());
-    saveVo2Files();
-}
-
-void Service::openVo2Log(std::time_t startUtc)
-{
-    closeVo2Log(false);
-    if (!mVo2TuningLog) {
-        return;
+    default:
+        return true;
     }
-    // Named as the run's activity file is (local time), so the two pair up.
-    const std::tm t = mTimeTracker.getLocalTime(startUtc);
-    char path[48];
-    std::snprintf(path, sizeof(path), "Logs/vo2_%04d%02d%02dT%02d%02d%02d.csv",
-                  t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
-    if (!mKernel.fs.mkdir("Logs")) {
-        LOG_WARNING("Could not create Logs/\n");
-    }
-    mVo2LogFile = mKernel.fs.file(path);
-    if (!mVo2LogFile || !mVo2LogFile->open(true, true)) {
-        LOG_WARNING("Could not open the tuning log %s\n", path);
-        mVo2LogFile.reset();
-        return;
-    }
-    LOG_INFO("Tuning log: %s\n", path);
-    const RunVo2::Profile p = RunVo2::resolveProfile(mVo2Input, startUtc);
-    writeVo2Log(RunVo2::Log::contextLine(startUtc, p, mVo2LogLine, sizeof(mVo2LogLine)));
-    writeVo2Log(RunVo2::Log::headerLine(mVo2LogLine, sizeof(mVo2LogLine)));
-}
-
-void Service::writeVo2Log(size_t len)
-{
-    if (!mVo2LogFile || len == 0) {
-        return;
-    }
-    size_t written = 0;
-    if (!mVo2LogFile->write(mVo2LogLine, len, written) || written != len || !mVo2LogFile->flush()) {
-        // A full or failing disk must not touch the run: stop logging it.
-        LOG_WARNING("Tuning log write failed; logging stopped for this run\n");
-        closeVo2Log(false);
-    }
-}
-
-void Service::closeVo2Log(bool remove)
-{
-    if (!mVo2LogFile) {
-        return;
-    }
-    if (mVo2LogFile->isOpen()) {
-        mVo2LogFile->close();
-    }
-    if (remove) {
-        mVo2LogFile->remove();
-    }
-    mVo2LogFile.reset();
 }

@@ -12,7 +12,6 @@
 #include "gui/Strings.hpp"
 #include "gui/WorkoutUi.hpp"
 
-#include "Vo2Text.hpp"   // HybridX Run
 
 #define LOG_MODULE_PRX      "MainScreen"
 #define LOG_MODULE_LEVEL    LOG_LEVEL_INFO
@@ -35,8 +34,6 @@ const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
     { Style::Icon, "Intervals", nullptr, &poppins_semibold_30, nullptr, Color::WHITE, false,
       &img_intervals_40x43, { 30, 10, 87, 140 },
       &img_intervals_24x26, { 62, 17, 97, 130 } },
-    // ID_VO2 (HybridX Run, R5)
-    { Style::Simple, "VO2max" },
     // ID_SETTINGS
     { Style::Simple, "Settings" },
 };
@@ -60,9 +57,6 @@ void MainScreen::build()
     mButtons   = std::make_unique<Widgets::Buttons>(mRoot);
     mTitle     = std::make_unique<Widgets::Title>(mRoot, Strings::kAppNameUc);
     mSensorRow = std::make_unique<Widgets::SensorStatusRow>(mRoot, 0, 52, 240, 24);
-    // HybridX Run: the recent VO2max, small, under the wheel's lower item.
-    mVo2       = Theme::label(mRoot, Theme::Font::Regular16, "", 50, 206, 140, LV_TEXT_ALIGN_CENTER,
-                              Color::GRAY);
 
     mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,
                   Widgets::Buttons::AMBER, Widgets::Buttons::WHITE);
@@ -75,7 +69,6 @@ void MainScreen::onShow()
     mModel.resetIdleTimer();
     onGpsFix(mModel.hasGpsFix());
     onAccessoryStatus(mModel.getAccessoryState(), "");
-    onVo2Info(mModel.getVo2Info());
     onWorkoutList();
 }
 
@@ -105,6 +98,15 @@ void MainScreen::onWorkoutList()
         // HybridX Run: Start records a plain treadmill run; an armed workout waits.
         start.style   = Style::Tip;
         start.tip     = "Treadmill";
+        start.itemTip = "";
+    } else if (armed == Model::kPlanSession) {
+        // X Training: today's planned session, e.g. "Intervals 6 x 3 min".
+        const CustomMessage::PlanTodayInfo& t = mModel.getPlanToday();
+        mArmed = true;
+        std::snprintf(mArmedName, sizeof(mArmedName), "%.31s %.31s", t.name, t.what);
+        WorkoutUi::fitWidth(mArmedName, sizeof(mArmedName), Theme::font(Theme::Font::Italic18), 180);
+        start.style   = Style::Tip;
+        start.tip     = mArmedName;
         start.itemTip = "";
     } else if (mArmed) {
         WorkoutUi::toText(lib->entry(static_cast<size_t>(armed)).name, mArmedName, sizeof(mArmedName));
@@ -177,9 +179,6 @@ void MainScreen::confirm()
             // the workout can be configured indoors. The check happens on Start.
             ScreenManager::instance().goTo(ScreenId::MenuIntervals);
             break;
-        case Menu::ID_VO2:
-            ScreenManager::instance().goTo(ScreenId::Vo2);
-            break;
         case Menu::ID_SETTINGS:
             ScreenManager::instance().goTo(ScreenId::MenuSettings);
             break;
@@ -210,17 +209,6 @@ void MainScreen::onGpsFix(bool acquired)
     mSensorRow->setGps(treadmill() ? Widgets::SensorStatusRow::State::Absent
                                    : Widgets::SensorStatusRow::gpsState(acquired));
     updateBackground();
-}
-
-void MainScreen::onVo2Info(const CustomMessage::Vo2Info& info)
-{
-    // Nothing until there is a figure: a first-time user sees RunLVGL's screen.
-    if (info.rollingX10 == 0) {
-        lv_label_set_text(mVo2, "");
-        return;
-    }
-    char v[8];
-    lv_label_set_text_fmt(mVo2, "VO2max %s", RunVo2::Text::formatX10(info.rollingX10, v, sizeof(v)));
 }
 
 void MainScreen::onAccessoryStatus(uint8_t state, const char* /*name*/)

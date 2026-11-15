@@ -55,9 +55,9 @@ struct Position {
 // -----------------------------------------------------------------------------
 
 struct Root {
-    // HybridX Run: ID_VO2 added before Settings (the VO2max page, R5).
+    // X Training: X Run's ID_VO2 is not here (its VO2max page stays X Run's).
     // HybridX Run: ID_TREADMILL (an on/off switch) under Start (NOTES, "Treadmill").
-    enum Id { ID_START = 0, ID_TREADMILL, ID_WORKOUTS, ID_INTERVALS, ID_VO2, ID_SETTINGS,
+    enum Id { ID_START = 0, ID_TREADMILL, ID_WORKOUTS, ID_INTERVALS, ID_SETTINGS,
               ID_COUNT, ID_DEFAULT = ID_START };
 
     // The workout list: a Free run row while a workout is armed, then one

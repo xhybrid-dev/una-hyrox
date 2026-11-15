@@ -34,7 +34,6 @@
 #include "Commands.hpp"
 #include "WristTiltDetector.hpp"
 
-// HybridX Run: the VO2max estimate.
 #include <memory>
 
 #include "SDK/AppConfig/AppConfig.hpp"
@@ -42,11 +41,12 @@
 
 #include "FormStats.hpp"
 #include "RunStats.hpp"
-#include "Bests.hpp"
-#include "Vo2History.hpp"
-#include "Vo2Log.hpp"
-#include "Vo2Profile.hpp"
-#include "Vo2Run.hpp"
+
+// X Training: the plan core (Software/Libs/Core).
+#include "PaceModel.hpp"
+#include "PlanBuilder.hpp"
+#include "PlanSchedule.hpp"
+#include "PlanState.hpp"
 
 class Service : public WristTiltDetector::IListener
 {
@@ -123,7 +123,6 @@ private:
     SDK::Sensor::Connection mSensorFusion;
     SDK::Sensor::Connection mSensorRunningCadence;
     SDK::Sensor::Connection mSensorGrade;
-    SDK::Sensor::Connection mSensorHrMetrics;   ///< HybridX Run: daily resting HR
     bool                    mIsSensorsConnected = false;
 
     struct {
@@ -141,10 +140,6 @@ private:
     /// The run detail page's numbers (about 4 KB, so on the heap, made when a track starts and
     /// freed when it ends). Null if there was no memory: the page then shows nothing.
     std::unique_ptr<RunVo2::RunStats> mRunStats;
-    /// This run's windows as built, for its Runs/ file (re-scoring); allocated at the start of a
-    /// GPS run, never in the 1 Hz path.
-    std::unique_ptr<RunVo2::WindowRecord[]> mRunWin;
-    uint16_t mRunWinCount = 0;
 
     // -- Outdoor stride calibration inputs (latched per stream) ---------
     struct {
@@ -265,25 +260,21 @@ private:
     float        mTreadSteps[SDK::Calibration::StrideLut::kBinCount] {};   ///< steps per cadence bin, for the learning
     ActivityWriter::TrackData mPendingTrack {};   ///< the session, held until the distance is known
 
-    RunVo2::Bests mBests;   ///< HybridX Run: personal bests across runs (docs/NOTES.md "Personal bests")
+    // X Training: the phone's settings (app_config.json), kept for write-back.
+    std::unique_ptr<SDK::AppConfig> mConfig;
 
-    // HybridX Run: the VO2max estimate (docs/NOTES.md).
-    RunVo2::Vo2Run         mVo2Run;
-    RunVo2::Vo2History     mVo2History;
-    RunVo2::ProfileInput   mVo2Input;          ///< from app_config.json, plus the watch's resting HR
-    CustomMessage::Vo2Info mVo2Info;
-    std::unique_ptr<SDK::AppConfig> mConfig;   ///< app_config.json, kept for write-back (R5)
-    bool                   mVo2TuningLog = true;
-
-    // The tuning log (R5): one CSV per run in Logs/, open while the track is.
-    std::unique_ptr<SDK::Interface::IFile> mVo2LogFile;
-    char                   mVo2LogLine[RunVo2::Log::kMaxLineBytes] = {};
-    uint32_t               mHrLastMs    = 0;   ///< getTimeMs() of the latest HR sample
-    uint32_t               mSpeedLastMs = 0;   ///< getTimeMs() of the latest GPS speed sample
-    uint32_t               mGradeLastMs = 0;   ///< getTimeMs() of the latest grade sample
-    bool                   mHrSeen      = false;
-    bool                   mSpeedSeen   = false;
-    bool                   mGradeSeen   = false;
+    // -- X Training: the plan (docs/HYBRIDX_TRAINING_BRIEF.md sections 7 and 9) ----------
+    XTraining::PlanSetup   mPhoneSetup;          ///< what app_config.json asks for
+    const char*            mSetupProblem = nullptr;  ///< why it cannot make a plan, or null
+    XTraining::PlanState   mPlan;                ///< plan.json (about 1 KB of log)
+    XTraining::PaceResult  mPaces;               ///< from the plan's 5K (and half)
+    XTraining::DaySession  mToday;               ///< today's session (Rest when none)
+    CustomMessage::PlanTodayInfo mTodayInfo;     ///< as last sent to the GUI
+    /// The alert modes and estimates of the planned session being run.
+    XTraining::SessionMeta mSessionMeta;
+    bool                   mPlannedRun   = false;  ///< this track follows today's session
+    XTraining::Ymd         mPlannedDate  = 0;      ///< the day it was planned for
+    bool                   mOutAlerted   = false;  ///< an out-of-band alert played this step
 
     // -- Structured workouts --------------------------------------------------
 
@@ -317,18 +308,16 @@ private:
 
     // -- Lifecycle ------------------------------------------------------------
 
-    // HybridX Run
-    void loadVo2();
-    void ingestTrailRuns();      ///< runs HybridX Trail left in the shared folder (L2)
-    // Re-scoring (NOTES, "VO2max switched on"): each kept run's windows in Runs/<utc>.json.
-    void rescoreIfNeeded();      ///< when the entered numbers or the method changed
-    void writeRunFile(uint32_t utc, const char* text, size_t len);
-    void pruneRunFiles(const uint32_t* before, uint8_t count);   ///< delete runs that left the history
-    uint8_t historyUtcs(uint32_t* out) const;                    ///< the kept runs' times, for pruneRunFiles
-    void saveVo2Files();         ///< vo2.json and the public vo2max.json
-    void feedVo2();
-    void finishVo2(std::time_t endUtc);
-    void writeSharedVo2();
+    // X Training
+    void loadConfig();           ///< app_config.json, once at start; then the plan
+    void loadPlan();             ///< plan.json, reconciled with the phone's settings
+    void savePlan();
+    void updateToday();          ///< today's session from the plan and the watch's date
+    void sendPlanToday();
+    bool startPlannedSession();  ///< build today's program into mProgram and start it
+    void recordPlannedRun(const ActivityWriter::TrackData& track);
+    /// Whether a zone alert may play on this step of a planned session (PLANS.md 2.5).
+    bool zoneAlertAllowed(SDK::Workout::ZoneAlerts::Alert alert);
     void sendRunStats();         ///< the run detail page's numbers to the GUI (start, pause, save)
     void updateForm();           ///< cadence and step length for this tick: screen, record and averages
     void writeActivityLink(const ActivityWriter::TrackData& track);   ///< the saved run, for Streak (hybridx-link)
@@ -336,15 +325,6 @@ private:
     void sendStreakLine();                                            ///< the Streak line, after a save
     void handleEvent(const CustomMessage::TreadmillDistance& event);  ///< HybridX Run: the console's distance
     void finishTreadmill(float metres);                               ///< 0 keeps the estimate
-    void loadBests();                                                 ///< HybridX Run: bests.json, at start
-    void updateBests(uint32_t runUtc);                                ///< offer the saved run's splits
-    void sendBests(uint8_t newMask);
-    void sendVo2Info();
-    void fillVo2Page();
-    void handleEvent(const CustomMessage::Vo2ProfileSave& event);
-    void openVo2Log(std::time_t startUtc);
-    void writeVo2Log(size_t len);
-    void closeVo2Log(bool remove);
 
     void connectGps();
     void connectSensors(); // All except GPS
