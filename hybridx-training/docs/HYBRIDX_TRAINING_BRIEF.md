@@ -345,7 +345,7 @@ Each phase starts in plan mode and stops at its gate.
 | **TP0** | Decisions, the independent review, desk checks, `NOTES.md` | **Done** (14 November 2026). Open items carried in `NOTES.md` |
 | **TP1** | The pure core with host tests; the plan files and generator; `plan_print` with golden outputs | Jon reads `plan_print` for three runners in each plan (5K 20:00, level 3, five days; 25:00, level 2, four days; 32:00, level 1, three days) and corrects the plan files |
 | **TP2** | The app: X Run copied verbatim, renamed, stripped; the config fields; today's Program run through the workout mode; `plan.json`. `sim_plan.sh` runs a session end to end; `fit_check.sh` decodes the FIT | Jon installs the CI build, sets a plan by USB, runs one real session |
-| **TP3** | The screens (section 8), the easy-step alerts, the short-rep result; the audit; `capture_screens.sh` | Jon reviews the captures, then a week of the plan on the watch |
+| **TP3** | The screens (section 8), the easy-step alerts, the short-rep result; the audit; `capture_screens.sh` | **Built** (15 November 2026; NOTES "TP3"). Jon reviews the captures, then a week of the plan on the watch |
 | **TP4** | Family: the `training` slot (Streak release, family rebuild), the Run link (Run release), VO2max on the Plan screen; the family check gains X Training | The family check; Jon's watch test |
 | **TP5** | The plan's memory and recalibration; `plan_sim` | Jon reviews the scenarios and the rules |
 | **TP6** | The glance and `training_today.json` | Previews, then on the watch |

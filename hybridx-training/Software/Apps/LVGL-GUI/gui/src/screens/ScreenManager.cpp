@@ -16,10 +16,6 @@
 #include "gui/model/Model.hpp"
 #include "gui/screens/Screen.hpp"
 #include "gui/screens/MainScreen.hpp"
-#include "gui/screens/MenuIntervalsScreen.hpp"
-#include "gui/screens/MenuIntervalsRepeatsScreen.hpp"
-#include "gui/screens/MenuIntervalsMetricScreen.hpp"
-#include "gui/screens/IntervalsPickerScreen.hpp"
 #include "gui/screens/MenuSettingsScreen.hpp"
 #include "gui/screens/MenuAlertsScreen.hpp"
 #include "gui/screens/MenuAlertValueScreen.hpp"
@@ -35,13 +31,10 @@
 #include "gui/screens/TrackResultScreen.hpp"
 #include "gui/screens/TrackSummaryScreen.hpp"
 #include "gui/screens/TreadmillDistanceScreen.hpp"   // HybridX Run
-#include "gui/screens/Vo2Screen.hpp"
 #include "gui/screens/WeekScreen.hpp"
 #include "gui/screens/PlanScreen.hpp"
 #include "gui/screens/PacesScreen.hpp"
 #include "gui/screens/NewPlanScreens.hpp"
-#include "gui/screens/MenuVo2ProfileScreen.hpp"
-#include "gui/screens/Vo2PickerScreen.hpp"
 #include "gui/screens/TrackWorkoutStepScreen.hpp"
 #include "gui/screens/WorkoutDetailsScreen.hpp"
 #include "gui/screens/WorkoutListScreen.hpp"
@@ -142,8 +135,6 @@ void ScreenManager::logPool(const char* what)
 Screen* ScreenManager::create(ScreenId id)
 {
     Model& m = *mModel;
-    using Phase  = MenuIntervalsMetricScreen::Phase;
-    using Metric = IntervalsPickerScreen::Metric;
     using Alert  = MenuAlertValueScreen::Kind;
 
     switch (id) {
@@ -165,14 +156,6 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::NewPlanConfirm:            return new PlanConfirmScreen(m);
         case ScreenId::PlanAsk:                   return new PlanAskScreen(m);
 
-        case ScreenId::MenuIntervals:             return new MenuIntervalsScreen(m);
-        case ScreenId::MenuIntervalsRepeats:      return new MenuIntervalsRepeatsScreen(m);
-        case ScreenId::MenuIntervalsRun:          return new MenuIntervalsMetricScreen(m, Phase::Run);
-        case ScreenId::MenuIntervalsRest:         return new MenuIntervalsMetricScreen(m, Phase::Rest);
-        case ScreenId::MenuIntervalsRunTime:      return new IntervalsPickerScreen(m, Phase::Run, Metric::Time);
-        case ScreenId::MenuIntervalsRunDistance:  return new IntervalsPickerScreen(m, Phase::Run, Metric::Distance);
-        case ScreenId::MenuIntervalsRestTime:     return new IntervalsPickerScreen(m, Phase::Rest, Metric::Time);
-        case ScreenId::MenuIntervalsRestDistance: return new IntervalsPickerScreen(m, Phase::Rest, Metric::Distance);
 
         case ScreenId::MenuSettings:              return new MenuSettingsScreen(m);
         case ScreenId::MenuAlerts:                return new MenuAlertsScreen(m);
@@ -195,11 +178,6 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::TrackSummary:              return new TrackSummaryScreen(m);
         case ScreenId::TreadmillDistance:         return new TreadmillDistanceScreen(m);
 
-        case ScreenId::Vo2:                       return new Vo2Screen(m);
-        case ScreenId::MenuVo2Profile:            return new MenuVo2ProfileScreen(m);
-        case ScreenId::Vo2PickBirth:              return new Vo2PickerScreen(m, Vo2PickerScreen::Kind::Birth);
-        case ScreenId::Vo2PickMaxHr:              return new Vo2PickerScreen(m, Vo2PickerScreen::Kind::MaxHr);
-        case ScreenId::Vo2PickRestHr:             return new Vo2PickerScreen(m, Vo2PickerScreen::Kind::RestHr);
     }
     return nullptr;
 }

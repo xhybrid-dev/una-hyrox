@@ -357,7 +357,7 @@ stay). The content can still change at any time: it is text in `Tools/Plans/`.
 Still open from TP2's gate: Jon's first session on the watch (the steps are under "The gate
 (TP2)").
 
-## TP3: the screens (under way)
+## TP3: the screens (built, 15 November 2026; at its gate)
 
 Today, This week, Plan, Paces and New plan; the Saved screen's lines; the short-rep result
 on the step card; "reps by distance" and the other watch settings; the text-fit audit and
@@ -479,8 +479,8 @@ the gap TP3 fills first.
   it ends (`RepJudge.hpp`, header-only, three host tests). A distance rep that ran its distance is
   judged by its time ("Last rep 1:36, aim 1:34-1:40"); a timed rep, or one ended by the lap button,
   by its pace ("Last rep 3:18 /km, aim 3:55-4:11"; per mile in imperial). The next step's card
-  shows it in place of the notes: red too fast, green in the band, amber too slow (the gauge's
-  colours), the aim in grey; nothing under 20 m (no GPS).
+  shows the aim in place of "Rep 2/6" and the result under it, in the gauge's colours (red too
+  fast, green in the band, amber too slow); nothing under 20 m (no GPS).
 - **R2 held on the warm-up before a time trial or race** (the coach review): the planned session's
   open warm-up before TT5, TT10 or RACE says "Hold R2 to start"; a tap does nothing; a hold of one
   second (a bar fills under the hint) starts the effort. The hold is Knitting's `HoldTimer`
@@ -503,7 +503,76 @@ the gap TP3 fills first.
   under half the session in the simulator); `sim_plan.sh` still runs and saves its session with the
   workout and a lap per step; 89 host tests; the watch target links.
 
-From the coach review above: a **Race alerts** setting (Off, First 2 km "too fast", Both; default
-Off); **R2 held for about a second** on the open warm-up before a time trial or a race, with a
-"Hold to start" hint; a note on the Paces screen where threshold meets 10K pace ("Threshold is
-about your 10K pace").
+The coach review's three TP3 items are in: the Race alerts setting (step 3), R2 held before a
+time trial or race (step 4), and the Paces note where threshold meets 10K pace (step 2).
+
+### Step 5: the text-fit audit, the captures, the clean-up
+
+- **The text-fit audit** (`docs/experiments/audit.sh`, about 30 seconds; HybridX Workout's
+  `Audit.hpp`, `Audit.cpp` and a driver of our own, `AuditDriver.cpp`, simulator only). It walks
+  the plan's screens with the widest text each can be given and measures every label of ours with
+  LVGL on the real font: inside its box, clear of the bezel arcs (radius 109), and, new here, not
+  cut with an ellipsis (the screens cut rather than overflow, which a box test alone would pass).
+  - What it gives each screen:
+    - Today, every kind of session with the widest "what" the three plans make at any level and run
+      days, worked out from the plan data by the core itself, and paces as wide as a 59:59 5K's per
+      mile;
+    - Today's other states and the longest problems;
+    - a day of the week; This week, every row the widest short name;
+    - Plan at 24 weeks and 144 sessions;
+    - the four Paces pages and both notes;
+    - the New plan summary and its problem;
+    - the step card's rep result;
+    - the Saved lines.
+  - Its first run found 21 problems, all fixed:
+    - "Long run, fast finish" and "100 min, last 20 at half pace" now go over two lines at their
+      commas on Today and a day's page, and the purpose, then the estimate, are left out when only
+      that makes the page fit whole. The Next lines take the "what" up to its comma.
+    - The shake-out's purpose is now "Ready for race day" (`PlanText`, `PLANS.md` 3.1).
+    - Plan shows the phase alone (the level and days did not fit over the bar) and "Starts 30 Sep".
+    - New plan's problems are two shorter ones ("Choose 3 to 6 run days", "Long run on a run
+      day"), and a long one wraps.
+    - The step card puts the aim on the wider line above the result.
+    - The Saved lines sit higher, in the smaller face; "Less than half run".
+    - The main menu's hint uses the name alone, or the short name, when "name what" is too wide.
+  - Now: 0 problems. The wheel menus are the SDK's widget and are not measured; their hints are
+    fitted to 180 px.
+- **Deleted, now unreachable:** X Run's VO2max screens (`Vo2Screen`, `MenuVo2ProfileScreen`,
+  `Vo2PickerScreen`) and RunLVGL's Intervals set-up screens (`MenuIntervals*`,
+  `IntervalsPickerScreen`), with their screen IDs. The countdown's R2 now goes back to Today for a
+  planned session. The track screens that workouts share stay. The watch build is 14 KB smaller.
+- **Captures:** `capture_screens.sh` makes 15 pretend watches and about 75 screens into
+  `docs/screens/tp3-*.png`:
+  - before the start, a rest day, a session day with its steps, done, the plan over, no plan, a
+    problem;
+  - a week with days logged, with This week, a day, Plan and Paces;
+  - a slow runner's notes;
+  - the settings, New plan, the phone's ask answered both ways;
+  - a repetitions session and a time trial, each saved.
+
+  Each one has been looked at.
+
+## The gate (TP3): what Jon checks
+
+1. **The captures:** `docs/screens/tp3-*.png` (or the contact sheet sent with this). Say what
+   reads wrongly, what is missing, and any words you would change.
+2. **A week of the plan on the watch**, from the CI build of the last push (Actions → Watch builds
+   → watch-apps → `HybridXTraining_*.uapp`, into `Apps/HybridXTraining/`, keeping your
+   `app_config.json` and `plan.json`). Each day:
+   - Today: the session (or rest, with the next), and R1 starts it;
+   - This week and Plan;
+   - after a run, the Saved lines.
+
+   Your first week (10K, level 2):
+   - Tue 17 Nov: Easy run, strides 40 min (each stride's result on the next card);
+   - Wed: Easy 35 min;
+   - Fri: Cruise intervals 3 x 6 min;
+   - Sun: Long run 60 min.
+3. **To decide:** whether R1 on Plan for New plan (an amber arc, no word) is clear enough, and the
+   four shortened purpose lines.
+
+Not in TP3, as the brief phases it:
+- TP4: the Streak slot and the Run link.
+- TP5: missed sessions (a past day now reads "Not logged"), moves and offers, and recalibration
+  after a time trial.
+- TP6: the glance.
