@@ -1,0 +1,99 @@
+/**
+ ******************************************************************************
+ * @file    TrackResultScreen.cpp
+ * @brief   "Saved" / "Discarded" confirmation shown for two seconds.
+ ******************************************************************************
+ */
+
+#include "gui/screens/TrackResultScreen.hpp"
+#include "gui/screens/ScreenManager.hpp"
+#include "gui/theme/Theme.hpp"
+#include "gui/Assets.hpp"
+#include "gui/Strings.hpp"
+
+namespace
+{
+constexpr uint32_t kDismissMs = 2000;
+constexpr uint32_t kStreakLineMs = 3500;   ///< with the Streak line, time to read it
+} // namespace
+
+TrackResultScreen::TrackResultScreen(Model& model, Result result)
+    : Screen(model)
+    , mResult(result)
+{
+}
+
+TrackResultScreen::~TrackResultScreen()
+{
+    if (mDismiss) {
+        lv_timer_delete(mDismiss);
+    }
+}
+
+void TrackResultScreen::build()
+{
+    const bool saved = mResult == Result::Saved;
+    Theme::label(mRoot, Theme::Font::SemiBold30, saved ? "Saved" : "Discarded", 41, 47, 159);
+    mTick = Theme::imageTinted(mRoot, saved ? &img_circletick_50x50 : &img_circlecross_50x50, 95, 95,
+                               SDK::GUI::Color::YELLOW_DARK);
+    // The session's training load (hybridx-link TrainingLoad.hpp) replaces the tick when it
+    // comes with the Streak line: "Saved" above already says what the tick did.
+    mLoad = Theme::label(mRoot, Theme::Font::SemiBold25, "", 0, 104, 240);
+    mText = Theme::label(mRoot, Theme::Font::Medium18,
+                 saved ? "Activity has\nbeen saved" : "Activity has\nbeen deleted", 48, 156, 144);
+    mTitle = std::make_unique<Widgets::Title>(mRoot, Strings::kAppNameUc);
+}
+
+void TrackResultScreen::onShow()
+{
+    if (mResult == Result::Saved) {
+        mModel.saveTrack();
+    } else {
+        mModel.resetIdleTimer();
+        mModel.discardTrack();
+    }
+    mDismiss = lv_timer_create(&TrackResultScreen::dismissCb, kDismissMs, this);
+    lv_timer_set_repeat_count(mDismiss, 1);
+}
+
+void TrackResultScreen::dismissCb(lv_timer_t* t)
+{
+    auto* self = static_cast<TrackResultScreen*>(lv_timer_get_user_data(t));
+    self->mDismiss = nullptr;   // a one-shot timer deletes itself after this call
+    if (self->mResult == Result::Saved) {
+        // HybridX Run: a treadmill run asks for the console's distance first.
+        ScreenManager::instance().goTo(self->mModel.getTrackData().treadmill ? ScreenId::TreadmillDistance
+                                                                            : ScreenId::TrackSummary);
+    } else {
+        self->mModel.exitApp();
+    }
+}
+
+void TrackResultScreen::onStreakLine()
+{
+    // The Streak line (hybridx-link StreakNow) in place of the confirmation's text, held a
+    // little longer to be read.
+    if (mResult == Result::Saved && mLoad != nullptr && mModel.sessionLoad() > 0) {
+        lv_label_set_text_fmt(mLoad, "Load %u", static_cast<unsigned>(mModel.sessionLoad()));
+        if (mTick != nullptr) {
+            lv_obj_add_flag(mTick, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (mText == nullptr || !mModel.hasStreakLine()) {
+        return;
+    }
+    if (mModel.streakLine2()[0] != '\0') {
+        lv_label_set_text_fmt(mText, "%s\n%s", mModel.streakLine1(), mModel.streakLine2());
+    } else {
+        lv_label_set_text(mText, mModel.streakLine1());
+    }
+    lv_obj_set_style_text_color(mText, lv_color_hex(SDK::GUI::Color::YELLOW_DARK), 0);
+    // Wider than the confirmation's 144 px, for "12 of 7 this week"; still inside the round face
+    // (its chord at y = 200 is 179 px).
+    lv_obj_set_x(mText, 35);
+    lv_obj_set_width(mText, 170);
+    if (mDismiss) {
+        lv_timer_set_period(mDismiss, kStreakLineMs);
+        lv_timer_reset(mDismiss);
+    }
+}

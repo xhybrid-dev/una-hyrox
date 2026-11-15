@@ -1,0 +1,609 @@
+/**
+ ******************************************************************************
+ * @file    ActivityWriter.cpp
+ * @brief   Serializes activity data to a FIT file (native SDK::Fit encoder).
+ ******************************************************************************
+ */
+
+#include "ActivityWriter.hpp"
+
+#include "SDK/Fit/FitWorkoutWriter.hpp"
+#include "SDK/Interfaces/IFileSystem.hpp"
+#include "SDK/JSON/JsonStreamWriter.hpp"
+
+#include <cassert>
+#include <cstring>
+
+#define LOG_MODULE_PRX      "ActivityWriter"
+#define LOG_MODULE_LEVEL    LOG_LEVEL_DEBUG
+#include "SDK/UnaLogger/Logger.h"
+
+namespace fit = SDK::Fit;
+using Field = fit::FitWriter::Field;
+using DevFieldDef = fit::FitWriter::DevField;
+
+namespace {
+    // HybridX Run: the FIT profile's max_met_data message, which carries a
+    // VO2max estimate. Not in the SDK's FitProfile.hpp; numbers from the FIT
+    // SDK 21.171 profile (as generated into fitdecode's profile.py): message
+    // 229; update_time 0 (date_time), vo2_max 2 (uint16, scale 10, mL/kg/min),
+    // sport 5, sub_sport 6 (enums).
+    constexpr uint16_t kMesgMaxMetData = 229;
+    const Field kMaxMetUpdateTime{0, fit::BaseType::UInt32};
+    const Field kMaxMetVo2Max{2, fit::BaseType::UInt16};
+    const Field kMaxMetSport{5, fit::BaseType::Enum};
+    const Field kMaxMetSubSport{6, fit::BaseType::Enum};
+
+    // HybridX Run: the lap and session averages of cadence and step length. Not declared
+    // in the SDK's FitProfile.hpp (it has only the record's), so defined here as the
+    // max_met_data message is. The numbers are from Garmin's FIT profile as generated into
+    // fitdecode 0.11.0's profile.py:
+    //   lap:     avg_cadence 17 (uint8, rpm), avg_fractional_cadence 80 (uint8, scale 128),
+    //            avg_step_length 120 (uint16, scale 10, mm);
+    //   session: avg_cadence 18, avg_fractional_cadence 92, avg_step_length 134 (same types).
+    // Written the way the record's are (strides per minute, split into a whole and a
+    // fractional byte, and the step length as mm x 10) by SDK::FitRecordCadence.
+    const Field kLapAvgCadence{17, fit::BaseType::UInt8};
+    const Field kLapAvgFractionalCadence{80, fit::BaseType::UInt8};
+    const Field kLapAvgStepLength{120, fit::BaseType::UInt16};
+    const Field kSessionAvgCadence{18, fit::BaseType::UInt8};
+    const Field kSessionAvgFractionalCadence{92, fit::BaseType::UInt8};
+    const Field kSessionAvgStepLength{134, fit::BaseType::UInt16};
+
+    /// Append a cadence average (whole and fractional bytes) and a step length average to a
+    /// lap or session; FIT's invalid value for a missing one (0 = none).
+    void addFormAverages(fit::FitWriter::Data& d, float cadenceAvgSpm, float stepLengthAvgM)
+    {
+        if (cadenceAvgSpm > 0.0f) {
+            const auto c = SDK::FitRecordCadence::encodeCadenceSpm(cadenceAvgSpm);
+            d.u8(c.cadence).u8(c.fractionalCadence);
+        } else {
+            d.invalid(fit::BaseType::UInt8);
+            d.invalid(fit::BaseType::UInt8);
+        }
+        if (stepLengthAvgM > 0.0f) {
+            d.u16(SDK::FitRecordCadence::encodeStepLengthM(stepLengthAvgM));
+        } else {
+            d.invalid(fit::BaseType::UInt16);
+        }
+    }
+
+    // Native record fields shared by every record variant (HR/cadence/etc.).
+    // GPS adds position; battery adds developer fields. Field order here defines
+    // the on-wire order and must match the value-write order in addRecord().
+    const Field kRecordCommonTail[] = {
+        fit::field::Record::EnhancedAltitude,
+        fit::field::Record::EnhancedSpeed,
+        fit::field::Record::HeartRate,
+        fit::field::Record::Cadence,
+        fit::field::Record::FractionalCadence,
+        fit::field::Record::StepLength,
+    };
+}  // namespace
+
+ActivityWriter::ActivityWriter(const SDK::Kernel& kernel, const char* pathToDir)
+    : mKernel(kernel), mPath(pathToDir), mMarker(kernel.fs, pathToDir)
+{
+    assert(pathToDir != nullptr);
+}
+
+void ActivityWriter::start(const AppInfo& info)
+{
+    mLapCounter   = 0;
+    mLastFlushUtc = info.timestamp;
+
+    if (!createAndOpenFile(info.timestamp)) {
+        return;
+    }
+
+    mFit = std::make_unique<fit::FitWriter>(*mFile);
+    const bool begun = mFit->begin(/*profileVersion=*/0);
+    if (!begun) {
+        LOG_ERROR("Failed to write FIT header\n");
+    }
+
+    // file_id
+    const uint8_t productNameLen =
+        static_cast<uint8_t>(std::strlen(fit::kProductName) + 1);
+    mFit->defineMessage(L_FILE_ID, fit::mesgNum(fit::MesgNum::FileId),
+        {fit::field::FileId::Type, fit::field::FileId::Manufacturer,
+         fit::field::FileId::Product, fit::field::FileId::SerialNumber,
+         fit::field::FileId::TimeCreated,
+         {fit::field::FileId::kProductNameNum, fit::BaseType::String, productNameLen}});
+    mFit->data(L_FILE_ID)
+        .u8(static_cast<uint8_t>(fit::File::Activity))
+        .u16(static_cast<uint16_t>(fit::Manufacturer::Una))
+        .u16(static_cast<uint16_t>(fit::Product::UnaWatch))
+        .u32(0)
+        .u32(unixToFitTimestamp(info.timestamp))
+        .str(fit::kProductName, productNameLen)
+        .write();
+
+    // developer_data_id
+    mFit->defineMessage(L_DEV_ID, fit::mesgNum(fit::MesgNum::DeveloperDataId),
+        {fit::field::DeveloperDataId::ApplicationId,
+         fit::field::DeveloperDataId::DeveloperDataIndex});
+    {
+        uint8_t appId[16] = {};
+        std::strncpy(reinterpret_cast<char*>(appId), info.appID.c_str(), sizeof(appId));
+        mFit->data(L_DEV_ID).bytes(appId, sizeof(appId)).u8(0).write();
+    }
+
+    // Developer field descriptions (label/units survive any profile).
+    writeFieldDescription(DF_BATTERY_LEVEL, "batteryLevel", "%", fit::BaseType::UInt8);
+    writeFieldDescription(DF_BATTERY_VOLTAGE, "battVoltage", "mV", fit::BaseType::UInt16);
+    writeFieldDescription(DF_HR_SOURCE, "hr_source", nullptr, fit::BaseType::UInt8);
+    writeFieldDescription(DF_HR_OPTICAL, "hr_optical", "bpm", fit::BaseType::UInt8);
+    writeFieldDescription(DF_HR_EXTERNAL, "hr_external", "bpm", fit::BaseType::UInt8);
+    // HybridX Run: float32 so any reader shows 52.3 with no scale to know.
+    writeFieldDescription(DF_VO2MAX, "vo2max", "ml/kg/min", fit::BaseType::Float32);
+    writeFieldDescription(DF_VO2MAX_RECENT, "vo2max_recent", "ml/kg/min", fit::BaseType::Float32);
+    writeFieldDescription(DF_DISTANCE_EST, "distance_estimate", "m", fit::BaseType::Float32);
+
+    // event
+    mFit->defineMessage(L_EVENT, fit::mesgNum(fit::MesgNum::Event),
+        {fit::field::Event::Timestamp, fit::field::Event::EventField,
+         fit::field::Event::EventType});
+
+    defineRecordMessages();
+
+    // lap / session / activity
+    mFit->defineMessage(L_LAP, fit::mesgNum(fit::MesgNum::Lap),
+        {fit::field::Lap::Timestamp, fit::field::Lap::StartTime,
+         fit::field::Lap::TotalElapsedTime, fit::field::Lap::TotalTimerTime,
+         fit::field::Lap::TotalDistance, fit::field::Lap::MessageIndex,
+         fit::field::Lap::AvgSpeed, fit::field::Lap::MaxSpeed,
+         fit::field::Lap::TotalAscent, fit::field::Lap::TotalDescent,
+         fit::field::Lap::AvgHeartRate, fit::field::Lap::MaxHeartRate,
+         fit::field::Lap::WktStepIndex, fit::field::Lap::Intensity,
+         fit::field::Lap::LapTrigger,
+         kLapAvgCadence, kLapAvgFractionalCadence, kLapAvgStepLength});   // HybridX Run
+    mFit->defineMessage(L_SESSION, fit::mesgNum(fit::MesgNum::Session),
+        {fit::field::Session::Timestamp, fit::field::Session::StartTime,
+         fit::field::Session::TotalElapsedTime, fit::field::Session::TotalTimerTime,
+         fit::field::Session::TotalDistance, fit::field::Session::MessageIndex,
+         fit::field::Session::AvgSpeed, fit::field::Session::MaxSpeed,
+         fit::field::Session::TotalAscent, fit::field::Session::TotalDescent,
+         fit::field::Session::NumLaps, fit::field::Session::Sport,
+         fit::field::Session::SubSport, fit::field::Session::AvgHeartRate,
+         fit::field::Session::MaxHeartRate,
+         kSessionAvgCadence, kSessionAvgFractionalCadence, kSessionAvgStepLength},   // HybridX Run
+        {{DF_VO2MAX, 4, 0}, {DF_VO2MAX_RECENT, 4, 0}, {DF_DISTANCE_EST, 4, 0}});   // HybridX Run
+    mFit->defineMessage(L_MAX_MET, kMesgMaxMetData,
+        {kMaxMetUpdateTime, kMaxMetVo2Max, kMaxMetSport, kMaxMetSubSport});
+    mFit->defineMessage(L_ACTIVITY, fit::mesgNum(fit::MesgNum::Activity),
+        {fit::field::Activity::Timestamp, fit::field::Activity::TotalTimerTime,
+         fit::field::Activity::LocalTimestamp, fit::field::Activity::NumSessions});
+
+    addMessageEvent(info.timestamp, fit::EventType::Start);
+
+    // Header + all definitions are on disk: flush and drop the recovery marker.
+    // getPosition() here is a clean record boundary, so a crash after this point
+    // is recoverable up to at least the header/definitions. Only write the
+    // marker when begin() succeeded AND the initial flush is durable: a failed
+    // begin()/flush leaves a near-empty/broken or non-durable .fit that the
+    // recovery marker must not point next boot's recover() at.
+    if (begun && mFile->flush()) {
+        mMarker.write(mFile->getPath(), static_cast<uint32_t>(mFile->getPosition()));
+    }
+}
+
+void ActivityWriter::defineRecordMessages()
+{
+    const DevFieldDef hr3[] = {
+        {DF_HR_SOURCE, 1, 0}, {DF_HR_OPTICAL, 1, 0}, {DF_HR_EXTERNAL, 1, 0},
+    };
+    const DevFieldDef batt5[] = {
+        {DF_BATTERY_LEVEL, 1, 0}, {DF_BATTERY_VOLTAGE, 2, 0},
+        {DF_HR_SOURCE, 1, 0}, {DF_HR_OPTICAL, 1, 0}, {DF_HR_EXTERNAL, 1, 0},
+    };
+
+    // Plain record (HR/cadence only) + 3 HR developer fields. HybridX Run: the records
+    // without GPS also carry the distance so far, which a treadmill run has (invalid when
+    // an outdoor second has no fix).
+    mFit->defineMessage(L_RECORD, fit::mesgNum(fit::MesgNum::Record),
+        {fit::field::Record::Timestamp, fit::field::Record::Distance,
+         kRecordCommonTail[0], kRecordCommonTail[1], kRecordCommonTail[2],
+         kRecordCommonTail[3], kRecordCommonTail[4], kRecordCommonTail[5]},
+        {hr3[0], hr3[1], hr3[2]});
+
+    // + GPS.
+    mFit->defineMessage(L_RECORD_G, fit::mesgNum(fit::MesgNum::Record),
+        {fit::field::Record::Timestamp,
+         fit::field::Record::PositionLat, fit::field::Record::PositionLong,
+         kRecordCommonTail[0], kRecordCommonTail[1], kRecordCommonTail[2],
+         kRecordCommonTail[3], kRecordCommonTail[4], kRecordCommonTail[5]},
+        {hr3[0], hr3[1], hr3[2]});
+
+    // + battery (5 developer fields).
+    mFit->defineMessage(L_RECORD_B, fit::mesgNum(fit::MesgNum::Record),
+        {fit::field::Record::Timestamp, fit::field::Record::Distance,
+         kRecordCommonTail[0], kRecordCommonTail[1], kRecordCommonTail[2],
+         kRecordCommonTail[3], kRecordCommonTail[4], kRecordCommonTail[5]},
+        {batt5[0], batt5[1], batt5[2], batt5[3], batt5[4]});
+
+    // + GPS + battery.
+    mFit->defineMessage(L_RECORD_GB, fit::mesgNum(fit::MesgNum::Record),
+        {fit::field::Record::Timestamp,
+         fit::field::Record::PositionLat, fit::field::Record::PositionLong,
+         kRecordCommonTail[0], kRecordCommonTail[1], kRecordCommonTail[2],
+         kRecordCommonTail[3], kRecordCommonTail[4], kRecordCommonTail[5]},
+        {batt5[0], batt5[1], batt5[2], batt5[3], batt5[4]});
+}
+
+void ActivityWriter::writeFieldDescription(uint8_t devFieldNum, const char* name,
+                                           const char* units, fit::BaseType baseType)
+{
+    const uint8_t nameLen  = name ? static_cast<uint8_t>(std::strlen(name) + 1) : 1;
+    const uint8_t unitsLen = units ? static_cast<uint8_t>(std::strlen(units) + 1) : 1;
+
+    // Redefine the field_description slot to size the name/units strings exactly.
+    mFit->defineMessage(L_FIELD_DESC, fit::mesgNum(fit::MesgNum::FieldDescription),
+        {fit::field::FieldDescription::DeveloperDataIndex,
+         fit::field::FieldDescription::FieldDefinitionNumber,
+         fit::field::FieldDescription::FitBaseTypeId,
+         {fit::field::FieldDescription::kFieldNameNum, fit::BaseType::String, nameLen},
+         {fit::field::FieldDescription::kUnitsNum, fit::BaseType::String, unitsLen}});
+    mFit->data(L_FIELD_DESC)
+        .u8(0)
+        .u8(devFieldNum)
+        .u8(fit::baseTypeId(baseType))
+        .str(name ? name : "", nameLen)
+        .str(units ? units : "", unitsLen)
+        .write();
+}
+
+void ActivityWriter::pause(std::time_t timestamp)
+{
+    if (mFit) {
+        addMessageEvent(timestamp, fit::EventType::Stop);
+    }
+}
+
+void ActivityWriter::resume(std::time_t timestamp)
+{
+    if (mFit) {
+        addMessageEvent(timestamp, fit::EventType::Start);
+    }
+}
+
+void ActivityWriter::addRecord(const RecordData& record)
+{
+    if (!mFit) {
+        return;
+    }
+
+    const bool gps  = record.has(RecordData::Field::COORDS);
+    const bool batt = record.has(RecordData::Field::BATTERY);
+    const uint8_t local = batt ? (gps ? L_RECORD_GB : L_RECORD_B)
+                               : (gps ? L_RECORD_G : L_RECORD);
+
+    fit::FitWriter::Data d = mFit->data(local);
+
+    d.u32(unixToFitTimestamp(record.timestamp));
+    if (gps) {
+        d.i32(record.has(RecordData::Field::COORDS) ? degreesToSemicircles(record.latitude) : 0)
+         .i32(degreesToSemicircles(record.longitude));
+    } else {
+        // distance (100 * m), HybridX Run
+        d.u32(record.has(RecordData::Field::DISTANCE) && record.distance >= 0.0f
+                  ? static_cast<uint32_t>(record.distance * 100.0f + 0.5f)
+                  : static_cast<uint32_t>(fit::baseTypeInvalid(fit::BaseType::UInt32)));
+    }
+    // enhanced_altitude (5 * m + 500), enhanced_speed (1000 * m/s)
+    d.u32(record.has(RecordData::Field::ALTITUDE)
+              ? static_cast<uint32_t>((record.altitude + 500.0f) * 5.0f)
+              : static_cast<uint32_t>(fit::baseTypeInvalid(fit::BaseType::UInt32)));
+    d.u32(record.has(RecordData::Field::SPEED)
+              ? static_cast<uint32_t>(record.speed * 1000.0f)
+              : static_cast<uint32_t>(fit::baseTypeInvalid(fit::BaseType::UInt32)));
+    d.u8(record.has(RecordData::Field::HEART_RATE)
+             ? static_cast<uint8_t>(record.heartRate)
+             : static_cast<uint8_t>(fit::baseTypeInvalid(fit::BaseType::UInt8)));
+
+    if (record.has(RecordData::Field::CADENCE)) {
+        const auto c = SDK::FitRecordCadence::encodeCadenceSpm(record.cadenceSpm);
+        d.u8(c.cadence).u8(c.fractionalCadence);
+    } else {
+        d.u8(static_cast<uint8_t>(fit::baseTypeInvalid(fit::BaseType::UInt8)));
+        d.u8(static_cast<uint8_t>(fit::baseTypeInvalid(fit::BaseType::UInt8)));
+    }
+
+    d.u16(record.has(RecordData::Field::STEP_LENGTH)
+              ? SDK::FitRecordCadence::encodeStepLengthM(record.stepLengthM)
+              : static_cast<uint16_t>(fit::baseTypeInvalid(fit::BaseType::UInt16)));
+
+    // Developer fields, in definition order.
+    if (batt) {
+        d.u8(record.batteryLevel).u16(record.batteryVoltage);
+    }
+    d.u8(record.hrSource).u8(record.hrOpticalBpm).u8(record.hrExternalBpm);
+
+    d.write();
+
+    // Periodic durability flush: sync to eMMC and advance the marker to this
+    // record boundary so a later crash recovers a record-complete file.
+    if (record.timestamp - mLastFlushUtc >= skFlushIntervalSec) {
+        // Only advance the marker when the flush durably landed; otherwise keep
+        // the previous good offset (never point recover() past non-durable data).
+        if (mFile->flush()) {
+            mMarker.update(static_cast<uint32_t>(mFile->getPosition()));
+            mLastFlushUtc = record.timestamp;
+        }
+    }
+}
+
+void ActivityWriter::addLap(const LapData& lap)
+{
+    if (!mFit) {
+        return;
+    }
+    fit::FitWriter::Data lapData = mFit->data(L_LAP);
+    lapData
+        .u32(unixToFitTimestamp(lap.timestamp))
+        .u32(unixToFitTimestamp(lap.timeStart))
+        .u32(static_cast<uint32_t>(lap.elapsed * 1000.0f + 0.5f))
+        .u32(static_cast<uint32_t>(lap.duration * 1000.0f + 0.5f))
+        .u32(static_cast<uint32_t>(lap.distance * 100))
+        .u16(mLapCounter)  // message_index: 0-based, incremented after this write
+        .u16(static_cast<uint16_t>(lap.speedAvg * 1000))
+        .u16(static_cast<uint16_t>(lap.speedMax * 1000))
+        .u16(static_cast<uint16_t>(lap.ascent))
+        .u16(static_cast<uint16_t>(lap.descent))
+        .u8(static_cast<uint8_t>(lap.hrAvg))
+        .u8(static_cast<uint8_t>(lap.hrMax))
+        .u16(lap.wktStepIndex)
+        .u8(static_cast<uint8_t>(lap.intensity))
+        .u8(static_cast<uint8_t>(lap.trigger));
+    addFormAverages(lapData, lap.cadenceAvgSpm, lap.stepLengthAvgM);   // HybridX Run
+    lapData.write();
+    mLapCounter++;
+
+    // Laps are sparse: flush and advance the marker, but only when the flush
+    // durably landed (else keep the previous good offset).
+    if (mFile->flush()) {
+        mMarker.update(static_cast<uint32_t>(mFile->getPosition()));
+        mLastFlushUtc = lap.timestamp;
+    }
+}
+
+void ActivityWriter::addWorkout(const SDK::Workout::Program& program)
+{
+    if (!mFit) {
+        return;
+    }
+    if (!fit::writeWorkout(*mFit, program, {L_WORKOUT, L_WORKOUT_STEP, L_MEMO_GLOB})) {
+        LOG_ERROR("Failed to write the workout\n");
+    }
+}
+
+bool ActivityWriter::stop(const TrackData& track)
+{
+    if (!mFit) {
+        return false;
+    }
+
+    bool ok = mFit->ok();
+
+    // HybridX Run: the athlete's current VO2max (the figure shown), in the
+    // profile's own message, before the session it belongs to.
+    if (track.vo2maxRecentX10 != 0) {
+        ok = mFit->data(L_MAX_MET)
+            .u32(unixToFitTimestamp(track.timestamp))
+            .u16(track.vo2maxRecentX10)
+            .u8(static_cast<uint8_t>(fit::Sport::Running))
+            .u8(static_cast<uint8_t>(fit::SubSport::Generic))
+            .write() && ok;
+    }
+
+    fit::FitWriter::Data session = mFit->data(L_SESSION);
+    session
+        .u32(unixToFitTimestamp(track.timestamp))
+        .u32(unixToFitTimestamp(track.timeStart))
+        .u32(static_cast<uint32_t>(track.elapsed * 1000))
+        .u32(static_cast<uint32_t>(track.duration * 1000))
+        .u32(static_cast<uint32_t>(track.distance * 100))
+        .u16(0)  // message_index
+        .u16(static_cast<uint16_t>(track.speedAvg * 1000))
+        .u16(static_cast<uint16_t>(track.speedMax * 1000))
+        .u16(static_cast<uint16_t>(track.ascent))
+        .u16(static_cast<uint16_t>(track.descent))
+        .u16(mLapCounter)
+        .u8(static_cast<uint8_t>(fit::Sport::Running))
+        .u8(static_cast<uint8_t>(track.treadmill ? fit::SubSport::Treadmill : fit::SubSport::Generic))
+        .u8(static_cast<uint8_t>(track.hrAvg))
+        .u8(static_cast<uint8_t>(track.hrMax));
+    // HybridX Run: the cadence and step length averages (native fields, before the developer ones).
+    addFormAverages(session, track.cadenceAvgSpm, track.stepLengthAvgM);
+    // HybridX Run: the developer fields, at the tail; FIT's invalid value when
+    // there is no figure.
+    for (const uint16_t x10 : {track.vo2maxX10, track.vo2maxRecentX10}) {
+        if (x10 != 0) {
+            session.f32(static_cast<float>(x10) / 10.0f);
+        } else {
+            session.invalid(fit::BaseType::Float32);
+        }
+    }
+    if (track.treadmill && track.distanceEstimateM > 0.0f) {
+        session.f32(track.distanceEstimateM);
+    } else {
+        session.invalid(fit::BaseType::Float32);
+    }
+    ok = session.write() && ok;
+
+    ok = mFit->data(L_ACTIVITY)
+        .u32(unixToFitTimestamp(track.timestamp))
+        .u32(static_cast<uint32_t>(track.duration * 1000))
+        .u32(unixToFitTimestamp(epochToLocal(track.timestamp)))
+        .u16(1)
+        .write() && ok;
+
+    const bool finishOk = mFit->finish();
+    if (!finishOk) {
+        LOG_ERROR("Failed to finalize FIT file\n");
+    }
+    ok = finishOk && mFit->ok() && ok;
+    mFit.reset();
+
+    if (mFile) {
+        ok = mFile->flush() && ok;
+        ok = mFile->close() && ok;
+    } else {
+        ok = false;
+    }
+
+    // The .fit is durably finished on disk: drop the recovery marker so the
+    // next boot does not treat this activity as interrupted.
+    if (ok) {
+        mMarker.remove();
+    }
+
+    // FIT durability IS the save-success contract: the kernel auto-registers the
+    // .fit the moment its FileGuard::close() fires (and recoverInterrupted()
+    // re-registers after a crash), so once `ok` is true the activity is never
+    // orphaned. The .json summary is auxiliary/best-effort — recovery cannot
+    // rebuild it — so a summary-only failure must NOT suppress registration.
+    // Attempt it ONLY when the FIT is durable (ok): with ok == false the marker
+    // is kept for next-boot recovery / the FIT is invalid, so a .json sidecar
+    // would misrepresent a non-durable activity. Log on failure; the return
+    // value is gated on FIT durability regardless.
+    if (ok && !saveSummary(track)) {
+        LOG_ERROR("Activity summary (.json) save failed; FIT is durable and registered\n");
+    }
+    return ok;
+}
+
+void ActivityWriter::discard()
+{
+    mFit.reset();
+    mMarker.remove();
+    if (!mFile) {
+        return;
+    }
+    if (mFile->isOpen()) {
+        mFile->close();
+    }
+    mFile->remove();
+    mFile.reset();
+}
+
+void ActivityWriter::addMessageEvent(std::time_t t, fit::EventType type)
+{
+    mFit->data(L_EVENT)
+        .u32(unixToFitTimestamp(t))
+        .u8(static_cast<uint8_t>(fit::Event::Timer))
+        .u8(static_cast<uint8_t>(type))
+        .write();
+}
+
+bool ActivityWriter::recoverInterrupted()
+{
+    // All marker I/O + FitWriter::recover() orchestration lives in the shared
+    // SDK::Fit::RecordingMarker. Running needs no sibling .json to register a
+    // recovered activity (the kernel's activity registry tracks .fit files
+    // only), so this is pure wiring.
+    const auto result = mMarker.recover();
+    if (result.recovered) {
+        LOG_INFO("Recovery: finalized interrupted activity [%s]\n", result.path.c_str());
+    }
+    return result.recovered;
+}
+
+bool ActivityWriter::createAndOpenFile(std::time_t utc)
+{
+    char buff[256]{};
+    std::tm localTime{};
+#if WIN32
+    localtime_s(&localTime, &utc);
+#else
+    localtime_r(&utc, &localTime);
+#endif
+
+    int len = snprintf(buff, sizeof(buff), "%s/%04u%02u/", mPath,
+                       localTime.tm_year + 1900, localTime.tm_mon + 1);
+    if (len <= 0 || !mKernel.fs.mkdir(buff)) {
+        LOG_ERROR("Failed to create dir [%s]\n", buff);
+        return false;
+    }
+
+    snprintf(&buff[len], sizeof(buff) - len, "activity_%04u%02u%02uT%02u%02u%02u.fit",
+        localTime.tm_year + 1900, localTime.tm_mon + 1, localTime.tm_mday,
+        localTime.tm_hour, localTime.tm_min, localTime.tm_sec);
+
+    mFile = mKernel.fs.file(buff);
+    if (!mFile || !mFile->open(true, true)) {
+        LOG_ERROR("Failed to create file [%s]\n", buff);
+        mFile.reset();
+        return false;
+    }
+
+    return true;
+}
+
+bool ActivityWriter::saveSummary(const TrackData& track)
+{
+    if (!mFile) {
+        return false;
+    }
+    char buff[256]{};
+    size_t nameLen = strlen(mFile->getPath());
+    snprintf(buff, sizeof(buff), "%.*s%s", static_cast<int>(nameLen - 3), mFile->getPath(), "json");
+
+    mFile->setPath(buff);
+
+    if (!mFile->open(true, true)) {
+        LOG_ERROR("Failed to open activity summary [%s]\n", buff);
+        mFile.reset();
+        return false;
+    }
+
+    SDK::JsonStreamWriter writer(mFile.get());
+    writer.startMap();
+    writer.add("time_start", static_cast<uint32_t>(track.timeStart));
+    writer.add("duration", static_cast<uint32_t>(track.duration));
+    writer.add("distance", track.distance);
+    writer.add("hr_avg", track.hrAvg);
+    writer.add("elevation", track.ascent);  // accumulated gain, matching the on-watch summary
+    writer.add("activity_type", "running");
+    writer.endMap();
+
+    const bool ok = mFile->flush();
+    return mFile->close() && ok;
+}
+
+std::time_t ActivityWriter::tm2epoch(const struct tm* tm)
+{
+    int y = tm->tm_year + 1900;
+    int m = tm->tm_mon + 1;
+    int d = tm->tm_mday;
+    if (m <= 2) { y -= 1; m += 12; }
+    int64_t  era = (y >= 0 ? y : y - 399) / 400;
+    uint32_t yoe = (uint32_t)(y - era * 400);
+    uint32_t doy = (153 * (m - 3) + 2) / 5 + d - 1;
+    uint32_t doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    int64_t days = era * 146097 + (int64_t)doe - 719468;
+    int64_t secs = days * 86400 + tm->tm_hour * 3600 + tm->tm_min * 60 + tm->tm_sec;
+    return (std::time_t)secs;
+}
+
+std::time_t ActivityWriter::epochToLocal(std::time_t utc)
+{
+    std::tm localTime{};
+#if WIN32
+    localtime_s(&localTime, &utc);
+#else
+    localtime_r(&utc, &localTime);
+#endif
+    return tm2epoch(&localTime);
+}
+
+uint32_t ActivityWriter::unixToFitTimestamp(std::time_t unixTimestamp)
+{
+    const std::time_t FIT_EPOCH_OFFSET = 631065600;
+    return static_cast<uint32_t>(unixTimestamp - FIT_EPOCH_OFFSET);
+}
+
+int32_t ActivityWriter::degreesToSemicircles(float degrees)
+{
+    return static_cast<int32_t>(degrees * (2147483648.0 / 180.0));
+}
