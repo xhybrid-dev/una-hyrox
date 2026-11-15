@@ -574,6 +574,9 @@ engine and logged in `plan.json`) are done; TP3, the screens, is next. No activi
   - after editing a plan file: `python3 hybridx-training/Tools/Plans/gen_plans.py`, then
     `XTRAINING_UPDATE_GOLDEN=1 hybridx-training/build-tests/hybridx-training-host-tests --gtest_filter='Golden.*'`
     and read the diff of `Tests/Host/golden/` (`Tools/Plans/README.md`);
+  - the plans as a PDF for review (the plan files, the nine golden plans, the paces and caps; needs
+    reportlab): `python3 hybridx-training/Tools/review_pdf/make_review_pdf.py` (writes
+    `hybridx-training/docs/PLANS_REVIEW.pdf`; run it again after any plan change);
   - a plan for any runner: `hybridx-training/build-tests/plan_print --plan half --5k 22:00 [--half 1:45:00]
     [--level 2] [--days tue,wed,fri,sun] [--long sun] [--race 2027-03-28] [--not-recent] [--hr] [--distance]`;
   - a watch compile check of the core: `arm-none-eabi-g++ -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard
