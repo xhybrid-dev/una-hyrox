@@ -63,8 +63,10 @@ for app in Training Run Race Trail Workout Ride Streak; do
     mkdir -p "$OUT/$app/Output" "$OUT/$app/a/b/c/d/e"
     ln -s ../SharedData "$OUT/$app/SharedData"
 done
-# Run needs an age for its maximum heart rate; Trail needs a route.
-printf '{"schema":1,"values":{"birthYear":1986,"birthMonth":5}}' > "$OUT/Run/Output/app_config.json"
+# Run needs an age for its maximum heart rate, and a resting heart rate to score any run's
+# minutes (the simulator's own watch figure comes too late: without it X Run leaves X Training's
+# run waiting, "no VO2 profile yet"); Trail needs a route.
+printf '{"schema":1,"values":{"birthYear":1986,"birthMonth":5,"restingHr":50}}' > "$OUT/Run/Output/app_config.json"
 mkdir -p "$OUT/Trail/Output/Routes"
 python3 "$ROOT/hybridx-trail/Tools/TestRoutes/make_sim_routes.py" "$OUT/Trail/Output/Routes" >/dev/null
 printf "sim-wrong-turn.gpx" > "$OUT/Trail/Output/route.sel"
