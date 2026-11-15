@@ -141,6 +141,12 @@ private:
     /// The run detail page's numbers (about 4 KB, so on the heap, made when a track starts and
     /// freed when it ends). Null if there was no memory: the page then shows nothing.
     std::unique_ptr<RunVo2::RunStats> mRunStats;
+    uint32_t mHrLastMs    = 0;   ///< getTimeMs() of the latest HR sample (X Run's, for feedSecond)
+    uint32_t mSpeedLastMs = 0;   ///< getTimeMs() of the latest GPS speed sample
+    uint32_t mGradeLastMs = 0;   ///< getTimeMs() of the latest grade sample
+    bool     mHrSeen      = false;
+    bool     mSpeedSeen   = false;
+    bool     mGradeSeen   = false;
 
     // -- Outdoor stride calibration inputs (latched per stream) ---------
     struct {
@@ -347,6 +353,7 @@ private:
     bool zoneAlertAllowed(SDK::Workout::ZoneAlerts::Alert alert);
     void sendRunStats();         ///< the run detail page's numbers to the GUI (start, pause, save)
     void updateForm();           ///< cadence and step length for this tick: screen, record and averages
+    void feedSecond();           ///< X Run's per-second feed: the run statistics (and, TP4, the VO2 windows)
     void writeActivityLink(const ActivityWriter::TrackData& track);   ///< the saved run, for Streak (hybridx-link)
     bool closeActivity(const ActivityWriter::TrackData& track);       ///< finish the .fit, tell the watch and Streak
     void sendStreakLine();                                            ///< the Streak line, after a save
