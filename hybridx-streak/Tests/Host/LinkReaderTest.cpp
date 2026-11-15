@@ -202,12 +202,14 @@ TEST(LinkReader, EveryAppsFileIsReadAndTheListIsOldestFirst)
     // A bike app and a workout app that do not exist yet: their slots are reserved, so Streak needs no change.
     w.leave("act_ride.json", "HybridXRide", {entry(2026, 10, 24, 17, 0, 60, 3000, HybridXLink::Sport::Ride)});
     w.leave("act_workout.json", "HybridXWorkout", {entry(2026, 10, 27, 18, 0, 60, 2400, HybridXLink::Sport::Strength)});
+    // X Training's slot came later (its TP4), with this Streak release.
+    w.leave("act_training.json", "HybridXTraining", {entry(2026, 10, 27, 19, 30)});
     LinkReader r;
     std::vector<Found> found;
-    ASSERT_EQ(read(r, w, Seen(), found), 5u);
-    EXPECT_EQ(r.stats().files, 5);
+    ASSERT_EQ(read(r, w, Seen(), found), 6u);
+    EXPECT_EQ(r.stats().files, 6);
 
-    for (size_t i = 1; i < 5; ++i) {
+    for (size_t i = 1; i < 6; ++i) {
         EXPECT_LE(found[i - 1].localStart, found[i].localStart) << i;
     }
     EXPECT_STREQ(found[0].app, "HybridXRide");
@@ -217,6 +219,24 @@ TEST(LinkReader, EveryAppsFileIsReadAndTheListIsOldestFirst)
     EXPECT_STREQ(found[2].app, "HybridXTrail");
     EXPECT_EQ(found[3].kind, Kind::Run);
     EXPECT_EQ(found[4].kind, Kind::Strength);
+    EXPECT_STREQ(found[5].app, "HybridXTraining");
+    EXPECT_EQ(found[5].kind, Kind::Run);
+}
+
+TEST(LinkReader, AnXTrainingRunIsARunWithItsLoad)
+{
+    // What X Training's Service::writeActivityLink leaves: sport 1 (run) and its load.
+    Watch w;
+    w.fs.addFile(std::string(kShared) + "act_training.json",
+                 R"({"v":1,"app":"HybridXTraining","a":[[)" + std::to_string(entry(2026, 10, 27, 7, 0).startUtc) +
+                     R"(,1500,2460,7310,141,158,1,44]]})");
+    LinkReader r;
+    std::vector<Found> found;
+    ASSERT_EQ(read(r, w, Seen(), found), 1u);
+    EXPECT_STREQ(found[0].app, "HybridXTraining");
+    EXPECT_EQ(found[0].kind, Kind::Run);
+    EXPECT_EQ(found[0].minutes, 41);
+    EXPECT_EQ(found[0].load, 44);
 }
 
 TEST(LinkReader, WorkoutsKindsComeFromTheSportNotTheApp)
