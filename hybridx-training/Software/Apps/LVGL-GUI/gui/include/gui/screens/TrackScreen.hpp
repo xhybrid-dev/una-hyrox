@@ -15,6 +15,8 @@
 
 #include <memory>
 
+#include "HoldTimer.hpp"   // X Training: header-only
+
 #include "gui/screens/Screen.hpp"
 #include "gui/widgets/Widgets.hpp"
 #include "gui/widgets/WorkoutFaces.hpp"
@@ -23,9 +25,11 @@ class TrackScreen : public Screen
 {
 public:
     explicit TrackScreen(Model& model);
+    ~TrackScreen() override;
 
     // Screen
     void onShow() override;
+    void onSuspend() override;   // X Training: a hold in progress is dropped
     void onHide() override;
     void onKey(uint8_t code) override;
 
@@ -70,6 +74,19 @@ private:
     void setTime(uint8_t h, uint8_t m);
     void updateHrIcon();
     void setIntervalsPhase(const Track::IntervalsData& iv);
+
+    // X Training (TP3): the warm-up before a time trial or race ends only on a held R2.
+    static constexpr uint32_t kHoldMs = 1000;
+    bool holdActive() const;
+    void updateHoldHint();
+    void startHoldPoll();
+    void stopHoldPoll();
+    static void holdPollCb(lv_timer_t* t);
+    XTraining::HoldTimer mHold{kHoldMs};
+    lv_timer_t* mHoldPoll   = nullptr;
+    lv_obj_t*   mHoldHint   = nullptr;
+    lv_obj_t*   mHoldBar    = nullptr;
+    bool        mHoldInPlay = false;   ///< this R2 press is the hold's (its click and release too)
 
     // Face containers (240 x 240, one visible at a time)
     lv_obj_t* mFaceIntervals = nullptr;

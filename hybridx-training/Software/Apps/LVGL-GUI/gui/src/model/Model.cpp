@@ -164,13 +164,15 @@ const Track::IntervalsData& Model::getPendingAlertIntervals() const
 void Model::trackStart(bool intervalsMode)
 {
     mStreakShow     = false;   // a new activity: the last one's Streak line goes
+    mPlanSaved      = CustomMessage::PlanSavedInfo{};   // X Training: and the plan's lines
     mStreakLine1[0] = '\0';
     mStreakLine2[0] = '\0';
     // An armed workout is followed unless Intervals were chosen; either way
     // it is used up by this run.
     // HybridX Run: a treadmill run is a plain run for now (NOTES, "Treadmill"), so it follows
     // no workout; the service reads the same setting.
-    const bool    treadmill = mSettings.treadmill && !intervalsMode;
+    // X Training: a planned session is always outdoors (brief, decision 9).
+    const bool    treadmill = mSettings.treadmill && !intervalsMode && mArmedWorkout != kPlanSession;
     const int16_t workout   = (intervalsMode || treadmill) ? kNoWorkout : mArmedWorkout;
     mArmedWorkout = kNoWorkout;
 
@@ -340,6 +342,24 @@ void Model::requestWorkoutDetails(uint16_t index)
 {
     mWorkoutDetails = nullptr;
     SDK::send_msg<CustomMessage::WorkoutDetailsRequest>(mKernel, index);
+}
+
+void Model::newPlan(uint8_t action, const CustomMessage::PlanSetupInfo& info)
+{
+    mPlanPreview = CustomMessage::PlanPreviewInfo{};
+    SDK::send_msg<CustomMessage::NewPlan>(mKernel, action, info);
+}
+
+void Model::requestPlan(uint8_t what, uint32_t date)
+{
+    SDK::send_msg<CustomMessage::PlanRequest>(mKernel, what, date);
+}
+
+void Model::requestPlanDay(uint32_t date)
+{
+    mWorkoutDetails = nullptr;
+    mChosenWorkout  = CustomMessage::WorkoutDetailsRequest::kPlanDay;   // the answer's index
+    SDK::send_msg<CustomMessage::WorkoutDetailsRequest>(mKernel, CustomMessage::WorkoutDetailsRequest::kPlanDay, date);
 }
 
 const SDK::Workout::Program* Model::getWorkoutDetails() const
@@ -546,16 +566,48 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
         } break;
 
         case CustomMessage::PLAN_TODAY: {   // X Training: today's planned session
+            // The Today screen starts the session (it arms kPlanSession); the main menu's
+            // Today item shows what it is (TP3).
             mPlanToday = static_cast<CustomMessage::PlanToday*>(message)->info;
-            // Start runs today's session unless another workout is armed; once it is done
-            // (or there is none) Start is a plain run again.
-            const bool session = mPlanToday.status == CustomMessage::PlanTodayInfo::Session;
-            if (session && mArmedWorkout == kNoWorkout && !isTrackActive()) {
-                mArmedWorkout = kPlanSession;
-            } else if (!session && mArmedWorkout == kPlanSession) {
-                mArmedWorkout = kNoWorkout;
-            }
             modelListener->onWorkoutList();
+        } break;
+
+        case CustomMessage::PLAN_DAY: {   // X Training (TP3)
+            mPlanDay = static_cast<CustomMessage::PlanDay*>(message)->info;
+            modelListener->onPlanDay();
+        } break;
+
+        case CustomMessage::PLAN_WEEK: {
+            mPlanWeek = static_cast<CustomMessage::PlanWeek*>(message)->info;
+            modelListener->onPlanWeek();
+        } break;
+
+        case CustomMessage::PLAN_OVERVIEW: {
+            mPlanOverview = static_cast<CustomMessage::PlanOverview*>(message)->info;
+            modelListener->onPlanOverview();
+        } break;
+
+        case CustomMessage::PLAN_PACES: {
+            mPlanPaces = static_cast<CustomMessage::PlanPaces*>(message)->info;
+            modelListener->onPlanPaces();
+        } break;
+
+        case CustomMessage::PLAN_SETUP: {
+            const auto* m = static_cast<CustomMessage::PlanSetupUpd*>(message);
+            mPhoneSetup   = m->phone;
+            mCurrentSetup = m->current;
+            mPhoneAsks    = m->phoneAsks;
+            modelListener->onPlanSetup();
+        } break;
+
+        case CustomMessage::PLAN_SAVED: {
+            mPlanSaved = static_cast<CustomMessage::PlanSaved*>(message)->info;
+            modelListener->onPlanSaved();
+        } break;
+
+        case CustomMessage::PLAN_PREVIEW: {
+            mPlanPreview = static_cast<CustomMessage::PlanPreview*>(message)->info;
+            modelListener->onPlanPreview();
         } break;
 
         case CustomMessage::WORKOUT_LIST: {
@@ -608,6 +660,12 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             step.reps      = msg->reps;
             step.intensity = msg->intensity;
             step.none      = msg->none;
+            memcpy(step.result, msg->result, sizeof(step.result));
+            step.result[sizeof(step.result) - 1] = '\0';
+            memcpy(step.aim, msg->aim, sizeof(step.aim));
+            step.aim[sizeof(step.aim) - 1] = '\0';
+            step.verdict     = msg->verdict;
+            step.holdToStart = msg->holdToStart;
             if (!msg->next) {
                 mStepCard = true;   // the card shows once the Track screen sees it
             }
@@ -638,3 +696,67 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
     }
     return true;
 }
+
+#if defined(SIMULATOR)
+// The text-fit audit (AuditDriver): worst cases put in as if the service had sent them.
+void Model::injectPlanToday(const CustomMessage::PlanTodayInfo& i)
+{
+    mPlanToday = i;
+    if (modelListener) {
+        modelListener->onWorkoutList();
+    }
+}
+
+void Model::injectPlanDay(const CustomMessage::PlanTodayInfo& i)
+{
+    mPlanDay = i;
+    if (modelListener) {
+        modelListener->onPlanDay();
+    }
+}
+
+void Model::injectPlanWeek(const CustomMessage::PlanWeekInfo& i)
+{
+    mPlanWeek = i;
+    if (modelListener) {
+        modelListener->onPlanWeek();
+    }
+}
+
+void Model::injectPlanOverview(const CustomMessage::PlanOverviewInfo& i)
+{
+    mPlanOverview = i;
+    if (modelListener) {
+        modelListener->onPlanOverview();
+    }
+}
+
+void Model::injectPlanPaces(const CustomMessage::PlanPacesInfo& i)
+{
+    mPlanPaces = i;
+    if (modelListener) {
+        modelListener->onPlanPaces();
+    }
+}
+
+void Model::injectPlanPreview(const CustomMessage::PlanPreviewInfo& i)
+{
+    mPlanPreview = i;
+    if (modelListener) {
+        modelListener->onPlanPreview();
+    }
+}
+
+void Model::injectPlanSaved(const CustomMessage::PlanSavedInfo& i)
+{
+    mPlanSaved = i;
+    if (modelListener) {
+        modelListener->onPlanSaved();
+    }
+}
+
+void Model::injectWorkoutStep(const Model::WorkoutStepInfo& i)
+{
+    mWorkoutStep = i;
+}
+#endif

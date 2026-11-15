@@ -552,3 +552,29 @@ TEST(PlanBuilder, ThreeRunDaysCapTheFastFinish)
     // Five or six run days change nothing.
     EXPECT_EQ(PlanBuilder::forLevel(finish, PlanBuilder::scaling(*half, 2, paces, 5)).b, 30);
 }
+
+TEST(PlanBuilder, RaceAlertsFollowTheSetting)
+{
+    // Off: none; first 2 km: too fast only, then none; both: as planned.
+    EXPECT_EQ(raceAlertMode(0, 0, AlertMode::Both), AlertMode::None);
+    EXPECT_EQ(raceAlertMode(1, 0, AlertMode::Both), AlertMode::FastOnly);
+    EXPECT_EQ(raceAlertMode(1, 199999, AlertMode::Both), AlertMode::FastOnly);
+    EXPECT_EQ(raceAlertMode(1, 200000, AlertMode::Both), AlertMode::None);
+    EXPECT_EQ(raceAlertMode(2, 500000, AlertMode::Both), AlertMode::Both);
+    // The plan's own race steps alert both ways, which "Both" keeps.
+    const Paces p = PaceModel::compute({22 * 60, 0}).paces;
+    SDK::Workout::Program prog;
+    SessionMeta meta;
+    BuildOptions o;
+    Session race;
+    race.kind = Kind::Race;
+    ASSERT_TRUE(PlanBuilder::build(race, p, o, 1000000u, prog, meta));
+    bool found = false;
+    for (uint16_t i = 0; i < prog.stepCount; ++i) {
+        if (prog.steps[i].intensity == SDK::Workout::Intensity::Active) {
+            EXPECT_EQ(meta.alert[i], AlertMode::Both);
+            found = true;
+        }
+    }
+    EXPECT_TRUE(found);
+}

@@ -138,6 +138,40 @@ inline int date(Ymd d, char* buf, size_t cap)
     return n < 0 ? 0 : n;
 }
 
+/// "Mon" .. "Sun" for Monday 0 .. Sunday 6; "" out of range.
+inline const char* weekdayName(unsigned w)
+{
+    static const char* const kNames[7] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+    return w < 7 ? kNames[w] : "";
+}
+
+/// "Jan" .. "Dec" for months 1 .. 12; "" out of range.
+inline const char* monthName(int m)
+{
+    static const char* const kNames[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    return m >= 1 && m <= 12 ? kNames[m - 1] : "";
+}
+
+/// A date for the screens: "Tue 17 Nov", or "Tue 17 Nov 2027" when @p withYear.
+/// An invalid date writes "". Returns the length written.
+inline int dayDate(Ymd d, char* buf, size_t cap, bool withYear = false)
+{
+    if (buf == nullptr || cap == 0) {
+        return 0;
+    }
+    buf[0] = '\0';
+    if (!Date::valid(d)) {
+        return 0;
+    }
+    const unsigned w = static_cast<unsigned>(Date::weekday(d));
+    const int n = withYear ? std::snprintf(buf, cap, "%s %u %s %u", weekdayName(w), static_cast<unsigned>(Date::day(d)),
+                                           monthName(Date::month(d)), static_cast<unsigned>(Date::year(d)))
+                           : std::snprintf(buf, cap, "%s %u %s", weekdayName(w), static_cast<unsigned>(Date::day(d)),
+                                           monthName(Date::month(d)));
+    return n < 0 ? 0 : n;
+}
+
 }  // namespace TimeText
 }  // namespace XTraining
 

@@ -22,20 +22,22 @@ class Screen;
 
 enum class ScreenId : uint8_t {
     Main,
+    PlanToday,      // X Training: today's planned session
+    PlanWeek,       // X Training: This week
+    PlanDay,        // X Training: a day This week opened
+    PlanOverview,   // X Training: Plan
+    PlanPaces,      // X Training: Paces
+    NewPlan,        // X Training: New plan's choices
+    NewPlanFiveK,   // X Training: the 5K time picker
+    NewPlanDays,    // X Training: the run days
+    NewPlanRace,    // X Training: the race date
+    NewPlanConfirm, // X Training: the new plan, to start
+    PlanAsk,        // X Training: the phone's new plan, start it or keep yours
     // Structured workouts
     WorkoutToday,
     WorkoutList,
     WorkoutMenu,
     WorkoutDetails,
-    // Intervals configuration
-    MenuIntervals,
-    MenuIntervalsRepeats,
-    MenuIntervalsRun,
-    MenuIntervalsRest,
-    MenuIntervalsRunTime,
-    MenuIntervalsRunDistance,
-    MenuIntervalsRestTime,
-    MenuIntervalsRestDistance,
     // Settings
     MenuSettings,
     MenuAlerts,
@@ -57,12 +59,6 @@ enum class ScreenId : uint8_t {
     TrackDiscarded,
     TrackSummary,
     TreadmillDistance,   // HybridX Run: the console's distance after a treadmill run
-    // HybridX Run: VO2max (R5)
-    Vo2,
-    MenuVo2Profile,
-    Vo2PickBirth,
-    Vo2PickMaxHr,
-    Vo2PickRestHr,
 };
 
 class ScreenManager
@@ -81,6 +77,9 @@ public:
     /// Request a switch; performed on the next frame. The Track screen is
     /// reached through the step card while one waits to be shown.
     void goTo(ScreenId id);
+
+    /// The screen on show (the text-fit audit sends it keys).
+    Screen* current() const { return mCurrent; }
 
 private:
     ScreenManager() = default;

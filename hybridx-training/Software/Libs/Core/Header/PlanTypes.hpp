@@ -69,6 +69,17 @@ constexpr bool isHard(Kind k)
 
 enum class Phase : uint8_t { Base, Build, Peak, Specific, Taper, RaceWeek, CutBack, Baseline, Retest };
 
+/// A day as the week list marks it.
+enum class DayMark : uint8_t {
+    Rest = 0,   ///< No session that day.
+    ToCome,     ///< A session on a later day.
+    Today,      ///< Today's session, not yet done.
+    Done,       ///< Logged done.
+    PartDone,   ///< Logged part done.
+    Skipped,    ///< Logged skipped (TP5).
+    NotLogged,  ///< A session on an earlier day with nothing logged.
+};
+
 /// The four slots of a week in a plan file: the columns of PLANS.md's tables.
 enum Slot : uint8_t {
     kSlotQ1   = 0,  ///< First quality (the Tuesday column).

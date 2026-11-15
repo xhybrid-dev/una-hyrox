@@ -357,13 +357,222 @@ stay). The content can still change at any time: it is text in `Tools/Plans/`.
 Still open from TP2's gate: Jon's first session on the watch (the steps are under "The gate
 (TP2)").
 
-## TP3: the screens (next)
+## TP3: the screens (built, 15 November 2026; at its gate)
 
 Today, This week, Plan, Paces and New plan; the Saved screen's lines; the short-rep result
 on the step card; "reps by distance" and the other watch settings; the text-fit audit and
-`capture_screens.sh`; X Run's unreachable VO2max screens deleted.
+`capture_screens.sh`; X Run's unreachable VO2max screens deleted. Five steps, each committed
+and pushed so CI makes a `.uapp`: (1) the main menu and Today; (2) This week, Plan, Paces;
+(3) Settings and New plan; (4) during and after the run; (5) the audit, captures, clean-up.
 
-From the coach review above: a **Race alerts** setting (Off, First 2 km "too fast", Both; default
-Off); **R2 held for about a second** on the open warm-up before a time trial or a race, with a
-"Hold to start" hint; a note on the Paces screen where threshold meets 10K pace ("Threshold is
-about your 10K pace").
+### Jon's first install (15 November 2026): the plan was made, but nothing showed it
+
+Jon installed the TP2 build and copied in `app_config.json` (the 10K plan, level 2, 5K 22:00,
+Tue, Wed, Fri and Sun, long run Sunday). The app "doesn't load a training session, only asks
+to load in a fit file on the Workouts menu". His `plan.json` shows the service did its part on
+the watch: `"s":[1,2,86,6,0,0,0,1320,20261115,1,0,0]` is that set-up, dated that Sunday, and
+`"c":[0,20261116,0,10]` a calendar of 10 weeks from Monday 16 November (set up on a Sunday, a
+plan starts the next Monday). Monday is not one of his days, so his first session is Tuesday
+17 November, "Easy run, strides, 40 min" (`plan_print`). TP2's main menu spoke of the plan only
+on a day with a session (Start's hint); on any other day Start was plain, and the only
+workout-like item, Workouts, is UNA's library of FIT workouts, empty on his watch. So the
+watch test passed its first half (settings read, plan made and saved, on the watch) and showed
+the gap TP3 fills first.
+
+### Step 1: the main menu and Today
+
+- **Main menu** (brief 8.1): Today, Free run, Treadmill, Workouts, Settings. Today's hint always
+  says what today is: "Intervals 5 x 3 min", "Done: Intervals", "Rest day", "Starts Mon 16 Nov",
+  "Plan complete", "Check your plan" or "No plan". Free run is X Run's Start (it reads "Start",
+  with the workout's name, when a UNA workout is armed from Workouts). RunLVGL's Intervals is off
+  the menu (decision 10); its screens go in step 5.
+- **Today** (`WorkoutDetailsScreen`, `Source::Today`): on a day with a session, the week in the
+  title ("WEEK 5 OF 10"), then the name, what it is for, what ("5 x 3 min"), the target and the
+  estimate ("9.1 km, 49 min"); L2 scrolls the steps, drawn as for a UNA workout from the
+  service's program; R1 starts it (the countdown, or the no-GPS question first). On any other
+  day the state and the next session ("Next: Tue 17 Nov / Cruise intervals / 3 x 6 min"). A
+  planned session is always outdoors: the treadmill switch applies to free runs only (decision 9).
+- **The service:** `PlanTodayInfo` gains today's date and the next session (`nextSession()`,
+  from tomorrow, or from the plan's first day before it starts); the details request takes
+  `kPlanDay` and a date (`buildPlanDay()`), so the step list is the program Start would run.
+- **Fitting the round face:** a `TextStack` lays the lines out as a block and fits each to the
+  width that keeps it clear of the buttons' arcs (radius 108), in a smaller face if need be. The
+  first Today page put the purpose at the foot, where the face is narrow, and cut it; it now sits
+  under the name. Three purpose lines were too long for one line anywhere and are shorter
+  (`PlanText`, `PLANS.md` 3.1): "Easy enough to talk", "Easy, strides for form", "Endurance, then
+  race pace".
+- **Checked:** `capture_screens.sh` (seven pretend watches: before the start, a rest day, a
+  session day with its steps and countdown, done, finished, no plan, a problem) into
+  `docs/screens/tp3-*.png`, each looked at; `sim_plan.sh` (now Today, R1, R1) runs a session
+  and saves the FIT file as before; 63 host tests; the watch target compiles.
+
+### Step 2: This week, Plan, Paces
+
+- **Main menu:** Today, Free run, Treadmill, This week, Plan, Paces, Workouts, Settings.
+- **This week** (`WeekScreen`): the week's title ("WEEK 5 OF 10"; the first week before the plan
+  starts, the last once it is over), seven rows from Monday, the day and the session's short
+  name coloured by its mark: green done, amber part done, cyan today, white to come, grey not
+  logged, dark grey rest. The chosen row's state in words above ("Today, key", "Part done",
+  "Not logged"), so the colours are never the only sign. R1 opens the day: the same page as
+  Today (`WorkoutDetailsScreen`, `Source::Day`, titled with the date), its steps a scroll away,
+  R1 only on today's.
+- **Plan** (`PlanScreen`): the plan in the title ("10K PLAN"), the week, its phase, level and
+  days; a bar of the weeks coloured by phase (bright for the weeks run, dark for those to come,
+  on the display's colour grid: LVGL's opacity blends off it and showed black and dark red);
+  this week underlined; "2 of 4 this week", "2 of 19 so far", "Ends 20 Dec" (or "Race 24 Jan").
+- **Paces** (`PacesScreen`), four pages: the paces (/km or /mi); the times they come from, each
+  dated; the predicted 10K, half and marathon; and, when there is one, a note: "Threshold is
+  about your 10K pace" (within 5 s/km, PLANS 2.3), "Your half matches a 34:47 5K: long runs
+  matter most for you" (2.4), or that a half over six months old is not used.
+- **Not missed, but not logged:** TP3 marks a past session with nothing logged "Not logged". A
+  plan set up on a Wednesday starts that Monday, so its Monday and Tuesday would read "missed"
+  though they were never asked for; telling them apart needs the set-up day, which `plan.json`
+  does not keep. The missed rules and that day are TP5's (brief section 9).
+- **The core:** `PlanProgress` (each day's mark, the week to show, the counts; three host tests),
+  `DayMark` in `PlanTypes.hpp` for the GUI, `PlanText::phaseName`. The service's `dayInfo()` is
+  Today's words for any day; `PLAN_REQUEST` asks for a day, the week, the overview or the paces,
+  answered by `PLAN_DAY`, `PLAN_WEEK`, `PLAN_OVERVIEW` and `PLAN_PACES` (each under 256 bytes,
+  asserted).
+- **Checked:** `capture_screens.sh` gains a week with two days logged (This week, a day and its
+  steps, Plan, the Paces pages) and a 32:00 runner with a slow half (the note); 32 screens, each
+  looked at; 66 host tests; the watch target links.
+
+### Step 3: Settings and New plan
+
+- **Settings** gains three items after Lap Alerts: **Reps by distance** (a watch setting in
+  `settings.json`; `plan.json` keeps a copy, and Today's estimates follow it), **Easy by heart
+  rate** (the phone's field: the switch writes it back with `AppConfig::setBool` and `save()`, as
+  Race does, so the phone shows what the watch uses) and **Race alerts**: Off (the default), First
+  2 km, too fast, or Both ways (`settings.json`; the race step obeys it in step 4).
+- **New plan** (Plan, R1; brief 5.2): a wheel of the choices with their values as hints: the
+  plan (R1 turns 10K, half, VO2max), your 5K (minutes then seconds, 12:00 to 59:59), run in the
+  last 6 weeks (a switch), the level (R1 turns 1 to 3, "2: 20 to 40 km/week"), the run days (seven
+  switches; the long run moves to a run day if its day is switched off), the long run (R1 turns
+  through the run days), the race (None, or a Saturday or Sunday 3 to 26 weeks on), then Next. The
+  draft starts from the phone's set-up. Next shows the plan, level and 5K, the days, the long run
+  and, from the service's `PlanCalendar`, "From Mon 16 Nov, 12 weeks" (or "8 of its 12 weeks", or
+  why it cannot be: "The race is too close or past"); R1 starts it. Starting writes the plan's
+  phone fields to `app_config.json` (not the half, nor easy by heart rate) and makes a new plan
+  even when the plan, level and race are the ones already running (a restart).
+- **A new plan from the phone now asks** (brief 5.1): when the phone's plan, level or race date
+  would replace a plan under way, the service keeps the plan under way and Today says "New plan
+  from your phone / Half marathon, level 2 / Start it?" (the main menu's hint: "New plan from
+  phone"). R1 offers Start it or Keep mine. Keep mine writes the plan under way back to the
+  phone's values, so they agree again. A first plan, or the phone ending a plan (plan none),
+  still applies without asking. While the question waits, today's session is not offered.
+- **Messages:** `PlanRequest::Setup` → `PLAN_SETUP` (the phone's set-up, the plan under way, and
+  whether the phone asks); `NEW_PLAN` (Preview → `PLAN_PREVIEW`, Apply, KeepCurrent);
+  `PlanTodayInfo::PhoneAsks`.
+- **Checked** (`capture_screens.sh`, four more pretend watches, 57 screens, each looked at):
+  - settings: reps by distance and race alerts saved in `settings.json`, and reps by distance
+    copied to `plan.json`;
+  - a New plan made on the watch (the half, level 3, 5K 21:02, a race on Sun 7 Feb): the phone's
+    values written (`"plan":2`, `"fiveK":"21:02"`, `"raceDate":"2027-02-07"`, `"level":3`) and a
+    12-week plan from Mon 16 Nov;
+  - the phone's ask answered Start it (the half from Mon 16 Nov) and, on another pretend watch,
+    Keep mine (`app_config.json` back to `"plan":1`, the 10K under way unchanged).
+
+### Step 4: during and after the run
+
+- **A short rep judged on the next card** (brief 8.2): a step whose alerts wait for its end
+  (`AlertMode::AtEnd`: strides, repetitions, the 30-30s' fast halves) is judged from its lap when
+  it ends (`RepJudge.hpp`, header-only, three host tests). A distance rep that ran its distance is
+  judged by its time ("Last rep 1:36, aim 1:34-1:40"); a timed rep, or one ended by the lap button,
+  by its pace ("Last rep 3:18 /km, aim 3:55-4:11"; per mile in imperial). The next step's card
+  shows the aim in place of "Rep 2/6" and the result under it, in the gauge's colours (red too
+  fast, green in the band, amber too slow); nothing under 20 m (no GPS).
+- **R2 held on the warm-up before a time trial or race** (the coach review): the planned session's
+  open warm-up before TT5, TT10 or RACE says "Hold R2 to start"; a tap does nothing; a hold of one
+  second (a bar fills under the hint) starts the effort. The hold is Knitting's `HoldTimer`
+  (copied with its 19 host tests): the kernel sends press, then a click only if the button comes up
+  within 500 ms, then release, so that press's own click and release are swallowed after the hold
+  fires, and the next step is not skipped. The service flags the step (`WorkoutStep::holdToStart`);
+  a suspend drops a hold in progress.
+- **Race alerts** (step 3's setting) on the race step: `raceAlertMode()` (pure, a host test): Off
+  silences it, First 2 km lets "too fast" only in the step's first 2 km, Both keeps the plan's own.
+- **The Saved screen's lines** (brief 8.3): after a planned session is saved, `PLAN_SAVED` says how
+  it counts ("Done" green, "Part done" amber, "Not counted" grey, in place of the tick), the week
+  ("Week 3: 1 of 4") and the next session ("Next: Tue, Easy"). They show for 3.5 s; a Streak line
+  (and the load) follows in their place.
+- **Today's target:** a time trial reads "flat out" and hills "strong, uphill" (they have no band;
+  the page had shown the easy range). The easy range is now the range itself: "easy 5:27-6:08 /km"
+  had read 6:07, a band round its middle rounding one end.
+- **Checked:** `capture_screens.sh` gains a repetitions session (a 400 m rep ended by hand after
+  about 15 s: "Last rep 3:18 /km", red, "aim 3:55-4:11") and a 5K time trial (a tap leaves the
+  warm-up running and one session started; the hold starts the 5 km), both saved ("Not counted":
+  under half the session in the simulator); `sim_plan.sh` still runs and saves its session with the
+  workout and a lap per step; 89 host tests; the watch target links.
+
+The coach review's three TP3 items are in: the Race alerts setting (step 3), R2 held before a
+time trial or race (step 4), and the Paces note where threshold meets 10K pace (step 2).
+
+### Step 5: the text-fit audit, the captures, the clean-up
+
+- **The text-fit audit** (`docs/experiments/audit.sh`, about 30 seconds; HybridX Workout's
+  `Audit.hpp`, `Audit.cpp` and a driver of our own, `AuditDriver.cpp`, simulator only). It walks
+  the plan's screens with the widest text each can be given and measures every label of ours with
+  LVGL on the real font: inside its box, clear of the bezel arcs (radius 109), and, new here, not
+  cut with an ellipsis (the screens cut rather than overflow, which a box test alone would pass).
+  - What it gives each screen:
+    - Today, every kind of session with the widest "what" the three plans make at any level and run
+      days, worked out from the plan data by the core itself, and paces as wide as a 59:59 5K's per
+      mile;
+    - Today's other states and the longest problems;
+    - a day of the week; This week, every row the widest short name;
+    - Plan at 24 weeks and 144 sessions;
+    - the four Paces pages and both notes;
+    - the New plan summary and its problem;
+    - the step card's rep result;
+    - the Saved lines.
+  - Its first run found 21 problems, all fixed:
+    - "Long run, fast finish" and "100 min, last 20 at half pace" now go over two lines at their
+      commas on Today and a day's page, and the purpose, then the estimate, are left out when only
+      that makes the page fit whole. The Next lines take the "what" up to its comma.
+    - The shake-out's purpose is now "Ready for race day" (`PlanText`, `PLANS.md` 3.1).
+    - Plan shows the phase alone (the level and days did not fit over the bar) and "Starts 30 Sep".
+    - New plan's problems are two shorter ones ("Choose 3 to 6 run days", "Long run on a run
+      day"), and a long one wraps.
+    - The step card puts the aim on the wider line above the result.
+    - The Saved lines sit higher, in the smaller face; "Less than half run".
+    - The main menu's hint uses the name alone, or the short name, when "name what" is too wide.
+  - Now: 0 problems. The wheel menus are the SDK's widget and are not measured; their hints are
+    fitted to 180 px.
+- **Deleted, now unreachable:** X Run's VO2max screens (`Vo2Screen`, `MenuVo2ProfileScreen`,
+  `Vo2PickerScreen`) and RunLVGL's Intervals set-up screens (`MenuIntervals*`,
+  `IntervalsPickerScreen`), with their screen IDs. The countdown's R2 now goes back to Today for a
+  planned session. The track screens that workouts share stay. The watch build is 14 KB smaller.
+- **Captures:** `capture_screens.sh` makes 15 pretend watches and about 75 screens into
+  `docs/screens/tp3-*.png`:
+  - before the start, a rest day, a session day with its steps, done, the plan over, no plan, a
+    problem;
+  - a week with days logged, with This week, a day, Plan and Paces;
+  - a slow runner's notes;
+  - the settings, New plan, the phone's ask answered both ways;
+  - a repetitions session and a time trial, each saved.
+
+  Each one has been looked at.
+
+## The gate (TP3): what Jon checks
+
+1. **The captures:** `docs/screens/tp3-*.png` (or the contact sheet sent with this). Say what
+   reads wrongly, what is missing, and any words you would change.
+2. **A week of the plan on the watch**, from the CI build of the last push (Actions → Watch builds
+   → watch-apps → `HybridXTraining_*.uapp`, into `Apps/HybridXTraining/`, keeping your
+   `app_config.json` and `plan.json`). Each day:
+   - Today: the session (or rest, with the next), and R1 starts it;
+   - This week and Plan;
+   - after a run, the Saved lines.
+
+   Your first week (10K, level 2):
+   - Tue 17 Nov: Easy run, strides 40 min (each stride's result on the next card);
+   - Wed: Easy 35 min;
+   - Fri: Cruise intervals 3 x 6 min;
+   - Sun: Long run 60 min.
+3. **To decide:** whether R1 on Plan for New plan (an amber arc, no word) is clear enough, and the
+   four shortened purpose lines.
+
+Not in TP3, as the brief phases it:
+- TP4: the Streak slot and the Run link.
+- TP5: missed sessions (a past day now reads "Not logged"), moves and offers, and recalibration
+  after a time trial.
+- TP6: the glance.

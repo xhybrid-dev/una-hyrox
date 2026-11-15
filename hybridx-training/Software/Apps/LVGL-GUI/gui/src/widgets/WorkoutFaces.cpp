@@ -6,6 +6,8 @@
  */
 
 #include "gui/widgets/WorkoutFaces.hpp"
+#include "gui/Audit.hpp"
+#include "gui/widgets/TextStack.hpp"   // X Training: clearWidth()
 
 #include <cmath>
 #include <cstdio>
@@ -387,8 +389,11 @@ WorkoutStepCard::WorkoutStepCard(lv_obj_t* parent)
     mUnit.init(mRoot, F::Medium25, Color::WHITE);
     mTarget.init(mRoot, F::SemiBold30, Color::WHITE, 120, kTargetY);
     mSub.init(mRoot, F::Italic18, Color::GRAY, 120, kSubY);
+    Audit::track(mSub.obj());
     mNotes1.init(mRoot, F::Medium18, Color::WHITE, 120, kNotes1Y);
     mNotes2.init(mRoot, F::Medium18, Color::WHITE, 120, kNotes2Y);
+    Audit::track(mNotes1.obj());   // X Training: the last rep's result goes here
+    Audit::track(mNotes2.obj());
 }
 
 void WorkoutStepCard::showCurrent(const Model::WorkoutStepInfo& step)
@@ -467,6 +472,27 @@ void WorkoutStepCard::show(const Model::WorkoutStepInfo& step, bool next)
     } else {
         mSub.setText(WorkoutUi::kindLabel(step.intensity));
     }
+
+    // X Training: after a short rep, how it went in place of the notes (brief 8.2).
+    if (!next && step.result[0] != '\0') {
+        // The gauge's colours: amber slow, green in the band, red fast.
+        static constexpr uint32_t kVerdict[4] = { Color::WHITE, Color::GREEN, Color::YELLOW_DARK, Color::RED };
+        // The aim in place of "Rep 2/6" (the wider line), the result under it; the foot empty.
+        mSub.setText(step.aim);
+        mNotes1.setFont(F::Medium18);
+        mNotes1.setText(step.result);
+        mNotes1.setColor(kVerdict[step.verdict < 4 ? step.verdict : 0]);
+        if (mNotes1.width() > TextStack::clearWidth(mNotes1, kNotes1Y)) {
+            mNotes1.setFont(F::Regular16);
+        }
+        mNotes1.fit(TextStack::clearWidth(mNotes1, kNotes1Y));
+        mNotes2.setText("");
+        return;
+    }
+    mNotes1.setFont(F::Medium18);
+    mNotes2.setFont(F::Medium18);
+    mNotes1.setColor(Color::WHITE);
+    mNotes2.setColor(Color::WHITE);
 
     // The notes over two lines, each as wide as the display allows there.
     char text[SDK::Workout::kStepNotesBytes];

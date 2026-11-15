@@ -55,10 +55,11 @@ struct Position {
 // -----------------------------------------------------------------------------
 
 struct Root {
-    // X Training: X Run's ID_VO2 is not here (its VO2max page stays X Run's).
-    // HybridX Run: ID_TREADMILL (an on/off switch) under Start (NOTES, "Treadmill").
-    enum Id { ID_START = 0, ID_TREADMILL, ID_WORKOUTS, ID_INTERVALS, ID_SETTINGS,
-              ID_COUNT, ID_DEFAULT = ID_START };
+    // X Training: Today first, then a free run (ID_START: an armed UNA workout, else a
+    // free run) with the treadmill switch under it (HybridX Run's, NOTES "Treadmill").
+    // X Run's ID_VO2 and RunLVGL's Intervals are not here (brief 8.1, decision 10).
+    enum Id { ID_TODAY = 0, ID_START, ID_TREADMILL, ID_WEEK, ID_PLAN, ID_PACES, ID_WORKOUTS, ID_SETTINGS,
+              ID_COUNT, ID_DEFAULT = ID_TODAY };
 
     // The workout list: a Free run row while a workout is armed, then one
     // row per workout. Built at runtime -- no fixed enum.
@@ -128,8 +129,9 @@ struct Root {
     };
 
     struct Settings {
+        // X Training (TP3): the plan's three settings after the lap alerts.
         enum Id {
-            ID_ALERTS = 0, ID_PHONE_NOTIF,
+            ID_ALERTS = 0, ID_REPS_DISTANCE, ID_EASY_HR, ID_RACE_ALERTS, ID_PHONE_NOTIF,
             ID_COUNT, ID_DEFAULT = ID_ALERTS
         };
 
@@ -151,6 +153,12 @@ struct Root {
 // TrackAction is always an overlay of TrackView, so it lives inside it.
 // Which faces show depends on the run: a structured workout has its three
 // faces first, Intervals its one, then the faces every run has.
+/// X Training (TP3): New plan's choices.
+struct NewPlanMenu {
+    enum Id { ID_PLAN = 0, ID_FIVE_K, ID_RECENT, ID_LEVEL, ID_DAYS, ID_LONG, ID_RACE, ID_NEXT,
+              ID_COUNT, ID_DEFAULT = ID_PLAN };
+};
+
 struct TrackView {
     enum Id { ID_WORKOUT_GAUGE = 0, ID_WORKOUT_STEP, ID_WORKOUT_NEXT,
               ID_INTERVALS, ID_TRACK1, ID_TRACK2, ID_TRACK3,

@@ -37,6 +37,7 @@
 // HybridX Run
 #include "AppConfigFields.hpp"
 #include "PlanText.hpp"   // X Training
+#include "RepJudge.hpp"
 #include "TimeText.hpp"
 #include "data/PlanData.hpp"
 #include "SafeFile.hpp"
@@ -236,6 +237,14 @@ void Service::run()
                 case CustomMessage::WORKOUT_DETAILS_REQUEST:  {
                     LOG_DEBUG("WORKOUT_DETAILS_REQUEST\n");
                     handleEvent(*static_cast<CustomMessage::WorkoutDetailsRequest*>(msg));
+                } break;
+
+                case CustomMessage::PLAN_REQUEST:  {   // X Training: This week, Plan, Paces
+                    handleEvent(*static_cast<CustomMessage::PlanRequest*>(msg));
+                } break;
+
+                case CustomMessage::NEW_PLAN:  {       // X Training: New plan, the phone's ask
+                    handleEvent(*static_cast<CustomMessage::NewPlan*>(msg));
                 } break;
 
                 case CustomMessage::TREADMILL_DISTANCE:  {   // HybridX Run
@@ -584,11 +593,31 @@ void Service::handleEvent(const CustomMessage::TrackStop& event)
 void Service::handleEvent(const CustomMessage::SettingsSave& event)
 {
     bool updCaps = mSettings.phoneNotifEn != event.settings.phoneNotifEn;
+    // X Training: easy by heart rate is the phone's; reps by distance changes the sessions.
+    const bool easyChanged = mSettings.easyByHr != event.settings.easyByHr;
+    const bool repsChanged = mSettings.repsByDistance != event.settings.repsByDistance;
     mSettings = event.settings;
     mSettingsSerializer.save(event.settings);
 
     if (updCaps) {
         setCapabilities();
+    }
+    if (easyChanged && mConfig) {
+        // Written back, as Race does (Race NOTES 5.22), so the phone shows what the watch uses.
+        mConfig->setBool(TrainingConfig::kEasyByHr, mSettings.easyByHr);
+        if (!mConfig->save()) {
+            LOG_WARNING("Could not write easy by heart rate back to app_config.json\n");
+        }
+        mPhoneSetup.easyByHr = mSettings.easyByHr;
+        mPlan.setup.easyByHr = mSettings.easyByHr;
+    }
+    if (easyChanged || repsChanged) {
+        mPlan.setup.repsByDistance = mSettings.repsByDistance;
+        if (mPlan.setup.plan != XTraining::PlanId::None) {
+            savePlan();
+        }
+        updateToday();
+        sendPlanToday();
     }
 }
 
@@ -1928,6 +1957,12 @@ bool Service::readWorkout(uint16_t index)
 void Service::handleEvent(const CustomMessage::WorkoutDetailsRequest& event)
 {
     // Only before a run: during one, mProgram holds the workout being run.
+    if (event.index == CustomMessage::WorkoutDetailsRequest::kPlanDay) {
+        // X Training: a day of the plan (0: today). Start builds today's again.
+        const bool ok = buildPlanDay(event.date != 0 ? event.date : localDate());
+        SDK::send_msg<CustomMessage::WorkoutDetails>(mKernel, event.index, ok ? &mProgram : nullptr);
+        return;
+    }
     const bool ok = mTrackState == Track::State::INACTIVE && readWorkout(event.index);
     SDK::send_msg<CustomMessage::WorkoutDetails>(mKernel, event.index, ok ? &mProgram : nullptr);
 }
@@ -2063,9 +2098,13 @@ void Service::onWorkoutStepEnded(SDK::Workout::Engine::Change how)
     mLeadIn.stepStarted();
 
     // The step that ended is recorded as its own lap, before the next begins.
+    const uint16_t ended = mEngine.ended().step;
+    const bool lapSaved = mLapNotEmpty;
     if (mLapNotEmpty) {
         saveLap(endedStepLap(how));
     }
+    // X Training: a short rep is judged now, on the next step's card (brief 8.2).
+    judgeRep(ended, lapSaved, how == SDK::Workout::Engine::Change::Auto);
     mWorkoutReachedEnd = mWorkoutReachedEnd || mEngine.status().reachedEnd;
 
     if (mEngine.status().finished) {
@@ -2162,6 +2201,13 @@ void Service::sendWorkoutStep(const SDK::Workout::Step* step, bool next)
     }
     msg->next = next;
     msg->none = step == nullptr;
+    if (step && !next) {
+        // X Training: the last short rep's result, and the warm-up a time trial or race waits on.
+        std::memcpy(msg->result, mRepResult, sizeof(msg->result));
+        std::memcpy(msg->aim, mRepAim, sizeof(msg->aim));
+        msg->verdict     = mRepVerdict;
+        msg->holdToStart = holdToStart(*step);
+    }
     if (step) {
         const char* notes = step->notes[0] != '\0' ? step->notes : step->name;
         std::strncpy(msg->notes, notes, sizeof(msg->notes) - 1);
@@ -2437,6 +2483,7 @@ void Service::loadConfig()
     }
     p.longDay     = static_cast<uint8_t>(mConfig->getInt(TrainingConfig::kLongRunDay) - 1);
     p.easyByHr    = mConfig->getBool(TrainingConfig::kEasyByHr);
+    mSettings.easyByHr = p.easyByHr;   // the Settings menu's switch (TP3) shows the phone's value
     p.fiveKRecent = mConfig->getBool(TrainingConfig::kFiveKRecent);
 
     // The strings are read strictly here: the phone's patterns are not checked on the watch.
@@ -2505,12 +2552,20 @@ void Service::loadPlan()
         const PlanDef* def = PlanData::find(want.plan);
         PlanSetup& have = mPlan.setup;
         const bool samePlan = mPlan.active() && have.plan == want.plan && have.level == want.level
-                           && have.raceDate == want.raceDate;
-        if (!samePlan) {
+                           && have.raceDate == want.raceDate && !mForceNewPlan;
+        mPhoneAsks = false;
+        if (!samePlan && mPlan.active() && !mForceNewPlan) {
+            // A new plan from the phone would replace the one under way: Today asks first (brief
+            // 5.1). Until it is answered the plan under way stands, unchanged.
+            mPhoneAsks = true;
+            LOG_INFO("The phone asks for a new plan (plan %u, level %u, race %lu): asking on the watch\n",
+                     static_cast<unsigned>(want.plan), static_cast<unsigned>(want.level),
+                     static_cast<unsigned long>(want.raceDate));
+        } else if (!samePlan) {
             if (today == 0) {
                 LOG_WARNING("The watch's date is not set: the new plan waits for it\n");
             } else {
-                // A new plan (brief 5.1). TP3 asks first on the watch; for now it starts.
+                // A new plan: the first, or one confirmed on the watch (brief 5.1).
                 PlanState fresh;
                 fresh.setup = want;
                 fresh.setup.fiveKDate = today;
@@ -2547,6 +2602,12 @@ void Service::loadPlan()
                 changed = true;
             }
         }
+    }
+    mForceNewPlan = false;
+    // Reps by distance is a watch setting (settings.json); the plan keeps a copy (plan.json).
+    if (mPlan.setup.repsByDistance != mSettings.repsByDistance) {
+        mPlan.setup.repsByDistance = mSettings.repsByDistance;
+        changed = mPlan.setup.plan != PlanId::None;
     }
     if (changed) {
         savePlan();
@@ -2587,15 +2648,54 @@ void Service::updateToday()
         return;   // mProgram holds the session being run; keep what was sent
     }
     Info info{};
-    mToday = DaySession{};
-    const PlanDef* def = PlanData::find(mPlan.setup.plan);
     const Ymd today = localDate();
+    dayInfo(today, today, info, mToday);
+    if (mPhoneAsks) {
+        // The question first; today's session (of the plan under way) once it is answered.
+        const PlanDef* want = PlanData::find(mPhoneSetup.plan);
+        info = Info{};
+        info.date   = today;
+        info.status = Info::PhoneAsks;
+        copyText(info.name, sizeof(info.name), "New plan from your phone");
+        std::snprintf(info.what, sizeof(info.what), "%s, level %u", want != nullptr ? want->name : "",
+                      static_cast<unsigned>(mPhoneSetup.level));
+        mToday = DaySession{};
+    }
+    // The next session: from tomorrow, or from the plan's first day before it starts.
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    if (def != nullptr && mPlan.active() && mPaces.ok && today != 0 && info.status != Info::Problem) {
+        DaySession next;
+        const Ymd from = info.status == Info::BeforeStart ? mPlan.calendar.start : Date::addDays(today, 1);
+        if (nextSession(from, next)) {
+            info.nextDate = next.date;
+            info.nextKind = static_cast<uint8_t>(next.asRun.kind);
+            PlanText::what(next.asRun, def->raceCm, info.nextWhat, sizeof(info.nextWhat));
+        }
+    }
+    mTodayInfo = info;
+    LOG_INFO("Today: status %u, %s %s %s (week %u of %u); next %lu %s %s\n", static_cast<unsigned>(info.status),
+             info.name, info.what, info.target, static_cast<unsigned>(info.runWeek + 1),
+             static_cast<unsigned>(info.weeks), static_cast<unsigned long>(info.nextDate),
+             PlanText::name(static_cast<Kind>(info.nextKind)), info.nextWhat);
+}
+
+void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMessage::PlanTodayInfo& info,
+                      XTraining::DaySession& day)
+{
+    // What the plan says of @p date, for the Today page or a row of This week. Builds the day's
+    // program into mProgram for its estimates: only before a run (the callers check).
+    using namespace XTraining;
+    using Info = CustomMessage::PlanTodayInfo;
+    info = Info{};
+    day = DaySession{};
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    info.date = date;
     if (mPhoneSetup.plan == PlanId::None) {
         info.status = Info::NoPlan;
     } else if (mSetupProblem != nullptr) {
         info.status = Info::Problem;
         copyText(info.name, sizeof(info.name), mSetupProblem);
-    } else if (today == 0) {
+    } else if (today == 0 || date == 0) {
         info.status = Info::Problem;
         copyText(info.name, sizeof(info.name), "Set the watch's date");
     } else if (def == nullptr || !mPlan.active()) {
@@ -2607,54 +2707,378 @@ void Service::updateToday()
         copyText(info.name, sizeof(info.name), "Check your 5K time");
     } else {
         info.weeks = mPlan.calendar.weeks;
-        const DayPlace where = PlanCalendar::locate(mPlan.calendar, today);
+        const DayPlace where = PlanCalendar::locate(mPlan.calendar, date);
         if (where.where == DayPlace::Where::Before) {
             info.status = Info::BeforeStart;
             copyText(info.name, sizeof(info.name), "Plan starts");
-            TimeText::date(mPlan.calendar.start, info.what, sizeof(info.what));
+            TimeText::dayDate(mPlan.calendar.start, info.what, sizeof(info.what));
         } else if (where.where != DayPlace::Where::In
-                   || !PlanSchedule::day(mPlan.setup, *def, mPlan.calendar, mPaces.paces, today, mToday)) {
+                   || !PlanSchedule::day(mPlan.setup, *def, mPlan.calendar, mPaces.paces, date, day)) {
             info.status = Info::Finished;
             copyText(info.name, sizeof(info.name), "Plan complete");
         } else {
-            info.runWeek = mToday.runWeek;
-            info.kind    = static_cast<uint8_t>(mToday.asRun.kind);
-            info.key     = mToday.key;
-            copyText(info.name, sizeof(info.name), PlanText::name(mToday.asRun.kind));
-            if (mToday.asRun.kind == Kind::Rest) {
+            info.runWeek = day.runWeek;
+            info.kind    = static_cast<uint8_t>(day.asRun.kind);
+            info.key     = day.key;
+            copyText(info.name, sizeof(info.name), PlanText::name(day.asRun.kind));
+            if (day.asRun.kind == Kind::Rest) {
                 info.status = Info::RestDay;
             } else {
-                const LogEntry* done = mPlan.find(today);
+                const LogEntry* done = mPlan.find(date);
                 info.status = done != nullptr && (done->status == DayStatus::Done || done->status == DayStatus::PartDone)
                             ? Info::Done : Info::Session;
-                PlanText::what(mToday.asRun, def->raceCm, info.what, sizeof(info.what));
-                // The estimates and the main target, from the program as it will be built. mProgram
-                // is free: no run is going.
+                PlanText::what(day.asRun, def->raceCm, info.what, sizeof(info.what));
+                // The estimates and the main target, from the program as it will be built.
                 BuildOptions o;
                 o.level = mPlan.setup.level;
                 o.easyByHr = mPlan.setup.easyByHr;
                 o.repsByDistance = mPlan.setup.repsByDistance;
-                if (PlanBuilder::build(mToday.asRun, mPaces.paces, o, def->raceCm, mProgram, mSessionMeta)) {
-                    info.plannedSec = mSessionMeta.plannedSec;
-                    info.plannedM   = mSessionMeta.plannedM;
-                    if (mSessionMeta.targetPace != 0) {
-                        paceBand(info.target, sizeof(info.target), mSessionMeta.targetPace,
-                                 mSessionMeta.targetPlusMinus, mIsImperial);
+                SessionMeta meta;
+                if (PlanBuilder::build(day.asRun, mPaces.paces, o, def->raceCm, mProgram, meta)) {
+                    info.plannedSec = meta.plannedSec;
+                    info.plannedM   = meta.plannedM;
+                    const Kind k = day.asRun.kind;
+                    if (meta.targetPace != 0) {
+                        paceBand(info.target, sizeof(info.target), meta.targetPace, meta.targetPlusMinus, mIsImperial);
+                    } else if (k == Kind::TimeTrial5k || k == Kind::TimeTrial10k) {
+                        copyText(info.target, sizeof(info.target), "flat out");   // no target (PLANS.md 2.5)
+                    } else if (k == Kind::Hills) {
+                        copyText(info.target, sizeof(info.target), "strong, uphill");
                     } else if (mPlan.setup.easyByHr) {
                         copyText(info.target, sizeof(info.target), "easy, zone 2");
                     } else {
+                        // The easy range itself (a band round its middle would round one end).
                         char band[24];
-                        paceBand(band, sizeof(band), static_cast<uint16_t>((mPaces.paces.easyFast + mPaces.paces.easySlow) / 2),
-                                 static_cast<uint16_t>((mPaces.paces.easySlow - mPaces.paces.easyFast) / 2), mIsImperial);
-                        std::snprintf(info.target, sizeof(info.target), "easy %s", band);
+                        const uint16_t f = mPaces.paces.easyFast;
+                        const uint16_t s = mPaces.paces.easySlow;
+                        paceBand(band, sizeof(band), f, 0, mIsImperial);
+                        char slow[24];
+                        paceBand(slow, sizeof(slow), s, 0, mIsImperial);
+                        // "5:27-5:27 /km" and "6:08-6:08 /km": the fast end of one, the slow of the other.
+                        char* dash = std::strchr(band, '-');
+                        const char* slowEnd = std::strchr(slow, '-');
+                        if (dash != nullptr && slowEnd != nullptr) {
+                            std::snprintf(info.target, sizeof(info.target), "easy %.*s%s",
+                                          static_cast<int>(dash - band), band, slowEnd);
+                        } else {
+                            std::snprintf(info.target, sizeof(info.target), "easy %s", band);
+                        }
                     }
                 }
             }
         }
     }
-    mTodayInfo = info;
-    LOG_INFO("Today: status %u, %s %s %s (week %u of %u)\n", static_cast<unsigned>(info.status), info.name, info.what,
-             info.target, static_cast<unsigned>(info.runWeek + 1), static_cast<unsigned>(info.weeks));
+}
+
+void Service::handleEvent(const CustomMessage::PlanRequest& event)
+{
+    using namespace XTraining;
+    using Req = CustomMessage::PlanRequest;
+    if (mTrackState != Track::State::INACTIVE) {
+        return;   // the plan's screens are before a run
+    }
+    const Ymd today = localDate();
+    switch (event.what) {
+    case Req::Day: {
+        auto msg = SDK::make_msg<CustomMessage::PlanDay>(mKernel);
+        if (msg) {
+            DaySession day;
+            dayInfo(event.date != 0 ? event.date : today, today, msg->info, day);
+            msg.send();
+        }
+    } break;
+    case Req::Week:
+        sendPlanWeek(today);
+        break;
+    case Req::Overview:
+        sendPlanOverview(today);
+        break;
+    case Req::Paces:
+        sendPlanPaces();
+        break;
+    case Req::Setup: {
+        auto msg = SDK::make_msg<CustomMessage::PlanSetupUpd>(mKernel);
+        if (msg) {
+            msg->phone     = toSetupInfo(mPhoneSetup);
+            msg->current   = toSetupInfo(mPlan.setup);
+            msg->phoneAsks = mPhoneAsks;
+            msg.send();
+        }
+    } break;
+    default:
+        break;
+    }
+}
+
+CustomMessage::PlanSetupInfo Service::toSetupInfo(const XTraining::PlanSetup& s)
+{
+    CustomMessage::PlanSetupInfo i;
+    i.plan        = static_cast<uint8_t>(s.plan);
+    i.level       = s.level;
+    i.days        = static_cast<uint8_t>(s.days);
+    i.longDay     = s.longDay;
+    i.fiveKRecent = s.fiveKRecent;
+    i.fiveKSec    = s.fiveKSec;
+    i.raceDate    = s.raceDate;
+    return i;
+}
+
+const char* Service::checkSetup(const CustomMessage::PlanSetupInfo& i)
+{
+    // As loadConfig() checks the phone's values, in the watch's words.
+    using namespace XTraining;
+    if (PlanData::find(static_cast<PlanId>(i.plan)) == nullptr) {
+        return "Choose a plan";
+    }
+    if (i.fiveKSec < PaceConfig::kMin5kSec || i.fiveKSec > PaceConfig::kMax5kSec) {
+        return "Your 5K: 12:00 to 59:59";
+    }
+    if (i.level < 1 || i.level > 3) {
+        return "Choose a level";
+    }
+    uint8_t days = 0;
+    for (uint8_t d = 0; d < 7; ++d) {
+        days = static_cast<uint8_t>(days + ((i.days >> d) & 1u));
+    }
+    if (days < 3 || days > 6) {
+        return "Choose 3 to 6 run days";
+    }
+    if (!WeekLayout::valid(static_cast<DayMask>(i.days), i.longDay)) {
+        return "Long run on a run day";
+    }
+    if (i.raceDate != 0 && !Date::valid(i.raceDate)) {
+        return "Check the race date";
+    }
+    return nullptr;
+}
+
+void Service::handleEvent(const CustomMessage::NewPlan& event)
+{
+    using namespace XTraining;
+    using Act = CustomMessage::NewPlan;
+    if (mTrackState != Track::State::INACTIVE || !mConfig) {
+        return;
+    }
+    const CustomMessage::PlanSetupInfo& i = event.info;
+    switch (event.action) {
+    case Act::Preview: {
+        auto msg = SDK::make_msg<CustomMessage::PlanPreview>(mKernel);
+        if (!msg) {
+            return;
+        }
+        CustomMessage::PlanPreviewInfo& p = msg->info;
+        p = CustomMessage::PlanPreviewInfo{};
+        const char* problem = checkSetup(i);
+        const Ymd today = localDate();
+        const PlanDef* def = PlanData::find(static_cast<PlanId>(i.plan));
+        if (problem == nullptr && today == 0) {
+            problem = "Set the watch's date";
+        }
+        if (problem == nullptr && def != nullptr) {
+            const Calendar cal = PlanCalendar::make({today, i.raceDate, def->weekCount, def->minWeeks});
+            p.status    = static_cast<uint8_t>(cal.status);
+            p.weeks     = cal.weeks;
+            p.planWeeks = def->weekCount;
+            p.start     = cal.start;
+            if (!cal.usable()) {
+                problem = "The race is too close or past";
+            }
+        }
+        p.ok = problem == nullptr;
+        copyText(p.problem, sizeof(p.problem), problem != nullptr ? problem : "");
+        msg.send();
+    } break;
+    case Act::Apply: {
+        if (checkSetup(i) != nullptr) {
+            LOG_WARNING("New plan not started: %s\n", checkSetup(i));
+            return;
+        }
+        writeConfig(i);
+        mForceNewPlan = true;
+        LOG_INFO("New plan confirmed on the watch\n");
+        loadConfig();   // reads the values back, and starts the plan (loadPlan)
+        updateToday();
+        sendPlanToday();
+    } break;
+    case Act::KeepCurrent:
+        if (mPhoneAsks) {
+            // No to the phone: its values go back to the plan under way, so they agree again.
+            writeConfig(toSetupInfo(mPlan.setup));
+            LOG_INFO("The plan under way is kept; the phone's values are written back\n");
+            loadConfig();
+            updateToday();
+            sendPlanToday();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void Service::writeConfig(const CustomMessage::PlanSetupInfo& i)
+{
+    // The phone's fields for a plan (not the half, nor easy by heart rate, which stay as set).
+    char text[24] = {};
+    mConfig->setInt(TrainingConfig::kPlan, i.plan);
+    mConfig->setInt(TrainingConfig::kLevel, i.level);
+    std::snprintf(text, sizeof(text), "%u:%02u", static_cast<unsigned>(i.fiveKSec / 60),
+                  static_cast<unsigned>(i.fiveKSec % 60));
+    mConfig->setString(TrainingConfig::kFiveK, text);
+    mConfig->setBool(TrainingConfig::kFiveKRecent, i.fiveKRecent);
+    for (uint8_t d = 0; d < 7; ++d) {
+        mConfig->setBool(TrainingConfig::kRunDay[d], ((i.days >> d) & 1u) != 0);
+    }
+    mConfig->setInt(TrainingConfig::kLongRunDay, i.longDay + 1);
+    text[0] = '\0';
+    if (i.raceDate != 0) {
+        XTraining::TimeText::date(i.raceDate, text, sizeof(text));
+    }
+    mConfig->setString(TrainingConfig::kRaceDate, text);
+    if (!mConfig->save()) {
+        LOG_ERROR("Could not write the plan to app_config.json\n");
+    }
+}
+
+void Service::sendPlanWeek(SDK::Workout::Ymd today)
+{
+    using namespace XTraining;
+    auto msg = SDK::make_msg<CustomMessage::PlanWeek>(mKernel);
+    if (!msg) {
+        return;
+    }
+    CustomMessage::PlanWeekInfo& w = msg->info;
+    w = CustomMessage::PlanWeekInfo{};
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    DaySession days[7];
+    if (def != nullptr && mPlan.active() && mPaces.ok && mSetupProblem == nullptr && today != 0) {
+        const uint8_t runWeek = PlanProgress::weekToShow(mPlan.calendar, today);
+        if (PlanSchedule::week(mPlan.setup, *def, mPlan.calendar, mPaces.paces, runWeek, days)) {
+            w.ok      = true;
+            w.runWeek = runWeek;
+            w.weeks   = mPlan.calendar.weeks;
+            w.phase   = static_cast<uint8_t>(days[0].phase);
+            for (uint8_t d = 0; d < 7; ++d) {
+                w.day[d].date = days[d].date;
+                w.day[d].kind = static_cast<uint8_t>(days[d].asRun.kind);
+                w.day[d].mark = static_cast<uint8_t>(PlanProgress::mark(days[d], today, mPlan));
+                w.day[d].key  = days[d].key;
+            }
+        }
+    }
+    msg.send();
+}
+
+void Service::sendPlanOverview(SDK::Workout::Ymd today)
+{
+    using namespace XTraining;
+    using Info = CustomMessage::PlanTodayInfo;
+    auto msg = SDK::make_msg<CustomMessage::PlanOverview>(mKernel);
+    if (!msg) {
+        return;
+    }
+    CustomMessage::PlanOverviewInfo& o = msg->info;
+    o = CustomMessage::PlanOverviewInfo{};
+    // The state, as Today has it (no plan, a problem, before, in, after).
+    o.status = mTodayInfo.status;
+    copyText(o.problem, sizeof(o.problem), mTodayInfo.status == Info::Problem ? mTodayInfo.name : "");
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    if (def != nullptr && mPlan.active() && mPaces.ok && mSetupProblem == nullptr && today != 0) {
+        const Calendar& cal = mPlan.calendar;
+        o.plan     = static_cast<uint8_t>(mPlan.setup.plan);
+        o.level    = mPlan.setup.level;
+        o.runDays  = WeekLayout::dayCount(mPlan.setup.days);
+        o.runWeek  = PlanProgress::weekToShow(cal, today);
+        o.weeks    = cal.weeks;
+        o.start    = cal.start;
+        o.end      = Date::addDays(cal.start, static_cast<int32_t>(cal.weeks) * 7 - 1);
+        o.raceDate = mPlan.setup.raceDate;
+        for (uint8_t w = 0; w < cal.weeks && w < CustomMessage::PlanOverviewInfo::kMaxWeeks; ++w) {
+            const Week& wk = PlanSchedule::weekFor(*def, cal, w, mPlan.setup.fiveKRecent);
+            o.phase[w] = static_cast<uint8_t>(wk.phase);
+        }
+        const PlanProgress::Counts c = PlanProgress::counts(mPlan, *def, mPaces.paces, today);
+        o.total        = c.total;
+        o.soFar        = c.soFar;
+        o.done         = c.done;
+        o.weekSessions = c.weekSessions;
+        o.weekDone     = c.weekDone;
+    }
+    msg.send();
+}
+
+void Service::sendPlanPaces()
+{
+    using namespace XTraining;
+    auto msg = SDK::make_msg<CustomMessage::PlanPaces>(mKernel);
+    if (!msg) {
+        return;
+    }
+    CustomMessage::PlanPacesInfo& p = msg->info;
+    p = CustomMessage::PlanPacesInfo{};
+    if (mPhoneSetup.plan != PlanId::None && mSetupProblem == nullptr && mPaces.ok) {
+        const Paces& q = mPaces.paces;
+        p.ok         = true;
+        p.easyFast   = q.easyFast;
+        p.easySlow   = q.easySlow;
+        p.marathon   = q.marathon;
+        p.half       = q.half;
+        p.threshold  = q.threshold;
+        p.tenK       = q.tenK;
+        p.interval   = q.interval;
+        p.repetition = q.repetition;
+        p.fiveK      = q.fiveK;
+        p.fiveKSec   = mPlan.setup.fiveKSec;
+        p.fiveKDate  = mPlan.setup.fiveKDate;
+        p.halfSec    = mPlan.setup.halfSec;
+        p.halfDate   = mPlan.setup.halfDate;
+        p.halfUsed   = mPaces.halfAs5kSec != 0;
+        p.halfAs5kSec       = mPaces.halfAs5kSec;
+        p.gap               = mPaces.enduranceGap;
+        p.predicted10kSec   = mPaces.predicted10kSec;
+        p.predictedHalfSec  = mPaces.predictedHalfSec;
+        p.predictedMarathonSec = mPaces.predictedMarathonSec;
+    }
+    msg.send();
+}
+
+bool Service::planDay(SDK::Workout::Ymd date, XTraining::DaySession& out) const
+{
+    using namespace XTraining;
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    if (def == nullptr || !mPlan.active() || !mPaces.ok || date == 0) {
+        return false;
+    }
+    return PlanSchedule::day(mPlan.setup, *def, mPlan.calendar, mPaces.paces, date, out);
+}
+
+bool Service::nextSession(SDK::Workout::Ymd from, XTraining::DaySession& out) const
+{
+    // At most two weeks on: every week of every plan has a run in it.
+    using namespace XTraining;
+    for (int32_t d = 0; d < 14; ++d) {
+        if (planDay(Date::addDays(from, d), out) && out.asRun.kind != Kind::Rest) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Service::buildPlanDay(SDK::Workout::Ymd date)
+{
+    // A day's session into mProgram, for the GUI's step list. Only before a run.
+    using namespace XTraining;
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    DaySession day;
+    if (mTrackState != Track::State::INACTIVE || def == nullptr || !planDay(date, day)
+        || day.asRun.kind == Kind::Rest) {
+        return false;
+    }
+    BuildOptions o;
+    o.level = mPlan.setup.level;
+    o.easyByHr = mPlan.setup.easyByHr;
+    o.repsByDistance = mPlan.setup.repsByDistance;
+    SessionMeta meta;
+    return PlanBuilder::build(day.asRun, mPaces.paces, o, def->raceCm, mProgram, meta);
 }
 
 void Service::sendPlanToday()
@@ -2683,6 +3107,9 @@ bool Service::startPlannedSession()
     mEngine.start(mProgram, 0, 0);
     mLeadIn.stepStarted();
     startWorkoutStep();
+    mRepResult[0] = '\0';
+    mRepAim[0]    = '\0';
+    mRepVerdict   = 0;
     mPlannedRun  = true;
     mPlannedDate = mToday.date;
     LOG_INFO("Planned session started: %s, %u steps, about %lu s and %lu m (week %u of %u)\n", mProgram.name,
@@ -2695,18 +3122,98 @@ bool Service::startPlannedSession()
 void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
 {
     using namespace XTraining;
+    using Saved = CustomMessage::PlanSavedInfo;
     mPlannedRun = false;
     // Done, part done, or too short to count (PlanState.hpp, judgeSession()).
     DayStatus status = DayStatus::Missed;
+    uint8_t outcome = Saved::TooShort;
     if (!judgeSession(mWorkoutReachedEnd, static_cast<uint32_t>(track.duration), mSessionMeta.plannedSec, status)) {
         LOG_INFO("Planned session too short to count: %lu of %lu s\n", static_cast<unsigned long>(track.duration),
                  static_cast<unsigned long>(mSessionMeta.plannedSec));
+    } else {
+        mPlan.record({mPlannedDate, mSessionMeta.session.kind, status, static_cast<uint32_t>(mStartUtc)});
+        savePlan();
+        outcome = status == DayStatus::Done ? Saved::Done : Saved::PartDone;
+        LOG_INFO("Planned session %s: %lu, %s\n", status == DayStatus::Done ? "done" : "part done",
+                 static_cast<unsigned long>(mPlannedDate), PlanText::name(mSessionMeta.session.kind));
+    }
+    // The Saved screen's lines (brief 8.3): how it counts, the week, and the next session.
+    auto msg = SDK::make_msg<CustomMessage::PlanSaved>(mKernel);
+    if (!msg) {
         return;
     }
-    mPlan.record({mPlannedDate, mSessionMeta.session.kind, status, static_cast<uint32_t>(mStartUtc)});
-    savePlan();
-    LOG_INFO("Planned session %s: %lu, %s\n", status == DayStatus::Done ? "done" : "part done",
-             static_cast<unsigned long>(mPlannedDate), PlanText::name(mSessionMeta.session.kind));
+    Saved& s = msg->info;
+    s = Saved{};
+    s.outcome = outcome;
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    const Ymd today = localDate();
+    if (def != nullptr && mPlan.active() && mPaces.ok && today != 0) {
+        const PlanProgress::Counts c = PlanProgress::counts(mPlan, *def, mPaces.paces, today);
+        s.runWeek      = PlanProgress::weekToShow(mPlan.calendar, today);
+        s.weekDone     = c.weekDone;
+        s.weekSessions = c.weekSessions;
+        DaySession next;
+        if (nextSession(Date::addDays(today, 1), next)) {
+            s.nextDate = next.date;
+            s.nextKind = static_cast<uint8_t>(next.asRun.kind);
+        }
+    }
+    msg.send();
+}
+
+void Service::judgeRep(uint16_t endedStep, bool lapSaved, bool ranOut)
+{
+    // A short rep (its alerts held to the end, PLANS.md 2.5) is judged by its lap: the next
+    // step's card says "Last rep 1:36, aim 1:34-1:40" (brief 8.2). Anything else clears it.
+    using namespace XTraining;
+    mRepResult[0] = '\0';
+    mRepAim[0]    = '\0';
+    mRepVerdict   = 0;
+    if (!mPlannedRun || !lapSaved || endedStep >= SDK::Workout::kMaxSteps
+        || mSessionMeta.alert[endedStep] != AlertMode::AtEnd || mSummary.laps.empty()) {
+        return;
+    }
+    const LapSummary& lap = mSummary.laps.back();
+    const SDK::Workout::Step& s = mProgram.steps[endedStep];
+    const RepJudge::Result r = RepJudge::judge(s, static_cast<uint32_t>(lap.duration),
+                                               static_cast<uint32_t>(lap.distance + 0.5f), ranOut);
+    if (!r.ok) {
+        return;
+    }
+    // A pace per mile in imperial; a rep's time is a time.
+    const auto unit = [this](uint32_t v, bool time) {
+        const uint32_t u = time || !mIsImperial
+                         ? v : static_cast<uint32_t>((static_cast<uint64_t>(v) * 1609344u + 500000u) / 1000000u);
+        return u > 5999u ? 5999u : u;   // 99:59 at most, as the text has room for
+    };
+    const uint32_t v = unit(r.value, r.byTime);
+    char text[48];   // the compiler cannot see the 99:59 cap; the copy cuts to the field
+    if (r.byTime) {
+        std::snprintf(text, sizeof(text), "Last rep %u:%02u", static_cast<unsigned>(v / 60), static_cast<unsigned>(v % 60));
+    } else {
+        std::snprintf(text, sizeof(text), "Last rep %u:%02u %s", static_cast<unsigned>(v / 60),
+                      static_cast<unsigned>(v % 60), mIsImperial ? "/mi" : "/km");
+    }
+    copyText(mRepResult, sizeof(mRepResult), text);
+    if (r.fastEnd != 0) {
+        const uint32_t a = unit(r.fastEnd, r.byTime);
+        const uint32_t b = unit(r.slowEnd, r.byTime);
+        std::snprintf(text, sizeof(text), "aim %u:%02u-%u:%02u", static_cast<unsigned>(a / 60),
+                      static_cast<unsigned>(a % 60), static_cast<unsigned>(b / 60), static_cast<unsigned>(b % 60));
+        copyText(mRepAim, sizeof(mRepAim), text);
+    }
+    mRepVerdict = static_cast<uint8_t>(r.verdict);
+    LOG_INFO("Rep judged: %s %s (verdict %u)\n", mRepResult, mRepAim, static_cast<unsigned>(mRepVerdict));
+}
+
+bool Service::holdToStart(const SDK::Workout::Step& s) const
+{
+    // The open warm-up before a time trial or race: the lap button starts the effort, so a
+    // stray press must not (the coach review; NOTES "TP3").
+    using XTraining::Kind;
+    const Kind k = mSessionMeta.session.kind;
+    return mPlannedRun && (k == Kind::TimeTrial5k || k == Kind::TimeTrial10k || k == Kind::Race)
+        && s.intensity == SDK::Workout::Intensity::Warmup && s.end == SDK::Workout::StepEnd::Open;
 }
 
 bool Service::zoneAlertAllowed(SDK::Workout::ZoneAlerts::Alert alert)
@@ -2717,7 +3224,12 @@ bool Service::zoneAlertAllowed(SDK::Workout::ZoneAlerts::Alert alert)
         return true;   // a workout from UNA's library alerts as UNA's does
     }
     const uint16_t step = mEngine.status().step;
-    const AlertMode mode = step < SDK::Workout::kMaxSteps ? mSessionMeta.alert[step] : AlertMode::Both;
+    AlertMode mode = step < SDK::Workout::kMaxSteps ? mSessionMeta.alert[step] : AlertMode::Both;
+    // The race itself follows the Race alerts setting (TP3): off, too fast in the first 2 km, or both.
+    if (mSessionMeta.session.kind == XTraining::Kind::Race && step < SDK::Workout::kMaxSteps
+        && mProgram.steps[step].intensity == SDK::Workout::Intensity::Active) {
+        mode = XTraining::raceAlertMode(mSettings.raceAlerts, mEngine.status().stepDistanceCm, mode, kRaceAlertCm);
+    }
     switch (alert) {
     case Alert::Above:
         if (mode == AlertMode::None || mode == AlertMode::AtEnd) {

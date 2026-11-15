@@ -46,6 +46,7 @@
 #include "PaceModel.hpp"
 #include "PlanBuilder.hpp"
 #include "PlanSchedule.hpp"
+#include "PlanProgress.hpp"
 #include "PlanState.hpp"
 
 class Service : public WristTiltDetector::IListener
@@ -262,6 +263,8 @@ private:
 
     // X Training: the phone's settings (app_config.json), kept for write-back.
     std::unique_ptr<SDK::AppConfig> mConfig;
+    bool mPhoneAsks    = false;   ///< X Training: the phone's settings ask for a new plan
+    bool mForceNewPlan = false;   ///< X Training: the next loadPlan() starts the phone's plan afresh
 
     // -- X Training: the plan (docs/HYBRIDX_TRAINING_BRIEF.md sections 7 and 9) ----------
     XTraining::PlanSetup   mPhoneSetup;          ///< what app_config.json asks for
@@ -275,6 +278,12 @@ private:
     bool                   mPlannedRun   = false;  ///< this track follows today's session
     XTraining::Ymd         mPlannedDate  = 0;      ///< the day it was planned for
     bool                   mOutAlerted   = false;  ///< an out-of-band alert played this step
+    // X Training (TP3): the last short rep's result, for the next step's card.
+    char                   mRepResult[24] = {};
+    char                   mRepAim[24]    = {};
+    uint8_t                mRepVerdict    = 0;
+    /// Race alerts "First 2 km": how far into the race step "too fast" may sound.
+    static constexpr uint32_t kRaceAlertCm = 200000;
 
     // -- Structured workouts --------------------------------------------------
 
@@ -313,6 +322,24 @@ private:
     void loadPlan();             ///< plan.json, reconciled with the phone's settings
     void savePlan();
     void updateToday();          ///< today's session from the plan and the watch's date
+    /// What the plan says of @p date (Today's page, a row of This week); @p day the session.
+    void dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMessage::PlanTodayInfo& info,
+                 XTraining::DaySession& day);
+    void sendPlanWeek(SDK::Workout::Ymd today);       ///< This week (TP3)
+    void sendPlanOverview(SDK::Workout::Ymd today);   ///< Plan
+    void sendPlanPaces();                             ///< Paces
+    static CustomMessage::PlanSetupInfo toSetupInfo(const XTraining::PlanSetup& s);
+    /// Why @p i cannot make a plan, in the watch's words; nullptr if it can.
+    static const char* checkSetup(const CustomMessage::PlanSetupInfo& i);
+    /// The plan's phone fields written to app_config.json (AppConfig::save), as Race does.
+    void writeConfig(const CustomMessage::PlanSetupInfo& i);
+    /// The plan's session on @p date (a rest day included); false outside the plan.
+    bool planDay(SDK::Workout::Ymd date, XTraining::DaySession& out) const;
+    /// The first day from @p from (within two weeks) with a run on it.
+    bool nextSession(SDK::Workout::Ymd from, XTraining::DaySession& out) const;
+    /// @p date's session built into mProgram for the step list; false on a rest day,
+    /// outside the plan, or during a run.
+    bool buildPlanDay(SDK::Workout::Ymd date);
     void sendPlanToday();
     bool startPlannedSession();  ///< build today's program into mProgram and start it
     void recordPlannedRun(const ActivityWriter::TrackData& track);
@@ -346,6 +373,12 @@ private:
     void handleEvent(const CustomMessage::ManualLap& event);
     void handleEvent(const CustomMessage::IntervalsNextPhase& event);
     void handleEvent(const CustomMessage::WorkoutDetailsRequest& event);
+    void handleEvent(const CustomMessage::PlanRequest& event);   ///< X Training
+    void handleEvent(const CustomMessage::NewPlan& event);       ///< X Training
+    /// Judge the short rep that just ended (step @p endedStep, its lap saved if @p lapSaved).
+    void judgeRep(uint16_t endedStep, bool lapSaved, bool ranOut);
+    /// The open warm-up of a time trial or race, which R2 ends only when held.
+    bool holdToStart(const SDK::Workout::Step& s) const;
     void handleEvent(const CustomMessage::WorkoutEnd& event);
 
     // -- Track control --------------------------------------------------------

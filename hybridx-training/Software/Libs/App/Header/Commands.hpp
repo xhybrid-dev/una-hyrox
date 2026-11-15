@@ -52,6 +52,13 @@ namespace CustomMessage {
     // X Training: our own, after X Run's (0x19-0x1F; VO2_UPDATE, VO2_PROFILE_SAVE and
     // BESTS_UPDATE are X Run's and never sent here).
     constexpr SDK::MessageType::Type PLAN_TODAY                = 0x00000020;   // X Training: today's session
+    constexpr SDK::MessageType::Type PLAN_DAY                  = 0x00000021;   // X Training: a day of This week
+    constexpr SDK::MessageType::Type PLAN_WEEK                 = 0x00000022;   // X Training: This week
+    constexpr SDK::MessageType::Type PLAN_OVERVIEW             = 0x00000023;   // X Training: Plan
+    constexpr SDK::MessageType::Type PLAN_PACES                = 0x00000024;   // X Training: Paces
+    constexpr SDK::MessageType::Type PLAN_SETUP                = 0x00000026;   // X Training: the phone's set-up
+    constexpr SDK::MessageType::Type PLAN_PREVIEW              = 0x00000027;   // X Training: a new plan's calendar
+    constexpr SDK::MessageType::Type PLAN_SAVED                = 0x00000029;   // X Training: the Saved screen's lines
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -64,6 +71,8 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type WORKOUT_DETAILS_REQUEST = 0x00000017;
     constexpr SDK::MessageType::Type WORKOUT_END             = 0x00000018;
     constexpr SDK::MessageType::Type TREADMILL_DISTANCE      = 0x0000001D;  ///< HybridX Run: the answer to TREADMILL_ASK
+    constexpr SDK::MessageType::Type PLAN_REQUEST            = 0x00000025;  ///< X Training: a plan screen's data, please
+    constexpr SDK::MessageType::Type NEW_PLAN                = 0x00000028;  ///< X Training: preview, start or keep a plan
 
     // Service <-> GUI
     struct SettingsUpd : public SDK::MessageBase {
@@ -457,6 +466,11 @@ namespace CustomMessage {
         uint8_t  intensity;     ///< SDK::Workout::Intensity
         bool     next;          ///< The step after the current one
         bool     none;          ///< next only: nothing follows
+        // X Training (TP3), the current step only:
+        char     result[24];    ///< how the short rep just ended went: "Last rep 1:36"; empty for none
+        char     aim[24];       ///< its target: "aim 1:34-1:40"; empty for none
+        uint8_t  verdict;       ///< XTraining::RepJudge::Verdict
+        bool     holdToStart;   ///< the warm-up before a time trial or race: R2 must be held
 
         WorkoutStep()
             : SDK::MessageBase(WORKOUT_STEP)
@@ -468,6 +482,10 @@ namespace CustomMessage {
             , intensity(0)
             , next(false)
             , none(false)
+            , result{}
+            , aim{}
+            , verdict(0)
+            , holdToStart(false)
         {}
     };
 
@@ -504,15 +522,20 @@ namespace CustomMessage {
         }
     };
 
-    /// Read a workout from the list in full, for its details screen.
+    /// Read a workout from the list in full, for its details screen. X Training: index
+    /// kPlanDay asks for the plan's session on @p date instead (0: today), built by the
+    /// service; the answer carries the same index.
     struct WorkoutDetailsRequest : public SDK::MessageBase {
+        static constexpr uint16_t kPlanDay = 0xFFFE;
         uint16_t index;
-        WorkoutDetailsRequest() : SDK::MessageBase(WORKOUT_DETAILS_REQUEST), index(0) {}
+        uint32_t date;
+        WorkoutDetailsRequest() : SDK::MessageBase(WORKOUT_DETAILS_REQUEST), index(0), date(0) {}
 
-        explicit WorkoutDetailsRequest(uint16_t index)
+        explicit WorkoutDetailsRequest(uint16_t index, uint32_t date = 0)
             : WorkoutDetailsRequest()
         {
             this->index = index;
+            this->date  = date;
         }
     };
 
@@ -580,24 +603,185 @@ namespace CustomMessage {
             BeforeStart,     ///< The plan starts on a later day.
             Finished,        ///< The plan's last day has passed.
             Problem,         ///< The set-up cannot make a plan; see text.
+            PhoneAsks,       ///< The phone asks for a new plan in place of the one under way.
         };
-        static constexpr size_t kText = 40;
+        static constexpr size_t kText = 36;
         uint8_t  status     = NoPlan;
         uint8_t  kind       = 0;      ///< XTraining::Kind of today's session
-        uint8_t  runWeek    = 0;      ///< 0-based
+        uint8_t  runWeek    = 0;      ///< 0-based; for BeforeStart, 0
         uint8_t  weeks      = 0;
         bool     key        = false;
+        uint32_t date       = 0;      ///< today, YYYYMMDD; 0 if the watch's date is not set
         uint32_t plannedSec = 0;
         uint32_t plannedM   = 0;
         char     name[kText]   = {};  ///< "Intervals"; for Problem, what is wrong
-        char     what[kText]   = {};  ///< "6 x 3 min"
+        char     what[kText]   = {};  ///< "6 x 3 min"; for BeforeStart, the start date
         char     target[kText] = {};  ///< "4:12-4:24 /km"
+        // The next session after today (or the plan's first, before it starts); nextDate 0
+        // for none (no plan, a problem, or the plan's last session is today or past).
+        uint32_t nextDate   = 0;
+        uint8_t  nextKind   = 0;
+        char     nextWhat[kText] = {};   ///< "40 min"
     };
 
     struct PlanToday : public SDK::MessageBase {
         PlanTodayInfo info;
         PlanToday() : SDK::MessageBase(PLAN_TODAY), info{} {}
         explicit PlanToday(const PlanTodayInfo& i) : PlanToday() { info = i; }
+    };
+    static_assert(sizeof(PlanToday) <= kMaxMessageBytes, "PlanToday exceeds the 256-byte kernel pool block");
+
+    /// A day of the plan, for This week's day page: the same words as Today's (no next session).
+    struct PlanDay : public SDK::MessageBase {
+        PlanTodayInfo info;
+        PlanDay() : SDK::MessageBase(PLAN_DAY), info{} {}
+    };
+    static_assert(sizeof(PlanDay) <= kMaxMessageBytes, "PlanDay exceeds the 256-byte kernel pool block");
+
+    /// This week: the run week shown (today's; the first before the plan, the last after it).
+    struct PlanWeekInfo {
+        struct Day {
+            uint32_t date = 0;
+            uint8_t  kind = 0;      ///< XTraining::Kind
+            uint8_t  mark = 0;      ///< XTraining::DayMark
+            bool     key  = false;  ///< the week's key session
+        };
+        bool    ok      = false;    ///< false: no usable plan
+        uint8_t runWeek = 0;        ///< 0-based
+        uint8_t weeks   = 0;
+        uint8_t phase   = 0;        ///< XTraining::Phase
+        Day     day[7];             ///< Monday first
+    };
+    struct PlanWeek : public SDK::MessageBase {
+        PlanWeekInfo info;
+        PlanWeek() : SDK::MessageBase(PLAN_WEEK), info{} {}
+    };
+    static_assert(sizeof(PlanWeek) <= kMaxMessageBytes, "PlanWeek exceeds the 256-byte kernel pool block");
+
+    /// The plan as a whole, for the Plan screen.
+    struct PlanOverviewInfo {
+        static constexpr uint8_t kMaxWeeks = 24;
+        uint8_t  status   = 0;      ///< PlanTodayInfo::Status, as today's
+        uint8_t  plan     = 0;      ///< XTraining::PlanId; 0 when there is no usable plan
+        uint8_t  level    = 0;
+        uint8_t  runDays  = 0;
+        uint8_t  runWeek  = 0;      ///< the week shown, 0-based
+        uint8_t  weeks    = 0;
+        uint8_t  weekSessions = 0;
+        uint8_t  weekDone     = 0;
+        uint16_t total    = 0;
+        uint16_t soFar    = 0;
+        uint16_t done     = 0;
+        uint32_t start    = 0;      ///< the first Monday
+        uint32_t end      = 0;      ///< the last Sunday
+        uint32_t raceDate = 0;      ///< 0 for none
+        uint8_t  phase[kMaxWeeks] = {};   ///< XTraining::Phase of each run week
+        char     problem[PlanTodayInfo::kText] = {};
+    };
+    struct PlanOverview : public SDK::MessageBase {
+        PlanOverviewInfo info;
+        PlanOverview() : SDK::MessageBase(PLAN_OVERVIEW), info{} {}
+    };
+    static_assert(sizeof(PlanOverview) <= kMaxMessageBytes, "PlanOverview exceeds the 256-byte kernel pool block");
+
+    /// The paces, s/km, and where they came from, for the Paces screen.
+    struct PlanPacesInfo {
+        bool     ok         = false;
+        bool     halfUsed   = false;   ///< a half was entered and is recent enough to count
+        bool     gap        = false;   ///< the half is well behind the 5K (PLANS.md 2.4)
+        uint16_t easyFast   = 0;
+        uint16_t easySlow   = 0;
+        uint16_t marathon   = 0;
+        uint16_t half       = 0;
+        uint16_t threshold  = 0;
+        uint16_t tenK       = 0;
+        uint16_t interval   = 0;
+        uint16_t repetition = 0;
+        uint16_t fiveK      = 0;
+        uint32_t fiveKSec   = 0;
+        uint32_t fiveKDate  = 0;
+        uint32_t halfSec    = 0;       ///< as entered, used or not
+        uint32_t halfDate   = 0;
+        uint32_t halfAs5kSec          = 0;
+        uint32_t predicted10kSec      = 0;
+        uint32_t predictedHalfSec     = 0;
+        uint32_t predictedMarathonSec = 0;
+    };
+    struct PlanPaces : public SDK::MessageBase {
+        PlanPacesInfo info;
+        PlanPaces() : SDK::MessageBase(PLAN_PACES), info{} {}
+    };
+    static_assert(sizeof(PlanPaces) <= kMaxMessageBytes, "PlanPaces exceeds the 256-byte kernel pool block");
+
+    /// A plan's set-up as the phone has it (and the watch's New plan makes it).
+    struct PlanSetupInfo {
+        uint8_t  plan        = 0;      ///< XTraining::PlanId
+        uint8_t  level       = 2;
+        uint8_t  days        = 0;      ///< bit 0 Monday .. bit 6 Sunday
+        uint8_t  longDay     = 6;      ///< 0 Monday .. 6 Sunday
+        bool     fiveKRecent = true;
+        uint32_t fiveKSec    = 0;
+        uint32_t raceDate    = 0;      ///< YYYYMMDD; 0 for none
+    };
+
+    /// The answer to PlanRequest::Setup: the phone's set-up and, when it asks for a new plan,
+    /// the plan under way.
+    struct PlanSetupUpd : public SDK::MessageBase {
+        PlanSetupInfo phone;
+        PlanSetupInfo current;
+        bool          phoneAsks = false;
+        PlanSetupUpd() : SDK::MessageBase(PLAN_SETUP) {}
+    };
+    static_assert(sizeof(PlanSetupUpd) <= kMaxMessageBytes, "PlanSetupUpd exceeds the 256-byte kernel pool block");
+
+    /// GUI -> Service: a new plan. Preview answers PLAN_PREVIEW; Apply writes the set-up to the
+    /// phone's values file and starts it from the next Monday (or this one, Monday to
+    /// Wednesday); KeepCurrent answers the phone's ask with no, writing the plan under way back.
+    struct NewPlan : public SDK::MessageBase {
+        enum Action : uint8_t { Preview = 0, Apply, KeepCurrent };
+        uint8_t       action = Preview;
+        PlanSetupInfo info;
+        NewPlan() : SDK::MessageBase(NEW_PLAN) {}
+        NewPlan(uint8_t a, const PlanSetupInfo& i) : NewPlan() { action = a; info = i; }
+    };
+
+    /// What a new plan would be: its calendar, or why it cannot be made.
+    struct PlanPreviewInfo {
+        bool     ok        = false;
+        uint8_t  status    = 0;        ///< XTraining::Calendar::Status
+        uint8_t  weeks     = 0;        ///< weeks to run
+        uint8_t  planWeeks = 0;        ///< the plan's full length
+        uint32_t start     = 0;        ///< the first Monday
+        char     problem[PlanTodayInfo::kText] = {};
+    };
+    struct PlanPreview : public SDK::MessageBase {
+        PlanPreviewInfo info;
+        PlanPreview() : SDK::MessageBase(PLAN_PREVIEW), info{} {}
+    };
+    static_assert(sizeof(PlanPreview) <= kMaxMessageBytes, "PlanPreview exceeds the 256-byte kernel pool block");
+
+    /// After a planned session is saved: how it counts, the week, and what is next.
+    struct PlanSavedInfo {
+        enum Outcome : uint8_t { None = 0, Done, PartDone, TooShort };
+        uint8_t  outcome      = None;
+        uint8_t  runWeek      = 0;
+        uint8_t  weekDone     = 0;
+        uint8_t  weekSessions = 0;
+        uint32_t nextDate     = 0;      ///< 0 for none
+        uint8_t  nextKind     = 0;      ///< XTraining::Kind
+    };
+    struct PlanSaved : public SDK::MessageBase {
+        PlanSavedInfo info;
+        PlanSaved() : SDK::MessageBase(PLAN_SAVED), info{} {}
+    };
+
+    /// GUI -> Service: a plan screen's data.
+    struct PlanRequest : public SDK::MessageBase {
+        enum What : uint8_t { Day = 0, Week, Overview, Paces, Setup };
+        uint8_t  what = Week;
+        uint32_t date = 0;          ///< for Day; 0 is today
+        PlanRequest() : SDK::MessageBase(PLAN_REQUEST) {}
+        PlanRequest(uint8_t w, uint32_t d) : PlanRequest() { what = w; date = d; }
     };
 
 } // namespace CustomMessage

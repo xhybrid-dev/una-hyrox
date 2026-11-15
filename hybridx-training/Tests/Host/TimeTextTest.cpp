@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <string>
 
 using namespace XTraining;
@@ -53,4 +54,20 @@ TEST(TimeText, Formatting)
     char small[4];
     TimeText::duration(6067, small, sizeof(small));
     EXPECT_EQ(std::string(small).size(), 3u);
+}
+
+TEST(TimeText, DayDate)
+{
+    char buf[24];
+    EXPECT_EQ(TimeText::dayDate(20261116u, buf, sizeof(buf)), 10);
+    EXPECT_STREQ(buf, "Mon 16 Nov");
+    TimeText::dayDate(20261117u, buf, sizeof(buf));
+    EXPECT_STREQ(buf, "Tue 17 Nov");
+    TimeText::dayDate(20270103u, buf, sizeof(buf), true);
+    EXPECT_STREQ(buf, "Sun 3 Jan 2027");
+    EXPECT_EQ(TimeText::dayDate(20261131u, buf, sizeof(buf)), 0);   // no such day
+    EXPECT_STREQ(buf, "");
+    char small[4];
+    TimeText::dayDate(20261116u, small, sizeof(small));               // cut, still ended
+    EXPECT_EQ(std::strlen(small), 3u);
 }

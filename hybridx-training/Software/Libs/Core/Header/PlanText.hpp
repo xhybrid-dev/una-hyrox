@@ -72,15 +72,16 @@ inline const char* shortName(Kind k)
     return "";
 }
 
-/// What the session is for (PLANS.md section 3.1).
+/// What the session is for (PLANS.md section 3.1). Each fits one line across the
+/// middle of the face (the text-fit audit checks).
 inline const char* purpose(Kind k)
 {
     switch (k) {
     case Kind::Rest:         return "Rest is training too";
-    case Kind::Easy:         return "Easy: you should be able to talk";
-    case Kind::EasyStrides:  return "Easy, with strides for form";
+    case Kind::Easy:         return "Easy enough to talk";
+    case Kind::EasyStrides:  return "Easy, strides for form";
     case Kind::Long:         return "Builds your endurance";
-    case Kind::LongFinish:   return "Endurance, finishing at race pace";
+    case Kind::LongFinish:   return "Endurance, then race pace";
     case Kind::Tempo:        return "Raises your threshold";
     case Kind::Cruise:       return "Threshold in pieces";
     case Kind::Intervals:    return "Builds your VO2max";
@@ -91,8 +92,25 @@ inline const char* purpose(Kind k)
     case Kind::PaceHalf:     return "Race pace";
     case Kind::TimeTrial5k:  return "Sets your paces";
     case Kind::TimeTrial10k: return "Sets your paces";
-    case Kind::Shakeout:     return "Loosen up for race day";
+    case Kind::Shakeout:     return "Ready for race day";
     case Kind::Race:         return "Good luck";
+    }
+    return "";
+}
+
+/// A phase of the plan, as the Plan screen names it.
+inline const char* phaseName(Phase p)
+{
+    switch (p) {
+    case Phase::Base:     return "Base";
+    case Phase::Build:    return "Build";
+    case Phase::Peak:     return "Peak";
+    case Phase::Specific: return "Race-specific";
+    case Phase::Taper:    return "Taper";
+    case Phase::RaceWeek: return "Race week";
+    case Phase::CutBack:  return "Easier week";
+    case Phase::Baseline: return "Baseline";
+    case Phase::Retest:   return "Retest";
     }
     return "";
 }

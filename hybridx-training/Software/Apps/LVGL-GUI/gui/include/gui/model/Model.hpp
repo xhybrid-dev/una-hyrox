@@ -147,6 +147,42 @@ public:
     static constexpr int16_t kPlanSession = CustomMessage::TrackStart::kPlanSession;
     /// X Training: today's session, as the service last sent it.
     const CustomMessage::PlanTodayInfo& getPlanToday() const { return mPlanToday; }
+    // X Training (TP3): the plan's screens. requestPlan() asks the service; the answer comes
+    // as onPlanDay(), onPlanWeek(), onPlanOverview() or onPlanPaces().
+    void requestPlan(uint8_t what, uint32_t date = 0);
+    const CustomMessage::PlanTodayInfo&    getPlanDay() const { return mPlanDay; }
+    const CustomMessage::PlanWeekInfo&     getPlanWeek() const { return mPlanWeek; }
+    const CustomMessage::PlanOverviewInfo& getPlanOverview() const { return mPlanOverview; }
+    const CustomMessage::PlanPacesInfo&    getPlanPaces() const { return mPlanPaces; }
+    /// The day This week opened (0 for none).
+    void     setChosenDay(uint32_t date) { mChosenDay = date; }
+    uint32_t getChosenDay() const { return mChosenDay; }
+    // X Training (TP3): New plan. The draft is made on the watch, from the phone's set-up.
+    const CustomMessage::PlanSetupInfo&   getPhoneSetup() const { return mPhoneSetup; }
+    const CustomMessage::PlanSetupInfo&   getCurrentSetup() const { return mCurrentSetup; }
+    bool                                   phoneAsks() const { return mPhoneAsks; }
+    const CustomMessage::PlanPreviewInfo& getPlanPreview() const { return mPlanPreview; }
+    /// After a save: how the planned session counts (outcome None if it was not one).
+    const CustomMessage::PlanSavedInfo&   getPlanSaved() const { return mPlanSaved; }
+    CustomMessage::PlanSetupInfo&          draft() { return mDraft; }
+    bool  draftReady() const { return mDraftReady; }
+    void  setDraftReady(bool ready) { mDraftReady = ready; }
+    /// Send the draft (or @p info) to the service: Preview, Apply or KeepCurrent.
+    void  newPlan(uint8_t action, const CustomMessage::PlanSetupInfo& info);
+#if defined(SIMULATOR)
+    // The text-fit audit (AuditDriver): worst cases put in as if the service had sent them.
+    void injectPlanToday(const CustomMessage::PlanTodayInfo& i);
+    void injectPlanDay(const CustomMessage::PlanTodayInfo& i);
+    void injectPlanWeek(const CustomMessage::PlanWeekInfo& i);
+    void injectPlanOverview(const CustomMessage::PlanOverviewInfo& i);
+    void injectPlanPaces(const CustomMessage::PlanPacesInfo& i);
+    void injectPlanPreview(const CustomMessage::PlanPreviewInfo& i);
+    void injectPlanSaved(const CustomMessage::PlanSavedInfo& i);
+    struct WorkoutStepInfo;   // below
+    void injectWorkoutStep(const WorkoutStepInfo& i);
+#endif
+    /// Today's date as the service last said (0 if not set).
+    uint32_t todayDate() const { return mPlanToday.date; }
 
     /// What the workout faces show, from the latest WORKOUT_DATA.
     struct WorkoutFace {
@@ -173,6 +209,11 @@ public:
         uint32_t reps      = 0;
         uint8_t  intensity = 0;
         bool     none      = true;  ///< No step (next: nothing follows)
+        // X Training (TP3), the current step only:
+        char     result[24] = {};   ///< "Last rep 1:36", or empty
+        char     aim[24]    = {};   ///< "aim 1:34-1:40", or empty
+        uint8_t  verdict    = 0;    ///< XTraining::RepJudge::Verdict
+        bool     holdToStart = false;   ///< R2 must be held to end this warm-up
     };
 
     /// The workout list from the service; null until it arrives. The service
@@ -197,6 +238,9 @@ public:
 
     /// Ask for a workout in full; onWorkoutDetails() follows.
     void requestWorkoutDetails(uint16_t index);
+    /// X Training: the plan's session on @p date (0: today) as a program, answered as
+    /// onWorkoutDetails() with getWorkoutDetails() (null on a rest day).
+    void requestPlanDay(uint32_t date);
     /// The workout asked for, or null if it could not be read. Valid until
     /// the next request or run.
     const SDK::Workout::Program* getWorkoutDetails() const;
@@ -270,6 +314,18 @@ private:
     uint16_t        mChosenWorkout  = 0;
     int16_t         mArmedWorkout   = kNoWorkout;
     CustomMessage::PlanTodayInfo mPlanToday {};   ///< X Training
+    CustomMessage::PlanTodayInfo     mPlanDay {};
+    CustomMessage::PlanWeekInfo      mPlanWeek {};
+    CustomMessage::PlanOverviewInfo  mPlanOverview {};
+    CustomMessage::PlanPacesInfo     mPlanPaces {};
+    uint32_t                         mChosenDay = 0;
+    CustomMessage::PlanSetupInfo     mPhoneSetup {};
+    CustomMessage::PlanSetupInfo     mCurrentSetup {};
+    CustomMessage::PlanSetupInfo     mDraft {};
+    CustomMessage::PlanPreviewInfo   mPlanPreview {};
+    CustomMessage::PlanSavedInfo     mPlanSaved {};
+    bool                             mPhoneAsks  = false;
+    bool                             mDraftReady = false;
     bool            mStepCard       = false;
     bool            mDetailsFromToday = false;
     WorkoutFace     mWorkoutFace    {};

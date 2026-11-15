@@ -40,6 +40,18 @@ enum class AlertMode : uint8_t {
     AtEnd,     ///< Short reps: judged by the rep's average when it ends.
 };
 
+/// The race step's alerts under the watch's Race alerts setting (TP3; the coach review):
+/// 0 off, 1 "too fast" only in the first @p firstCm of the step, 2 as planned. @p stepCm is
+/// how far into the step the runner is.
+inline AlertMode raceAlertMode(uint8_t setting, uint32_t stepCm, AlertMode planned, uint32_t firstCm = 200000)
+{
+    switch (setting) {
+    case 0:  return AlertMode::None;
+    case 1:  return stepCm < firstCm ? AlertMode::FastOnly : AlertMode::None;
+    default: return planned;
+    }
+}
+
 /// The limits per session at a level (PLANS.md 3.3). Times in seconds.
 struct LevelCaps {
     uint16_t intervalSec;        ///< Interval work in a session, 30-30s' fast halves included.

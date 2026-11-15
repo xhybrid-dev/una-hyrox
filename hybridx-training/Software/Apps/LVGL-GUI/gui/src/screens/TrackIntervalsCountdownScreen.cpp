@@ -121,7 +121,9 @@ void TrackIntervalsCountdownScreen::onKey(uint8_t code)
         startTrack();
     } else if (code == Btn::R2) {
         lv_anim_delete(this, nullptr);
-        ScreenManager::instance().goTo(isWorkout() ? ScreenId::Main : ScreenId::MenuIntervals);
+        // X Training: back to Today for a planned session (Intervals' menu is gone; TP3).
+        ScreenManager::instance().goTo(mModel.getArmedWorkout() == Model::kPlanSession ? ScreenId::PlanToday
+                                                                                      : ScreenId::Main);
     }
 }
 
