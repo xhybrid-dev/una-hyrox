@@ -273,6 +273,10 @@ What I checked when reading them as a coach:
 - **Watch build, local compile check** (Ubuntu's `arm-none-eabi-gcc` with Race's syscall
   stubs: **not for a watch**): `HybridXTraining_0.0.0-dev.uapp`, 513,736 bytes, no warnings in
   our code.
+- **CI, run 295 on `76ed3f2`: green.** ST's toolchain built `HybridXTraining_*.uapp` into
+  `watch-apps` with every other app; the host-test job passed X Training's settings
+  declaration, its host tests (with the plan-header check) and the link-copy check (now seven
+  apps). TP1's run (294 on `c9b6618`) was green too.
 - **Not verified:** anything on a watch; a whole session at real speed (49 minutes); the
   "done" path with the new rule end to end (the host test covers the rule); imperial units;
   a GUI started on a day after the service started (it re-works today at every GUI start).
