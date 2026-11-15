@@ -44,10 +44,10 @@ void WorkoutDetailsScreen::build()
     // View only: R2 goes back.
     mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,
                   Widgets::Buttons::NONE, Widgets::Buttons::WHITE);
-    mTitle = std::make_unique<Widgets::Title>(mRoot, mSource == Source::Today ? "TODAY" : "DETAILS");
+    mTitle = std::make_unique<Widgets::Title>(mRoot, plan() ? "TODAY" : "DETAILS");
     mInfo  = Theme::label(mRoot, F::Italic18, "", 35, 57, 170, LV_TEXT_ALIGN_CENTER, Color::TEAL);
 
-    if (mSource == Source::Today) {
+    if (plan()) {
         mStack.init(mRoot);
         return;
     }
@@ -67,7 +67,12 @@ void WorkoutDetailsScreen::onShow()
     mGpsFix   = mModel.hasGpsFix();
     showFirstPage(true);
     if (mSource == Source::Today) {
-        setToday();
+        setPlanPage();
+        return;
+    }
+    if (mSource == Source::Day) {
+        mStack.set(nullptr, 0);   // until the service's word on the day arrives
+        mModel.requestPlan(CustomMessage::PlanRequest::Day, mModel.getChosenDay());
         return;
     }
 
@@ -126,14 +131,14 @@ void WorkoutDetailsScreen::setProgram(const SDK::Workout::Program* program)
     if (mProgram == nullptr) {
         // The file could not be read: the first page keeps only what the
         // list knew, and there are no steps to go to.
-        if (mSource == Source::Library) {
+        if (!plan()) {
             for (WorkoutLabel& line : mDesc) {
                 line.setText("");
             }
         }
         return;
     }
-    if (mSource == Source::Library) {
+    if (!plan()) {
         setDescription();
     }
     buildRows();
@@ -213,7 +218,7 @@ void WorkoutDetailsScreen::showFirstPage(bool show)
 {
     mFirstPage = show;
     Theme::setHidden(mMenuBox, show);
-    if (mSource == Source::Today) {
+    if (plan()) {
         mStack.setVisible(show);
         if (show) {
             Theme::setHidden(mInfo, true);
@@ -354,13 +359,15 @@ void WorkoutDetailsScreen::onKey(uint8_t code)
             }
             break;
         case Btn::R1:
-            if (mSource == Source::Today && todayStartable()) {
+            if (plan() && todayStartable()) {
                 startToday();
             }
             break;
         case Btn::R2:
             if (mSource == Source::Today) {
                 ScreenManager::instance().goTo(ScreenId::Main);
+            } else if (mSource == Source::Day) {
+                ScreenManager::instance().goTo(ScreenId::PlanWeek);
             } else {
                 back();
             }
@@ -375,8 +382,20 @@ void WorkoutDetailsScreen::onKey(uint8_t code)
 void WorkoutDetailsScreen::onWorkoutList()
 {
     if (mSource == Source::Today) {
-        setToday();   // the service's word on today, again
+        setPlanPage();   // the service's word on today, again
     }
+}
+
+void WorkoutDetailsScreen::onPlanDay()
+{
+    if (mSource == Source::Day) {
+        setPlanPage();
+    }
+}
+
+const CustomMessage::PlanTodayInfo& WorkoutDetailsScreen::planInfo() const
+{
+    return mSource == Source::Day ? mModel.getPlanDay() : mModel.getPlanToday();
 }
 
 void WorkoutDetailsScreen::onGpsFix(bool acquired)
@@ -387,8 +406,11 @@ void WorkoutDetailsScreen::onGpsFix(bool acquired)
 bool WorkoutDetailsScreen::todayStartable() const
 {
     using Info = CustomMessage::PlanTodayInfo;
-    const uint8_t st = mModel.getPlanToday().status;
-    return st == Info::Session || st == Info::Done;
+    const Info& t = planInfo();
+    if (t.date == 0 || t.date != mModel.todayDate()) {
+        return false;   // another day of the week: its steps, not a start (moves are TP5's)
+    }
+    return t.status == Info::Session || t.status == Info::Done;
 }
 
 void WorkoutDetailsScreen::startToday()
@@ -400,12 +422,12 @@ void WorkoutDetailsScreen::startToday()
     ScreenManager::instance().goTo(mGpsFix ? ScreenId::TrackIntervalsCountdown : ScreenId::TrackStartConfirm);
 }
 
-void WorkoutDetailsScreen::setToday()
+void WorkoutDetailsScreen::setPlanPage()
 {
     using namespace XTraining;
     using Info = CustomMessage::PlanTodayInfo;
     using Line = TextStack::Line;
-    const Info& t = mModel.getPlanToday();
+    const Info& t = planInfo();
     const Kind kind = static_cast<Kind>(t.kind);
     char (&txt)[TextStack::kMaxLines][48] = mStackText;
     for (auto& line : txt) {
@@ -450,7 +472,7 @@ void WorkoutDetailsScreen::setToday()
             // estimate (at the middle of each step's band) at the foot.
             add(t.name, F::SemiBold25, F::SemiBold20, Color::WHITE);
             if (t.status == Info::Done) {
-                add("Done today", F::Italic18, F::Italic18, Color::GREEN);
+                add(mSource == Source::Day ? "Done" : "Done today", F::Italic18, F::Italic18, Color::GREEN);
             } else {
                 add(PlanText::purpose(kind), F::Italic18, F::Italic18, Color::GRAY);
             }
@@ -493,8 +515,15 @@ void WorkoutDetailsScreen::setToday()
     }
     mStack.set(lines, n);
     mStack.setVisible(mFirstPage);
-    // The title: the week, on a day of the plan with a session.
-    if (t.weeks != 0 && (t.status == Info::Session || t.status == Info::Done)) {
+    // The title: the week, on a day of the plan with a session; a day of the week, its date.
+    if (mSource == Source::Day && t.date != 0) {
+        char day[20];
+        TimeText::dayDate(t.date, day, sizeof(day));
+        for (char* c = day; *c != '\0'; ++c) {
+            *c = (*c >= 'a' && *c <= 'z') ? static_cast<char>(*c - 'a' + 'A') : *c;
+        }
+        snprintf(mTodayTitle, sizeof(mTodayTitle), "%s", day);
+    } else if (t.weeks != 0 && (t.status == Info::Session || t.status == Info::Done)) {
         snprintf(mTodayTitle, sizeof(mTodayTitle), "WEEK %u OF %u", static_cast<unsigned>(t.runWeek + 1),
                  static_cast<unsigned>(t.weeks));
     } else {
@@ -506,8 +535,8 @@ void WorkoutDetailsScreen::setToday()
 
     const bool startable = todayStartable();
     mButtons->setR1(startable ? Widgets::Buttons::AMBER : Widgets::Buttons::NONE);
-    if (startable) {
-        mModel.requestPlanDay(0);   // the steps, a scroll away
+    if (t.status == Info::Session || t.status == Info::Done) {
+        mModel.requestPlanDay(t.date);   // the steps, a scroll away
     } else {
         setProgram(nullptr);
     }

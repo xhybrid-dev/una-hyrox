@@ -406,6 +406,37 @@ the gap TP3 fills first.
   `docs/screens/tp3-*.png`, each looked at; `sim_plan.sh` (now Today, R1, R1) runs a session
   and saves the FIT file as before; 63 host tests; the watch target compiles.
 
+### Step 2: This week, Plan, Paces
+
+- **Main menu:** Today, Free run, Treadmill, This week, Plan, Paces, Workouts, Settings.
+- **This week** (`WeekScreen`): the week's title ("WEEK 5 OF 10"; the first week before the plan
+  starts, the last once it is over), seven rows from Monday, the day and the session's short
+  name coloured by its mark: green done, amber part done, cyan today, white to come, grey not
+  logged, dark grey rest. The chosen row's state in words above ("Today, key", "Part done",
+  "Not logged"), so the colours are never the only sign. R1 opens the day: the same page as
+  Today (`WorkoutDetailsScreen`, `Source::Day`, titled with the date), its steps a scroll away,
+  R1 only on today's.
+- **Plan** (`PlanScreen`): the plan in the title ("10K PLAN"), the week, its phase, level and
+  days; a bar of the weeks coloured by phase (bright for the weeks run, dark for those to come,
+  on the display's colour grid: LVGL's opacity blends off it and showed black and dark red);
+  this week underlined; "2 of 4 this week", "2 of 19 so far", "Ends 20 Dec" (or "Race 24 Jan").
+- **Paces** (`PacesScreen`), four pages: the paces (/km or /mi); the times they come from, each
+  dated; the predicted 10K, half and marathon; and, when there is one, a note: "Threshold is
+  about your 10K pace" (within 5 s/km, PLANS 2.3), "Your half matches a 34:47 5K: long runs
+  matter most for you" (2.4), or that a half over six months old is not used.
+- **Not missed, but not logged:** TP3 marks a past session with nothing logged "Not logged". A
+  plan set up on a Wednesday starts that Monday, so its Monday and Tuesday would read "missed"
+  though they were never asked for; telling them apart needs the set-up day, which `plan.json`
+  does not keep. The missed rules and that day are TP5's (brief section 9).
+- **The core:** `PlanProgress` (each day's mark, the week to show, the counts; three host tests),
+  `DayMark` in `PlanTypes.hpp` for the GUI, `PlanText::phaseName`. The service's `dayInfo()` is
+  Today's words for any day; `PLAN_REQUEST` asks for a day, the week, the overview or the paces,
+  answered by `PLAN_DAY`, `PLAN_WEEK`, `PLAN_OVERVIEW` and `PLAN_PACES` (each under 256 bytes,
+  asserted).
+- **Checked:** `capture_screens.sh` gains a week with two days logged (This week, a day and its
+  steps, Plan, the Paces pages) and a 32:00 runner with a slow half (the note); 32 screens, each
+  looked at; 66 host tests; the watch target links.
+
 From the coach review above: a **Race alerts** setting (Off, First 2 km "too fast", Both; default
 Off); **R2 held for about a second** on the open warm-up before a time trial or a race, with a
 "Hold to start" hint; a note on the Paces screen where threshold meets 10K pace ("Threshold is

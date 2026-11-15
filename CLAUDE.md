@@ -589,4 +589,4 @@ engine and logged in `plan.json`) are done; TP3, the screens, is under way (NOTE
     [shots-dir]` (`WEEK=n`, `STEP_SECS=n`, `PLAN=2`; about 2 minutes; needs Xvfb, xdotool,
     ImageMagick, fitdecode); a saved file alone: `docs/experiments/fit_plan_report.py <file.fit>`.
   - the screens (TP3) on pretend watches, by key presses: `docs/experiments/capture_screens.sh
-    [out-dir] [scenario ...]` (into `docs/screens/tp3-*.png`; about 2 minutes).
+    [out-dir] [scenario ...]` (into `docs/screens/tp3-*.png`; about 4 minutes).

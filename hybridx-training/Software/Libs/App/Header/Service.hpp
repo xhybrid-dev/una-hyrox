@@ -46,6 +46,7 @@
 #include "PaceModel.hpp"
 #include "PlanBuilder.hpp"
 #include "PlanSchedule.hpp"
+#include "PlanProgress.hpp"
 #include "PlanState.hpp"
 
 class Service : public WristTiltDetector::IListener
@@ -313,6 +314,12 @@ private:
     void loadPlan();             ///< plan.json, reconciled with the phone's settings
     void savePlan();
     void updateToday();          ///< today's session from the plan and the watch's date
+    /// What the plan says of @p date (Today's page, a row of This week); @p day the session.
+    void dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMessage::PlanTodayInfo& info,
+                 XTraining::DaySession& day);
+    void sendPlanWeek(SDK::Workout::Ymd today);       ///< This week (TP3)
+    void sendPlanOverview(SDK::Workout::Ymd today);   ///< Plan
+    void sendPlanPaces();                             ///< Paces
     /// The plan's session on @p date (a rest day included); false outside the plan.
     bool planDay(SDK::Workout::Ymd date, XTraining::DaySession& out) const;
     /// The first day from @p from (within two weeks) with a run on it.
@@ -353,6 +360,7 @@ private:
     void handleEvent(const CustomMessage::ManualLap& event);
     void handleEvent(const CustomMessage::IntervalsNextPhase& event);
     void handleEvent(const CustomMessage::WorkoutDetailsRequest& event);
+    void handleEvent(const CustomMessage::PlanRequest& event);   ///< X Training
     void handleEvent(const CustomMessage::WorkoutEnd& event);
 
     // -- Track control --------------------------------------------------------

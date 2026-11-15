@@ -27,8 +27,9 @@ class WorkoutDetailsScreen : public Screen
 {
 public:
     /// Library: a workout from UNA's list. Today (X Training): today's planned session,
-    /// its first page what the plan says of today, R1 to start it.
-    enum class Source : uint8_t { Library, Today };
+    /// its first page what the plan says of today, R1 to start it. Day: a day This week
+    /// opened (Model::getChosenDay), R1 only if it is today's.
+    enum class Source : uint8_t { Library, Today, Day };
 
     explicit WorkoutDetailsScreen(Model& model, Source source = Source::Library);
     ~WorkoutDetailsScreen() override;
@@ -41,6 +42,7 @@ public:
     void onWorkoutDetails() override;
     void onWorkoutList() override;   // X Training: today's session, again (PLAN_TODAY)
     void onGpsFix(bool acquired) override;
+    void onPlanDay() override;       // X Training: the day This week opened
 
 protected:
     void build() override;
@@ -71,10 +73,13 @@ private:
     void rowText(uint16_t row, char* label, char* tip, size_t cap) const;
     void back();
 
-    // X Training: today.
-    /// The first page from the plan's word on today; asks for its steps if it has a session.
-    void setToday();
-    /// True when today has a session R1 can start (done or not).
+    // X Training: today, or a day of the week.
+    bool plan() const { return mSource != Source::Library; }
+    /// The plan's word on the day shown (today's, or This week's chosen day).
+    const CustomMessage::PlanTodayInfo& planInfo() const;
+    /// The first page from the plan's word on the day; asks for its steps if it has a session.
+    void setPlanPage();
+    /// True when the day shown is today and has a session R1 can start (done or not).
     bool todayStartable() const;
     void startToday();
 

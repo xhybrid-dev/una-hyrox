@@ -343,6 +343,11 @@ void Model::requestWorkoutDetails(uint16_t index)
     SDK::send_msg<CustomMessage::WorkoutDetailsRequest>(mKernel, index);
 }
 
+void Model::requestPlan(uint8_t what, uint32_t date)
+{
+    SDK::send_msg<CustomMessage::PlanRequest>(mKernel, what, date);
+}
+
 void Model::requestPlanDay(uint32_t date)
 {
     mWorkoutDetails = nullptr;
@@ -558,6 +563,26 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             // Today item shows what it is (TP3).
             mPlanToday = static_cast<CustomMessage::PlanToday*>(message)->info;
             modelListener->onWorkoutList();
+        } break;
+
+        case CustomMessage::PLAN_DAY: {   // X Training (TP3)
+            mPlanDay = static_cast<CustomMessage::PlanDay*>(message)->info;
+            modelListener->onPlanDay();
+        } break;
+
+        case CustomMessage::PLAN_WEEK: {
+            mPlanWeek = static_cast<CustomMessage::PlanWeek*>(message)->info;
+            modelListener->onPlanWeek();
+        } break;
+
+        case CustomMessage::PLAN_OVERVIEW: {
+            mPlanOverview = static_cast<CustomMessage::PlanOverview*>(message)->info;
+            modelListener->onPlanOverview();
+        } break;
+
+        case CustomMessage::PLAN_PACES: {
+            mPlanPaces = static_cast<CustomMessage::PlanPaces*>(message)->info;
+            modelListener->onPlanPaces();
         } break;
 
         case CustomMessage::WORKOUT_LIST: {

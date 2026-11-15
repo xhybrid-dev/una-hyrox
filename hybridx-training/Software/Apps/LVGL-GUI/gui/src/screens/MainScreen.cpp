@@ -32,6 +32,10 @@ const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
     { Style::Simple, "Free run", nullptr, &poppins_semibold_30 },
     // ID_TREADMILL (HybridX Run): on, a free run is a treadmill run (no GPS)
     { Style::Toggle, "Treadmill", nullptr, &poppins_semibold_25 },   // the intervals menu's switches' face
+    // ID_WEEK, ID_PLAN, ID_PACES (X Training, brief 8.1)
+    { Style::Simple, "This week", nullptr, &poppins_semibold_30 },
+    { Style::Simple, "Plan" },
+    { Style::Simple, "Paces" },
     // ID_WORKOUTS: UNA's library
     { Style::Simple, "Workouts" },
     // ID_SETTINGS
@@ -208,6 +212,15 @@ void MainScreen::confirm()
             break;
         case Menu::ID_TREADMILL:
             toggleTreadmill();
+            break;
+        case Menu::ID_WEEK:
+            ScreenManager::instance().goTo(ScreenId::PlanWeek);
+            break;
+        case Menu::ID_PLAN:
+            ScreenManager::instance().goTo(ScreenId::PlanOverview);
+            break;
+        case Menu::ID_PACES:
+            ScreenManager::instance().goTo(ScreenId::PlanPaces);
             break;
         case Menu::ID_WORKOUTS:
             ScreenManager::instance().goTo(ScreenId::WorkoutList);

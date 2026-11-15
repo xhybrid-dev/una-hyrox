@@ -58,7 +58,7 @@ struct Root {
     // X Training: Today first, then a free run (ID_START: an armed UNA workout, else a
     // free run) with the treadmill switch under it (HybridX Run's, NOTES "Treadmill").
     // X Run's ID_VO2 and RunLVGL's Intervals are not here (brief 8.1, decision 10).
-    enum Id { ID_TODAY = 0, ID_START, ID_TREADMILL, ID_WORKOUTS, ID_SETTINGS,
+    enum Id { ID_TODAY = 0, ID_START, ID_TREADMILL, ID_WEEK, ID_PLAN, ID_PACES, ID_WORKOUTS, ID_SETTINGS,
               ID_COUNT, ID_DEFAULT = ID_TODAY };
 
     // The workout list: a Free run row while a workout is armed, then one

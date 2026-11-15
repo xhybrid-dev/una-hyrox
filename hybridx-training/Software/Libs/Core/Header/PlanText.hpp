@@ -98,6 +98,23 @@ inline const char* purpose(Kind k)
     return "";
 }
 
+/// A phase of the plan, as the Plan screen names it.
+inline const char* phaseName(Phase p)
+{
+    switch (p) {
+    case Phase::Base:     return "Base";
+    case Phase::Build:    return "Build";
+    case Phase::Peak:     return "Peak";
+    case Phase::Specific: return "Race-specific";
+    case Phase::Taper:    return "Taper";
+    case Phase::RaceWeek: return "Race week";
+    case Phase::CutBack:  return "Easier week";
+    case Phase::Baseline: return "Baseline";
+    case Phase::Retest:   return "Retest";
+    }
+    return "";
+}
+
 /// "3 min", "45 s", "2:30" for a rep or recovery time.
 inline int repTime(uint32_t s, char* buf, size_t cap)
 {

@@ -59,6 +59,11 @@ public:
     virtual void onWorkoutDetails() {}
     virtual void onWorkoutData(const Model::WorkoutFace& face) { (void)face; }
     virtual void onWorkoutStep(bool next) { (void)next; }
+    // X Training (TP3): a plan screen's data arrived (Model::getPlanDay and the rest).
+    virtual void onPlanDay() {}
+    virtual void onPlanWeek() {}
+    virtual void onPlanOverview() {}
+    virtual void onPlanPaces() {}
 
 protected:
     Model* model;

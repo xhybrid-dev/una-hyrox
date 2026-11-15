@@ -14,12 +14,12 @@
 # (its CMakeLists.txt). About 2 minutes.
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./capture_screens.sh [out-dir] [scenario ...]
-#   scenarios: before rest session done finished noplan problem (default: all)
+#   scenarios: before rest session done finished noplan problem week notes (default: all)
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${1:-$REPO/docs/screens}
 shift || true
-SCENARIOS=${*:-before rest session done finished noplan problem}
+SCENARIOS=${*:-before rest session done finished noplan problem week notes}
 SOFT="$REPO/Software"
 BIN="$SOFT/Apps/LVGL-GUI/simulator/build/bin"
 DISP=:96
@@ -38,12 +38,12 @@ cleanup() { [ -n "$SIMPID" ] && kill -9 "$SIMPID" 2>/dev/null; kill $XPID 2>/dev
 trap cleanup EXIT
 sleep 2
 
-# The phone's settings: plan, 5K, days mask (bit 0 Monday), long run day 1..7.
+# The phone's settings: plan, 5K, days mask (bit 0 Monday), long run day 1..7, half (optional).
 config() {
-    local plan=$1 fivek=$2 days=$3 long=$4
+    local plan=$1 fivek=$2 days=$3 long=$4 half=${5:-}
     b() { [ $(( (days >> $1) & 1 )) = 1 ] && echo true || echo false; }
     cat > "$SOFT/Output/app_config.json" <<EOF
-{"schema":1,"values":{"plan":$plan,"fiveK":"$fivek","fiveKRecent":true,"halfTime":"","raceDate":"","level":2,
+{"schema":1,"values":{"plan":$plan,"fiveK":"$fivek","fiveKRecent":true,"halfTime":"$half","raceDate":"","level":2,
 "runMon":$(b 0),"runTue":$(b 1),"runWed":$(b 2),"runThu":$(b 3),"runFri":$(b 4),"runSat":$(b 5),
 "runSun":$(b 6),"longRunDay":$long,"easyByHr":false}}
 EOF
@@ -115,6 +115,28 @@ for sc in $SCENARIOS; do
         config 0 22:00 "$DAYS_TODAY" "$LONG_TODAY"
         start_sim
         snap noplan-main; key 3; snap noplan-today ;;
+    week)     # week 5, two days logged before today: This week, a day, Plan, Paces
+        config 1 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        D2=$(date -d "$(date +%F) -2 days" +%Y%m%d)    # two days ago: done
+        D4=$(date -d "$(date +%F) -4 days" +%Y%m%d)    # four days ago: part done
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)" "[$D4,1,2,0],[$D2,1,1,0]"
+        start_sim
+        key 2; key 2; key 2; snap week-menu       # L2 x3: This week
+        key 3 2; snap week-week                   # R1: This week
+        key 2; snap week-week-next                # L2: the next row
+        key 3 2; snap week-day                    # R1: that day
+        key 2; snap week-day-step1                # L2: its first step
+        key 4; key 4                              # R2: back to the week, then the menu
+        key 2; key 3 2; snap week-plan            # L2: Plan; R1
+        key 4; key 2; key 3 2; snap week-paces1   # R2; L2: Paces; R1
+        key 2; snap week-paces2; key 2; snap week-paces3
+        key 2; snap week-paces4 ;;                # no note for this runner: stays on the third
+    notes)    # a 32:00 5K (threshold meets 10K pace) and a half well behind it
+        config 1 32:00 "$DAYS_TODAY" "$LONG_TODAY" 2:40:00
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)"
+        start_sim
+        key 2; key 2; key 2; key 2; key 2; key 3 2; snap notes-paces1
+        key 2; snap notes-paces2; key 2; snap notes-paces3; key 2; snap notes-paces4 ;;
     problem)  # a plan, but no 5K
         config 1 "" "$DAYS_TODAY" "$LONG_TODAY"
         start_sim

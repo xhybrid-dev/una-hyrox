@@ -147,6 +147,18 @@ public:
     static constexpr int16_t kPlanSession = CustomMessage::TrackStart::kPlanSession;
     /// X Training: today's session, as the service last sent it.
     const CustomMessage::PlanTodayInfo& getPlanToday() const { return mPlanToday; }
+    // X Training (TP3): the plan's screens. requestPlan() asks the service; the answer comes
+    // as onPlanDay(), onPlanWeek(), onPlanOverview() or onPlanPaces().
+    void requestPlan(uint8_t what, uint32_t date = 0);
+    const CustomMessage::PlanTodayInfo&    getPlanDay() const { return mPlanDay; }
+    const CustomMessage::PlanWeekInfo&     getPlanWeek() const { return mPlanWeek; }
+    const CustomMessage::PlanOverviewInfo& getPlanOverview() const { return mPlanOverview; }
+    const CustomMessage::PlanPacesInfo&    getPlanPaces() const { return mPlanPaces; }
+    /// The day This week opened (0 for none).
+    void     setChosenDay(uint32_t date) { mChosenDay = date; }
+    uint32_t getChosenDay() const { return mChosenDay; }
+    /// Today's date as the service last said (0 if not set).
+    uint32_t todayDate() const { return mPlanToday.date; }
 
     /// What the workout faces show, from the latest WORKOUT_DATA.
     struct WorkoutFace {
@@ -273,6 +285,11 @@ private:
     uint16_t        mChosenWorkout  = 0;
     int16_t         mArmedWorkout   = kNoWorkout;
     CustomMessage::PlanTodayInfo mPlanToday {};   ///< X Training
+    CustomMessage::PlanTodayInfo     mPlanDay {};
+    CustomMessage::PlanWeekInfo      mPlanWeek {};
+    CustomMessage::PlanOverviewInfo  mPlanOverview {};
+    CustomMessage::PlanPacesInfo     mPlanPaces {};
+    uint32_t                         mChosenDay = 0;
     bool            mStepCard       = false;
     bool            mDetailsFromToday = false;
     WorkoutFace     mWorkoutFace    {};

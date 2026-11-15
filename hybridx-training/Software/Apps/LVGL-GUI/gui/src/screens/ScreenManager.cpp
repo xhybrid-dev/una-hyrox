@@ -36,6 +36,9 @@
 #include "gui/screens/TrackSummaryScreen.hpp"
 #include "gui/screens/TreadmillDistanceScreen.hpp"   // HybridX Run
 #include "gui/screens/Vo2Screen.hpp"
+#include "gui/screens/WeekScreen.hpp"
+#include "gui/screens/PlanScreen.hpp"
+#include "gui/screens/PacesScreen.hpp"
 #include "gui/screens/MenuVo2ProfileScreen.hpp"
 #include "gui/screens/Vo2PickerScreen.hpp"
 #include "gui/screens/TrackWorkoutStepScreen.hpp"
@@ -150,6 +153,10 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::WorkoutMenu:               return new WorkoutMenuScreen(m, WorkoutMenuScreen::Kind::Chosen);
         case ScreenId::WorkoutDetails:            return new WorkoutDetailsScreen(m);
         case ScreenId::PlanToday:                 return new WorkoutDetailsScreen(m, WorkoutDetailsScreen::Source::Today);
+        case ScreenId::PlanDay:                   return new WorkoutDetailsScreen(m, WorkoutDetailsScreen::Source::Day);
+        case ScreenId::PlanWeek:                  return new WeekScreen(m);
+        case ScreenId::PlanOverview:              return new PlanScreen(m);
+        case ScreenId::PlanPaces:                 return new PacesScreen(m);
 
         case ScreenId::MenuIntervals:             return new MenuIntervalsScreen(m);
         case ScreenId::MenuIntervalsRepeats:      return new MenuIntervalsRepeatsScreen(m);
