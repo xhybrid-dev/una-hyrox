@@ -1,0 +1,33 @@
+# X Training: the 10K plan (PLANS.md section 5).
+#
+# Written for level 2 and four runs a week; the app makes levels 1 and 3 and
+# places the slots on the runner's own days. After editing, run
+#     python3 hybridx-training/Tools/Plans/gen_plans.py
+# and look at the golden files' diff (Tests/Host/golden/) before committing.
+# The notation is in README.md.
+
+plan     10k
+id       1
+name     10K
+race     10000
+minweeks 6
+# Long-run range by level, start and peak minutes.
+long     1 45 70
+long     2 60 85
+long     3 70 100
+
+# When the 5K entered is not recent, week 1 is this time-trial week instead.
+trialweek cutback | E+S 35 | E 35      | E 30              | *TT5
+
+#    phase      first quality      easy        second quality          long
+week base     | E+S 40           | E 35      | *CRUISE 3x6             | L 60
+week base     | HILLS 8x45s      | E+S 40    | *CRUISE 4x6             | L 65
+week base     | REPS 6x400m      | E+S 40    | *TEMPO 20               | L 70
+week cutback  | E+S 35           | E 35      | E 30                    | *TT5
+week build    | *INT 5x3         | E+S 40    | CRUISE 3x8              | L 75
+week build    | *INT 4x4         | E+S 45    | CRUISE 3x10             | L 80
+week build    | INT 6x3          | E+S 45    | *RP10 4x5 jog 90s       | L 85
+# Week 8: the tune-up 5K, two weeks before the race.
+week cutback  | E+S 35           | E 35      | E 30                    | *TT5
+week peak     | INT 4x4          | E+S 40    | *RP10 3x9 jog 2:00      | L 70
+week race     | *RP10 4x4 jog 2:00 | E+S 30  | SHAKE                   | RACE

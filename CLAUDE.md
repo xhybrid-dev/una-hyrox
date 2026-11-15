@@ -532,3 +532,59 @@ independent of the other apps.
     `settings.json`; about 9 minutes): `docs/experiments/sim_plan.sh [type ...]`;
   - a local watch compile check: the recipe in Trail Quest's NOTES ("Toolchain notes"), using
     `hybridx-workout/Software/Apps/HybridXWorkout-CMake`.
+
+## HybridX Training (`hybridx-training/`)
+A thirteenth app, **X Training** on the watch (Jon, 14 November 2026; first briefed as
+"HybridX Plan"): training plans on the watch. Everything X Run records, plus three built-in
+plans (10K, half marathon, VO2max block) at three levels on the runner's own days. The runner
+enters a recent 5K (and optionally a half) on the phone; the watch works out the paces
+(Daniels–Gilbert equations), the calendar and each day's workout, dosed by time, and runs it
+through the SDK's own workout engine, gauges and alerts. Later: a glance with today's workout.
+Joins the family (a new `act_training.json` slot for Streak; X Run's VO2max both ways).
+TP0 (decisions, the independent review, desk checks), TP1 (the pure core, host-tested) and TP2
+(the app: X Run copied, X Run's VO2max parts removed, today's session run through the workout
+engine and logged in `plan.json`) are done; TP3, the screens, is next. No activity link yet
+(TP4): X Training writes nothing in `SharedData`.
+- **Docs:** brief, architecture, phases (TP0-TP7): `hybridx-training/docs/HYBRIDX_TRAINING_BRIEF.md`;
+  the pace model, sessions and the three plans: `PLANS.md`; the independent engineering and
+  coaching review: `REVIEW.md`; decisions, verified SDK facts and the TP1 plan: `NOTES.md`.
+  Read the brief, `PLANS.md` and `NOTES.md` at the start of each Training phase, and work only
+  on that phase.
+- **Rules:** the same standing rules as Race apply. Also:
+  - never derive paces from X Run's VO2max (a different scale: `hybridx-run/docs/RACE_PREDICTIONS.md` §4.3),
+    and never show the internal fitness figure beside it;
+  - sessions are minutes at an intensity, capped per level (`PLANS.md` §3.3); easy steps alert
+    for "too fast" only;
+  - the plans' content will live in `Tools/Plans/*.plan` (text) and a generated header: change
+    the text, never the header;
+  - values marked "[secondary]" in `PLANS.md` have not been read in Daniels' book: the fixture
+    rows from the book are wanted before a release.
+- **Layout (TP2):** X Run's app copied (`REVIEW.md` E1): `Software/Libs/Core` is X Training's
+  plan core; `Libs/RunCore` is X Run's core (run statistics, form, treadmill); `Libs/App` the
+  service, with the plan in `loadConfig`, `loadPlan`, `updateToday`, `startPlannedSession` and
+  `recordPlannedRun`; `Libs/Link` a copy of `hybridx-link` (checked); the GUI
+  `Apps/LVGL-GUI`; the watch build `Apps/HybridXTraining-CMake`. Phone settings: the 15 fields
+  in `Resources/app-manifest.json` and `AppConfigFields.cpp` (CI checks they agree). The Streak
+  slot is a family change (TP4; `REVIEW.md` E3).
+- **Watch builds will come from CI**, as for the others. Tags `training-vX.Y.Z`. App folder
+  `HybridXTraining`; development APP_ID `6E050D707D4D2D32`.
+- **Commands:**
+  - host tests: `cmake -S hybridx-training/Tests/Host -B hybridx-training/build-tests && cmake --build hybridx-training/build-tests && hybridx-training/build-tests/hybridx-training-host-tests`
+    (`ctest --test-dir hybridx-training/build-tests` also checks the generated plan header);
+  - after editing a plan file: `python3 hybridx-training/Tools/Plans/gen_plans.py`, then
+    `XTRAINING_UPDATE_GOLDEN=1 hybridx-training/build-tests/hybridx-training-host-tests --gtest_filter='Golden.*'`
+    and read the diff of `Tests/Host/golden/` (`Tools/Plans/README.md`);
+  - the plans as a PDF for review (the plan files, the nine golden plans, the paces and caps; needs
+    reportlab): `python3 hybridx-training/Tools/review_pdf/make_review_pdf.py` (writes
+    `hybridx-training/docs/PLANS_REVIEW.pdf`; run it again after any plan change);
+  - a plan for any runner: `hybridx-training/build-tests/plan_print --plan half --5k 22:00 [--half 1:45:00]
+    [--level 2] [--days tue,wed,fri,sun] [--long sun] [--race 2027-03-28] [--not-recent] [--hr] [--distance]`;
+  - a watch compile check of the core: `arm-none-eabi-g++ -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard
+    -mthumb -std=c++17 -fno-exceptions -fno-rtti` on `Software/Libs/Core/Sources/*.cpp` (NOTES "TP1");
+    of the whole app: the recipe in Trail Quest's NOTES ("Toolchain notes") with
+    `hybridx-training/Software/Apps/HybridXTraining-CMake` into `hybridx-training/build/arm`;
+  - simulator: `hybridx-training/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its `build/`;
+    run `build/bin/HybridXTrainingSimulator`; keys 1-4 are L1, L2, R1, R2);
+  - today's planned session end to end, with the FIT file checked: `docs/experiments/sim_plan.sh
+    [shots-dir]` (`WEEK=n`, `STEP_SECS=n`, `PLAN=2`; about 2 minutes; needs Xvfb, xdotool,
+    ImageMagick, fitdecode); a saved file alone: `docs/experiments/fit_plan_report.py <file.fit>`.

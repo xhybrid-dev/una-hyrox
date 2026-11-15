@@ -1,0 +1,166 @@
+/**
+ ******************************************************************************
+ * @file    Vo2History.hpp
+ * @brief   The last runs' estimates, the value shown, and their files.
+ *
+ * The phone deletes activity files after sync, so the app keeps its own small
+ * history, saved as vo2.json in the app's folder:
+ *   - the last kHistoryRuns estimates; the value shown is the mean of the
+ *     latest kRollingRuns, each weighted by its window count (capped);
+ *   - the last kHistoryRuns runs' sustained max HR; the auto max HR is the
+ *     second-highest of them (reached on two runs, kAutoMaxConfirmRuns);
+ *   - the last plausible resting HR the watch reported, for a run that ends
+ *     before today's figure arrives.
+ *
+ * Written and read with the SDK's JSON writer and reader (coreJSON), as HybridX
+ * Streak's state file is, so the host tests cover it; the service does the file
+ * I/O. Integers only:
+ *   {"v":4,"restHr":52,"trail":1791900000,"maxes":[186,184],
+ *    "runs":[[1791000000,523,24,0,519],...]}
+ * oldest first; a run is [end, estimate, windows, source, value shown after
+ * it]: the source is 0 = recorded by Run, 1 = read from HybridX Trail's shared
+ * file, and "trail" is the newest Trail run already counted (0 = none). The
+ * value shown after a run is what the VO2max glance draws as that run's bar.
+ * Older files still read: version 3 (no shown value: worked out from the runs
+ * kept), version 2 (no source, no "trail"; it had three numbers a run, or
+ * four, the fourth being the shown value, in the build of 17 October) and
+ * version 1 (R1-R3: "autoMaxHr" instead of "maxes" and "restHr"). Unknown
+ * keys are ignored, so a newer file still reads;
+ * a known key with a bad value fails the whole file (the service then tries
+ * the backup), never a crash.
+ ******************************************************************************
+ */
+
+#ifndef RUN_VO2_HISTORY_HPP
+#define RUN_VO2_HISTORY_HPP
+
+#include <cstddef>
+#include <cstdint>
+
+#include "Vo2Config.hpp"
+
+namespace RunVo2
+{
+
+/// Where a run's windows came from.
+enum class RunSource : uint8_t { Run = 0, Trail = 1 };
+
+struct RunRecord {
+    uint32_t utc      = 0;   ///< run end (a Trail run: its start, which is its ID)
+    uint16_t vo2x10   = 0;
+    uint16_t windows  = 0;
+    uint8_t  source   = static_cast<uint8_t>(RunSource::Run);
+    /// The value shown (rollingX10) once this run was added, for the glance's
+    /// trend (R6). 0 on add(): worked out there. Kept up to date when a Trail
+    /// run is inserted before it (addSorted). Files from before R6 lack it,
+    /// and it is worked out on reading from the runs kept, so for the oldest
+    /// few of a full history it is over fewer runs than were really shown.
+    uint16_t shownX10 = 0;
+};
+
+class Vo2History
+{
+public:
+    void clear() { *this = Vo2History{}; }
+
+    /// Add a run's estimate, dropping the oldest when full. A shownX10 of 0
+    /// is set to the value shown with this run added.
+    void add(const RunRecord& r);
+
+    /// Add a run in time order (a Trail run read later than Run's own newer
+    /// ones). A run older than all ten kept is dropped, as it would be rolled
+    /// out anyway. The shown values of the runs after it are worked out again.
+    void addSorted(const RunRecord& r);
+
+    uint8_t size() const { return mCount; }
+
+    /// Re-scoring (Vo2Rescore): run i judged again. setRun changes its figure; removeAt drops a
+    /// run that no longer has one. Call recomputeShown() after, so the trend follows.
+    void setRun(uint8_t i, uint16_t vo2x10, uint16_t windows);
+    void removeAt(uint8_t i);
+    void recomputeShown();
+
+    /// What the runs were last scored with (Vo2Rescore::profileKey); 0 = never (a file from before
+    /// re-scoring, which is then scored once). Saved in vo2.json as "pk".
+    uint32_t profileKey() const { return mProfileKey; }
+    void     setProfileKey(uint32_t k) { mProfileKey = k; }
+
+    /// How many of the runs kept came from this source.
+    uint8_t countFrom(RunSource src) const;
+
+    /// The newest Trail run already counted (its start UTC); 0 = none. Trail
+    /// runs at or before it are never counted again.
+    uint32_t trailMarkUtc() const { return mTrailMark; }
+    void     setTrailMarkUtc(uint32_t utc) { mTrailMark = utc; }
+
+    /// i = 0 is the oldest kept.
+    const RunRecord& at(uint8_t i) const;
+
+    /// The value to show, x 10; 0 when there are no runs.
+    uint16_t rollingX10() const { return rollingOver(mCount); }
+    /// P3, measured only: the shown value counting only runs from the last Config::kMaxRunAgeDays
+    /// at @p nowUtc (0 when none is that recent). Nothing uses it for the shown value yet.
+    uint16_t rollingX10Within(uint32_t nowUtc) const;
+
+    /// The value as it was before the latest run (for the trend); 0 when
+    /// there was none.
+    uint16_t rollingX10Before() const { return mCount ? rollingOver(static_cast<uint8_t>(mCount - 1)) : 0; }
+
+    /// Record a saved run's sustained max HR (0 or implausible: ignored),
+    /// dropping the oldest when full.
+    void addRunMax(uint8_t bpm);
+
+    uint8_t runMaxCount() const { return mMaxCount; }
+
+    /// The auto max HR: the kAutoMaxConfirmRuns-th highest run max kept; 0
+    /// until that many runs have one.
+    uint8_t autoMaxHr() const;
+
+    /// The watch's resting HR, kept only if plausible (Vo2Profile's range).
+    void    setWatchRestHr(uint8_t bpm);
+    uint8_t watchRestHr() const { return mWatchRestHr; }
+
+    /// Write vo2.json into buf; returns the length, or 0 if it did not fit.
+    size_t toJson(char* buf, size_t cap) const;
+
+    /// Read vo2.json (version 1 to 4). On any error the history is left
+    /// empty and false returned.
+    bool fromJson(const char* text, size_t len);
+
+    /// The shown figure as it stood after each kept run (its shownX10),
+    /// oldest first, x 10. Writes the newest max at most; returns how many.
+    uint8_t trendX10(uint16_t* out, uint8_t max) const;
+
+    /// The shared file other HybridX apps (and the VO2max glance) read
+    /// (../SharedData/HybridX/vo2max.json), version 2: version 1's keys plus
+    /// the figure before the latest run and the trend, oldest first:
+    ///   {"v":2,"vo2maxX10":523,"runs":5,"utc":1791000000,"beforeX10":519,
+    ///    "trend":[505,512,519,523]}
+    size_t toSharedJson(char* buf, size_t cap) const;
+
+    /// Largest toSharedJson() output, for sizing buffers.
+    static constexpr size_t kMaxSharedJsonBytes = 96 + Config::kHistoryRuns * 6;
+
+    /// Largest toJson() output, for sizing buffers.
+    static constexpr size_t kMaxJsonBytes = 96 + Config::kHistoryRuns * (32 + 10);
+
+private:
+    /// The weighted mean of the latest kRollingRuns of the first n runs kept.
+    uint16_t rollingOver(uint8_t n, uint32_t notBeforeUtc = 0) const;
+
+    RunRecord mRuns[Config::kHistoryRuns] = {};
+    uint8_t   mFirst = 0;
+    uint8_t   mCount = 0;
+
+    uint8_t   mMaxes[Config::kHistoryRuns] = {};
+    uint8_t   mMaxFirst = 0;
+    uint8_t   mMaxCount = 0;
+
+    uint8_t   mWatchRestHr = 0;
+    uint32_t  mTrailMark   = 0;
+    uint32_t  mProfileKey  = 0;
+};
+
+}  // namespace RunVo2
+
+#endif  // RUN_VO2_HISTORY_HPP

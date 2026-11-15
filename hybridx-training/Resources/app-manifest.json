@@ -1,0 +1,153 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "activity"
+  ],
+  "name": "X Training",
+  "icon": "icon.png",
+  "binary": "HybridXTraining.uapp",
+  "appVersion": "0.1.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [
+    "GPS",
+    "ACCELEROMETER",
+    "HR"
+  ],
+  "description": "Training plans on your watch: 10K, half marathon or a VO2max block, built from your 5K time and run step by step with pace targets and alerts. Records your runs as X Run does.",
+  "supportsLaps": true,
+  "supportsDistance": true,
+  "supportsTrack": true,
+  "supportsHeartbeat": true,
+  "supportsElevation": true,
+  "supportsStep": true,
+  "supportsSpeed": "pace",
+  "customMeasures": [],
+  "stravaExport": true,
+  "id": "6E050D707D4D2D32",
+  "configFile": "app_config.json",
+  "configFields": [
+    {
+      "id": "plan",
+      "type": "int",
+      "label": "Plan",
+      "description": "0 for no plan, 1 for 10K (10 weeks), 2 for half marathon (12 weeks), 3 for a VO2max block (8 weeks).",
+      "default": 0,
+      "min": 0,
+      "max": 3
+    },
+    {
+      "id": "fiveK",
+      "type": "string",
+      "label": "Your 5K time",
+      "description": "A recent 5K, flat out, as minutes and seconds, e.g. 24:30. Your paces come from it.",
+      "default": "",
+      "minLength": 0,
+      "maxLength": 8,
+      "pattern": "([0-9]{1,2}:[0-5][0-9])?",
+      "validationMessage": "Minutes and seconds, e.g. 24:30."
+    },
+    {
+      "id": "fiveKRecent",
+      "type": "bool",
+      "label": "5K in the last 6 weeks",
+      "description": "Off if your 5K is older: the plan then starts with a time-trial week to set your paces.",
+      "default": true
+    },
+    {
+      "id": "halfTime",
+      "type": "string",
+      "label": "Half marathon time",
+      "description": "Optional: a recent half, e.g. 1:52:00. It sets your half-marathon pace and easy pace.",
+      "default": "",
+      "minLength": 0,
+      "maxLength": 8,
+      "pattern": "([0-9]:[0-5][0-9]:[0-5][0-9])?",
+      "validationMessage": "Hours, minutes and seconds, e.g. 1:52:00, or leave it empty."
+    },
+    {
+      "id": "raceDate",
+      "type": "string",
+      "label": "Race date",
+      "description": "Optional: the race day, e.g. 2027-03-28. The plan is fitted to end with it. Empty starts the plan this week or next.",
+      "default": "",
+      "minLength": 0,
+      "maxLength": 10,
+      "pattern": "(20[0-9]{2}-[01][0-9]-[0-3][0-9])?",
+      "validationMessage": "Year, month and day, e.g. 2027-03-28, or leave it empty."
+    },
+    {
+      "id": "level",
+      "type": "int",
+      "label": "Your running now",
+      "description": "1 up to 20 km (12 mi) a week, 2 about 20 to 40 km (12 to 25 mi), 3 over 40 km (25 mi).",
+      "default": 2,
+      "min": 1,
+      "max": 3
+    },
+    {
+      "id": "runMon",
+      "type": "bool",
+      "label": "Run on Monday",
+      "description": "Tick the days you can run: 3 to 6 of them, your long-run day among them.",
+      "default": false
+    },
+    {
+      "id": "runTue",
+      "type": "bool",
+      "label": "Run on Tuesday",
+      "description": "Tick the days you can run: 3 to 6 of them, your long-run day among them.",
+      "default": true
+    },
+    {
+      "id": "runWed",
+      "type": "bool",
+      "label": "Run on Wednesday",
+      "description": "Tick the days you can run: 3 to 6 of them, your long-run day among them.",
+      "default": true
+    },
+    {
+      "id": "runThu",
+      "type": "bool",
+      "label": "Run on Thursday",
+      "description": "Tick the days you can run: 3 to 6 of them, your long-run day among them.",
+      "default": false
+    },
+    {
+      "id": "runFri",
+      "type": "bool",
+      "label": "Run on Friday",
+      "description": "Tick the days you can run: 3 to 6 of them, your long-run day among them.",
+      "default": true
+    },
+    {
+      "id": "runSat",
+      "type": "bool",
+      "label": "Run on Saturday",
+      "description": "Tick the days you can run: 3 to 6 of them, your long-run day among them.",
+      "default": false
+    },
+    {
+      "id": "runSun",
+      "type": "bool",
+      "label": "Run on Sunday",
+      "description": "Tick the days you can run: 3 to 6 of them, your long-run day among them.",
+      "default": true
+    },
+    {
+      "id": "longRunDay",
+      "type": "int",
+      "label": "Long run day",
+      "description": "1 for Monday to 7 for Sunday. It must be one of your run days.",
+      "default": 7,
+      "min": 1,
+      "max": 7
+    },
+    {
+      "id": "easyByHr",
+      "type": "bool",
+      "label": "Easy runs by heart rate",
+      "description": "Easy and long runs aim for your watch's heart-rate zone 2 instead of a pace.",
+      "default": false
+    }
+  ]
+}
