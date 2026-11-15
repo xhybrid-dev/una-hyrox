@@ -8,7 +8,7 @@ Options: 5K recent; reps by time.
 
 | Easy | Marathon | Half | Threshold | 10K | Interval | Repetition | 5K |
 |---|---|---|---|---|---|---|---|
-| 4:59-5:37 | 4:32 | 4:21 | 4:16 | 4:09 | 3:56 | 3:41 | 4:00 |
+| 4:58-5:35 | 4:32 | 4:21 | 4:16 | 4:09 | 3:56 | 3:41 | 4:00 |
 
 Predicted from the 5K: 10K 41:28, half 1:31:50, marathon 3:11:17.
 
@@ -20,109 +20,109 @@ Set up Mon 4 Jan; starts Mon 4 Jan, 8 weeks (the whole plan).
 
 | Day | Session | Steps | About |
 |---|---|---|---|
-| Tue 5 Jan | Intervals, 6 x 2 min (key), about 510 m a rep | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 6 x [Interval 2 min @ 3:50-4:02, Jog 1:15]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 9.7 km, 0:49 |
-| Wed 6 Jan | Easy run, strides, 50 min | Easy 50 min @ 4:59-5:37 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 11.0 km, 0:58 |
-| Thu 7 Jan | Hill reps, 8 x 45 s | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 8 x [Hill 45 s, Jog down until lap]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 6.1 km, 0:40 |
-| Sat 9 Jan | Easy run, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only) | 8.5 km, 0:45 |
-| Sun 10 Jan | Long run, 70 min | Long run 70 min @ 4:59-5:37 (easy: too fast only) | 13.3 km, 1:10 |
+| Tue 5 Jan | Intervals, 6 x 2 min (key), about 510 m a rep | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 6 x [Interval 2 min @ 3:50-4:02, Jog 1:30]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 10.0 km, 0:50 |
+| Wed 6 Jan | Easy run, strides, 50 min | Easy 50 min @ 4:58-5:35 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 11.0 km, 0:58 |
+| Thu 7 Jan | Hill reps, 8 x 45 s | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 8 x [Hill 45 s, Jog down until lap]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 6.2 km, 0:40 |
+| Sat 9 Jan | Easy run, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only) | 8.6 km, 0:45 |
+| Sun 10 Jan | Long run, 70 min | Long run 70 min @ 4:58-5:35 (easy: too fast only) | 13.3 km, 1:10 |
 
-Week: 5 runs, 4:21, about 48.6 km; 18 min of quality.
+Week: 5 runs, 4:23, about 49.0 km; 18 min of quality.
 
 ## Week 2 (build), from Mon 11 Jan
 
 | Day | Session | Steps | About |
 |---|---|---|---|
-| Tue 12 Jan | Intervals, 6 x 3 min (key), about 760 m a rep | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 6 x [Interval 3 min @ 3:50-4:02, Jog 1:45]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 11.7 km, 0:58 |
-| Wed 13 Jan | Easy run, strides, 50 min | Easy 50 min @ 4:59-5:37 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 11.0 km, 0:58 |
-| Thu 14 Jan | 30-30s, 2 x 9 x 30/30 | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 2 x [9 x [Fast 30 s (fast: about 3:56), Easy 30 s], Easy 3 min @ 4:59-5:37 (easy: too fast only)]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 10.4 km, 0:53 |
-| Sat 16 Jan | Easy run, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only) | 8.5 km, 0:45 |
-| Sun 17 Jan | Long run, 75 min | Long run 75 min @ 4:59-5:37 (easy: too fast only) | 14.2 km, 1:15 |
+| Tue 12 Jan | Intervals, 6 x 3 min (key), about 760 m a rep | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 6 x [Interval 3 min @ 3:50-4:02, Jog 2:15]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 12.3 km, 1:01 |
+| Wed 13 Jan | Easy run, strides, 50 min | Easy 50 min @ 4:58-5:35 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 11.0 km, 0:58 |
+| Thu 14 Jan | 30-30s, 2 x 9 x 30/30 | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 2 x [9 x [Fast 30 s (fast: about 3:56), Easy 30 s], Easy 3 min @ 4:58-5:35 (easy: too fast only)]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 10.4 km, 0:53 |
+| Sat 16 Jan | Easy run, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only) | 8.6 km, 0:45 |
+| Sun 17 Jan | Long run, 75 min | Long run 75 min @ 4:58-5:35 (easy: too fast only) | 14.3 km, 1:15 |
 
-Week: 5 runs, 4:49, about 55.8 km; 27 min of quality.
+Week: 5 runs, 4:52, about 56.5 km; 27 min of quality.
 
 ## Week 3 (build), from Mon 18 Jan
 
 | Day | Session | Steps | About |
 |---|---|---|---|
-| Tue 19 Jan | Intervals, 5 x 4 min (key), about 1020 m a rep | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 5 x [Interval 4 min @ 3:50-4:02, Jog 2:30]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 12.6 km, 1:02 |
-| Wed 20 Jan | Easy run, strides, 50 min | Easy 50 min @ 4:59-5:37 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 11.0 km, 0:58 |
-| Thu 21 Jan | Hill reps, 10 x 1 min | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 10 x [Hill 1 min, Jog down until lap]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 7.1 km, 0:50 |
-| Sat 23 Jan | Easy run, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only) | 8.5 km, 0:45 |
-| Sun 24 Jan | Long run, 85 min | Long run 85 min @ 4:59-5:37 (easy: too fast only) | 16.1 km, 1:25 |
+| Tue 19 Jan | Intervals, 5 x 4 min (key), about 1020 m a rep | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 5 x [Interval 4 min @ 3:50-4:02, Jog 3 min]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 13.0 km, 1:04 |
+| Wed 20 Jan | Easy run, strides, 50 min | Easy 50 min @ 4:58-5:35 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 11.0 km, 0:58 |
+| Thu 21 Jan | Hill reps, 10 x 1 min | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 10 x [Hill 1 min, Jog down until lap]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 7.1 km, 0:50 |
+| Sat 23 Jan | Easy run, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only) | 8.6 km, 0:45 |
+| Sun 24 Jan | Long run, 85 min | Long run 85 min @ 4:58-5:35 (easy: too fast only) | 16.2 km, 1:25 |
 
-Week: 5 runs, 5:00, about 55.2 km; 30 min of quality.
+Week: 5 runs, 5:02, about 55.8 km; 30 min of quality.
 
 ## Week 4 (cut-back), from Mon 25 Jan
 
 | Day | Session | Steps | About |
 |---|---|---|---|
-| Tue 26 Jan | Intervals, 5 x 3 min (key), about 760 m a rep | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 5 x [Interval 3 min @ 3:50-4:02, Jog 1:45]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 10.7 km, 0:53 |
-| Wed 27 Jan | Easy run, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only) | 8.5 km, 0:45 |
-| Thu 28 Jan | Easy run, strides, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 10.0 km, 0:53 |
-| Sat 30 Jan | Easy run, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only) | 8.5 km, 0:45 |
-| Sun 31 Jan | Long run, 65 min | Long run 65 min @ 4:59-5:37 (easy: too fast only) | 12.3 km, 1:05 |
+| Tue 26 Jan | Intervals, 5 x 3 min (key), about 760 m a rep | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 5 x [Interval 3 min @ 3:50-4:02, Jog 2:15]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 11.1 km, 0:55 |
+| Wed 27 Jan | Easy run, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only) | 8.6 km, 0:45 |
+| Thu 28 Jan | Easy run, strides, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 10.1 km, 0:53 |
+| Sat 30 Jan | Easy run, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only) | 8.6 km, 0:45 |
+| Sun 31 Jan | Long run, 65 min | Long run 65 min @ 4:58-5:35 (easy: too fast only) | 12.4 km, 1:05 |
 
-Week: 5 runs, 4:21, about 50.1 km; 15 min of quality.
+Week: 5 runs, 4:23, about 50.7 km; 15 min of quality.
 
 ## Week 5 (build), from Mon 1 Feb
 
 | Day | Session | Steps | About |
 |---|---|---|---|
-| Tue 2 Feb | Intervals, 7 x 3 min (key), about 760 m a rep | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 7 x [Interval 3 min @ 3:50-4:02, Jog 1:45]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 12.8 km, 1:02 |
-| Wed 3 Feb | Easy run, strides, 55 min | Easy 55 min @ 4:59-5:37 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 11.9 km, 1:03 |
-| Thu 4 Feb | 30-30s, 2 x 11 x 30/30 | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 2 x [11 x [Fast 30 s (fast: about 3:56), Easy 30 s], Easy 3 min @ 4:59-5:37 (easy: too fast only)]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 11.2 km, 0:57 |
-| Sat 6 Feb | Easy run, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only) | 8.5 km, 0:45 |
-| Sun 7 Feb | Long run, 90 min | Long run 90 min @ 4:59-5:37 (easy: too fast only) | 17.0 km, 1:30 |
+| Tue 2 Feb | Intervals, 6 x 3 min (key), about 760 m a rep | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 6 x [Interval 3 min @ 3:50-4:02, Jog 2:15]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 12.3 km, 1:01 |
+| Wed 3 Feb | Easy run, strides, 55 min | Easy 55 min @ 4:58-5:35 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 12.0 km, 1:03 |
+| Thu 4 Feb | 30-30s, 2 x 11 x 30/30 | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 2 x [11 x [Fast 30 s (fast: about 3:56), Easy 30 s], Easy 3 min @ 4:58-5:35 (easy: too fast only)]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 11.2 km, 0:57 |
+| Sat 6 Feb | Easy run, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only) | 8.6 km, 0:45 |
+| Sun 7 Feb | Long run, 90 min | Long run 90 min @ 4:58-5:35 (easy: too fast only) | 17.1 km, 1:30 |
 
-Week: 5 runs, 5:17, about 61.4 km; 32 min of quality.
+Week: 5 runs, 5:16, about 61.1 km; 29 min of quality.
 
 ## Week 6 (build), from Mon 8 Feb
 
 | Day | Session | Steps | About |
 |---|---|---|---|
-| Tue 9 Feb | Intervals, 5 x 4 min (key), about 1020 m a rep | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 5 x [Interval 4 min @ 3:50-4:02, Jog 2 min]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 12.2 km, 0:59 |
-| Wed 10 Feb | Easy run, strides, 55 min | Easy 55 min @ 4:59-5:37 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 11.9 km, 1:03 |
-| Thu 11 Feb | Hill reps, 12 x 1 min | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 12 x [Hill 1 min, Jog down until lap]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 7.5 km, 0:55 |
-| Sat 13 Feb | Easy run, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only) | 8.5 km, 0:45 |
-| Sun 14 Feb | Long run, 90 min | Long run 90 min @ 4:59-5:37 (easy: too fast only) | 17.0 km, 1:30 |
+| Tue 9 Feb | Intervals, 5 x 4 min (key), about 1020 m a rep | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 5 x [Interval 4 min @ 3:50-4:02, Jog 2 min]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 12.2 km, 0:59 |
+| Wed 10 Feb | Easy run, strides, 55 min | Easy 55 min @ 4:58-5:35 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 12.0 km, 1:03 |
+| Thu 11 Feb | Hill reps, 12 x 1 min | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 12 x [Hill 1 min, Jog down until lap]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 7.6 km, 0:55 |
+| Sat 13 Feb | Easy run, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only) | 8.6 km, 0:45 |
+| Sun 14 Feb | Long run, 90 min | Long run 90 min @ 4:58-5:35 (easy: too fast only) | 17.1 km, 1:30 |
 
-Week: 5 runs, 5:12, about 57.2 km; 32 min of quality.
+Week: 5 runs, 5:12, about 57.4 km; 32 min of quality.
 
 ## Week 7 (peak), from Mon 15 Feb
 
 | Day | Session | Steps | About |
 |---|---|---|---|
-| Tue 16 Feb | Intervals, 7 x 3 min (key), about 760 m a rep | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 7 x [Interval 3 min @ 3:50-4:02, Jog 1:30]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 12.5 km, 1:01 |
-| Wed 17 Feb | Easy run, strides, 55 min | Easy 55 min @ 4:59-5:37 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 11.9 km, 1:03 |
-| Thu 18 Feb | 30-30s, 2 x 9 x 30/30 | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 2 x [9 x [Fast 30 s (fast: about 3:56), Easy 30 s], Easy 3 min @ 4:59-5:37 (easy: too fast only)]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 10.4 km, 0:53 |
-| Sat 20 Feb | Easy run, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only) | 8.5 km, 0:45 |
-| Sun 21 Feb | Long run, 95 min | Long run 95 min @ 4:59-5:37 (easy: too fast only) | 18.0 km, 1:35 |
+| Tue 16 Feb | Intervals, 6 x 3 min (key), about 760 m a rep | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 6 x [Interval 3 min @ 3:50-4:02, Jog 1:30]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 11.5 km, 0:56 |
+| Wed 17 Feb | Easy run, strides, 55 min | Easy 55 min @ 4:58-5:35 (easy: too fast only); 6 x [Stride 20 s (fast: about 3:41), Easy 1 min] | 12.0 km, 1:03 |
+| Thu 18 Feb | 30-30s, 2 x 9 x 30/30 | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 2 x [9 x [Fast 30 s (fast: about 3:56), Easy 30 s], Easy 3 min @ 4:58-5:35 (easy: too fast only)]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 10.4 km, 0:53 |
+| Sat 20 Feb | Easy run, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only) | 8.6 km, 0:45 |
+| Sun 21 Feb | Long run, 95 min | Long run 95 min @ 4:58-5:35 (easy: too fast only) | 18.1 km, 1:35 |
 
-Week: 5 runs, 5:17, about 61.3 km; 30 min of quality.
+Week: 5 runs, 5:12, about 60.5 km; 27 min of quality.
 
 ## Week 8 (retest), from Mon 22 Feb
 
 | Day | Session | Steps | About |
 |---|---|---|---|
-| Tue 23 Feb | Intervals, 4 x 3 min, about 760 m a rep | Warm up 15 min @ 4:59-5:37 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 4 x [Interval 3 min @ 3:50-4:02, Jog 1:45]; Cool down 10 min @ 4:59-5:37 (easy: too fast only) | 9.7 km, 0:48 |
-| Wed 24 Feb | Easy run, 40 min | Easy 40 min @ 4:59-5:37 (easy: too fast only) | 7.6 km, 0:40 |
-| Thu 25 Feb | Easy run, 35 min | Easy 35 min @ 4:59-5:37 (easy: too fast only) | 6.6 km, 0:35 |
-| Sat 27 Feb | Easy run, 45 min | Easy 45 min @ 4:59-5:37 (easy: too fast only) | 8.5 km, 0:45 |
+| Tue 23 Feb | Intervals, 4 x 3 min, about 760 m a rep | Warm up 15 min @ 4:58-5:35 (easy: too fast only); 4 x [Stride 20 s (fast: about 3:41), Easy 40 s]; 4 x [Interval 3 min @ 3:50-4:02, Jog 2:15]; Cool down 10 min @ 4:58-5:35 (easy: too fast only) | 10.0 km, 0:50 |
+| Wed 24 Feb | Easy run, 40 min | Easy 40 min @ 4:58-5:35 (easy: too fast only) | 7.6 km, 0:40 |
+| Thu 25 Feb | Easy run, 40 min | Easy 40 min @ 4:58-5:35 (easy: too fast only) | 7.6 km, 0:40 |
+| Sat 27 Feb | Easy run, 45 min | Easy 45 min @ 4:58-5:35 (easy: too fast only) | 8.6 km, 0:45 |
 | Sun 28 Feb | 5K time trial, 5 km (key) | Warm up until lap; 5K time trial 5 km; Cool down until lap | 9.4 km, 0:45 |
 
-Week: 5 runs, 3:33, about 41.8 km; 32 min of quality.
+Week: 5 runs, 3:40, about 43.2 km; 32 min of quality.
 
 ## The whole plan
 
 | Week | Phase | Runs | Time | Distance | Quality |
 |---|---|---|---|---|---|
-| 1 | baseline | 5 | 4:21 | 48.6 km | 18 min |
-| 2 | build | 5 | 4:49 | 55.8 km | 27 min |
-| 3 | build | 5 | 5:00 | 55.2 km | 30 min |
-| 4 | cut-back | 5 | 4:21 | 50.1 km | 15 min |
-| 5 | build | 5 | 5:17 | 61.4 km | 32 min |
-| 6 | build | 5 | 5:12 | 57.2 km | 32 min |
-| 7 | peak | 5 | 5:17 | 61.3 km | 30 min |
-| 8 | retest | 5 | 3:33 | 41.8 km | 32 min |
+| 1 | baseline | 5 | 4:23 | 49.0 km | 18 min |
+| 2 | build | 5 | 4:52 | 56.5 km | 27 min |
+| 3 | build | 5 | 5:02 | 55.8 km | 30 min |
+| 4 | cut-back | 5 | 4:23 | 50.7 km | 15 min |
+| 5 | build | 5 | 5:16 | 61.1 km | 29 min |
+| 6 | build | 5 | 5:12 | 57.4 km | 32 min |
+| 7 | peak | 5 | 5:12 | 60.5 km | 27 min |
+| 8 | retest | 5 | 3:40 | 43.2 km | 32 min |
 
-40 runs, 37:49 in all, about 431.3 km; the biggest week about 61.4 km. Quality is 10% of the time.
+40 runs, 37:59 in all, about 434.2 km; the biggest week about 61.1 km. Quality is 9% of the time.

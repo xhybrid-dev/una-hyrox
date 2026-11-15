@@ -67,11 +67,25 @@ struct PaceResult {
 };
 
 namespace PaceConfig {
-constexpr float    kEasyFast  = 0.725f;  ///< Of the fitness: the fast end of easy.
-constexpr float    kEasySlow  = 0.625f;
+// Checked against Daniels' Running Formula, 4th edition (2022), Tables 5.1-5.3, every row from
+// VDOT 20 to 85 (Tests/Host/fixtures/daniels_vdot.csv; DanielsTest.cpp).
+constexpr float    kEasyFast  = 0.73f;   ///< Of the fitness: the fast end of easy (Table 5.2: within 3 s/km).
+constexpr float    kEasySlow  = 0.63f;
 constexpr float    kThreshold = 0.88f;
 constexpr float    kInterval  = 0.975f;
-constexpr uint16_t kRepetitionFasterSPerKm = 15;  ///< 6 s per 400 m faster than interval.
+/// Repetition is faster than interval by Daniels' "6-second rule" (6 s per 400 m) for better
+/// runners, "a 7- or 8-second rule for runners in the 50 or 40 VDOT categories" (ch. 5): 8 s
+/// per 400 m at fitness 47 and below, 6 s from 50, in between from one to the other (Table 5.2).
+constexpr uint16_t kRepetitionFasterSPerKm    = 15;   ///< 6 s per 400 m, fitness 50 and above.
+constexpr uint16_t kRepetitionFasterLowSPerKm = 20;   ///< 8 s per 400 m, fitness 47 and below.
+constexpr float    kRepetitionRuleHigh = 50.0f;
+constexpr float    kRepetitionRuleLow  = 47.0f;
+/// Below fitness 30 Daniels' novice table (Table 5.3) keeps interval pace about 20 s/km faster
+/// than threshold, slower than 97.5% of the fitness gives: at fitness 28 and below interval is
+/// threshold less 20 s/km, blending into the 97.5% pace by 31.
+constexpr uint16_t kSlowIntervalUnderThreshold = 20;
+constexpr float    kSlowFitnessLow  = 28.0f;
+constexpr float    kSlowFitnessHigh = 31.0f;
 /// The half's 5K equivalent slower than the 5K by more than this, in per cent: a gap.
 constexpr uint32_t kGapPercent = 4;
 

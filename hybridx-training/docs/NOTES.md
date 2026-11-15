@@ -552,6 +552,62 @@ time trial or race (step 4), and the Paces note where threshold meets 10K pace (
 
   Each one has been looked at.
 
+## Daniels' book (15 November 2026)
+
+Jon supplied *Daniels' Running Formula*, 4th edition (Human Kinetics, 2022), as a PDF with a text
+layer; its tables are images, read at 400 dpi. What version 2 had from secondary sources was
+checked against it, and the model, the limits and the plans brought to it.
+
+**Read:**
+- chapter 4 and figure 4.1: each type of training's intensity, length, work to rest and share of
+  the week;
+- chapter 5: Tables 5.1 (race times by VDOT 30-85), 5.2 (training paces, VDOT 30-85) and 5.3
+  (novices, VDOT 20-29), the "6-second rule";
+- chapter 8: the white, red and blue plans, as a check on the limits at 3-5 days a week.
+
+**The tables, all of them, in the host tests.** All 66 rows are in
+`Tests/Host/fixtures/daniels_vdot.csv`, read by hand: 5K, 10K, half and marathon; E, M, T and I per
+km; I and R per 400 m or 200 m. `DanielsTest.cpp` feeds each row's 5K to the model and compares.
+
+**What the comparison showed, and what changed:**
+
+| | Version 2 against the book | Now |
+|---|---|---|
+| Threshold (88%) | Within 1 s/km, VDOT 20-85 | Unchanged |
+| Race predictions | 10K within 2 s, half within 9 s, marathon within 24 s (VDOT 30-85) | Unchanged |
+| Easy (62.5-72.5%) | Fast end 2-3 s/km slow throughout; slow end up to 6 s slow (VDOT 30-38) | **63-73%**: within 3 s/km |
+| Repetition (I less 15 s/km) | 4-9 s/km too slow for VDOT 30-48. Daniels: "a 7- or 8-second rule for runners in the 50 or 40 VDOT categories" | **I less 20 s/km at fitness 47 and below, 15 from 50**: within 4 s/km |
+| Interval (97.5%), slow runners | 6-20 s/km too fast below VDOT 30: Table 5.3 keeps I about 20 s/km under T | **Eases to T less 20 s/km below fitness 31, all of it at 28**: within 2 s/km |
+| Marathon pace | The predicted race's; Daniels' M training pace is slower below VDOT 45 (up to 18 s/km at 20) | Unchanged: the plans never use M; the test checks M from VDOT 45 |
+| Interval jogs (60% of the rep) | Daniels: 1:1; his examples 3 min with 2 min jog, 4 with 3, 5 with 4 | **Three quarters of the rep** (3 min: 2:15) |
+| Interval caps 12/18/24 min | Above 8% of the levels' weeks (level 2's 18 min is about 11% of 35 km); his red plan (4 days) has 15-16 | **10/16/20 min** |
+| Repetition cap, level 2, 2.4 km | 7% of its week; he says 5% | **2.0 km** (`REPS 5 x 400 m`) |
+| Tempo, level 3, 25 min | He says "20 min max" for a steady T run | **20 min** |
+| Cruise, level 3, 40 min | His maximum broken into cruise intervals is 30 | **30 min** |
+| Easy runs, level 1, from 20 min | "30 minutes be the minimum duration of any E run" | **30-35 min**; the VO2max block's `E 25` is `E 30` |
+| Strides, cruise jogs, R recoveries, long run 150 min, I bouts to 5 min, R to 2 | As the book | Unchanged |
+
+Two secondary figures were simply wrong: VDOT 40's easy range is 5:56-6:38 (not 5:59-6:44) and its
+repetition pace 104 s per 400 m (not 108).
+
+**Plan files changed** (so that level 2 as written is level 2 as run): the 10K's `REPS 6x400m` →
+`5x400m` and week 7's `INT 6x3` → `5x3`; the half's week 7 `INT 6x3` → `5x3`; the VO2max block's
+weeks 5 and 7 `INT 6x3` → `5x3` (the peak keeps its 90 s jogs, so it still progresses in density),
+and its retest week's `E 25` → `E 30`. The golden plans and `PLANS_REVIEW.pdf` are regenerated;
+92 host tests pass.
+
+**For a 22:00 runner like Jon** (10K, level 2): easy 5:26-6:06 (was 5:27-6:08), repetition and the
+strides' target 3:58 (was 4:03); threshold, interval, 10K and half paces unchanged. The first week
+is unchanged.
+
+**Left as it is, and why:**
+- **The long run's share of the week.** The book confirms 30% under 40 miles a week; with 3-4 runs
+  ours are 33-60% (PLANS 3.3). Jon kept the long runs (15 November); his red plan has a 40-50
+  minute long run in a week of about two and three quarter hours, between a quarter and 30%. Still Jon's call.
+- **The 30-30s** follow Billat (2001), not Daniels, whose short I bouts have recoveries shorter than
+  the work; the hills are our own. Neither is in the book's tables.
+- **M pace** for runners under VDOT 45, above.
+
 ## The gate (TP3): what Jon checks
 
 1. **The captures:** `docs/screens/tp3-*.png` (or the contact sheet sent with this). Say what

@@ -149,8 +149,26 @@ PaceResult compute(const PaceInputs& in)
     p.easySlow  = paceAt(fEasy, kEasySlow);
     p.threshold = paceAt(f, kThreshold);
     p.interval  = paceAt(f, kInterval);
-    p.repetition = p.interval > kRepetitionFasterSPerKm
-                 ? static_cast<uint16_t>(p.interval - kRepetitionFasterSPerKm) : p.interval;
+    if (f < kSlowFitnessHigh) {
+        // Slow runners: Table 5.3's interval pace, threshold less 20 s/km, blended in.
+        const float slow = static_cast<float>(p.threshold) - static_cast<float>(kSlowIntervalUnderThreshold);
+        const float w = f <= kSlowFitnessLow ? 1.0f : (kSlowFitnessHigh - f) / (kSlowFitnessHigh - kSlowFitnessLow);
+        const float blended = w * slow + (1.0f - w) * static_cast<float>(p.interval);
+        if (blended > static_cast<float>(p.interval)) {
+            p.interval = static_cast<uint16_t>(blended + 0.5f);
+        }
+    }
+    // Repetition: the 6-second rule, 7 or 8 seconds for slower runners.
+    float gap = static_cast<float>(kRepetitionFasterSPerKm);
+    if (f <= kRepetitionRuleLow) {
+        gap = static_cast<float>(kRepetitionFasterLowSPerKm);
+    } else if (f < kRepetitionRuleHigh) {
+        gap = static_cast<float>(kRepetitionFasterLowSPerKm)
+            - (f - kRepetitionRuleLow) / (kRepetitionRuleHigh - kRepetitionRuleLow)
+              * static_cast<float>(kRepetitionFasterLowSPerKm - kRepetitionFasterSPerKm);
+    }
+    const uint16_t g = static_cast<uint16_t>(gap + 0.5f);
+    p.repetition = p.interval > g ? static_cast<uint16_t>(p.interval - g) : p.interval;
 
     r.predicted10kSec      = raceSeconds(f, 10000.0f);
     r.predictedHalfSec     = raceSeconds(f, kHalfM);

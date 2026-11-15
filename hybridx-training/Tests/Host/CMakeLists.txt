@@ -75,6 +75,7 @@ add_executable(hybridx-training-host-tests
     PlanProgressTest.cpp
     RepJudgeTest.cpp
     HoldTimerTest.cpp
+    DanielsTest.cpp
     GoldenTest.cpp
     "${TOOLS_DIR}/plan_print/PlanPrint.cpp"
     ${CORE_SOURCES}
@@ -90,6 +91,7 @@ target_include_directories(hybridx-training-host-tests PRIVATE
 )
 target_compile_definitions(hybridx-training-host-tests PRIVATE
     XTRAINING_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/golden"
+    XTRAINING_FIXTURE_DIR="${CMAKE_CURRENT_LIST_DIR}/fixtures"
 )
 target_link_libraries(hybridx-training-host-tests PRIVATE GTest::gtest_main)
 

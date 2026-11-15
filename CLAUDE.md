@@ -558,8 +558,9 @@ Settings, the rep result, the held R2, the Saved lines), is built and at its gat
     for "too fast" only;
   - the plans' content will live in `Tools/Plans/*.plan` (text) and a generated header: change
     the text, never the header;
-  - values marked "[secondary]" in `PLANS.md` have not been read in Daniels' book: the fixture
-    rows from the book are wanted before a release.
+  - the paces and limits are checked against Daniels' book (4th edition, Jon's copy; NOTES "Daniels'
+    book"): every row of his Tables 5.1-5.3 is in `Tests/Host/fixtures/daniels_vdot.csv`, and
+    `DanielsTest` holds the model to them; change the model only with that test passing.
 - **Layout (TP2):** X Run's app copied (`REVIEW.md` E1): `Software/Libs/Core` is X Training's
   plan core; `Libs/RunCore` is X Run's core (run statistics, form, treadmill); `Libs/App` the
   service, with the plan in `loadConfig`, `loadPlan`, `updateToday`, `startPlannedSession` and
