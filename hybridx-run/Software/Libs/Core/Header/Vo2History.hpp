@@ -15,13 +15,15 @@
  * Written and read with the SDK's JSON writer and reader (coreJSON), as HybridX
  * Streak's state file is, so the host tests cover it; the service does the file
  * I/O. Integers only:
- *   {"v":4,"restHr":52,"trail":1791900000,"maxes":[186,184],
+ *   {"v":5,"restHr":52,"trail":1791900000,"training":1792000000,"maxes":[186,184],
  *    "runs":[[1791000000,523,24,0,519],...]}
  * oldest first; a run is [end, estimate, windows, source, value shown after
  * it]: the source is 0 = recorded by Run, 1 = read from HybridX Trail's shared
- * file, and "trail" is the newest Trail run already counted (0 = none). The
- * value shown after a run is what the VO2max glance draws as that run's bar.
- * Older files still read: version 3 (no shown value: worked out from the runs
+ * files, 2 = read from X Training's; "trail" and "training" are the newest run
+ * of each already counted (0 = none). The value shown after a run is what the
+ * VO2max glance draws as that run's bar.
+ * Older files still read: version 4 (no "training", no source 2: X Training's
+ * TP4 added them), version 3 (no shown value: worked out from the runs
  * kept), version 2 (no source, no "trail"; it had three numbers a run, or
  * four, the fourth being the shown value, in the build of 17 October) and
  * version 1 (R1-R3: "autoMaxHr" instead of "maxes" and "restHr"). Unknown
@@ -43,10 +45,10 @@ namespace RunVo2
 {
 
 /// Where a run's windows came from.
-enum class RunSource : uint8_t { Run = 0, Trail = 1 };
+enum class RunSource : uint8_t { Run = 0, Trail = 1, Training = 2 };
 
 struct RunRecord {
-    uint32_t utc      = 0;   ///< run end (a Trail run: its start, which is its ID)
+    uint32_t utc      = 0;   ///< run end (a Trail or X Training run: its start, which is its ID)
     uint16_t vo2x10   = 0;
     uint16_t windows  = 0;
     uint8_t  source   = static_cast<uint8_t>(RunSource::Run);
@@ -93,6 +95,25 @@ public:
     uint32_t trailMarkUtc() const { return mTrailMark; }
     void     setTrailMarkUtc(uint32_t utc) { mTrailMark = utc; }
 
+    /// The same for X Training's runs: its own mark, so neither app's runs can hide the
+    /// other's (X Training's TP4).
+    uint32_t trainingMarkUtc() const { return mTrainingMark; }
+    void     setTrainingMarkUtc(uint32_t utc) { mTrainingMark = utc; }
+
+    /// The mark of a shared-file source (Trail or Training); 0 for Run.
+    uint32_t markUtc(RunSource src) const
+    {
+        return src == RunSource::Trail ? mTrailMark : (src == RunSource::Training ? mTrainingMark : 0u);
+    }
+    void setMarkUtc(RunSource src, uint32_t utc)
+    {
+        if (src == RunSource::Trail) {
+            mTrailMark = utc;
+        } else if (src == RunSource::Training) {
+            mTrainingMark = utc;
+        }
+    }
+
     /// i = 0 is the oldest kept.
     const RunRecord& at(uint8_t i) const;
 
@@ -123,7 +144,7 @@ public:
     /// Write vo2.json into buf; returns the length, or 0 if it did not fit.
     size_t toJson(char* buf, size_t cap) const;
 
-    /// Read vo2.json (version 1 to 4). On any error the history is left
+    /// Read vo2.json (version 1 to 5). On any error the history is left
     /// empty and false returned.
     bool fromJson(const char* text, size_t len);
 
@@ -142,7 +163,7 @@ public:
     static constexpr size_t kMaxSharedJsonBytes = 96 + Config::kHistoryRuns * 6;
 
     /// Largest toJson() output, for sizing buffers.
-    static constexpr size_t kMaxJsonBytes = 96 + Config::kHistoryRuns * (32 + 10);
+    static constexpr size_t kMaxJsonBytes = 128 + Config::kHistoryRuns * (32 + 10);
 
 private:
     /// The weighted mean of the latest kRollingRuns of the first n runs kept.
@@ -158,6 +179,7 @@ private:
 
     uint8_t   mWatchRestHr = 0;
     uint32_t  mTrailMark   = 0;
+    uint32_t  mTrainingMark = 0;
     uint32_t  mProfileKey  = 0;
 };
 

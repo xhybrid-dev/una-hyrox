@@ -232,9 +232,10 @@ size_t Vo2History::toJson(char* buf, size_t cap) const
     buf[0] = '\0';
     SDK::JsonStreamWriter w(buf, cap);
     w.startMap();
-    w.add("v", static_cast<uint8_t>(4));
+    w.add("v", static_cast<uint8_t>(5));
     w.add("restHr", mWatchRestHr);
     w.add("trail", mTrailMark);
+    w.add("training", mTrainingMark);
     w.add("pk", mProfileKey);   // read only if present: older files score once
     w.startArray("maxes");
     for (uint8_t i = 0; i < mMaxCount; ++i) {
@@ -274,7 +275,7 @@ bool Vo2History::fromJson(const char* text, size_t len)
 
     Vo2History h;
     int64_t v = 0;
-    if (!readInt(r, "v", 1, 4, v)) {
+    if (!readInt(r, "v", 1, 5, v)) {
         return false;
     }
     const int64_t version = v;
@@ -296,6 +297,12 @@ bool Vo2History::fromJson(const char* text, size_t len)
                 return false;
             }
             h.setTrailMarkUtc(static_cast<uint32_t>(v));
+        }
+        if (version >= 5) {
+            if (!readInt(r, "training", 0, 0xFFFFFFFFll, v)) {
+                return false;
+            }
+            h.setTrainingMarkUtc(static_cast<uint32_t>(v));
         }
         int64_t pk = 0;
         if (r.get("pk", pk)) {   // optional: absent before re-scoring
@@ -335,7 +342,7 @@ bool Vo2History::fromJson(const char* text, size_t len)
         ok = ok && readInt(r, q, Config::kMinWindows, Config::kMaxWindows, win);
         // Numbers a run has, by version: 1 and 2 three (the 17 October build's
         // version 2 four, the fourth the value shown after the run), 3 four
-        // (the fourth the source), 4 five (source, then the value shown).
+        // (the fourth the source), 4 and 5 five (source, then the value shown).
         // The value shown (R6) is worked out when the run is added if the
         // file does not have it.
         size_t fields = 0;
@@ -347,7 +354,8 @@ bool Vo2History::fromJson(const char* text, size_t len)
         size_t shownAt = 99;   // the index of the shown value, if it has one
         if (ok && version >= 3) {
             std::snprintf(q, sizeof(q), "runs[%u][3]", static_cast<unsigned>(i));
-            ok = readInt(r, q, 0, 1, src);
+            // Version 5 added X Training's runs (source 2).
+            ok = readInt(r, q, 0, version >= 5 ? 2 : 1, src);
             shownAt = 4;
         } else if (version == 2) {
             shownAt = 3;

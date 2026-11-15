@@ -6,8 +6,12 @@
 # three starts of the simulator:
 #   1. two new runs, one junk file: both runs are counted, in time order;
 #   2. the same files: nothing is counted again;
-#   3. a newer run with too few steady minutes: the mark moves, no estimate.
-# Prints the service's Trail lines and vo2.json after each start.
+#   3. a newer run with too few steady minutes: the mark moves, no estimate;
+# then X Training's files (its TP4: training_vo2_*.json, the same format):
+#   4. a run older than Trail's mark and a newer one: both counted, behind
+#      X Training's own mark, in time order among Trail's;
+#   5. the same files: nothing is counted again.
+# Prints the service's Trail and X Training lines and vo2.json after each start.
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./sim_trail_ingest.sh
 # Build the simulator and `cmake --build hybridx-run/build-tests` first.
@@ -39,7 +43,7 @@ start_sim() {   # start, wait for the service to load, stop
 }
 show() {
     echo "--- service log"
-    grep -aE "Trail|VO2max history|VO2 profile" "$LOG" | sed 's/^ *//'
+    grep -aE "Trail|X Training|VO2max history|VO2 profile" "$LOG" | sed 's/^ *//'
     echo "--- vo2.json"; cat "$SOFT/Output/vo2.json"; echo
     echo "--- shared vo2max.json"; cat "$SOFT/SharedData/HybridX/vo2max.json" 2>/dev/null; echo
 }
@@ -55,4 +59,12 @@ start_sim; show
 
 echo; echo "=== start 3: a newer run with 3 windows (too few)"
 "$MAKE" "$SHARED/trail_vo2_2.json" 1791500000 3 200 160
+start_sim; show
+
+echo; echo "=== start 4: X Training runs 1791100000 (10 windows, before Trail's mark) and 1791600000 (9)"
+"$MAKE" "$SHARED/training_vo2_0.json" 1791600000 9 195 158 177
+"$MAKE" "$SHARED/training_vo2_1.json" 1791100000 10 205 161 179
+start_sim; show
+
+echo; echo "=== start 5: the same files again"
 start_sim; show

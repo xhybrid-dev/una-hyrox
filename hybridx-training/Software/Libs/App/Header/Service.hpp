@@ -41,6 +41,9 @@
 
 #include "FormStats.hpp"
 #include "RunStats.hpp"
+#include "Vo2Window.hpp"
+#include "Vo2WindowFile.hpp"
+#include "RunVo2Max.hpp"
 
 // X Training: the plan core (Software/Libs/Core).
 #include "PaceModel.hpp"
@@ -147,6 +150,11 @@ private:
     bool     mHrSeen      = false;
     bool     mSpeedSeen   = false;
     bool     mGradeSeen   = false;
+    // TP4: this run's steady minutes for HybridX Run's VO2max (Vo2Window.hpp, copied from Run's).
+    RunVo2::WindowBuilder                   mVo2Builder;
+    std::unique_ptr<RunVo2::WindowRecord[]> mVo2Windows;   ///< kWindowFileMaxWindows, from the start to the save
+    uint16_t                                mVo2WindowCount = 0;
+    XTraining::RunVo2Max::Figure            mRunVo2;   ///< X Run's VO2max; x10 0 = none (no X Run)
 
     // -- Outdoor stride calibration inputs (latched per stream) ---------
     struct {
@@ -353,7 +361,9 @@ private:
     bool zoneAlertAllowed(SDK::Workout::ZoneAlerts::Alert alert);
     void sendRunStats();         ///< the run detail page's numbers to the GUI (start, pause, save)
     void updateForm();           ///< cadence and step length for this tick: screen, record and averages
-    void feedSecond();           ///< X Run's per-second feed: the run statistics (and, TP4, the VO2 windows)
+    void feedSecond();           ///< X Run's per-second feed: the run statistics and the VO2 windows
+    void saveVo2Windows();       ///< the run's steady minutes, for HybridX Run (training_vo2_*.json)
+    void readRunVo2Max();        ///< X Run's VO2max (vo2max.json), for the Plan screen
     void writeActivityLink(const ActivityWriter::TrackData& track);   ///< the saved run, for Streak (hybridx-link)
     bool closeActivity(const ActivityWriter::TrackData& track);       ///< finish the .fit, tell the watch and Streak
     void sendStreakLine();                                            ///< the Streak line, after a save

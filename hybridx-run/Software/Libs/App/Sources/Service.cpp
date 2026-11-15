@@ -2433,8 +2433,10 @@ void Service::loadVo2()
     mVo2Input.autoMaxHr   = mVo2History.autoMaxHr();
     mVo2Input.watchRestHr = mVo2History.watchRestHr();   // until the sensor reports
 
-    // Runs HybridX Trail has recorded since this app last opened count too.
-    ingestTrailRuns();
+    // Runs HybridX Trail and X Training have recorded since this app last opened count too,
+    // each app's from its own three files, behind its own mark.
+    ingestSharedRuns(RunVo2::RunSource::Trail);
+    ingestSharedRuns(RunVo2::RunSource::Training);
 
     // The kept runs, scored again if the athlete's numbers or the method changed since.
     rescoreIfNeeded();
@@ -2719,13 +2721,24 @@ void Service::saveVo2Files()
 namespace
 {
 
-/// One of Trail's files: the primary, else its backup, whichever has a header
+/// A source's three files: Trail's or X Training's (Vo2WindowFile.hpp).
+const char* const* sharedPaths(RunVo2::RunSource src)
+{
+    return src == RunVo2::RunSource::Training ? RunVo2::kTrainingWindowFilePaths : RunVo2::kWindowFilePaths;
+}
+
+const char* sourceName(RunVo2::RunSource src)
+{
+    return src == RunVo2::RunSource::Training ? "X Training" : "Trail";
+}
+
+/// One of a source's files: the primary, else its backup, whichever has a header
 /// that reads. Returns the length, or 0.
-size_t readTrailSlot(SDK::Interface::IFileSystem& fs, uint8_t slot, char* buf, size_t cap,
-                     RunVo2::WindowFileInfo& info)
+size_t readSharedSlot(SDK::Interface::IFileSystem& fs, RunVo2::RunSource src, uint8_t slot, char* buf, size_t cap,
+                      RunVo2::WindowFileInfo& info)
 {
     for (int backup = 0; backup < 2; ++backup) {
-        const size_t len = RunVo2::SafeFile::read(fs, RunVo2::kWindowFilePaths[slot], backup != 0, buf, cap);
+        const size_t len = RunVo2::SafeFile::read(fs, sharedPaths(src)[slot], backup != 0, buf, cap);
         if (len > 0) {
             RunVo2::WindowFileReader reader(buf, len);
             if (reader.open(info)) {
@@ -2739,23 +2752,25 @@ size_t readTrailSlot(SDK::Interface::IFileSystem& fs, uint8_t slot, char* buf, s
 
 }  // namespace
 
-void Service::ingestTrailRuns()
+void Service::ingestSharedRuns(RunVo2::RunSource src)
 {
-    // Each run Trail left (newest three) above the history's Trail mark, oldest
-    // first: its windows are judged by this app's rules and profile, exactly as a
-    // run recorded here, and the run joins the history in time order. Once, at
-    // start: the apps never run together. A temporary 8 KB buffer, not a stack
+    // Each run the source left (newest three) above the history's mark for that source,
+    // oldest first: its windows are judged by this app's rules and profile, exactly as a
+    // run recorded here, and the run joins the history in time order. Trail's (L2) and
+    // X Training's (its TP4) the same way, each from its own files behind its own mark.
+    // Once, at start: the apps never run together. A temporary 8 KB buffer, not a stack
     // array (10 KB stack).
+    const char* const name = sourceName(src);
     std::unique_ptr<char[]> buf(new (std::nothrow) char[RunVo2::kWindowFileBytes]);
     if (!buf) {
-        LOG_WARNING("No memory to read Trail's runs\n");
+        LOG_WARNING("No memory to read %s's runs\n", name);
         return;
     }
 
     uint32_t ids[RunVo2::kWindowFileSlots] = {};
     for (uint8_t i = 0; i < RunVo2::kWindowFileSlots; ++i) {
         RunVo2::WindowFileInfo info;
-        if (readTrailSlot(mKernel.fs, i, buf.get(), RunVo2::kWindowFileBytes, info) > 0) {
+        if (readSharedSlot(mKernel.fs, src, i, buf.get(), RunVo2::kWindowFileBytes, info) > 0) {
             ids[i] = info.runId;
         }
     }
@@ -2763,7 +2778,7 @@ void Service::ingestTrailRuns()
     const std::time_t now = std::time(nullptr);
     bool changed = false;
     for (uint8_t step = 0; step < RunVo2::kWindowFileSlots; ++step) {
-        const int slot = RunVo2::nextWindowFileSlot(ids, RunVo2::kWindowFileSlots, mVo2History.trailMarkUtc());
+        const int slot = RunVo2::nextWindowFileSlot(ids, RunVo2::kWindowFileSlots, mVo2History.markUtc(src));
         if (slot < 0) {
             break;
         }
@@ -2772,25 +2787,25 @@ void Service::ingestTrailRuns()
         // Without a profile there is nothing to score against: leave the run
         // for another day (the mark is not moved).
         if (RunVo2::resolveProfile(mVo2Input, now).status != RunVo2::ProfileStatus::Ok) {
-            LOG_INFO("Trail run waiting: no VO2 profile yet\n");
+            LOG_INFO("%s run waiting: no VO2 profile yet\n", name);
             break;
         }
 
         RunVo2::WindowFileInfo info;
-        const size_t len = readTrailSlot(mKernel.fs, static_cast<uint8_t>(slot), buf.get(),
-                                         RunVo2::kWindowFileBytes, info);
+        const size_t len = readSharedSlot(mKernel.fs, src, static_cast<uint8_t>(slot), buf.get(),
+                                          RunVo2::kWindowFileBytes, info);
         if (len == 0) {
             continue;
         }
         const RunVo2::IngestStatus st =
-            RunVo2::judgeWindowFile(buf.get(), len, mVo2History.trailMarkUtc(), mVo2Run, info);
+            RunVo2::judgeWindowFile(buf.get(), len, mVo2History.markUtc(src), mVo2Run, info);
         if (st == RunVo2::IngestStatus::NotAFile || st == RunVo2::IngestStatus::AlreadyCounted) {
             continue;
         }
-        mVo2History.setTrailMarkUtc(info.runId);   // counted, or corrupt and never retried
+        mVo2History.setMarkUtc(src, info.runId);   // counted, or corrupt and never retried
         changed = true;
         if (st == RunVo2::IngestStatus::Corrupt) {
-            LOG_WARNING("Trail run %lu: a window is out of range, run skipped\n",
+            LOG_WARNING("%s run %lu: a window is out of range, run skipped\n", name,
                         static_cast<unsigned long>(info.runId));
             continue;
         }
@@ -2800,15 +2815,15 @@ void Service::ingestTrailRuns()
         const RunVo2::Profile   profile = RunVo2::resolveProfile(mVo2Input, now);
         const RunVo2::RunResult result  = mVo2Run.estimate(profile);
         const RunVo2::WindowCounts& c   = mVo2Run.counts();
-        LOG_INFO("Trail run %lu: %u windows, %u kept, %u unsteady, %u grade; status %u, %u (x10)\n",
-                 static_cast<unsigned long>(info.runId), info.count, c.accepted, c.unsteady, c.grade,
+        LOG_INFO("%s run %lu: %u windows, %u kept, %u unsteady, %u grade; status %u, %u (x10)\n",
+                 name, static_cast<unsigned long>(info.runId), info.count, c.accepted, c.unsteady, c.grade,
                  static_cast<unsigned>(result.status), result.vo2x10);
         if (result.status == RunVo2::RunStatus::Ok) {
             uint32_t before[RunVo2::Config::kHistoryRuns];
             const uint8_t n = historyUtcs(before);
             mVo2History.addSorted(RunVo2::RunRecord{info.runId, result.vo2x10, result.windowsUsed,
-                                                    static_cast<uint8_t>(RunVo2::RunSource::Trail)});
-            writeRunFile(info.runId, buf.get(), len);   // Trail's file as it is, for re-scoring
+                                                    static_cast<uint8_t>(src)});
+            writeRunFile(info.runId, buf.get(), len);   // the source's file as it is, for re-scoring
             pruneRunFiles(before, n);
         }
     }
@@ -2962,7 +2977,8 @@ void Service::rescoreIfNeeded()
                 len = RunVo2::SafeFile::read(mKernel.fs, path, true, buf.get(), RunVo2::kWindowFileBytes);
             }
         }
-        const bool trail = r.source == static_cast<uint8_t>(RunVo2::RunSource::Trail);
+        // Trail's and X Training's files hold only the minutes they kept (judgeWindowFile's keptOnly).
+        const bool trail = r.source != static_cast<uint8_t>(RunVo2::RunSource::Run);
         uint16_t vo2 = 0, win = 0;
         switch (RunVo2::rescoreRun(buf.get(), len, trail, profile, mVo2Run, vo2, win)) {
             case RunVo2::RescoreOutcome::Scored:

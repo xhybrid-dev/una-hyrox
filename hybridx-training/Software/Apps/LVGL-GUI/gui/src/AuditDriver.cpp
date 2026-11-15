@@ -259,6 +259,25 @@ const Step kSteps[] = {
     { nullptr, [] {} },
     { nullptr, [] { sModel->injectPlanOverview(worstOverview(Info::Session)); } },
     { "plan: week 24 of 24, race-specific, 144 of 144", nullptr },
+    { nullptr, [] {
+          auto o = worstOverview(Info::Session);
+          o.vo2X10 = 950;        // X Run's widest figure (TP4), with the plan's start beside it
+          o.vo2StartX10 = 888;
+          sModel->injectPlanOverview(o);
+      } },
+    { "plan: X Run's VO2max, was", nullptr },
+    { nullptr, [] {
+          auto o = worstOverview(Info::Session);
+          o.vo2X10 = 888;        // no start figure yet: named as X Run's
+          sModel->injectPlanOverview(o);
+      } },
+    { "plan: X Run's VO2max", nullptr },
+    { nullptr, [] {
+          auto o = worstOverview(Info::BeforeStart);
+          o.vo2X10 = 950;
+          sModel->injectPlanOverview(o);
+      } },
+    { "plan: before the start, X Run's VO2max", nullptr },
     { nullptr, [] { sModel->injectPlanOverview(worstOverview(Info::BeforeStart)); } },
     { "plan: before the start", nullptr },
     { nullptr, [] { sModel->injectPlanOverview(worstOverview(Info::Finished)); } },

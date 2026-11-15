@@ -15,12 +15,13 @@
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./capture_screens.sh [out-dir] [scenario ...]
 #   scenarios: before rest session done finished noplan problem week notes settings newplan
-#              phoneask phonekeep reps trial (default: all)
+#              phoneask phonekeep reps trial vo2 (default: all)
+# vo2 (TP4) writes into docs/screens/tp4-*.png: X Run's VO2max on the Plan screen.
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${1:-$REPO/docs/screens}
 shift || true
-SCENARIOS=${*:-before rest session done finished noplan problem week notes settings newplan phoneask phonekeep reps trial}
+SCENARIOS=${*:-before rest session done finished noplan problem week notes settings newplan phoneask phonekeep reps trial vo2}
 SOFT="$REPO/Software"
 BIN="$SOFT/Apps/LVGL-GUI/simulator/build/bin"
 DISP=:96
@@ -71,7 +72,7 @@ key()  { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-1}"; }
 hold() { DISPLAY=$DISP xdotool keydown "$1"; sleep "$2"; DISPLAY=$DISP xdotool keyup "$1"; sleep 1; }
 # Save a run: R1 the action menu, L2 to Save, R1 held (the confirm's hold).
 save_run() { key 3 1; for _ in $(seq "$1"); do key 2; done; snap "$2-menu"; hold 3 3; }
-snap() { DISPLAY=$DISP timeout 10 import -window "$WID" "$OUT/tp3-$1.png" 2>/dev/null; echo "  tp3-$1"; }
+snap() { DISPLAY=$DISP timeout 10 import -window "$WID" "$OUT/${SNAPPFX:-tp3}-$1.png" 2>/dev/null; echo "  ${SNAPPFX:-tp3}-$1"; }
 fresh() { rm -rf "$SOFT/Output" "$SOFT/SharedData"; mkdir -p "$SOFT/Output"; }
 
 # Four run days with today among them: today, +2, +3 and +5 days on; the long run +5.
@@ -213,6 +214,28 @@ for sc in $SCENARIOS; do
         config 1 "" "$DAYS_TODAY" "$LONG_TODAY"
         start_sim
         snap problem-main; key 3; snap problem-today ;;
+    vo2)      # TP4: X Run's VO2max (its vo2max.json) on the Plan screen
+        vo2file() {   # X Run's public file, as its Vo2History::toSharedJson writes it
+            mkdir -p "$SOFT/SharedData/HybridX"
+            printf '{"v":2,"vo2maxX10":%d,"runs":6,"utc":%d,"beforeX10":%d,"trend":[440,446,%d]}' \
+                "$1" "$(date +%s)" "$(( $1 - 4 ))" "$1" > "$SOFT/SharedData/HybridX/vo2max.json"
+        }
+        # The 10K plan, week 5, no figure kept yet: the service keeps 45.2 as the plan's own.
+        config 1 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)"
+        vo2file 452
+        start_sim
+        key 2; key 2; key 2; key 2; key 3 2; SNAPPFX=tp4 snap vo2-plan10k
+        grep -o '"vo2s":[0-9]*' "$SOFT/Output/plan.json" | sed 's/^/  plan.json /'
+        stop_sim
+        # The VO2max block, week 4 of 8, with 44.6 kept from its start: the second measure.
+        fresh
+        config 3 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        printf '{"v":1,"s":[3,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,8],"log":[],"vo2s":446}' \
+            "$DAYS_TODAY" "$(( LONG_TODAY - 1 ))" "$(monday_weeks -3)" "$(monday_weeks -3)" > "$SOFT/Output/plan.json"
+        vo2file 452
+        start_sim
+        key 2; key 2; key 2; key 2; key 3 2; SNAPPFX=tp4 snap vo2-planblock ;;
     *) echo "unknown scenario $sc" >&2 ;;
     esac
     grep -E "Today:" "$LOG" | tail -1 | sed 's/^ *//'
