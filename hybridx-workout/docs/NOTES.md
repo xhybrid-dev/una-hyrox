@@ -423,6 +423,72 @@ Jon agreed the rules at the end of Phase A ("Yes looks great"), as proposed:
   only the face on show), how the colours and the 3 s amber read in daylight, and whether the
   buzzes are distinct on the wrist.
 
+## Open sets: a kind with nothing to set (15 November 2026)
+
+A user of the store listing asked for a strength mode "like Free, except that instead of
+laps, R2 swaps between set and rest, with no other settings": Strength's 3 sets and 60 s
+rest were too limiting. Built as an eighth kind, **Open sets**, on the W1 plan engine rather
+than as a variation of Free, so the cues, the FIT set messages, the summary and the Streak
+link come with it.
+
+### The rule
+
+| Type | The rule |
+|---|---|
+| Open sets | Set, rest, set, rest... all open: no cap, no countdown, no warning. R2 swaps set for rest and back; each counts up from zero. Nothing to set. |
+
+### What changed
+
+- **`SessionPlan.hpp`:** `SessionType::OpenSets` = **7**, appended so a saved `settings.json`
+  never changes meaning (type 8 or more still falls back to Free). Its plan is
+  `kOpenSetsMax` (32) sets, 63 steps ending on a set, all open and with `rounds` 0 (no total).
+  The cap is the model's 64 laps (two a set, less the last rest); `static_assert`ed.
+- **`PlanRunner.hpp`:** R2 finishes the step as in Strength and Circuit. Nothing ends by time.
+  The 32nd set's R2 ends the plan (Done, paused), as the last strength set does; **no
+  empty 64th lap**. Before that, End from the action menu ends it.
+- **`PlanText.hpp`:** "Open sets" (9 characters, as "Intervals"); the heading "Set 4" and
+  "Rest" with no total; "Set N" / "Rest N" for the rows and toast; "N sets" on the summary;
+  the main menu's hint "Set / rest". **The type's place on screen is next to Strength**
+  (`nextKind` is an explicit order now); its number in the file stays last.
+- **`WorkoutFit.hpp`:** the sport is Strength's (training 10 / strength_training 20, profile
+  name "Strength"), FIT `set` messages are written, the link sport is Strength (4). No change
+  to Streak.
+- No change to the service or the GUI screens: they already ran any plan.
+
+### Choices made (for Jon to overrule)
+
+- **Named "Open sets"**, not "Sets" (which reads as Strength's setting) or "Strength 2".
+- **Saved as "Strength"** in the file and the link, as it is a strength session; nothing in
+  the file says which of the two kinds recorded it.
+- **32 sets is the limit**, not a number of the user's: the plan's 63 steps use the model's
+  laps. A larger limit means a bigger lap array (48 bytes a lap; the file's laps are written
+  from it at the end). Few sessions reach 32 (6 exercises of 5 sets is 30).
+- **The rest counts up**, so you see how long you have rested; there is no rest buzz when it
+  reaches a time. A set or rest left running is as long as you leave it (as Free's lap).
+- **No undo** for a mistaken R2 (none in W1 either); the 3 s lap lockout still guards a
+  double tap.
+
+### Verified (15 November 2026)
+
+- **Host tests: 122** (6 new: the plan, three runner tests (20-minute set and 10-minute rest
+  with no cue, a pause, running out of laps at set 32 with no 64th lap), the words, the file
+  type 7 and 8) all passing.
+- **The FIT file from the real writer** (`fit_check.sh`, now eleven scenarios, incl. `opensets`):
+  strength_training, five laps active, rest, active, rest, active, five set messages matching
+  them, no pause at the end (End from the menu). All pass.
+- **The real service** (`sim_plan.sh opensets`): R2 at 15, 25 and 40 s, End from the menu;
+  the log says "Strength, 63 steps", saved with 4 laps (active, rest, active, rest), start and
+  stop paired, 4 set messages, `act_workout.json` sport 4 and the `.fit`'s duration. ALL PLANS
+  PASSED.
+- **Text-fit audit** (`audit.sh`): 0 problems with 4 new cases (Set 32 at 99:59:59, a rest,
+  Done at set 32, and laps "Set 60 / Rest 60").
+- **Every screen by key presses** (`capture_plans.sh`, now three files, `docs/screens/w3-35`
+  to `w3-43`): the Type row, the live set and rest, both toasts, the menu, the summary and its
+  laps; looked at by eye. The captures' checks pass (three files, sports 4, 4, 6).
+- **Not checked:** anything on a watch (the watch target is CI's), and the store listing,
+  which still says "Seven kinds" (`hybridx-link/docs/STORE_RELEASE.md`; Jon's text to change
+  with the next release).
+
 ## The family draft: phases E and F (1 November 2026)
 
 - **E, the family check** (`hybridx-link/docs/experiments/family_check.sh`): Workout now saves
