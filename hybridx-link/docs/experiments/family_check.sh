@@ -5,7 +5,8 @@
 # summaries in ONE shared folder, then HybridX Streak opens (twice) and must find every one,
 # once. Workout saves three, one of each link sport it writes: a Free workout (Workout),
 # a strength plan (Strength) and a circuit (Hybrid), so Streak must count eight, each as
-# its own kind, and the eighth save's Streak line meets the target of 8 ("1-week streak"). It checks the activity link end to end with the apps' real writers and
+# its own kind; the seventh save's Streak line meets the target of 7 (Streak's most) and starts
+# the streak ("1-week streak"), and the eighth reads "8 of 7 this week" with it. It checks the activity link end to end with the apps' real writers and
 # Streak's real reader (docs/ACTIVITY_LINK.md, "Family check").
 #
 # X Training (its TP4) runs today's planned session from a pretend plan (its sim_plan.sh's),
@@ -174,9 +175,9 @@ ride_app() {  # Ride (outdoor, the default): wait for the simulated GPS fix, R1 
 }
 
 if [ "$LONG" = 1 ]; then
-    printf '{"schema":1,"values":{"weeklyTarget":8}}' > "$OUT/Streak/Output/app_config.json"
+    printf '{"schema":1,"values":{"weeklyTarget":7}}' > "$OUT/Streak/Output/app_config.json"
 else
-    printf '{"schema":1,"values":{"weeklyTarget":8,"minMinutes":0}}' > "$OUT/Streak/Output/app_config.json"
+    printf '{"schema":1,"values":{"weeklyTarget":7,"minMinutes":0}}' > "$OUT/Streak/Output/app_config.json"
 fi
 open_streak() {   # open_streak <log name>: open, let the "+1" toasts play, close
     start Streak 94 "$(bin hybridx-streak HybridXStreakSimulator)" "$1"
@@ -289,15 +290,16 @@ def streak_line(log):
         return None
     m = re.findall(r'Streak line: "([^"]*)" "([^"]*)"', text)
     return m[-1] if m else None
-# The eighth session meets the target of 8, so its line also starts the streak: "1-week streak".
+# The seventh session meets the target of 7 (Streak's most), so its line, and the eighth's, also
+# carry the streak: "1-week streak".
 for n, app in enumerate(("Training", "Run", "Race", "Trail", "Workout-free", "Workout-strength", "Workout-circuit",
                          "Ride"), start=1):
     got = streak_line(app)
     if long_run:
-        m = re.match(r"(\d) of 8 this week$", got[0]) if got else None
+        m = re.match(r"(\d) of 7 this week$", got[0]) if got else None
         check(f"{app}'s Streak line", m is not None and 1 <= int(m.group(1)) <= 8, f"{got}")
     else:
-        want_line = (f"{n} of 8 this week", "1-week streak" if n == 8 else "")
+        want_line = (f"{n} of 7 this week", "1-week streak" if n >= 7 else "")
         check(f"{app}'s Streak line", got == want_line, f"{got}")
 
 first, second = summaries("Streak-1"), summaries("Streak-2")
