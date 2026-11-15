@@ -84,7 +84,7 @@ TEST(Vo2History, JsonRoundTrip)
     char buf[Vo2History::kMaxJsonBytes];
     const size_t n = h.toJson(buf, sizeof(buf));
     ASSERT_GT(n, 0u);
-    EXPECT_STREQ(buf, "{\"v\":4,\"restHr\":52,\"trail\":1791100000,\"pk\":0,\"maxes\":[186,184],"
+    EXPECT_STREQ(buf, "{\"v\":5,\"restHr\":52,\"trail\":1791100000,\"training\":0,\"pk\":0,\"maxes\":[186,184],"
                       "\"runs\":[[1791000000,523,24,0,523],[1791100000,531,18,1,526]]}");
 
     Vo2History back;
@@ -100,6 +100,56 @@ TEST(Vo2History, JsonRoundTrip)
     EXPECT_EQ(back.trailMarkUtc(), 1791100000u);
     EXPECT_EQ(back.countFrom(RunSource::Trail), 1);
     EXPECT_EQ(back.countFrom(RunSource::Run), 1);
+}
+
+TEST(Vo2History, TheTwoMarksAreKeptApartAndAVersion4FileGainsTheSecond)
+{
+    // X Training's TP4: Trail's runs and X Training's each have their own mark, so the newest of
+    // one app cannot hide the other's. A version 4 file reads with no X Training mark, and is
+    // written back as version 5.
+    const char* v4 = "{\"v\":4,\"restHr\":50,\"trail\":1791100000,\"maxes\":[],"
+                     "\"runs\":[[1791100000,531,18,1,531]]}";
+    Vo2History h;
+    ASSERT_TRUE(h.fromJson(v4, std::strlen(v4)));
+    EXPECT_EQ(h.trailMarkUtc(), 1791100000u);
+    EXPECT_EQ(h.trainingMarkUtc(), 0u);
+    EXPECT_EQ(h.markUtc(RunSource::Trail), 1791100000u);
+    EXPECT_EQ(h.markUtc(RunSource::Training), 0u);
+    EXPECT_EQ(h.markUtc(RunSource::Run), 0u);
+
+    h.setMarkUtc(RunSource::Training, 1791200000u);
+    h.add(RunRecord{1791200000u, 540, 20, static_cast<uint8_t>(RunSource::Training)});
+    EXPECT_EQ(h.trailMarkUtc(), 1791100000u);
+    EXPECT_EQ(h.countFrom(RunSource::Training), 1);
+    EXPECT_EQ(h.countFrom(RunSource::Trail), 1);
+
+    char buf[Vo2History::kMaxJsonBytes];
+    const size_t n = h.toJson(buf, sizeof(buf));
+    ASSERT_GT(n, 0u);
+    EXPECT_NE(std::strstr(buf, "\"v\":5"), nullptr) << buf;
+    Vo2History back;
+    ASSERT_TRUE(back.fromJson(buf, n)) << buf;
+    EXPECT_EQ(back.trailMarkUtc(), 1791100000u);
+    EXPECT_EQ(back.trainingMarkUtc(), 1791200000u);
+    EXPECT_EQ(back.at(1).source, static_cast<uint8_t>(RunSource::Training));
+}
+
+TEST(Vo2History, TheLargestFileFits)
+{
+    // Every number at its widest: both marks, the profile key, ten maxes and ten runs.
+    Vo2History h;
+    h.setWatchRestHr(99);
+    h.setTrailMarkUtc(4294967295u);
+    h.setTrainingMarkUtc(4294967295u);
+    h.setProfileKey(4294967295u);
+    for (int i = 0; i < Config::kHistoryRuns; ++i) {
+        h.addRunMax(220);
+        h.add(RunRecord{4294967295u - static_cast<uint32_t>(Config::kHistoryRuns - i),
+                        static_cast<uint16_t>(Config::kMaxPlausibleVo2 * 10.0f),
+                        static_cast<uint16_t>(Config::kMaxWindows), static_cast<uint8_t>(RunSource::Training)});
+    }
+    char buf[Vo2History::kMaxJsonBytes];
+    EXPECT_GT(h.toJson(buf, sizeof(buf)), 0u);
 }
 
 TEST(Vo2History, ReadsVersionTwoAsRunsFromRun)
@@ -321,6 +371,8 @@ TEST(Vo2History, EveryFileVersionStillReads)
         { "{\"v\":3,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0],[2,520,10,1]]}", 510, 1 },
         // version 4: source, then the shown value
         { "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500],[2,520,10,1,505]]}", 505, 1 },
+        // version 5 (X Training's TP4): its mark, and source 2
+        { "{\"v\":5,\"restHr\":0,\"trail\":0,\"training\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500],[2,520,10,2,505]]}", 505, 2 },
     };
     for (const Case& c : cases) {
         Vo2History h;
@@ -340,7 +392,9 @@ TEST(Vo2History, TheWrongNumberOfFieldsForTheVersionFailsTheFile)
         "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0]]}",
         "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,2,500]]}",   // source 2
         "{\"v\":4,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,9999]]}",
-        "{\"v\":5,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500]]}",
+        "{\"v\":5,\"restHr\":0,\"trail\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500]]}",   // no "training"
+        "{\"v\":5,\"restHr\":0,\"trail\":0,\"training\":0,\"maxes\":[],\"runs\":[[1,500,10,3,500]]}",   // source 3
+        "{\"v\":6,\"restHr\":0,\"trail\":0,\"training\":0,\"maxes\":[],\"runs\":[[1,500,10,0,500]]}",
     };
     for (const char* s : bad) {
         Vo2History h;

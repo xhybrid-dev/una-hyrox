@@ -59,7 +59,7 @@ schedules are coming (the question is drafted in `NOTES.md`).
 | # | Feature | Notes |
 |---|---|---|
 | 1 | Three plans, three levels, 3-6 runs a week | `PLANS.md` §4-7. Content lives in plain text files (section 11) |
-| 2 | Paces from a 5K, and a half if given | Daniels–Gilbert equations; fractions checked against published table rows (`PLANS.md` §2) |
+| 2 | Paces from a 5K, and a half if given | Daniels–Gilbert equations; checked against all 66 rows of Daniels' Tables 5.1-5.3 (4th edition), in the host tests (`PLANS.md` §2) |
 | 3 | Set-up on the phone, with a fallback on the watch | Config fields (section 5) |
 | 4 | Today, This week, Plan, Paces screens | Section 8 |
 | 5 | Guided workouts, dosed by time | The SDK's engine, gauges and alerts; RunLVGL's workout faces |
@@ -367,7 +367,8 @@ Each phase starts in plan mode and stops at its gate.
 9. Outdoors only for plan sessions; treadmill stays for free runs.
 10. UNA's Workouts library stays on the menu; RunLVGL's Intervals goes.
 
-**Still Jon's:** the plans' content (`PLANS.md` §9); the ten table rows from Daniels' book;
+**Still Jon's:** the plans' content (`PLANS.md` §9); (the rows from Daniels' book: done, 15 November
+2026, from Jon's copy, NOTES "Daniels' book");
 whether to send UNA the question; later, how X Run and X Training sit together on the store
 (`REVIEW.md` E9).
 
@@ -386,7 +387,7 @@ whether to send UNA the question; later, how X Run and X Training sit together o
 | UNA ships plans in Running | Overlap, as with Intervals | Jon's decision; the differentiators in section 2; the core is reusable |
 | Phone fields not shown or checked | No phone set-up | The watch set-up; the watch validates everything |
 | An old 5K entered as current | Paces too fast | `fiveKRecent`; base weeks have little paced quality; time trial in week 4 |
-| The pace fractions differ from the book | A few s/km | Checked against secondary rows; book fixtures before release |
+| The pace fractions differ from the book | A few s/km | **Closed** (15 November 2026): every row of Tables 5.1-5.3 in the host tests; within 4 s/km |
 | GPS on short reps | Unreliable live pace | No live alerts there; judged by rep time |
 | Advice that hurts someone | Injury | Level 1 its own plan; caps; cut-backs; no stacking; the "not medical advice" text |
 | Copied content | Copyright | Original plans; equations, not tables; the brand name "VDOT" not used |

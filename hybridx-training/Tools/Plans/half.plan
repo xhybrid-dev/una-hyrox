@@ -24,7 +24,7 @@ week cutback  | E+S 35           | E 35      | E 30                    | *TT5
 week build    | INT 4x4          | E+S 45    | *CRUISE 3x10            | L 95
 # Weeks 6 and 10 have a hard long run, so one other quality session (C8).
 week build    | *CRUISE 2x15     | E 45      | E+S 40                  | L 100 HM 20
-week build    | INT 6x3          | E+S 45    | *RPHM 3x10 jog 2:00     | L 105
+week build    | INT 5x3          | E+S 45    | *RPHM 3x10 jog 2:00     | L 105
 # Week 8: the 10K tune-up, four weeks before the race.
 week cutback  | E+S 35           | E 40      | E 30                    | *TT10
 week specific | CRUISE 3x10      | E+S 45    | *RPHM 2x20 jog 3:00     | L 115

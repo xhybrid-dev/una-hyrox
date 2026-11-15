@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <string>
 
 #include "Vo2TrailIngest.hpp"
 
@@ -148,4 +149,39 @@ TEST(Vo2TrailIngest, SlotsAreTakenOldestFirstAboveTheMark)
     const uint32_t same[3] = {200, 200, 0}; // a copy in two slots: once, then the mark covers it
     EXPECT_EQ(nextWindowFileSlot(same, 3, 0), 0);
     EXPECT_EQ(nextWindowFileSlot(same, 3, 200), -1);
+}
+
+// ---- X Training's runs (its TP4): the same files and rules, its own names and mark --------
+
+TEST(Vo2TrainingIngest, XTrainingsFilesAreItsOwnInTheSharedFolder)
+{
+    for (uint8_t i = 0; i < kWindowFileSlots; ++i) {
+        const std::string t = kTrainingWindowFilePaths[i];
+        EXPECT_EQ(t.rfind("../SharedData/HybridX/training_vo2_", 0), 0u) << t;
+        for (uint8_t j = 0; j < kWindowFileSlots; ++j) {
+            EXPECT_STRNE(kTrainingWindowFilePaths[i], kWindowFilePaths[j]);   // one writer per file
+        }
+    }
+}
+
+TEST(Vo2TrainingIngest, EachSourcesMarkHidesOnlyItsOwnRuns)
+{
+    // Trail's newest run (300) is newer than X Training's two (150, 250). Behind one shared mark
+    // they would never count; behind their own (0), both do, oldest first, then not again.
+    const uint32_t trail[kWindowFileSlots]    = {100, 200, 300};
+    const uint32_t training[kWindowFileSlots] = {250, 0, 150};
+    const uint32_t trailMark = 300, trainingMark = 0;
+    EXPECT_EQ(nextWindowFileSlot(trail, kWindowFileSlots, trailMark), -1);
+    EXPECT_EQ(nextWindowFileSlot(training, kWindowFileSlots, trailMark), -1);   // what one mark would do
+    EXPECT_EQ(nextWindowFileSlot(training, kWindowFileSlots, trainingMark), 2);   // 150 first
+    EXPECT_EQ(nextWindowFileSlot(training, kWindowFileSlots, 150), 0);            // then 250
+    EXPECT_EQ(nextWindowFileSlot(training, kWindowFileSlots, 250), -1);           // then none
+
+    char buf[kWindowFileBytes];
+    const size_t n = fileOf(buf, 150, 176, 12);
+    Vo2Run run;
+    WindowFileInfo info;
+    ASSERT_EQ(judgeWindowFile(buf, n, trainingMark, run, info), IngestStatus::Judged);
+    EXPECT_EQ(run.estimate(profile()).vo2x10, 544);   // judged exactly as a Trail run
+    EXPECT_EQ(judgeWindowFile(buf, n, 150, run, info), IngestStatus::AlreadyCounted);
 }

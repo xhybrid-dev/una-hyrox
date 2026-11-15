@@ -319,16 +319,16 @@ TEST(PlanBuilder, FitRoundTrip)
 
 TEST(PlanBuilder, IntervalsForTheExampleRunner)
 {
-    // Half week 7, Tuesday: INT 6x3 for a 22:00 runner at level 2 (PLANS.md 8).
+    // Half week 7, Tuesday: INT 5x3 for a 22:00 runner at level 2 (PLANS.md 8).
     const Paces paces = pacesFor(22 * 60);
     const PlanDef* half = PlanData::find(PlanId::Half);
     const Session s = PlanBuilder::forLevel(half->weeks[6].slot[kSlotQ1], PlanBuilder::scaling(*half, 2, paces));
-    EXPECT_EQ(s.reps, 6);
+    EXPECT_EQ(s.reps, 5);
     EXPECT_EQ(s.a, 180);
     auto p = std::make_unique<Program>();
     SessionMeta m;
     ASSERT_TRUE(PlanBuilder::build(s, paces, BuildOptions{}, half->raceCm, *p, m));
-    EXPECT_STREQ(p->name, "Intervals 6 x 3 min");
+    EXPECT_STREQ(p->name, "Intervals 5 x 3 min");
     EXPECT_STREQ(p->description, "Builds your VO2max");
     ASSERT_EQ(p->stepCount, 5);  // warm-up, interval, jog, repeat, cool-down
     EXPECT_EQ(p->steps[0].intensity, SDK::Workout::Intensity::Warmup);
@@ -339,17 +339,17 @@ TEST(PlanBuilder, IntervalsForTheExampleRunner)
     EXPECT_EQ(rep.speedLowMmps, PaceModel::mmps(4 * 60 + 24));
     EXPECT_EQ(rep.speedHighMmps, PaceModel::mmps(4 * 60 + 12));
     EXPECT_EQ(m.alert[1], AlertMode::Both);
-    EXPECT_EQ(p->steps[2].durationMs, 105000u);  // 60% of 3 min, to 15 s
+    EXPECT_EQ(p->steps[2].durationMs, 135000u);  // three quarters of 3 min, to 15 s
     EXPECT_EQ(p->steps[2].intensity, SDK::Workout::Intensity::Rest);
     EXPECT_EQ(p->steps[3].end, StepEnd::Repeat);
-    EXPECT_EQ(p->steps[3].repeatCount, 6u);
+    EXPECT_EQ(p->steps[3].repeatCount, 5u);
     EXPECT_EQ(p->steps[4].intensity, SDK::Workout::Intensity::Cooldown);
-    EXPECT_EQ(m.qualitySec, 18u * 60u);
+    EXPECT_EQ(m.qualitySec, 15u * 60u);
     EXPECT_EQ(m.repM, 700u);  // 3 min at 4:18 /km: about 700 m
     EXPECT_EQ(m.targetPace, 4 * 60 + 18);
     EXPECT_EQ(m.targetPlusMinus, 6);
-    // 15 + 6 x 3 + 6 x 1:45 + 10 minutes.
-    EXPECT_EQ(m.plannedSec, 15u * 60 + 18 * 60 + 6 * 105 + 10 * 60);
+    // 15 + 5 x 3 + 5 x 2:15 + 10 minutes.
+    EXPECT_EQ(m.plannedSec, 15u * 60 + 15 * 60 + 5 * 135 + 10 * 60);
 }
 
 TEST(PlanBuilder, Levels)
@@ -360,14 +360,14 @@ TEST(PlanBuilder, Levels)
     const auto at = [&](const PlanDef* p, uint8_t level, Session s) {
         return PlanBuilder::forLevel(s, PlanBuilder::scaling(*p, level, paces));
     };
-    // Intervals: level 1 two thirds, reps to 3 min; level 3 one more rep.
+    // Intervals: level 1 reps to 3 min, within its 10 minutes; level 3 one more rep.
     Session s = at(tenK, 1, Session{Kind::Intervals, 4, 240, 0, 0});
-    EXPECT_EQ(s.reps, 4);
+    EXPECT_EQ(s.reps, 3);
     EXPECT_EQ(s.a, 180);
     s = at(tenK, 3, Session{Kind::Intervals, 4, 240, 0, 0});
     EXPECT_EQ(s.reps, 5);
     EXPECT_EQ(s.a, 240);
-    // Cruise at level 3 is capped at 40 minutes.
+    // Cruise at level 3 is capped at 30 minutes (Daniels' maximum in cruise intervals).
     s = at(half, 3, Session{Kind::Cruise, 2, 900, 0, 0});
     EXPECT_EQ(s.reps, 2);
     EXPECT_EQ(s.a, 900);
@@ -500,10 +500,11 @@ TEST(PlanBuilder, DefaultJogs)
     EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Cruise, 480), 90);
     EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Cruise, 600), 120);
     EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Cruise, 900), 180);
-    EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Intervals, 120), 75);
-    EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Intervals, 180), 105);
-    EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Intervals, 240), 150);
-    EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Intervals, 300), 180);
+    // Intervals: three quarters of the rep (Daniels: 1:1; 3 min with 2 min jog, 4 with 3).
+    EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Intervals, 120), 90);
+    EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Intervals, 180), 135);
+    EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Intervals, 240), 180);
+    EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::Intervals, 300), 225);
     EXPECT_EQ(PlanBuilder::defaultJogSec(Kind::PaceHalf, 600), 120);
 }
 

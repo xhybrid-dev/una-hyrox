@@ -135,17 +135,35 @@ void PlanScreen::fill()
         snprintf(mText[2], sizeof(mText[2]), "%u of %u this week", static_cast<unsigned>(o.weekDone),
                  static_cast<unsigned>(o.weekSessions));
         bottom[nb++] = Line{ mText[2], F::Medium18, F::Regular16, Color::WHITE };
+        // TP4: X Run's VO2max, when X Run has one (brief 10.3), second, where the face is wide. Never
+        // used for paces, and named as X Run's: it is on another scale. In a plan, the figure first
+        // seen in it beside it: the VO2max block's second measure.
+        const bool vo2 = o.vo2X10 != 0;
+        if (vo2) {
+            if (o.vo2StartX10 != 0 && o.vo2StartX10 != o.vo2X10) {
+                snprintf(mText[5], sizeof(mText[5]), "VO2max %u.%u, was %u.%u", static_cast<unsigned>(o.vo2X10 / 10),
+                         static_cast<unsigned>(o.vo2X10 % 10), static_cast<unsigned>(o.vo2StartX10 / 10),
+                         static_cast<unsigned>(o.vo2StartX10 % 10));
+            } else {
+                snprintf(mText[5], sizeof(mText[5]), "VO2max %u.%u in X Run", static_cast<unsigned>(o.vo2X10 / 10),
+                         static_cast<unsigned>(o.vo2X10 % 10));
+            }
+            bottom[nb++] = Line{ mText[5], F::Regular16, F::Regular16, Color::SKY };
+        }
         snprintf(mText[3], sizeof(mText[3]), "%u of %u so far", static_cast<unsigned>(o.done),
                  static_cast<unsigned>(o.soFar));
-        bottom[nb++] = Line{ mText[3], F::Italic18, F::Italic18, Color::GRAY };
-        // "Race 24 Jan" or "Ends 20 Dec": the foot of the face has room for no more.
+        bottom[nb++] = Line{ mText[3], F::Italic18, vo2 ? F::Regular16 : F::Italic18, Color::GRAY };
+        // "Race 24 Jan" or "Ends 20 Dec": the foot of the face has room for no more (a smaller face
+        // with the VO2max line above).
         const uint32_t last = o.raceDate != 0 ? o.raceDate : o.end;
         snprintf(mText[4], sizeof(mText[4]), "%s %u %s", o.raceDate != 0 ? "Race" : "Ends",
                  static_cast<unsigned>(Date::day(last)), TimeText::monthName(Date::month(last)));
-        bottom[nb++] = Line{ mText[4], F::Italic18, F::Italic18, Color::TEAL };
+        bottom[nb++] = Line{ mText[4], vo2 ? F::Regular16 : F::Italic18, vo2 ? F::Regular16 : F::Italic18, Color::TEAL };
     }
     mTop.set(top, nt, 76);
-    mBottom.set(bottom, nb, 164);
+    // Four lines (with X Run's VO2max): the block a little lower, clear of the bar's mark, so that
+    // the date, the shortest line, is the one nearest the foot of the face.
+    mBottom.set(bottom, nb, nb > 3 ? 170 : 164);
 
     // The bar: one segment a week, centred, coloured by phase; this week marked under it.
     const uint8_t n = have ? (o.weeks < CustomMessage::PlanOverviewInfo::kMaxWeeks ? o.weeks

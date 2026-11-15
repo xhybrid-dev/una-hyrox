@@ -40,6 +40,7 @@
 #include "RepJudge.hpp"
 #include "TimeText.hpp"
 #include "data/PlanData.hpp"
+#include "RunVo2Max.hpp"
 #include "SafeFile.hpp"
 #include "ActivityLink.hpp"
 #include "StreakNow.hpp"
@@ -75,6 +76,10 @@ static float speedFromTotals(float distanceM, float activeTimeS)
 /// A cadence sample older than this is not shown, recorded or averaged (a stalled sensor
 /// must not leave its last value on the screen). X Run's limit for its VO2max inputs.
 constexpr uint32_t kFormFreshMs = 2500;
+/// The same limit for the per-second feed's heart rate, speed and grade (X Run's kVo2FreshMs).
+constexpr uint32_t kFeedFreshMs = 2500;
+/// A minute is left for X Run only with at least this many good seconds (Trail's kVo2MinGoodSec).
+constexpr uint16_t kVo2MinGoodSec = 40;
 
 } // namespace
 
@@ -416,6 +421,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
             mGpsSpeedValid    = parser.isSpeedValid();
             mGpsDeadReckoning = parser.isDeadReckoning();
             mGpsSpeedFresh    = true;   // consumed by the speed filter each tick
+            mSpeedLastMs      = mKernel.sys.getTimeMs();   // X Run's: for the per-second feed
+            mSpeedSeen        = true;
             if (mGpsSpeedValid && mGpsSpeedMs > mGpsSpeedPeakMs &&
                 mGpsSpeedMs <= mSpeedCounter.getMaxValid()) {
                 mGpsSpeedPeakMs = mGpsSpeedMs;   // for the maxima; see processTrack()
@@ -428,6 +435,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
         if (parser.isDataValid()) {
             mGradeData.gradePct   = parser.getGradePct();
             mGradeData.gradeValid = parser.isGradeValid();
+            mGradeLastMs          = mKernel.sys.getTimeMs();   // X Run's: for the per-second feed
+            mGradeSeen            = true;
             LOG_DEBUG("Grade:    %.2f %% (valid %u)\n",
                       mGradeData.gradePct, mGradeData.gradeValid);
         }
@@ -458,6 +467,8 @@ void Service::handleSensorsData(uint16_t handle, SDK::Sensor::DataBatch& data)
             mHrSource     = static_cast<uint8_t>(parser.getSource());
             mHrOpticalBpm = static_cast<uint8_t>(parser.getOpticalBpm());
             mHrExternalBpm= static_cast<uint8_t>(parser.getExternalBpm());
+            mHrLastMs     = mKernel.sys.getTimeMs();   // X Run's: for the per-second feed
+            mHrSeen       = true;
             LOG_DEBUG("HR %.1f trust %.1f src %u (opt %u ext %u)\n",
                       parser.getBpm(), parser.getTrustLevel(), mHrSource,
                       mHrOpticalBpm, mHrExternalBpm);
@@ -969,6 +980,17 @@ void Service::startTrack(std::time_t utc)
 
     mSessionNotEmpty = false;
     mStartUtc = utc;
+
+    // TP4: the run's steady minutes for HybridX Run's VO2max (saveVo2Windows). Not indoors: a
+    // treadmill run has no VO2max in Run. The 3 KB is taken once a run, not in the 1 Hz loop.
+    mVo2Builder.reset();
+    mVo2WindowCount = 0;
+    if (!mTreadmill && !mVo2Windows) {
+        mVo2Windows.reset(new (std::nothrow) RunVo2::WindowRecord[RunVo2::kWindowFileMaxWindows]);
+        if (!mVo2Windows) {
+            LOG_WARNING("No memory to keep this run's minutes for X Run\n");
+        }
+    }
     mLapNotEmpty = false;
     mLapCarryMs = 0;
 
@@ -1136,6 +1158,9 @@ void Service::processTrack()
 
     // HybridX Run: cadence and step length for this tick (screen, record, averages).
     updateForm();
+
+    // X Run's per-second feed: the run statistics (zones, best splits, the training load).
+    feedSecond();
 
     // Intervals state machine - only while actively running (not paused)
     if (mIntervalsMode && mTrackState == Track::State::ACTIVE) {
@@ -1519,9 +1544,9 @@ bool Service::closeActivity(const ActivityWriter::TrackData& track)
     if (mPlannedRun) {
         recordPlannedRun(track);   // X Training: only for a session whose .fit is safely saved
     }
-    // X Training: no activity link yet. Its own slot (act_training.json) needs a change to
-    // hybridx-link and a Streak release (TP4, REVIEW.md E3); writing X Run's act_run.json
-    // would break the link's one-writer rule. writeActivityLink() stays for TP4.
+    writeActivityLink(track);   // for HybridX Streak: X Training's own slot (TP4)
+    saveVo2Windows();           // for HybridX Run's VO2max (TP4)
+    mVo2Windows.reset();        // the 3 KB goes back until the next run
     sendStreakLine();
     // A scheduled workout counts as done only once its activity is
     // saved, and only if completion was reached. started() again
@@ -2392,11 +2417,130 @@ void Service::updateForm()
     mTrackData.stepLengthAvgMm = mForm.stepAvgMm();
 }
 
+void Service::feedSecond()
+{
+    // X Run's feedVo2 (hybridx-run Service.cpp), without its VO2max: one second for the run
+    // statistics (the detail faces' zones, best splits and halves, and the training load the
+    // activity link and the Saved screen carry). TP2 took it out with the VO2max and the
+    // statistics were left unfed; TP4 restores it.
+    const uint32_t nowMs = mKernel.sys.getTimeMs();
+    // Unsigned deltas: the ms clock wraps.
+    const bool hrFresh    = mHrSeen && static_cast<uint32_t>(nowMs - mHrLastMs) <= kFeedFreshMs;
+    const bool speedFresh = mSpeedSeen && static_cast<uint32_t>(nowMs - mSpeedLastMs) <= kFeedFreshMs;
+    const bool gradeFresh = mGradeSeen && static_cast<uint32_t>(nowMs - mGradeLastMs) <= kFeedFreshMs;
+
+    const float hr = mHrCounter.getCurrent();
+
+    RunVo2::Sample s;
+    s.active        = (mTrackState == Track::State::ACTIVE);
+    // The corrected speed (X Run R6b): the latest sample times the filter's scale.
+    s.speedMs       = mSpeedFilter.getInstantSpeed();
+    s.speedValid    = mSpeedFilter.hasCurrentSample() && speedFresh;
+    s.speedScale    = mSpeedFilter.getScale();
+    s.deadReckoning = mGpsDeadReckoning;
+    s.gradePct      = mGradeData.gradePct;
+    s.gradeValid    = mGradeData.gradeValid && gradeFresh;   // stale: taken as level
+    s.hrBpm         = (hrFresh && hr > 0.0f && hr < 255.0f) ? static_cast<uint8_t>(hr + 0.5f) : 0;
+    s.hrTrust       = mTrackData.hrTrustLevel;   // the raw value: the core applies RunLVGL's 1-3 test
+    if (mTreadmill) {
+        // Indoors the speed is the cadence model's and the incline unknown (X Run NOTES, "Treadmill").
+        s.speedMs       = mTreadEstimator.speedMps();
+        s.speedValid    = mTreadEstimator.speedValid();
+        s.speedScale    = 1.0f;
+        s.deadReckoning = false;
+        s.gradeValid    = false;
+    }
+    if (mRunStats) {
+        mRunStats->addSecond(s, mDistanceCounter.getValueActive());
+    }
+    if (mTreadmill) {
+        return;
+    }
+
+    // TP4: the minutes X Run could use for its VO2max, built as Run builds them (its window
+    // builder, copied), kept as Trail keeps them: past the warm-up, with enough good seconds,
+    // the first kWindowFileMaxWindows only (two hours of steady running). Run judges them.
+    mVo2Builder.addSecond(s);
+    RunVo2::WindowRecord w;
+    if (mVo2Builder.popWindow(w) && w.activeSec > RunVo2::Config::kWarmUpSec && w.goodSec >= kVo2MinGoodSec &&
+        mVo2Windows && mVo2WindowCount < RunVo2::kWindowFileMaxWindows) {
+        mVo2Windows[mVo2WindowCount++] = w;
+    }
+}
+
+namespace
+{
+
+/// One of X Training's window files: the primary, else its backup, whichever has a header
+/// that reads. The run ID in it, or 0. (Trail's readSlotId, with X Training's paths.)
+uint32_t readVo2SlotId(SDK::Interface::IFileSystem& fs, uint8_t slot, char* buf, size_t cap)
+{
+    for (int backup = 0; backup < 2; ++backup) {
+        const size_t len = RunVo2::SafeFile::read(fs, RunVo2::kTrainingWindowFilePaths[slot], backup != 0, buf, cap);
+        if (len > 0) {
+            RunVo2::WindowFileReader reader(buf, len);
+            RunVo2::WindowFileInfo   info;
+            if (reader.open(info)) {
+                return info.runId;
+            }
+        }
+    }
+    return 0;
+}
+
+}  // namespace
+
+void Service::saveVo2Windows()
+{
+    // The run's steady minutes, for HybridX Run to count when it next opens (TP4; brief 10.2):
+    // one of X Training's three slot files in the shared folder, the oldest overwritten, as
+    // Trail does with its own three. Its ID is the run's start, as the .fit's and the activity
+    // link's. Nothing is written for a run with nothing to say, or a treadmill run. A
+    // temporary 8 KB buffer, not a stack array (the service stack is small); once, at save.
+    if (mTreadmill) {
+        return;
+    }
+    const uint8_t maxHr = mVo2Builder.sustainedMaxHr();
+    if (mVo2WindowCount == 0 && maxHr == 0) {
+        LOG_INFO("VO2 windows: nothing to leave for X Run\n");
+        return;
+    }
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[RunVo2::kWindowFileBytes]);
+    if (!buf) {
+        LOG_WARNING("VO2 windows: no memory to write the file\n");
+        return;
+    }
+
+    uint32_t ids[RunVo2::kWindowFileSlots] = {};
+    for (uint8_t i = 0; i < RunVo2::kWindowFileSlots; ++i) {
+        ids[i] = readVo2SlotId(mKernel.fs, i, buf.get(), RunVo2::kWindowFileBytes);
+    }
+    const uint8_t slot = RunVo2::windowFileSlotToWrite(ids);
+
+    const uint32_t runId = static_cast<uint32_t>(mStartUtc);
+    const size_t   len   = RunVo2::writeWindowFile(buf.get(), RunVo2::kWindowFileBytes, runId, maxHr,
+                                                   mVo2Windows.get(), mVo2Windows ? mVo2WindowCount : 0);
+    if (len == 0) {
+        LOG_WARNING("VO2 windows: could not make the file\n");
+        return;
+    }
+    mKernel.fs.mkdir("../SharedData");   // already there on a watch that has run Streak or Race
+    mKernel.fs.mkdir(HybridXLink::kSharedDir);
+    if (!RunVo2::SafeFile::write(mKernel.fs, RunVo2::kTrainingWindowFilePaths[slot], buf.get(), len)) {
+        LOG_WARNING("VO2 windows: could not save %s\n", RunVo2::kTrainingWindowFilePaths[slot]);
+        return;
+    }
+    LOG_INFO("VO2 windows for X Run: run %lu, %u windows, max HR %u, slot %u (%lu bytes)\n",
+             static_cast<unsigned long>(runId), static_cast<unsigned>(mVo2WindowCount), maxHr, slot,
+             static_cast<unsigned long>(len));
+}
+
 
 void Service::writeActivityLink(const ActivityWriter::TrackData& track)
 {
     // The run, in the HybridX activity link's format, for HybridX Streak to count
-    // (hybridx-link/docs/ACTIVITY_LINK.md). Its start is the one the .fit is named
+    // (hybridx-link/docs/ACTIVITY_LINK.md). X Training's own file, act_training.json
+    // (Slot::Training, TP4): one writer per file. Its start is the one the .fit is named
     // from, so Streak counts it once however it finds it. Nothing here may get in
     // the way of the save: a failure is a warning.
     using namespace HybridXLink;
@@ -2422,14 +2566,14 @@ void Service::writeActivityLink(const ActivityWriter::TrackData& track)
     char* const newText = buf.get() + kMaxBytes;
 
     // The old file: the primary if it reads, else its backup, else none (append starts afresh).
-    const char* path = slotPath(Slot::Run);
+    const char* path = slotPath(Slot::Training);
     size_t oldLen    = RunVo2::SafeFile::read(mKernel.fs, path, false, oldText, kMaxBytes);
     ActivityFile probe;   // about 330 bytes of stack: only to see that the primary reads
     if (oldLen == 0 || !decode(oldText, oldLen, probe)) {
         oldLen = RunVo2::SafeFile::read(mKernel.fs, path, true, oldText, kMaxBytes);
     }
 
-    const size_t len = append(oldLen > 0 ? oldText : nullptr, oldLen, "HybridXRun", e, newText, kMaxBytes);
+    const size_t len = append(oldLen > 0 ? oldText : nullptr, oldLen, "HybridXTraining", e, newText, kMaxBytes);
     if (len == 0 || !mKernel.fs.mkdir(HybridXLink::kSharedDir) || !RunVo2::SafeFile::write(mKernel.fs, path, newText, len)) {
         LOG_WARNING("Could not save the activity summary for Streak\n");
     }
@@ -2609,6 +2753,14 @@ void Service::loadPlan()
         mPlan.setup.repsByDistance = mSettings.repsByDistance;
         changed = mPlan.setup.plan != PlanId::None;
     }
+    // TP4: X Run's VO2max, for the Plan screen (brief 10.3), and the figure first seen in this
+    // plan, the VO2max block's second measure. Read once here: only X Run changes it.
+    readRunVo2Max();
+    if (mRunVo2.x10 != 0 && mPlan.vo2StartX10 == 0 && mPlan.active() && today != 0 && today >= mPlan.calendar.start) {
+        mPlan.vo2StartX10 = mRunVo2.x10;
+        changed = true;
+        LOG_INFO("X Run's VO2max at the plan's start: %u (x10)\n", static_cast<unsigned>(mRunVo2.x10));
+    }
     if (changed) {
         savePlan();
     }
@@ -2623,6 +2775,23 @@ void Service::loadPlan()
         const Paces& q = mPaces.paces;
         LOG_INFO("Paces s/km: easy %u-%u, half %u, threshold %u, 10K %u, interval %u, repetition %u\n",
                  q.easyFast, q.easySlow, q.half, q.threshold, q.tenK, q.interval, q.repetition);
+    }
+}
+
+void Service::readRunVo2Max()
+{
+    // X Run's vo2max.json (RunVo2Max.hpp): the primary, else its backup. None without X Run.
+    mRunVo2 = XTraining::RunVo2Max::Figure{};
+    char buf[XTraining::RunVo2Max::kMaxBytes];
+    for (int backup = 0; backup < 2 && mRunVo2.x10 == 0; ++backup) {
+        const size_t len = RunVo2::SafeFile::read(mKernel.fs, XTraining::RunVo2Max::kPath, backup != 0, buf, sizeof(buf));
+        if (len > 0) {
+            XTraining::RunVo2Max::read(buf, len, mRunVo2);
+        }
+    }
+    if (mRunVo2.x10 != 0) {
+        LOG_INFO("X Run's VO2max: %u (x10), %u runs\n", static_cast<unsigned>(mRunVo2.x10),
+                 static_cast<unsigned>(mRunVo2.runs));
     }
 }
 
@@ -3002,6 +3171,9 @@ void Service::sendPlanOverview(SDK::Workout::Ymd today)
         o.done         = c.done;
         o.weekSessions = c.weekSessions;
         o.weekDone     = c.weekDone;
+        // X Run's VO2max (TP4): shown, never used for paces; the start figure for the VO2max block.
+        o.vo2X10      = mRunVo2.x10;
+        o.vo2StartX10 = mPlan.vo2StartX10;
     }
     msg.send();
 }

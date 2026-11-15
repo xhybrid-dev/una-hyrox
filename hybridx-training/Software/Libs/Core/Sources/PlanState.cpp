@@ -8,6 +8,7 @@
 #include "PlanState.hpp"
 
 #include "PaceModel.hpp"
+#include "RunVo2Max.hpp"
 
 #include "SDK/JSON/JsonStreamReader.hpp"
 #include "SDK/JSON/JsonStreamWriter.hpp"
@@ -117,6 +118,9 @@ size_t PlanState::toJson(char* buf, size_t cap) const
         w.endArray();
     }
     w.endArray();
+    if (vo2StartX10 != 0) {
+        w.add("vo2s", vo2StartX10);
+    }
     w.endMap();
     if (w.isError()) {
         buf[0] = '\0';
@@ -221,6 +225,15 @@ bool PlanState::fromJson(const char* text, size_t len)
                               static_cast<uint32_t>(e[3])};
     }
     st.mCount = static_cast<uint8_t>(n);
+
+    // TP4: X Run's VO2max as first seen in this plan. Optional; checked when there.
+    int64_t vo2s = 0;
+    if (r.get("vo2s", vo2s)) {
+        if (!inRange(vo2s, RunVo2Max::kMinX10, RunVo2Max::kMaxX10)) {
+            return false;
+        }
+        st.vo2StartX10 = static_cast<uint16_t>(vo2s);
+    }
     *this = st;
     return true;
 }

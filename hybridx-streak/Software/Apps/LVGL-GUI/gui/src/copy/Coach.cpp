@@ -138,6 +138,8 @@ void appName(const char* folder, char* out, size_t size)
 {
     if (std::strcmp(folder, "HybridXRace") == 0) {
         snprintf(out, size, "HybridX");   // "HybridX Race" clips on the wheel's lower line
+    } else if (std::strcmp(folder, "HybridXTraining") == 0) {
+        snprintf(out, size, "X Training");   // its name on the watch; the folder name clips
     } else {
         snprintf(out, size, "%s", folder);
     }

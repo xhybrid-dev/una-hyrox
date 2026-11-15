@@ -433,6 +433,11 @@ jobs:
         # copies of Run's builder and file codec; they must not drift.
         run: hybridx-trail/Utilities/check-vo2-link-copies.sh
 
+      - name: X Training's copies of Run's window code
+        # X Training leaves its runs' steady minutes for Run's VO2max (its TP4), built and
+        # written by copies of Run's builder and file codec; they must not drift.
+        run: hybridx-training/Utilities/check-vo2-link-copies.sh
+
       - name: HybridX Trail host tests
         # The route core (GPX reader, thinning, off-route distance) and the
         # T0 probe's route check.

@@ -18,7 +18,7 @@ recorded in `NOTES.md`.
 |---|---|
 | Training-pace fractions against Daniels' published table | **Partly wrong in the draft, now fixed.** The journal and book sites were blocked again, so this used web-search summaries of secondary sources (study notes of the 2021 edition and several calculators). Three table rows were found: fitness 51 (easy 4:52-5:29 /km, threshold 4:11, interval 3:51, repetition 86 s per 400 m), 40 (threshold 5:06, repetition 108 s, easy 5:59-6:44) and 45 (threshold 4:38, repetition 96 s). Threshold at 88% and interval at 97.5% reproduce all of them to the second. Easy was not 65-74% but **62.5-72.5%**, and repetition is better as **interval pace less 6 s per 400 m** than as mile pace. With those, every value found is within 3 s/km [computed]. The draft's "fitness 50" memory was fitness 51's row |
 | Race predictions | Riegel (b = 1.06), which RACE_PREDICTIONS §5 recommends as calibrated on recreational runners up to the half, and the Daniels–Gilbert equations agree within **15 s at 10 km and at the half for every 5K from 18:00 to 36:00** [computed]. Two independent published methods, one answer: the race paces are sound |
-| Daniels' quality limits | Confirmed by secondary sources: interval work the lesser of 10 km or 8% of weekly distance; repetition the lesser of 8 km or 5%; threshold 10% (up to 30 minutes if broken up); the long run 30% of the week under 40 miles a week, 25% or 150 minutes above. Still to be read in the book |
+| Daniels' quality limits | Confirmed by secondary sources: interval work the lesser of 10 km or 8% of weekly distance; repetition the lesser of 8 km or 5%; threshold 10% (up to 30 minutes if broken up); the long run 30% of the week under 40 miles a week, 25% or 150 minutes above. Still to be read in the book. **Read, 15 November 2026** (4th edition, figure 4.1, chapter 4): all confirmed; also a steady tempo of about 20 minutes at most, E runs of at least 30 minutes, and 1:1 work to rest for I. The caps were above them and now follow them (NOTES "Daniels' book") |
 | How RunLVGL starts a workout | `Service::startWorkout()` is three calls once `mProgram` is filled (`mEngine.start`, `mLeadIn.stepStarted`, `startWorkoutStep`); the details screen is sent `&mProgram`. A plan session needs only a second entry point that fills `mProgram` from the plan instead of a file |
 | What makes a Program valid | From `FitWorkoutReader.hpp`: at least one step; at most 100; a repeat points to an earlier step; blocks nest (never overlap) and at most 4 deep; counts 1-99. Units: ms, cm, mm/s; a heart-rate custom value over 100 is bpm + 100. The builder's tests assert each |
 | Phone fields | `SDK::AppConfig` has `has`, `getInt`, `getString`, `setInt`, `setString`, `save`. **Patterns must not use `^` or `$`** (`Docs/app-config-fields.md` §3.2: implicit full match), and the watch-side reader has no pattern check at all, so the watch must validate every string |
@@ -74,7 +74,10 @@ in the way.
 
 ## 5. Not done, and why
 
-- **Daniels' book itself was not read.** `test.knowt.com` and `cdbaca.github.io` are outside
+- **Daniels' book itself was not read** (at the time; Jon supplied the 4th edition on 15 November
+  2026 and it has been read since: NOTES "Daniels' book". Two secondary figures above were wrong:
+  fitness 40's easy range is 5:56-6:38, not 5:59-6:44, and its repetition pace 104 s per 400 m,
+  not 108). `test.knowt.com` and `cdbaca.github.io` are outside
   this session's allowed network, as the journal sites were for RACE_PREDICTIONS. The values
   above are from search summaries of secondary sources, which agreed with each other on
   threshold and interval and less well on easy. Before the paces ship, someone with the book

@@ -143,6 +143,8 @@ TEST(Coach, NamesForTheScreens)
     EXPECT_STREQ(buf, "HybridX");
     Coach::appName("Running", buf, sizeof(buf));
     EXPECT_STREQ(buf, "Running");
+    Coach::appName("HybridXTraining", buf, sizeof(buf));
+    EXPECT_STREQ(buf, "X Training");
     EXPECT_STREQ(Coach::scopeName(Streak::kScopeAny), "Everything");
     EXPECT_STREQ(Coach::scopeName(static_cast<uint8_t>(Streak::Kind::Run)), "Runs only");
     EXPECT_STREQ(Coach::dayShort(1), "Mon");

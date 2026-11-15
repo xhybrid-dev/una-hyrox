@@ -675,6 +675,8 @@ namespace CustomMessage {
         uint32_t start    = 0;      ///< the first Monday
         uint32_t end      = 0;      ///< the last Sunday
         uint32_t raceDate = 0;      ///< 0 for none
+        uint16_t vo2X10      = 0;   ///< X Run's VO2max x 10 (vo2max.json); 0 = none, no line (TP4)
+        uint16_t vo2StartX10 = 0;   ///< the same as first seen in this plan; 0 = not yet
         uint8_t  phase[kMaxWeeks] = {};   ///< XTraining::Phase of each run week
         char     problem[PlanTodayInfo::kText] = {};
     };

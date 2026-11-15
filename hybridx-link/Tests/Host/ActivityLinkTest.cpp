@@ -568,6 +568,7 @@ TEST(ActivityLinkSlots, SlotPathFollowsTheEnum)
 {
     EXPECT_STREQ(slotPath(Slot::Run), "../SharedData/HybridX/act_run.json");
     EXPECT_STREQ(slotPath(Slot::Workout), "../SharedData/HybridX/act_workout.json");
+    EXPECT_STREQ(slotPath(Slot::Training), "../SharedData/HybridX/act_training.json");
     EXPECT_EQ(slotPath(static_cast<Slot>(kSlotCount)), nullptr);
-    EXPECT_EQ(static_cast<uint8_t>(Slot::Workout) + 1, kSlotCount);
+    EXPECT_EQ(static_cast<uint8_t>(Slot::Training) + 1, kSlotCount);
 }

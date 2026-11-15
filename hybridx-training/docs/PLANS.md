@@ -1,14 +1,16 @@
-# HybridX Training: the pace model and the three plans (version 2)
+# HybridX Training: the pace model and the three plans (version 2.1)
 
-**Status:** version 2, 14 November 2026, after the independent review (`REVIEW.md`; its
-finding numbers, C1-C14, are cited below). Still a draft for Jon to correct: the content is
+**Status:** version 2.1, 15 November 2026: version 2 (14 November, after the independent review,
+`REVIEW.md`; its finding numbers, C1-C14, are cited below) checked against Daniels' book, with
+its paces, limits and interval jogs brought to it (NOTES "Daniels' book"). Still a draft for Jon to correct: the content is
 a coach's to own. Version 1 is in the history (`PLANS_DRAFT.md`, commit `0e1b710`).
 Read with `HYBRIDX_TRAINING_BRIEF.md`.
 
 Marks, as in `hybridx-run/docs/RACE_PREDICTIONS.md`:
 - **[computed]**: worked out here from a published formula;
-- **[secondary]**: from web-search summaries of secondary sources (study notes of Daniels'
-  book, calculators); agreed between sources unless said otherwise; not yet read in the book;
+- **[book]**: read in Daniels' *Running Formula*, 4th edition (2022), the chapter or table
+  named (15 November 2026; NOTES "Daniels' book"). Every **[secondary]** mark of version 2 has
+  been checked there: two of its figures were wrong (VDOT 40's easy range and repetition pace);
 - **[convention]**: common coaching practice without strong evidence; Jon's call.
 
 The plans are original: built from the principles below, not copied from a book or an app.
@@ -61,18 +63,25 @@ times, never as a number beside X Run's VO2max, which is on another scale (revie
 
 | Pace | Code | Worked out as | Checked |
 |---|---|---|---|
-| Easy | E | A range: the speeds costing **62.5%** and **72.5%** of the fitness | Table rows for fitness 51 (4:52-5:29 /km) and 40 (5:59-6:44) [secondary]; the model gives 4:54-5:31 and 5:57-6:41 [computed] |
+| Easy | E | A range: the speeds costing **63%** and **73%** of the fitness | Table 5.2, VDOT 30 to 85: within 3 s/km at both ends [book, computed] (62.5% and 72.5% of version 2 were up to 6 s slow) |
 | Marathon | M | The race equation at 42.195 km. Shown, not used | RACE_PREDICTIONS §4.3 |
 | Half marathon | HM | The race equation at 21.0975 km, or the runner's own half (2.4) | Riegel agrees within 15 s, 18:00 to 36:00 [computed] |
-| Threshold | T | **88%** of the fitness | Fitness 40, 45 and 51: 5:06, 4:38, 4:11 [secondary]; the model gives the same to the second [computed] |
+| Threshold | T | **88%** of the fitness | Tables 5.2 and 5.3, VDOT 20 to 85: within 1 s/km [book, computed] |
 | 10K | 10K | The race equation at 10 km | Riegel agrees within 15 s [computed] |
-| Interval | I | **97.5%** of the fitness | Fitness 51: 3:51 [secondary]; the model 3:51 [computed] |
-| Repetition | R | Interval pace less 6 s per 400 m (15 s/km) | Fitness 40, 45, 51: 108, 96, 86 s per 400 m [secondary]; the model 107, 96, 86 [computed] |
+| Interval | I | **97.5%** of the fitness; below fitness 31 it eases towards threshold less 20 s/km, reached at 28 | Tables 5.2 and 5.3, VDOT 20 to 85: within 2 s/km [book, computed]. Daniels' novice table (5.3) keeps interval about 20 s/km faster than threshold; 97.5% alone was up to 20 s/km too fast for a 40-minute 5K |
+| Repetition | R | Interval pace less 6 s per 400 m (15 s/km) from fitness 50; less 8 s per 400 m (20 s/km) at 47 and below; in between, from one to the other | Daniels' "6-second rule", "a 7- or 8-second rule for runners in the 50 or 40 VDOT categories" (ch. 5); Tables 5.2 and 5.3, VDOT 20 to 85: within 4 s/km [book, computed] (6 s throughout, as in version 2, was up to 9 s/km slow) |
 
-Daniels gives E as 59-74% of VO2max, T as 86-88% (some sources 83-88%) and I as 95-100%
-[secondary]; the fractions above are the points in those ranges that reproduce his table.
-**Still to do:** ten rows of the table read from the book into a fixture file (REVIEW §5).
-The host tests then hold the model to them, within ±3 s/km.
+Daniels gives E as 59-74% of VO2max, M 75-84%, T 85-88% ("more like 80 to 86 percent" for
+lesser-trained runners), I 95-100% and R 105-120% (figure 4.1) [book]; the fractions above are
+the points in those ranges that reproduce his tables. **All 66 rows of his Tables 5.1 to 5.3**
+(VDOT 20 to 85: race times, and E, M, T, I and R paces) are in `Tests/Host/fixtures/daniels_vdot.csv`,
+read from the book by hand; `DanielsTest.cpp` holds the model to them: T within 2 s/km, E and I
+within 3, R within 5 (his slowest R are whole seconds per 200 m), and the predicted 10K, half and
+marathon within a quarter of a per cent of Table 5.1.
+
+One difference stays, on purpose: our marathon pace is the predicted race's. From VDOT 45 that is
+also Daniels' M training pace; below it his M is slower than his own predicted marathon (by up to
+18 s/km at VDOT 20). The plans never use M pace.
 
 ### 2.3 Examples [computed]
 
@@ -80,12 +89,12 @@ Per kilometre, from the 5K alone:
 
 | 5K | Easy | Marathon | Half | Threshold | 10K | Interval | Repetition | Predicted 10K | Predicted half |
 |---|---|---|---|---|---|---|---|---|---|
-| 18:00 | 4:31-5:06 | 4:05 | 3:55 | 3:52 | 3:44 | 3:33 | 3:18 | 37:20 | 1:22:33 |
-| 20:00 | 4:59-5:37 | 4:32 | 4:21 | 4:16 | 4:09 | 3:56 | 3:41 | 41:28 | 1:31:50 |
-| 22:00 | 5:27-6:08 | 4:59 | 4:48 | 4:40 | 4:34 | 4:18 | 4:03 | 45:37 | 1:41:07 |
-| 25:00 | 6:09-6:55 | 5:38 | 5:27 | 5:16 | 5:11 | 4:51 | 4:36 | 51:53 | 1:55:04 |
-| 28:00 | 6:50-7:40 | 6:17 | 6:07 | 5:52 | 5:49 | 5:25 | 5:10 | 58:11 | 2:08:57 |
-| 32:00 | 7:45-8:40 | 7:09 | 6:59 | 6:40 | 6:40 | 6:09 | 5:54 | 1:06:35 | 2:27:20 |
+| 18:00 | 4:30-5:04 | 4:05 | 3:55 | 3:52 | 3:44 | 3:33 | 3:18 | 37:20 | 1:22:33 |
+| 20:00 | 4:58-5:35 | 4:32 | 4:21 | 4:16 | 4:09 | 3:56 | 3:41 | 41:28 | 1:31:50 |
+| 22:00 | 5:26-6:06 | 4:59 | 4:48 | 4:40 | 4:34 | 4:18 | 3:58 | 45:37 | 1:41:07 |
+| 25:00 | 6:07-6:52 | 5:38 | 5:27 | 5:16 | 5:11 | 4:51 | 4:31 | 51:53 | 1:55:04 |
+| 28:00 | 6:48-7:37 | 6:17 | 6:07 | 5:52 | 5:49 | 5:25 | 5:05 | 58:11 | 2:08:57 |
+| 32:00 | 7:42-8:37 | 7:09 | 6:59 | 6:40 | 6:40 | 6:18 | 5:58 | 1:06:35 | 2:27:20 |
 
 - **For slower runners threshold meets 10K pace** (32:00: both 6:40), because their 10K
   lasts over an hour and threshold is roughly one-hour race pace. The Paces screen says so.
@@ -149,8 +158,8 @@ session longer rather than easier, and a hill or a 30-second rep has no distance
 | `L t` | Long run | t min easy | "Builds your endurance" |
 | `L t (x HM)` | Long run, fast finish | t − x min easy, then x min at HM. **A hard day** | "Endurance, then race pace" |
 | `TEMPO t` | Tempo run | WU, t min at T, CD | "Raises your threshold" |
-| `CRUISE n x t` | Cruise intervals | WU, n x (t min at T), jogs of 1 min per 5 min of rep, CD [secondary: Daniels' mile reps with 1 min] | "Threshold in pieces" |
-| `INT n x t` | Intervals | WU, n x (t min at I), jogs of about 60% of the rep unless the table says otherwise, CD | "Builds your VO2max" |
+| `CRUISE n x t` | Cruise intervals | WU, n x (t min at T), jogs of 1 min per 5 min of rep, CD [book: "about 5 to 1"; 1 mile T with 1 min rests, 2 miles with 2] | "Threshold in pieces" |
+| `INT n x t` | Intervals | WU, n x (t min at I), jogs of about three quarters of the rep unless the table says otherwise, CD [book: 1:1 work to rest; his examples 3 min with 2 min jog, 4 with 3, 5 with 4] | "Builds your VO2max" |
 | `30/30 s x n` | 30-30s | WU, s sets of n x (30 s at I, 30 s easy), 3 min easy between sets, CD (Billat 2001; section 10) | "VO2max in short bites" |
 | `HILLS n x t` | Hill reps | WU, n x (t s uphill, strong; jog back down, ended by a lap press), CD | "Strength and form" |
 | `REPS n x d` | Repetitions | WU, n x (d at R, an equal distance jogged), CD. Levels 2 and 3 only | "Speed and form" |
@@ -170,24 +179,34 @@ session longer rather than easier, and a hill or a 30-second rep has no distance
 
 ### 3.3 Limits per session
 
-Daniels' limits [secondary]: I the lesser of 10 km or 8% of the week; R the lesser of 8 km or
-5%; T 10% (to 30 minutes if broken up); the long run 30% of the week under 40 miles a week,
-else 25% or 150 minutes. Turned into minutes at each level's typical week (C2):
+Daniels' limits [book, figure 4.1 and chapter 4]: I the lesser of 10 km and 8% of the week, bouts
+to 5 minutes; R the lesser of 8 km (5 miles) and 5%, bouts to 2 minutes; T 10% of the week, a
+steady tempo of about 20 minutes at most, or up to 30 minutes broken into cruise intervals; E runs
+of 30 to 150 minutes; the long run 30% of the week under 40 miles a week, else the lesser of 25%
+and 150 minutes. Turned into minutes at each level's weeks (C2), and checked against his own
+plans for runners of the same volume (chapter 8): the red plan (4 days a week, about 30 km) has
+15-16 minutes of I, threshold sessions of 3 x 1 mile to 2 x 2 miles and a 20-minute tempo; the
+blue (64-84 km) 16 minutes of I, 3.2 km of R and a 20-minute tempo. He adds that it "is always
+best to think in terms of time spent running at various intensities, rather than distances
+covered" (chapter 4), which is principle 2.
 
 | | Level 1 | Level 2 | Level 3 |
 |---|---|---|---|
-| Interval work, total | 12 min, reps to 3 min | 18 min, reps to 4 min | 24 min, reps to 5 min |
-| Tempo, continuous | 15 min | 20 min | 25 min |
-| Cruise intervals, total | 20 min | 30 min | 40 min |
-| Repetitions, total | none | 2.4 km | 3.2 km |
+| Interval work, total | 10 min, reps to 3 min | 16 min, reps to 4 min | 20 min, reps to 5 min |
+| Tempo, continuous | 15 min | 20 min | 20 min |
+| Cruise intervals, total | 20 min | 30 min | 30 min |
+| Repetitions, total | none | 2.0 km | 3.2 km |
 | 10K pace, total | 16 min | 27 min | 32 min |
 | Half pace, total | 25 min | 40 min | 50 min |
 | Fast finish of a long run | 10-15 min | 20-30 min | 30-40 min |
 | Long run | 150 min at most, at every level |
 
-`PlanBuilder` enforces the caps whatever the plan file says. At level 2 a 22:00 runner's
-18 min of intervals is about 9% of a 40-47 km week, and the long run about a third of it at
-4 runs a week [computed]: just over Daniels' figures, which assume more runs.
+`PlanBuilder` enforces the caps whatever the plan file says, and the plan files are written within
+level 2's. Version 2's caps were above the book: 12, 18 and 24 minutes of intervals (about 10-12%
+of the levels' weeks), 2.4 km of repetitions at level 2 (7% of its week), and a 25-minute tempo
+and 40 minutes of cruise intervals at level 3, past his 20 and 30. They now sit at his percentages
+of each level's weeks in this plan (level 1 about 18 km, level 2 about 35, level 3 about 60), and
+at his own plans' sessions. Easy runs are never shorter than his 30 minutes (level 1's were 20-25).
 
 **With three run days a long run's fast finish is at most 20 minutes** (coach review, 15 November
 2026): the long run is then one of only three runs, and a hard one, so a half-marathon plan's
@@ -208,7 +227,7 @@ long-run caps are the level's range and 150 minutes.
 | | Level 1 | Level 2 | Level 3 |
 |---|---|---|---|
 | Running now | up to 20 km (12 mi) a week | about 20-40 km (12-25 mi) | over 40 km (25 mi) |
-| Easy run | 25-35 min | 35-45 min | 45-60 min |
+| Easy run | 30-35 min | 35-45 min | 45-60 min |
 | Long run, 10K (start → peak) | 45 → 70 min | 60 → 85 min | 70 → 100 min |
 | Long run, half | 60 → 105 min | 70 → 115 min | 80 → 130 min |
 | Half: the peak long run is at least | 16 km | 18 km | 20 km |
@@ -272,11 +291,11 @@ Level 2, four runs (Tuesday, Wednesday, Friday, Sunday). ★ is the key session.
 |---|---|---|---|---|---|
 | 1 | Base | `E+S 40` | `E 35` | `CRUISE 3 x 6` ★ | `L 60` |
 | 2 | Base | `HILLS 8 x 45 s` | `E+S 40` | `CRUISE 4 x 6` ★ | `L 65` |
-| 3 | Base | `REPS 6 x 400 m` | `E+S 40` | `TEMPO 20` ★ | `L 70` |
+| 3 | Base | `REPS 5 x 400 m` | `E+S 40` | `TEMPO 20` ★ | `L 70` |
 | 4 | Cut-back | `E+S 35` | `E 35` | `E 30` | `TT5` ★ |
 | 5 | Build | `INT 5 x 3` ★ | `E+S 40` | `CRUISE 3 x 8` | `L 75` |
 | 6 | Build | `INT 4 x 4` ★ | `E+S 45` | `CRUISE 3 x 10` | `L 80` |
-| 7 | Build | `INT 6 x 3` | `E+S 45` | `RP10 4 x 5`, 90 s jogs ★ | `L 85` |
+| 7 | Build | `INT 5 x 3` | `E+S 45` | `RP10 4 x 5`, 90 s jogs ★ | `L 85` |
 | 8 | Cut-back | `E+S 35` | `E 35` | `E 30` | `TT5` ★ (tune-up, two weeks out) |
 | 9 | Peak | `INT 4 x 4` | `E+S 40` | `RP10 3 x 9`, 2 min jogs ★ | `L 70` |
 | 10 | Race week | `RP10 4 x 4`, 2 min jogs ★ | `E+S 30` | `SHAKE` | `RACE 10 km` |
@@ -293,7 +312,7 @@ Week 6 for a 22:00 runner is about 40 km [computed].
 | 4 | Cut-back | `E+S 35` | `E 35` | `E 30` | `TT5` ★ |
 | 5 | Build | `INT 4 x 4` | `E+S 45` | `CRUISE 3 x 10` ★ | `L 95` |
 | 6 | Build | `CRUISE 2 x 15` ★ | `E 45` | `E+S 40` | `L 100 (20 HM)` |
-| 7 | Build | `INT 6 x 3` | `E+S 45` | `RPHM 3 x 10`, 2 min jogs ★ | `L 105` |
+| 7 | Build | `INT 5 x 3` | `E+S 45` | `RPHM 3 x 10`, 2 min jogs ★ | `L 105` |
 | 8 | Cut-back | `E+S 35` | `E 40` | `E 30` | `TT10` ★ (tune-up, four weeks out) |
 | 9 | Specific | `CRUISE 3 x 10` | `E+S 45` | `RPHM 2 x 20`, 3 min jog ★ | `L 115` |
 | 10 | Specific | `TEMPO 20` ★ | `E 45` | `E+S 40` | `L 100 (30 HM)` |
@@ -316,10 +335,10 @@ its **main measure**. X Run's VO2max, where the runner has X Run, is the second.
 | 2 | Build | `INT 5 x 3` ★ | `E+S 40` | `30/30 2 x 8` | `L 65` |
 | 3 | Build | `INT 4 x 4` ★ (Helgerud et al. 2007) | `E+S 40` | `HILLS 8 x 60 s` | `L 70` |
 | 4 | Cut-back | `INT 4 x 3` ★ | `E 35` | `E+S 35` | `L 55` |
-| 5 | Build | `INT 6 x 3` ★ | `E+S 45` | `30/30 2 x 10` | `L 75` |
+| 5 | Build | `INT 5 x 3` ★ | `E+S 45` | `30/30 2 x 10` | `L 75` |
 | 6 | Build | `INT 4 x 4`, 2 min jogs ★ | `E+S 45` | `HILLS 10 x 60 s` | `L 75` |
-| 7 | Peak | `INT 6 x 3`, 90 s jogs ★ | `E+S 45` | `30/30 2 x 8` | `L 80` |
-| 8 | Retest | `INT 3 x 3` | `E 30` | `E 25` | `TT5` ★ |
+| 7 | Peak | `INT 5 x 3`, 90 s jogs ★ | `E+S 45` | `30/30 2 x 8` | `L 80` |
+| 8 | Retest | `INT 3 x 3` | `E 30` | `E 30` | `TT5` ★ |
 
 - With a recent 5K, week 1 is `INT 5 x 2` ★, `E+S 40`, `HILLS 6 x 45 s`, `L 60` instead: the
   neuromuscular load first, the 30-30s from week 2.
@@ -327,10 +346,11 @@ its **main measure**. X Run's VO2max, where the runner has X Run, is the second.
   that stood two days before it were dropped), and week 7's Friday is `30/30 2 x 8`, not `3 x 8`,
   so the runner does not carry 30 minutes of interval-pace work into the retest (coach review,
   15 November 2026).
-- The progression is in density (shorter jogs), not only volume, within level 2's 18 minutes.
+- The progression is in density (shorter jogs), not only volume, within level 2's 16 minutes
+  (Daniels' figure 4.1 and his red plan; the 6 x 3 of version 2 was 18).
 - At the end the Plan screen shows, for example (made-up results): "5K 22:00 → 21:20.
   VO2max (X Run) 45.1 → 46.0".
-- Level 1: `INT` of 4-5 x 2 min rising to 4 x 3 min, `HILLS` in place of the 30-30s in
+- Level 1: `INT` of 3 x 2 min rising to 3 x 3 min (10 minutes at most), `HILLS` in place of the 30-30s in
   alternate weeks, and a note at set-up that the block suits runners with a few months of
   regular running behind them.
 
@@ -342,18 +362,18 @@ half plan, as `plan_print` prints it (TP1; the same code the watch will run):
 | Day | Today screen | Steps | About |
 |---|---|---|---|
 | Mon | REST DAY. Next: Tue, Intervals | — | — |
-| Tue | INTERVALS, 6 x 3 min @ 4:12-4:24 /km, about 700 m each. "Builds your VO2max" | Warm up 15 min; 6 x (3 min @ 4:12-4:24, 1:45 jog); cool down 10 min | 10.0 km, 54 min |
-| Wed | EASY RUN, STRIDES, 45 min, easy: slower than 5:27 /km. "Easy, strides for form" | 45 min easy; 6 x (20 s stride, 1 min easy) | 9.2 km, 53 min |
+| Tue | INTERVALS, 5 x 3 min @ 4:12-4:24 /km, about 700 m each. "Builds your VO2max" | Warm up 15 min; 5 x (3 min @ 4:12-4:24, 2:15 jog); cool down 10 min | 9.5 km, 51 min |
+| Wed | EASY RUN, STRIDES, 45 min, easy: slower than 5:26 /km. "Easy, strides for form" | 45 min easy; 6 x (20 s stride, 1 min easy) | 9.2 km, 53 min |
 | Thu | REST DAY. Next: Fri, Half pace | — | — |
 | Fri | HALF PACE ★, 3 x 10 min @ 4:43-4:53 /km, about 2.1 km each. "Race pace" | Warm up 15 min; 3 x (10 min @ 4:43-4:53, 2 min jog); cool down 10 min | 11.5 km, 61 min |
 | Sat | REST DAY. Next: Sun, Long run | — | — |
-| Sun | LONG RUN, 105 min, easy: slower than 5:27 /km. "Builds your endurance" | 105 min easy | 18.2 km, 105 min |
+| Sun | LONG RUN, 105 min, easy: slower than 5:26 /km. "Builds your endurance" | 105 min easy | 18.3 km, 105 min |
 
-The week is about 49 km and 4:33: 18 minutes at interval pace and 30 at half pace, the rest
+The week is about 48 km and 4:30: 15 minutes at interval pace and 30 at half pace, the rest
 easy. Two things the build settled that the draft left loose: each rep is followed by its
 recovery, the last one included (it leads into the cool-down, and keeps the watch's "rep 3 of
-6" count simple); and the interval jog is the rule's 1:45 (60% of 3 minutes), not 2 minutes,
-because the plan file gives none.
+5" count simple); and the interval jog is the rule's 2:15 (three quarters of 3 minutes, near
+Daniels' 1:1), because the plan file gives none.
 
 ## 9. Open questions on the content (for Jon)
 
@@ -380,9 +400,10 @@ None blocks TP1: every number above lives in a plan text file and is cheap to ch
 ## 10. Sources
 
 - Daniels J, Gilbert J. *Oxygen Power: Performance Tables for Distance Runners*. 1979.
-- Daniels J. *Daniels' Running Formula* (3rd ed. 2014; 4th ed. 2021), by way of secondary
-  sources: the training-pace table rows in 2.2, the intensity ranges, and the limits in 3.3.
-  **To be read in the book** (REVIEW §5).
+- Daniels J. *Daniels' Running Formula*, 4th ed. Champaign, IL: Human Kinetics, 2022. Read for
+  this plan (15 November 2026): chapter 4 and figure 4.1 (intensities, limits per session, work
+  to rest), chapter 5 and Tables 5.1 to 5.3 (all 66 rows, in the host tests), chapter 8 (the
+  white, red and blue plans, as a check on the limits at low volume).
 - Riegel PS. Athletic records and human endurance. *American Scientist* 1981;69(3):285-290.
 - Seiler KS, Kjerland GØ. *Scand J Med Sci Sports* 2006;16(1):49-56. Seiler S. *Int J Sports
   Physiol Perform* 2010;5(3):276-291.

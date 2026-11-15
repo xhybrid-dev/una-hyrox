@@ -26,11 +26,17 @@ using SDK::Workout::StepEnd;
 using SDK::Workout::Target;
 namespace Fit = SDK::Fit;
 
+// Checked against Daniels' Running Formula, 4th edition (2022), figure 4.1 and chapter 4: I the
+// lesser of 10 km and 8% of the week, bouts to 5 min; T a steady 20 min at most, or 30 min in
+// cruise intervals, about 10% of the week; R the lesser of 8 km and 5%, bouts to 2 min; L at most
+// 150 min. In minutes at each level's weeks (PLANS.md 3.3), and his own plans for runners of the
+// same volume (chapter 8: the red plan, 4 days a week, has 15-16 min of I; the blue, 64-84 km, 16
+// min of I, 3.2 km of R and a 20 min tempo).
 constexpr LevelCaps kCaps[kLevels] = {
     // interval, rep max, tempo, cruise, reps, 10K pace, half pace, finish, long, warm-up
-    {12 * 60, 3 * 60, 15, 20 * 60, 0, 16 * 60, 25 * 60, 15, 150, 10},
-    {18 * 60, 4 * 60, 20, 30 * 60, 2400, 27 * 60, 40 * 60, 30, 150, 15},
-    {24 * 60, 5 * 60, 25, 40 * 60, 3200, 32 * 60, 50 * 60, 40, 150, 15},
+    {10 * 60, 3 * 60, 15, 20 * 60, 0, 16 * 60, 25 * 60, 15, 150, 10},
+    {16 * 60, 4 * 60, 20, 30 * 60, 2000, 27 * 60, 40 * 60, 30, 150, 15},
+    {20 * 60, 5 * 60, 20, 30 * 60, 3200, 32 * 60, 50 * 60, 40, 150, 15},
 };
 
 constexpr uint16_t kCoolDownMin = 10;
@@ -64,11 +70,12 @@ const LevelCaps& capsAt(uint8_t level)
 }
 
 /// Easy minutes at a level: level 2 as written, level 1 three quarters,
-/// level 3 five quarters, to 5 min (PLANS.md 4.1).
+/// level 3 five quarters, to 5 min (PLANS.md 4.1); never under 30 min, Daniels' shortest E run
+/// ("30 minutes be the minimum duration of any E run", chapter 4; figure 4.1: 30-150 min).
 uint16_t easyMinutes(uint16_t a, uint8_t level)
 {
     if (level == 1) {
-        return clamp16(round5(roundDiv(a * 3u, 4)), 20, 35);
+        return clamp16(round5(roundDiv(a * 3u, 4)), 30, 35);
     }
     if (level == 3) {
         return clamp16(round5(roundDiv(a * 5u, 4)), 35, 60);
@@ -619,8 +626,9 @@ uint16_t defaultJogSec(Kind k, uint16_t repSec)
         return j < 60 ? 60 : j;
     }
     case Kind::Intervals: {
-        // About 60% of the rep, in 15 s steps, at least 1 min.
-        const uint16_t j = roundTo(roundDiv(repSec * 6u, 10), 15);
+        // About three quarters of the rep, in 15 s steps, at least 1 min: near Daniels' 1:1
+        // work to rest for I, and his own examples (3 min with 2 min jog, 4 with 3, 5 with 4).
+        const uint16_t j = roundTo(roundDiv(repSec * 3u, 4), 15);
         return j < 60 ? 60 : j;
     }
     case Kind::Pace10k:

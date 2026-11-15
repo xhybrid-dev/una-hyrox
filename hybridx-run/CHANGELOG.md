@@ -11,6 +11,20 @@ prefix for the SDK's version script. The store release of the Streak family:
 
 ## [Unreleased]
 
+### Added
+
+- X Training's runs count towards the VO2max, as Trail's do: X Training leaves each run's steady
+  minutes in `../SharedData/HybridX/training_vo2_0..2.json`, and X Run reads them when it opens,
+  judges them by its own rules and adds them to the history (X Training's TP4; NOTES "X
+  Training's runs").
+
+### Changed
+
+- `vo2.json` is version 5: a second mark (`"training"`) and a third source (2, X Training).
+  Versions 1 to 4 still read; an older X Run cannot read version 5.
+- The activity link has a sixth slot (`act_training.json`): the Streak line also counts X
+  Training's runs.
+
 ## [1.0.0] - 2026-11-09
 
 The first store release. On the watch the app list calls it **X Run**

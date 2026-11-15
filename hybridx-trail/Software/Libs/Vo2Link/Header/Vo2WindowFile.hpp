@@ -4,8 +4,9 @@
  * @brief   One run's window records as a JSON file, for the shared folder.
  *
  * HybridX Trail writes one of these per saved run (kWindowFilePaths: three
- * slots in ../SharedData/HybridX/, the oldest overwritten); HybridX Run reads them, judges each window with its
- * own profile and rules, and adds the run to its history.
+ * slots in ../SharedData/HybridX/, the oldest overwritten), and X Training the same in
+ * its own three (kTrainingWindowFilePaths: one writer per file); HybridX Run reads them,
+ * judges each window with its own profile and rules, and adds the run to its history.
  *
  *   {"v":1,"id":1791980037,"max":179,
  *    "w":[[420,60,1870,18,2997,0,1623,160,165],...]}
@@ -17,7 +18,7 @@
  * every value (the SDK's reader does no range check) and a file that is
  * missing, malformed or from a newer version reads as nothing.
  *
- * Copied byte for byte into Trail (with Vo2Window.*). The SDK's JSON reader
+ * Copied byte for byte into Trail and X Training (with Vo2Window.*). The SDK's JSON reader
  * searches from the start of the text for each value, so it is read one
  * window at a time by index and Run skips runs it has already counted.
  ******************************************************************************
@@ -52,7 +53,14 @@ inline constexpr const char* kWindowFilePaths[kWindowFileSlots] = {
     "../SharedData/HybridX/trail_vo2_2.json",
 };
 
-/// The slot Trail writes next: an empty one (ids[i] = 0), else the one holding
+/// X Training's files, the same format and rules (X Training's TP4).
+inline constexpr const char* kTrainingWindowFilePaths[kWindowFileSlots] = {
+    "../SharedData/HybridX/training_vo2_0.json",
+    "../SharedData/HybridX/training_vo2_1.json",
+    "../SharedData/HybridX/training_vo2_2.json",
+};
+
+/// The slot a writer (Trail, X Training) writes next: an empty one (ids[i] = 0), else the one holding
 /// the oldest run (the smallest ID). @p ids has kWindowFileSlots entries.
 uint8_t windowFileSlotToWrite(const uint32_t* ids);
 

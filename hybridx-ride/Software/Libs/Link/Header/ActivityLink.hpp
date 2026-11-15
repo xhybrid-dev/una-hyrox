@@ -159,17 +159,19 @@ size_t append(const char* oldText, size_t oldLen, const char* app, const Entry& 
 
 /// The apps that have a file. HybridX Streak opens every one that exists, so an
 /// app listed here that is not built yet costs a failed open and nothing more.
-/// A new app takes the next free slot (and a Streak release); ride and workout
-/// are reserved now so those apps work with a Streak already released.
+/// A new app takes the next free slot (and a Streak release): ride and workout
+/// were reserved early so those apps worked with a Streak already released;
+/// training came with X Training's TP4 and the Streak release that reads it.
 enum class Slot : uint8_t {
-    Run     = 0,
-    Race    = 1,
-    Trail   = 2,
-    Ride    = 3,
-    Workout = 4,
+    Run      = 0,
+    Race     = 1,
+    Trail    = 2,
+    Ride     = 3,
+    Workout  = 4,
+    Training = 5,   ///< X Training (hybridx-training), from its TP4
 };
 
-inline constexpr uint8_t kSlotCount = 5;
+inline constexpr uint8_t kSlotCount = 6;
 inline constexpr uint8_t kMaxSlots  = 8;   ///< room to grow without a bigger table in the reader
 
 inline constexpr const char* kSlotPaths[kSlotCount] = {
@@ -178,6 +180,7 @@ inline constexpr const char* kSlotPaths[kSlotCount] = {
     "../SharedData/HybridX/act_trail.json",
     "../SharedData/HybridX/act_ride.json",
     "../SharedData/HybridX/act_workout.json",
+    "../SharedData/HybridX/act_training.json",
 };
 
 /// The folder that holds them (for mkdir).

@@ -12,41 +12,10 @@ namespace {
 
 int diff(uint32_t a, uint32_t b) { return std::abs(static_cast<int>(a) - static_cast<int>(b)); }
 
-// Daniels' training-pace table rows found in the review (REVIEW.md section 1),
-// from secondary sources; s/km, and s per 400 m for repetition. Replace with
-// rows read from the book (NOTES.md, open items) and keep the +/-3 s/km rule.
-struct Row {
-    float    fitness;
-    uint16_t easyFast, easySlow;  // 0 = not in the source
-    uint16_t threshold;
-    uint16_t interval;
-    uint16_t rep400;
-};
-constexpr Row kRows[] = {
-    {51.0f, 4 * 60 + 52, 5 * 60 + 29, 4 * 60 + 11, 3 * 60 + 51, 86},
-    {40.0f, 5 * 60 + 59, 6 * 60 + 44, 5 * 60 + 6, 0, 108},
-    {45.0f, 0, 0, 4 * 60 + 38, 0, 96},
-};
-
 }  // namespace
 
-TEST(PaceModel, TrainingPacesMatchThePublishedRows)
-{
-    for (const Row& r : kRows) {
-        SCOPED_TRACE(r.fitness);
-        if (r.easyFast != 0) {
-            EXPECT_LE(diff(PaceModel::paceAt(r.fitness, kEasyFast), r.easyFast), 3);
-            EXPECT_LE(diff(PaceModel::paceAt(r.fitness, kEasySlow), r.easySlow), 3);
-        }
-        EXPECT_LE(diff(PaceModel::paceAt(r.fitness, kThreshold), r.threshold), 3);
-        const uint16_t interval = PaceModel::paceAt(r.fitness, kInterval);
-        if (r.interval != 0) {
-            EXPECT_LE(diff(interval, r.interval), 3);
-        }
-        const uint32_t rep400 = (static_cast<uint32_t>(interval - kRepetitionFasterSPerKm) * 4u + 5u) / 10u;
-        EXPECT_LE(diff(rep400, r.rep400), 2);
-    }
-}
+// Every row of Daniels' tables (the book itself, not secondary sources, which had VDOT 40's
+// easy range and repetition pace wrong) is in DanielsTest.cpp.
 
 TEST(PaceModel, RaceTableAtFitness50)
 {
@@ -85,14 +54,14 @@ TEST(PaceModel, TheReviewsExampleRunner)
     const PaceResult r = PaceModel::compute({22 * 60, 0});
     ASSERT_TRUE(r.ok);
     EXPECT_NEAR(r.fitness5k, 44.5f, 0.05f);
-    EXPECT_EQ(r.paces.easyFast, 5 * 60 + 27);
-    EXPECT_EQ(r.paces.easySlow, 6 * 60 + 8);
+    EXPECT_EQ(r.paces.easyFast, 5 * 60 + 26);   // Table 5.2 at 44.5: 5:26-6:06
+    EXPECT_EQ(r.paces.easySlow, 6 * 60 + 6);
     EXPECT_EQ(r.paces.marathon, 4 * 60 + 59);
     EXPECT_EQ(r.paces.half, 4 * 60 + 48);
     EXPECT_EQ(r.paces.threshold, 4 * 60 + 40);
     EXPECT_EQ(r.paces.tenK, 4 * 60 + 34);
     EXPECT_EQ(r.paces.interval, 4 * 60 + 18);
-    EXPECT_EQ(r.paces.repetition, 4 * 60 + 3);
+    EXPECT_EQ(r.paces.repetition, 3 * 60 + 58);   // interval less 8 s per 400 m (fitness under 47)
     EXPECT_LE(diff(r.predicted10kSec, 45 * 60 + 37), 1);
     EXPECT_LE(diff(r.predictedHalfSec, 3600 + 41 * 60 + 7), 1);
     EXPECT_FALSE(r.enduranceGap);
@@ -138,8 +107,8 @@ TEST(PaceModel, TheHalfSetsHalfPaceAndEasyAndShowsTheGap)
     EXPECT_NEAR(r.fitnessHalf, 42.6f, 0.05f);
     EXPECT_LE(diff(r.halfAs5kSec, 22 * 60 + 50), 2);
     EXPECT_EQ(r.paces.half, 4 * 60 + 59);       // from the half itself
-    EXPECT_EQ(r.paces.easyFast, 5 * 60 + 39);   // from the half's fitness
-    EXPECT_EQ(r.paces.easySlow, 6 * 60 + 21);
+    EXPECT_EQ(r.paces.easyFast, 5 * 60 + 37);   // from the half's fitness
+    EXPECT_EQ(r.paces.easySlow, 6 * 60 + 19);
     EXPECT_EQ(r.paces.threshold, 4 * 60 + 40);  // still the 5K's
     EXPECT_EQ(r.paces.interval, 4 * 60 + 18);
     // 22:50 is 3.8% slower than 22:00: under the 4% line.

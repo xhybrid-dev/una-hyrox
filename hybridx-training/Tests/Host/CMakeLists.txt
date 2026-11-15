@@ -39,6 +39,7 @@ set(CORE_SOURCES
     "${CORE_LIBS}/Sources/PlanState.cpp"
     "${CORE_LIBS}/Sources/PlanSchedule.cpp"
     "${CORE_LIBS}/Sources/PlanProgress.cpp"
+    "${CORE_LIBS}/Sources/RunVo2Max.cpp"
 )
 set(SDK_JSON_SOURCES
     "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamReader.cpp"
@@ -75,6 +76,8 @@ add_executable(hybridx-training-host-tests
     PlanProgressTest.cpp
     RepJudgeTest.cpp
     HoldTimerTest.cpp
+    DanielsTest.cpp
+    RunVo2MaxTest.cpp
     GoldenTest.cpp
     "${TOOLS_DIR}/plan_print/PlanPrint.cpp"
     ${CORE_SOURCES}
@@ -90,6 +93,7 @@ target_include_directories(hybridx-training-host-tests PRIVATE
 )
 target_compile_definitions(hybridx-training-host-tests PRIVATE
     XTRAINING_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/golden"
+    XTRAINING_FIXTURE_DIR="${CMAKE_CURRENT_LIST_DIR}/fixtures"
 )
 target_link_libraries(hybridx-training-host-tests PRIVATE GTest::gtest_main)
 

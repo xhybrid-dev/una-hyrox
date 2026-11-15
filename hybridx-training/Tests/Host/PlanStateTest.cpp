@@ -54,6 +54,24 @@ TEST(PlanState, RoundTrip)
     EXPECT_EQ(back.find(20261217u), nullptr);
 }
 
+TEST(PlanState, XRunsVo2maxAtTheStartIsKeptAndOptional)
+{
+    // TP4: the VO2max block's second measure. Written only once there is one; a file from
+    // before TP4 (none) reads as before.
+    PlanState s = sample();
+    s.vo2StartX10 = 452;
+    const std::string text = json(s);
+    EXPECT_NE(text.find(",\"vo2s\":452}"), std::string::npos) << text;
+    PlanState back;
+    ASSERT_TRUE(back.fromJson(text.data(), text.size()));
+    EXPECT_EQ(back.vo2StartX10, 452);
+
+    const std::string before = json(sample());
+    EXPECT_EQ(before.find("vo2s"), std::string::npos);
+    ASSERT_TRUE(back.fromJson(before.data(), before.size()));
+    EXPECT_EQ(back.vo2StartX10, 0);
+}
+
 TEST(PlanState, RecordReplacesAndKeepsOrder)
 {
     PlanState s;
@@ -132,6 +150,8 @@ TEST(PlanState, RefusesBadValues)
         "\"log\":[[20261216,1,1,0],[20261215,1,1,0]]}",
         // a negative
         "{\"v\":1,\"s\":[2,2,86,6,0,0,0,1320,20261115,1,0,0],\"c\":[0,20261214,0,12],\"log\":[[20261216,1,1,-1]]}",
+        // X Run's VO2max out of its range (TP4)
+        "{\"v\":1,\"s\":[2,2,86,6,0,0,0,1320,20261115,1,0,0],\"c\":[0,20261214,0,12],\"log\":[],\"vo2s\":99}",
     };
     for (const char* t : bad) {
         PlanState s;

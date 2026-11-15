@@ -319,7 +319,7 @@ private:
 
     // HybridX Run
     void loadVo2();
-    void ingestTrailRuns();      ///< runs HybridX Trail left in the shared folder (L2)
+    void ingestSharedRuns(RunVo2::RunSource src);   ///< runs Trail (L2) or X Training (its TP4) left in the shared folder
     // Re-scoring (NOTES, "VO2max switched on"): each kept run's windows in Runs/<utc>.json.
     void rescoreIfNeeded();      ///< when the entered numbers or the method changed
     void writeRunFile(uint32_t utc, const char* text, size_t len);

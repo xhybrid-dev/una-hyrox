@@ -9,7 +9,12 @@
  *      "s":[plan,level,days,longDay,easyByHr,repsByDistance,raceDate,
  *           fiveKSec,fiveKDate,fiveKRecent,halfSec,halfDate],
  *      "c":[status,start,firstWeek,weeks],
- *      "log":[[date,kind,status,startUtc],...]}
+ *      "log":[[date,kind,status,startUtc],...],
+ *      "vo2s":452}
+ *
+ * "vo2s" (TP4, optional): X Run's VO2max x 10 as first seen in this plan, the
+ * VO2max block's second measure (RunVo2Max.hpp); absent until there is one.
+ * Older files read without it.
  *
  * Integers only, none negative (the family's rule: the SDK's JSON writer
  * misprints signed values on the host). Every value is range-checked on
@@ -80,6 +85,9 @@ public:
 
     PlanSetup setup;
     Calendar  calendar;
+    /// X Run's VO2max x 10 as first seen on or after the plan's start; 0 = not yet (TP4).
+    /// Shown beside the figure now; never used for paces.
+    uint16_t  vo2StartX10 = 0;
 
     void clear() { *this = PlanState{}; }
 
