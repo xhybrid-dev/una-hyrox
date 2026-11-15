@@ -92,7 +92,7 @@ inline const char* purpose(Kind k)
     case Kind::PaceHalf:     return "Race pace";
     case Kind::TimeTrial5k:  return "Sets your paces";
     case Kind::TimeTrial10k: return "Sets your paces";
-    case Kind::Shakeout:     return "Loosen up for race day";
+    case Kind::Shakeout:     return "Ready for race day";
     case Kind::Race:         return "Good luck";
     }
     return "";

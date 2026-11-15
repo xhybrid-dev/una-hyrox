@@ -66,6 +66,7 @@ public:
     virtual void onPlanPaces() {}
     virtual void onPlanSetup() {}     ///< the phone's set-up (Model::getPhoneSetup)
     virtual void onPlanPreview() {}   ///< a new plan's calendar (Model::getPlanPreview)
+    virtual void onPlanSaved() {}     ///< how a saved planned session counts (Model::getPlanSaved)
 
 protected:
     Model* model;

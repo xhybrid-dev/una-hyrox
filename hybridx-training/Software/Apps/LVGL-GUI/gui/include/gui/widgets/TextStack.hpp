@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdint>
 
+#include "gui/Audit.hpp"
 #include "gui/theme/Theme.hpp"
 #include "gui/widgets/WorkoutLabel.hpp"
 
@@ -39,12 +40,15 @@ public:
         for (WorkoutLabel& l : mLabels) {
             l.init(parent, Theme::Font::Medium18, SDK::GUI::Color::WHITE);
             l.setVisible(false);
+            Audit::track(l.obj());
         }
     }
 
-    /// Show @p n lines (at most kMaxLines), centred as a block on @p centreY.
-    void set(const Line* lines, uint8_t n, int32_t centreY = 124)
+    /// Show @p n lines (at most kMaxLines), centred as a block on @p centreY. True if every
+    /// line fitted whole (none cut with an ellipsis).
+    bool set(const Line* lines, uint8_t n, int32_t centreY = 124)
     {
+        bool whole = true;
         if (n > kMaxLines) {
             n = kMaxLines;
         }
@@ -70,6 +74,7 @@ public:
             if (l.width() > clearWidth(l, y + p / 2) && line.smaller != line.font) {
                 l.setFont(line.smaller);
             }
+            whole = whole && l.width() <= clearWidth(l, y + p / 2);
             l.fit(clearWidth(l, y + p / 2));
             l.setVisible(mVisible);
             y += p;
@@ -79,6 +84,7 @@ public:
             mLabels[i].setText("");
             mLabels[i].setVisible(false);
         }
+        return whole;
     }
 
     void setVisible(bool visible)

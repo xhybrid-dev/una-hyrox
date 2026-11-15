@@ -58,6 +58,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type PLAN_PACES                = 0x00000024;   // X Training: Paces
     constexpr SDK::MessageType::Type PLAN_SETUP                = 0x00000026;   // X Training: the phone's set-up
     constexpr SDK::MessageType::Type PLAN_PREVIEW              = 0x00000027;   // X Training: a new plan's calendar
+    constexpr SDK::MessageType::Type PLAN_SAVED                = 0x00000029;   // X Training: the Saved screen's lines
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -465,6 +466,11 @@ namespace CustomMessage {
         uint8_t  intensity;     ///< SDK::Workout::Intensity
         bool     next;          ///< The step after the current one
         bool     none;          ///< next only: nothing follows
+        // X Training (TP3), the current step only:
+        char     result[24];    ///< how the short rep just ended went: "Last rep 1:36"; empty for none
+        char     aim[24];       ///< its target: "aim 1:34-1:40"; empty for none
+        uint8_t  verdict;       ///< XTraining::RepJudge::Verdict
+        bool     holdToStart;   ///< the warm-up before a time trial or race: R2 must be held
 
         WorkoutStep()
             : SDK::MessageBase(WORKOUT_STEP)
@@ -476,6 +482,10 @@ namespace CustomMessage {
             , intensity(0)
             , next(false)
             , none(false)
+            , result{}
+            , aim{}
+            , verdict(0)
+            , holdToStart(false)
         {}
     };
 
@@ -749,6 +759,21 @@ namespace CustomMessage {
         PlanPreview() : SDK::MessageBase(PLAN_PREVIEW), info{} {}
     };
     static_assert(sizeof(PlanPreview) <= kMaxMessageBytes, "PlanPreview exceeds the 256-byte kernel pool block");
+
+    /// After a planned session is saved: how it counts, the week, and what is next.
+    struct PlanSavedInfo {
+        enum Outcome : uint8_t { None = 0, Done, PartDone, TooShort };
+        uint8_t  outcome      = None;
+        uint8_t  runWeek      = 0;
+        uint8_t  weekDone     = 0;
+        uint8_t  weekSessions = 0;
+        uint32_t nextDate     = 0;      ///< 0 for none
+        uint8_t  nextKind     = 0;      ///< XTraining::Kind
+    };
+    struct PlanSaved : public SDK::MessageBase {
+        PlanSavedInfo info;
+        PlanSaved() : SDK::MessageBase(PLAN_SAVED), info{} {}
+    };
 
     /// GUI -> Service: a plan screen's data.
     struct PlanRequest : public SDK::MessageBase {

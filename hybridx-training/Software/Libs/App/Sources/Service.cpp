@@ -37,6 +37,7 @@
 // HybridX Run
 #include "AppConfigFields.hpp"
 #include "PlanText.hpp"   // X Training
+#include "RepJudge.hpp"
 #include "TimeText.hpp"
 #include "data/PlanData.hpp"
 #include "SafeFile.hpp"
@@ -2097,9 +2098,13 @@ void Service::onWorkoutStepEnded(SDK::Workout::Engine::Change how)
     mLeadIn.stepStarted();
 
     // The step that ended is recorded as its own lap, before the next begins.
+    const uint16_t ended = mEngine.ended().step;
+    const bool lapSaved = mLapNotEmpty;
     if (mLapNotEmpty) {
         saveLap(endedStepLap(how));
     }
+    // X Training: a short rep is judged now, on the next step's card (brief 8.2).
+    judgeRep(ended, lapSaved, how == SDK::Workout::Engine::Change::Auto);
     mWorkoutReachedEnd = mWorkoutReachedEnd || mEngine.status().reachedEnd;
 
     if (mEngine.status().finished) {
@@ -2196,6 +2201,13 @@ void Service::sendWorkoutStep(const SDK::Workout::Step* step, bool next)
     }
     msg->next = next;
     msg->none = step == nullptr;
+    if (step && !next) {
+        // X Training: the last short rep's result, and the warm-up a time trial or race waits on.
+        std::memcpy(msg->result, mRepResult, sizeof(msg->result));
+        std::memcpy(msg->aim, mRepAim, sizeof(msg->aim));
+        msg->verdict     = mRepVerdict;
+        msg->holdToStart = holdToStart(*step);
+    }
     if (step) {
         const char* notes = step->notes[0] != '\0' ? step->notes : step->name;
         std::strncpy(msg->notes, notes, sizeof(msg->notes) - 1);
@@ -2725,15 +2737,32 @@ void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMes
                 if (PlanBuilder::build(day.asRun, mPaces.paces, o, def->raceCm, mProgram, meta)) {
                     info.plannedSec = meta.plannedSec;
                     info.plannedM   = meta.plannedM;
+                    const Kind k = day.asRun.kind;
                     if (meta.targetPace != 0) {
                         paceBand(info.target, sizeof(info.target), meta.targetPace, meta.targetPlusMinus, mIsImperial);
+                    } else if (k == Kind::TimeTrial5k || k == Kind::TimeTrial10k) {
+                        copyText(info.target, sizeof(info.target), "flat out");   // no target (PLANS.md 2.5)
+                    } else if (k == Kind::Hills) {
+                        copyText(info.target, sizeof(info.target), "strong, uphill");
                     } else if (mPlan.setup.easyByHr) {
                         copyText(info.target, sizeof(info.target), "easy, zone 2");
                     } else {
+                        // The easy range itself (a band round its middle would round one end).
                         char band[24];
-                        paceBand(band, sizeof(band), static_cast<uint16_t>((mPaces.paces.easyFast + mPaces.paces.easySlow) / 2),
-                                 static_cast<uint16_t>((mPaces.paces.easySlow - mPaces.paces.easyFast) / 2), mIsImperial);
-                        std::snprintf(info.target, sizeof(info.target), "easy %s", band);
+                        const uint16_t f = mPaces.paces.easyFast;
+                        const uint16_t s = mPaces.paces.easySlow;
+                        paceBand(band, sizeof(band), f, 0, mIsImperial);
+                        char slow[24];
+                        paceBand(slow, sizeof(slow), s, 0, mIsImperial);
+                        // "5:27-5:27 /km" and "6:08-6:08 /km": the fast end of one, the slow of the other.
+                        char* dash = std::strchr(band, '-');
+                        const char* slowEnd = std::strchr(slow, '-');
+                        if (dash != nullptr && slowEnd != nullptr) {
+                            std::snprintf(info.target, sizeof(info.target), "easy %.*s%s",
+                                          static_cast<int>(dash - band), band, slowEnd);
+                        } else {
+                            std::snprintf(info.target, sizeof(info.target), "easy %s", band);
+                        }
                     }
                 }
             }
@@ -2807,8 +2836,15 @@ const char* Service::checkSetup(const CustomMessage::PlanSetupInfo& i)
     if (i.level < 1 || i.level > 3) {
         return "Choose a level";
     }
+    uint8_t days = 0;
+    for (uint8_t d = 0; d < 7; ++d) {
+        days = static_cast<uint8_t>(days + ((i.days >> d) & 1u));
+    }
+    if (days < 3 || days > 6) {
+        return "Choose 3 to 6 run days";
+    }
     if (!WeekLayout::valid(static_cast<DayMask>(i.days), i.longDay)) {
-        return "3 to 6 run days, long run on one";
+        return "Long run on a run day";
     }
     if (i.raceDate != 0 && !Date::valid(i.raceDate)) {
         return "Check the race date";
@@ -3071,6 +3107,9 @@ bool Service::startPlannedSession()
     mEngine.start(mProgram, 0, 0);
     mLeadIn.stepStarted();
     startWorkoutStep();
+    mRepResult[0] = '\0';
+    mRepAim[0]    = '\0';
+    mRepVerdict   = 0;
     mPlannedRun  = true;
     mPlannedDate = mToday.date;
     LOG_INFO("Planned session started: %s, %u steps, about %lu s and %lu m (week %u of %u)\n", mProgram.name,
@@ -3083,18 +3122,98 @@ bool Service::startPlannedSession()
 void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
 {
     using namespace XTraining;
+    using Saved = CustomMessage::PlanSavedInfo;
     mPlannedRun = false;
     // Done, part done, or too short to count (PlanState.hpp, judgeSession()).
     DayStatus status = DayStatus::Missed;
+    uint8_t outcome = Saved::TooShort;
     if (!judgeSession(mWorkoutReachedEnd, static_cast<uint32_t>(track.duration), mSessionMeta.plannedSec, status)) {
         LOG_INFO("Planned session too short to count: %lu of %lu s\n", static_cast<unsigned long>(track.duration),
                  static_cast<unsigned long>(mSessionMeta.plannedSec));
+    } else {
+        mPlan.record({mPlannedDate, mSessionMeta.session.kind, status, static_cast<uint32_t>(mStartUtc)});
+        savePlan();
+        outcome = status == DayStatus::Done ? Saved::Done : Saved::PartDone;
+        LOG_INFO("Planned session %s: %lu, %s\n", status == DayStatus::Done ? "done" : "part done",
+                 static_cast<unsigned long>(mPlannedDate), PlanText::name(mSessionMeta.session.kind));
+    }
+    // The Saved screen's lines (brief 8.3): how it counts, the week, and the next session.
+    auto msg = SDK::make_msg<CustomMessage::PlanSaved>(mKernel);
+    if (!msg) {
         return;
     }
-    mPlan.record({mPlannedDate, mSessionMeta.session.kind, status, static_cast<uint32_t>(mStartUtc)});
-    savePlan();
-    LOG_INFO("Planned session %s: %lu, %s\n", status == DayStatus::Done ? "done" : "part done",
-             static_cast<unsigned long>(mPlannedDate), PlanText::name(mSessionMeta.session.kind));
+    Saved& s = msg->info;
+    s = Saved{};
+    s.outcome = outcome;
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    const Ymd today = localDate();
+    if (def != nullptr && mPlan.active() && mPaces.ok && today != 0) {
+        const PlanProgress::Counts c = PlanProgress::counts(mPlan, *def, mPaces.paces, today);
+        s.runWeek      = PlanProgress::weekToShow(mPlan.calendar, today);
+        s.weekDone     = c.weekDone;
+        s.weekSessions = c.weekSessions;
+        DaySession next;
+        if (nextSession(Date::addDays(today, 1), next)) {
+            s.nextDate = next.date;
+            s.nextKind = static_cast<uint8_t>(next.asRun.kind);
+        }
+    }
+    msg.send();
+}
+
+void Service::judgeRep(uint16_t endedStep, bool lapSaved, bool ranOut)
+{
+    // A short rep (its alerts held to the end, PLANS.md 2.5) is judged by its lap: the next
+    // step's card says "Last rep 1:36, aim 1:34-1:40" (brief 8.2). Anything else clears it.
+    using namespace XTraining;
+    mRepResult[0] = '\0';
+    mRepAim[0]    = '\0';
+    mRepVerdict   = 0;
+    if (!mPlannedRun || !lapSaved || endedStep >= SDK::Workout::kMaxSteps
+        || mSessionMeta.alert[endedStep] != AlertMode::AtEnd || mSummary.laps.empty()) {
+        return;
+    }
+    const LapSummary& lap = mSummary.laps.back();
+    const SDK::Workout::Step& s = mProgram.steps[endedStep];
+    const RepJudge::Result r = RepJudge::judge(s, static_cast<uint32_t>(lap.duration),
+                                               static_cast<uint32_t>(lap.distance + 0.5f), ranOut);
+    if (!r.ok) {
+        return;
+    }
+    // A pace per mile in imperial; a rep's time is a time.
+    const auto unit = [this](uint32_t v, bool time) {
+        const uint32_t u = time || !mIsImperial
+                         ? v : static_cast<uint32_t>((static_cast<uint64_t>(v) * 1609344u + 500000u) / 1000000u);
+        return u > 5999u ? 5999u : u;   // 99:59 at most, as the text has room for
+    };
+    const uint32_t v = unit(r.value, r.byTime);
+    char text[48];   // the compiler cannot see the 99:59 cap; the copy cuts to the field
+    if (r.byTime) {
+        std::snprintf(text, sizeof(text), "Last rep %u:%02u", static_cast<unsigned>(v / 60), static_cast<unsigned>(v % 60));
+    } else {
+        std::snprintf(text, sizeof(text), "Last rep %u:%02u %s", static_cast<unsigned>(v / 60),
+                      static_cast<unsigned>(v % 60), mIsImperial ? "/mi" : "/km");
+    }
+    copyText(mRepResult, sizeof(mRepResult), text);
+    if (r.fastEnd != 0) {
+        const uint32_t a = unit(r.fastEnd, r.byTime);
+        const uint32_t b = unit(r.slowEnd, r.byTime);
+        std::snprintf(text, sizeof(text), "aim %u:%02u-%u:%02u", static_cast<unsigned>(a / 60),
+                      static_cast<unsigned>(a % 60), static_cast<unsigned>(b / 60), static_cast<unsigned>(b % 60));
+        copyText(mRepAim, sizeof(mRepAim), text);
+    }
+    mRepVerdict = static_cast<uint8_t>(r.verdict);
+    LOG_INFO("Rep judged: %s %s (verdict %u)\n", mRepResult, mRepAim, static_cast<unsigned>(mRepVerdict));
+}
+
+bool Service::holdToStart(const SDK::Workout::Step& s) const
+{
+    // The open warm-up before a time trial or race: the lap button starts the effort, so a
+    // stray press must not (the coach review; NOTES "TP3").
+    using XTraining::Kind;
+    const Kind k = mSessionMeta.session.kind;
+    return mPlannedRun && (k == Kind::TimeTrial5k || k == Kind::TimeTrial10k || k == Kind::Race)
+        && s.intensity == SDK::Workout::Intensity::Warmup && s.end == SDK::Workout::StepEnd::Open;
 }
 
 bool Service::zoneAlertAllowed(SDK::Workout::ZoneAlerts::Alert alert)
@@ -3105,7 +3224,12 @@ bool Service::zoneAlertAllowed(SDK::Workout::ZoneAlerts::Alert alert)
         return true;   // a workout from UNA's library alerts as UNA's does
     }
     const uint16_t step = mEngine.status().step;
-    const AlertMode mode = step < SDK::Workout::kMaxSteps ? mSessionMeta.alert[step] : AlertMode::Both;
+    AlertMode mode = step < SDK::Workout::kMaxSteps ? mSessionMeta.alert[step] : AlertMode::Both;
+    // The race itself follows the Race alerts setting (TP3): off, too fast in the first 2 km, or both.
+    if (mSessionMeta.session.kind == XTraining::Kind::Race && step < SDK::Workout::kMaxSteps
+        && mProgram.steps[step].intensity == SDK::Workout::Intensity::Active) {
+        mode = XTraining::raceAlertMode(mSettings.raceAlerts, mEngine.status().stepDistanceCm, mode, kRaceAlertCm);
+    }
     switch (alert) {
     case Alert::Above:
         if (mode == AlertMode::None || mode == AlertMode::AtEnd) {

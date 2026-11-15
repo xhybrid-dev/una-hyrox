@@ -93,6 +93,9 @@ public:
     /// reached through the step card while one waits to be shown.
     void goTo(ScreenId id);
 
+    /// The screen on show (the text-fit audit sends it keys).
+    Screen* current() const { return mCurrent; }
+
 private:
     ScreenManager() = default;
 

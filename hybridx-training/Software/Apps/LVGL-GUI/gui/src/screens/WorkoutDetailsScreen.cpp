@@ -465,30 +465,73 @@ void WorkoutDetailsScreen::setPlanPage()
         snprintf(txt[slot], sizeof(txt[slot]), "Next: %s", day);
         add(txt[slot], F::Italic18, F::Italic18, Color::TEAL);
         add(PlanText::name(static_cast<Kind>(t.nextKind)), F::Medium18, F::Regular16, Color::WHITE);
-        add(t.nextWhat, F::Medium18, F::Regular16, Color::WHITE);
+        // "100 min, last 20 at half pace": its first part (the day's own page has the rest).
+        snprintf(txt[slot + 1], sizeof(txt[0]), "%s", t.nextWhat);
+        char* comma = std::strstr(txt[slot + 1], ", ");
+        if (comma != nullptr) {
+            *comma = '\0';
+        }
+        add(txt[slot + 1], F::Medium18, F::Regular16, Color::WHITE);
+    };
+    // A long name or "what" in two at its comma ("Long run, fast finish": "Long run" and "fast
+    // finish"), into slots @p a and @p b; false (and nothing) if it has none.
+    auto splitAtComma = [&](const char* text, uint8_t a, uint8_t b) {
+        const char* comma = std::strstr(text, ", ");
+        if (comma == nullptr) {
+            return false;
+        }
+        snprintf(txt[a], sizeof(txt[0]), "%.*s", static_cast<int>(comma - text), text);
+        snprintf(txt[b], sizeof(txt[0]), "%s", comma + 2);
+        return true;
     };
 
     switch (t.status) {
         case Info::Session:
         case Info::Done: {
             // The name and what it is for across the middle, where the face is widest; the
-            // estimate (at the middle of each step's band) at the foot.
-            add(t.name, F::SemiBold25, F::SemiBold20, Color::WHITE);
-            if (t.status == Info::Done) {
-                add(mSource == Source::Day ? "Done" : "Done today", F::Italic18, F::Italic18, Color::GREEN);
-            } else {
-                add(PlanText::purpose(kind), F::Italic18, F::Italic18, Color::GRAY);
-            }
-            add(t.what, F::Medium25, F::Medium18, Color::TEAL);
-            add(t.target, F::Medium18, F::Regular16, Color::WHITE);
+            // estimate (at the middle of each step's band) at the foot. When that is more than the
+            // face holds whole, the name and the "what" go over two lines at their commas, then
+            // the purpose and then the estimate are left out (the text-fit audit checks every kind).
             if (t.plannedSec != 0) {
                 const unsigned min = static_cast<unsigned>((t.plannedSec + 30) / 60);
                 const uint32_t m = mImperial ? static_cast<uint32_t>(t.plannedM * 1000ull / 1609344ull) : t.plannedM;
                 const unsigned tenths = static_cast<unsigned>((m + 50) / 100);
-                snprintf(txt[1], sizeof(txt[1]), "%u.%u %s, %u min", tenths / 10, tenths % 10,
+                snprintf(txt[0], sizeof(txt[0]), "%u.%u %s, %u min", tenths / 10, tenths % 10,
                          mImperial ? "mi" : "km", min);
             }
-            add(txt[1], F::Italic18, F::Italic18, Color::GRAY);
+            const char* purpose = t.status == Info::Done ? (mSource == Source::Day ? "Done" : "Done today")
+                                                         : PlanText::purpose(kind);
+            const uint32_t purposeColor = t.status == Info::Done ? Color::GREEN : Color::GRAY;
+            const lv_font_t* nameFont = Theme::font(F::SemiBold20);
+            const lv_font_t* whatFont = Theme::font(F::Medium18);
+            const bool splitName = WorkoutUi::textWidth(t.name, nameFont) > 170 && splitAtComma(t.name, 1, 2);
+            const bool splitWhat = WorkoutUi::textWidth(t.what, whatFont) > 170 && splitAtComma(t.what, 3, 4);
+            for (int variant = 0; variant < 3; ++variant) {
+                n = 0;
+                if (splitName) {
+                    add(txt[1], F::SemiBold25, F::SemiBold20, Color::WHITE);
+                    add(txt[2], F::SemiBold25, F::SemiBold20, Color::WHITE);
+                } else {
+                    add(t.name, F::SemiBold25, F::SemiBold20, Color::WHITE);
+                }
+                if (variant == 0 || t.status == Info::Done) {
+                    add(purpose, F::Italic18, F::Italic18, purposeColor);
+                }
+                if (splitWhat) {
+                    add(txt[3], F::Medium25, F::Medium18, Color::TEAL);
+                    add(txt[4], F::Medium18, F::Regular16, Color::TEAL);
+                } else {
+                    add(t.what, F::Medium25, F::Medium18, Color::TEAL);
+                }
+                add(t.target, F::Medium18, F::Regular16, Color::WHITE);
+                if (variant < 2) {
+                    add(txt[0], F::Italic18, F::Italic18, Color::GRAY);
+                }
+                if (mStack.set(lines, n)) {
+                    break;
+                }
+            }
+            n = 0;   // set above
         } break;
         case Info::RestDay:
             week(0);
@@ -522,7 +565,9 @@ void WorkoutDetailsScreen::setPlanPage()
             addWrapped("Choose one in the UNA app", 1, 2, Color::GRAY);
             break;
     }
-    mStack.set(lines, n);
+    if (n > 0 || (t.status != Info::Session && t.status != Info::Done)) {
+        mStack.set(lines, n);
+    }
     mStack.setVisible(mFirstPage);
     // The title: the week, on a day of the plan with a session; a day of the week, its date.
     if (mSource == Source::Day && t.date != 0) {

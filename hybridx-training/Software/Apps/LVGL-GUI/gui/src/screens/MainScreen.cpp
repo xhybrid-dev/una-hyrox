@@ -25,6 +25,7 @@ namespace
 {
 // Same items and geometry as MainView::setupItems() in the TouchGFX app.
 using Style = WheelMenu::Item::Style;
+constexpr int32_t kTipWidth = 180;   ///< X Training: the widest a hint under an item may be
 const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
     // ID_TODAY (X Training): a Tip saying what today is (onWorkoutList)
     { Style::Tip, "Today", nullptr, &poppins_semibold_35 },
@@ -132,11 +133,22 @@ void MainScreen::setTodayTip()
     using Info = CustomMessage::PlanTodayInfo;
     const Info& t = mModel.getPlanToday();
     switch (t.status) {
-        case Info::Session:
+        case Info::Session: {
+            // "Intervals 5 x 3 min"; the name alone, or the short name, when that is too wide
+            // ("Long run, fast finish 100 min, last 20 at half pace").
+            const lv_font_t* font = Theme::font(Theme::Font::Italic18);
             std::snprintf(mTodayTip, sizeof(mTodayTip), "%.31s %.31s", t.name, t.what);
-            break;
+            if (WorkoutUi::textWidth(mTodayTip, font) > kTipWidth) {
+                std::snprintf(mTodayTip, sizeof(mTodayTip), "%.31s", t.name);
+            }
+            if (WorkoutUi::textWidth(mTodayTip, font) > kTipWidth) {
+                std::snprintf(mTodayTip, sizeof(mTodayTip), "%s %.31s",
+                              XTraining::PlanText::shortName(static_cast<XTraining::Kind>(t.kind)), t.what);
+            }
+        } break;
         case Info::Done:
-            std::snprintf(mTodayTip, sizeof(mTodayTip), "Done: %.31s", t.name);
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Done: %s",
+                          XTraining::PlanText::shortName(static_cast<XTraining::Kind>(t.kind)));
             break;
         case Info::RestDay:
             std::snprintf(mTodayTip, sizeof(mTodayTip), "Rest day");
@@ -158,7 +170,7 @@ void MainScreen::setTodayTip()
             std::snprintf(mTodayTip, sizeof(mTodayTip), "No plan");
             break;
     }
-    WorkoutUi::fitWidth(mTodayTip, sizeof(mTodayTip), Theme::font(Theme::Font::Italic18), 180);
+    WorkoutUi::fitWidth(mTodayTip, sizeof(mTodayTip), Theme::font(Theme::Font::Italic18), kTipWidth);
     WheelMenu::Item& today = mItems[Menu::ID_TODAY];
     today.style   = Style::Tip;
     today.tip     = mTodayTip;

@@ -8,6 +8,7 @@
 #include "gui/screens/WeekScreen.hpp"
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
+#include "gui/Audit.hpp"
 
 #include "PlanText.hpp"       // header-only (and PlanTypes.hpp's DayMark)
 #include "TimeText.hpp"
@@ -75,6 +76,13 @@ void WeekScreen::build()
     mEmpty[1] = Theme::label(mRoot, F::Medium18, "See Today", 20, 132, 200, LV_TEXT_ALIGN_CENTER, Color::GRAY);
     Theme::setHidden(mEmpty[0], true);
     Theme::setHidden(mEmpty[1], true);
+    Audit::track(mInfo);
+    for (uint8_t i = 0; i < 7; ++i) {
+        Audit::track(mDay[i]);
+        Audit::track(mName[i]);
+    }
+    Audit::track(mEmpty[0]);
+    Audit::track(mEmpty[1]);
 }
 
 void WeekScreen::onShow()

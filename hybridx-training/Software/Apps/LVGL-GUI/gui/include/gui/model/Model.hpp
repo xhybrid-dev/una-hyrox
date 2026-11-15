@@ -162,11 +162,25 @@ public:
     const CustomMessage::PlanSetupInfo&   getCurrentSetup() const { return mCurrentSetup; }
     bool                                   phoneAsks() const { return mPhoneAsks; }
     const CustomMessage::PlanPreviewInfo& getPlanPreview() const { return mPlanPreview; }
+    /// After a save: how the planned session counts (outcome None if it was not one).
+    const CustomMessage::PlanSavedInfo&   getPlanSaved() const { return mPlanSaved; }
     CustomMessage::PlanSetupInfo&          draft() { return mDraft; }
     bool  draftReady() const { return mDraftReady; }
     void  setDraftReady(bool ready) { mDraftReady = ready; }
     /// Send the draft (or @p info) to the service: Preview, Apply or KeepCurrent.
     void  newPlan(uint8_t action, const CustomMessage::PlanSetupInfo& info);
+#if defined(SIMULATOR)
+    // The text-fit audit (AuditDriver): worst cases put in as if the service had sent them.
+    void injectPlanToday(const CustomMessage::PlanTodayInfo& i);
+    void injectPlanDay(const CustomMessage::PlanTodayInfo& i);
+    void injectPlanWeek(const CustomMessage::PlanWeekInfo& i);
+    void injectPlanOverview(const CustomMessage::PlanOverviewInfo& i);
+    void injectPlanPaces(const CustomMessage::PlanPacesInfo& i);
+    void injectPlanPreview(const CustomMessage::PlanPreviewInfo& i);
+    void injectPlanSaved(const CustomMessage::PlanSavedInfo& i);
+    struct WorkoutStepInfo;   // below
+    void injectWorkoutStep(const WorkoutStepInfo& i);
+#endif
     /// Today's date as the service last said (0 if not set).
     uint32_t todayDate() const { return mPlanToday.date; }
 
@@ -195,6 +209,11 @@ public:
         uint32_t reps      = 0;
         uint8_t  intensity = 0;
         bool     none      = true;  ///< No step (next: nothing follows)
+        // X Training (TP3), the current step only:
+        char     result[24] = {};   ///< "Last rep 1:36", or empty
+        char     aim[24]    = {};   ///< "aim 1:34-1:40", or empty
+        uint8_t  verdict    = 0;    ///< XTraining::RepJudge::Verdict
+        bool     holdToStart = false;   ///< R2 must be held to end this warm-up
     };
 
     /// The workout list from the service; null until it arrives. The service
@@ -304,6 +323,7 @@ private:
     CustomMessage::PlanSetupInfo     mCurrentSetup {};
     CustomMessage::PlanSetupInfo     mDraft {};
     CustomMessage::PlanPreviewInfo   mPlanPreview {};
+    CustomMessage::PlanSavedInfo     mPlanSaved {};
     bool                             mPhoneAsks  = false;
     bool                             mDraftReady = false;
     bool            mStepCard       = false;

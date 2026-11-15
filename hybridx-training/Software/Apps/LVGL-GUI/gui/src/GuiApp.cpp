@@ -16,6 +16,7 @@
 #include "gui/model/Model.hpp"
 #include "gui/theme/Theme.hpp"
 #include "gui/screens/ScreenManager.hpp"
+#include "gui/AuditDriver.hpp"
 
 namespace
 {
@@ -42,4 +43,5 @@ extern "C" void una_lvgl_app_init(void)
     Theme::init();
     sModel = new (sModelStorage) Model();
     ScreenManager::instance().start(*sModel, ScreenId::Main);
+    AuditDriver::startIfRequested(*sModel);   // X Training: the text-fit audit (simulator only)
 }

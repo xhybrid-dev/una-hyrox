@@ -58,6 +58,11 @@ TrackScreen::TrackScreen(Model& model)
 {
 }
 
+TrackScreen::~TrackScreen()
+{
+    stopHoldPoll();
+}
+
 void TrackScreen::build()
 {
     mIndicator = std::make_unique<Widgets::ScrollIndicator>(mRoot, Widgets::ScrollIndicator::kSmall);
@@ -73,6 +78,15 @@ void TrackScreen::build()
     mWorkoutGauge = std::make_unique<WorkoutFaceGauge>(mRoot);
     mWorkoutStep  = std::make_unique<WorkoutFaceStep>(mRoot);
     mWorkoutNext  = std::make_unique<WorkoutStepCard>(mRoot);
+
+    // X Training: over every face, the hold's hint and its progress (hidden unless it applies).
+    mHoldHint = Theme::label(mRoot, Theme::Font::Medium18, "Hold R2 to start", 50, 186, 140,
+                             LV_TEXT_ALIGN_CENTER, SDK::GUI::Color::YELLOW_DARK);
+    lv_obj_set_style_bg_color(mHoldHint, Theme::rgb(SDK::GUI::Color::BLACK), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(mHoldHint, LV_OPA_COVER, LV_PART_MAIN);
+    mHoldBar = Theme::box(mRoot, 70, 212, 0, 4, SDK::GUI::Color::YELLOW_DARK);
+    Theme::setHidden(mHoldHint, true);
+    Theme::setHidden(mHoldBar, true);
 }
 
 void TrackScreen::buildFaceIntervals()
@@ -230,6 +244,7 @@ void TrackScreen::updateMode(const Track::Data& data)
     }
     mModeSet = true;
     mMode    = mode;
+    updateHoldHint();
     uint16_t count = 0;
     faces(count);
     mIndicator->setCount(count);
@@ -341,7 +356,33 @@ void TrackScreen::onKey(uint8_t code)
         case Btn::R1:
             ScreenManager::instance().goTo(ScreenId::TrackAction);
             break;
+        // X Training: on the warm-up before a time trial or race, R2 must be held (HoldTimer:
+        // the press starts it, the poll fires it; that press's click and release are its own).
+        case Btn::R2_PRESS:
+            if (holdActive()) {
+                mHold.press(lv_tick_get());
+                mHoldInPlay = true;
+                startHoldPoll();
+            }
+            break;
+        case Btn::R2_RELEASE:
+            if (mHoldInPlay) {
+                mHold.release(lv_tick_get());
+                stopHoldPoll();
+            }
+            break;
         case Btn::R2:
+            if (mHoldInPlay) {
+                const bool tap = mHold.takeClick(lv_tick_get());
+                if (!mHold.held()) {
+                    mHoldInPlay = false;
+                }
+                if (!tap || holdActive()) {
+                    break;   // the hold's own click, or a tap where a hold is wanted
+                }
+            } else if (holdActive()) {
+                break;
+            }
             // In Intervals or a structured workout the lap button moves to the
             // next phase or step, on any face; laps are step-driven. When the
             // workout completes the service drops the mode, so R2 then records
@@ -550,4 +591,62 @@ void TrackScreen::onAccessoryStatus(uint8_t state, const char* /*name*/)
 void TrackScreen::updateHrIcon()
 {
     mSensorRow->setHr(Widgets::SensorStatusRow::hrStateFromSource(mAccessoryState, mHrSource));
+}
+
+// -- X Training: the held R2 ---------------------------------------------------------------
+
+bool TrackScreen::holdActive() const
+{
+    return mMode == Mode::Workout && mModel.getWorkoutStep(false).holdToStart;
+}
+
+void TrackScreen::updateHoldHint()
+{
+    if (mHoldHint == nullptr) {
+        return;
+    }
+    const bool on = holdActive();
+    Theme::setHidden(mHoldHint, !on);
+    if (!on) {
+        Theme::setHidden(mHoldBar, true);
+    }
+}
+
+void TrackScreen::startHoldPoll()
+{
+    if (mHoldPoll == nullptr) {
+        mHoldPoll = lv_timer_create(&TrackScreen::holdPollCb, 50, this);
+    }
+    lv_obj_set_width(mHoldBar, 0);
+    Theme::setHidden(mHoldBar, false);
+}
+
+void TrackScreen::stopHoldPoll()
+{
+    if (mHoldPoll != nullptr) {
+        lv_timer_delete(mHoldPoll);
+        mHoldPoll = nullptr;
+    }
+    if (mHoldBar != nullptr) {
+        Theme::setHidden(mHoldBar, true);
+    }
+}
+
+void TrackScreen::holdPollCb(lv_timer_t* t)
+{
+    auto* self = static_cast<TrackScreen*>(lv_timer_get_user_data(t));
+    const uint32_t now = lv_tick_get();
+    lv_obj_set_width(self->mHoldBar, static_cast<int32_t>(self->mHold.progressPermille(now) * 100u / 1000u));
+    if (self->mHold.poll(now)) {
+        // Held: the time trial or race starts, as a lap press would start it.
+        self->stopHoldPoll();
+        self->mModel.intervalsNextPhase();
+    }
+}
+
+void TrackScreen::onSuspend()
+{
+    mHold.cancel();
+    mHoldInPlay = false;
+    stopHoldPoll();
 }

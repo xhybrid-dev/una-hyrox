@@ -157,7 +157,7 @@ session longer rather than easier, and a hill or a 30-second rep has no distance
 | `RP10 n x t` | 10K pace | WU, n x (t min at 10K pace), jogs, CD | "Race pace" |
 | `RPHM n x t` | Half pace | WU, n x (t min at HM pace), jogs, CD | "Race pace" |
 | `TT5`, `TT10` | 5K (10K) time trial | Warm-up ended by a lap press (so it works at an event), the distance flat out with time and distance shown, an open cool-down | "Sets your paces" |
-| `SHAKE` | Shake-out | 20 min easy, 4 strides | "Loosen up for race day" |
+| `SHAKE` | Shake-out | 20 min easy, 4 strides | "Ready for race day" |
 | `RACE d` | Race | Warm-up ended by a lap press, then d with the race-pace band (alerts as in Settings) | "Good luck" |
 
 ### 3.2 Warm-ups, cool-downs, recoveries

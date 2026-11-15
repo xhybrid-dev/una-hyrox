@@ -117,10 +117,9 @@ void PlanScreen::fill()
         }
     } else {
         const Phase phase = static_cast<Phase>(o.phase[o.runWeek < CustomMessage::PlanOverviewInfo::kMaxWeeks ? o.runWeek : 0]);
-        char day[24];
         if (o.status == Info::BeforeStart) {
-            TimeText::dayDate(o.start, day, sizeof(day));
-            snprintf(mText[0], sizeof(mText[0]), "Starts %s", day);
+            snprintf(mText[0], sizeof(mText[0]), "Starts %u %s", static_cast<unsigned>(Date::day(o.start)),
+                     TimeText::monthName(Date::month(o.start)));
             top[nt++] = Line{ mText[0], F::SemiBold25, F::SemiBold20, Color::WHITE };
         } else if (o.status == Info::Finished) {
             top[nt++] = Line{ "Plan complete", F::SemiBold25, F::SemiBold20, Color::WHITE };
@@ -129,8 +128,8 @@ void PlanScreen::fill()
                      static_cast<unsigned>(o.weeks));
             top[nt++] = Line{ mText[0], F::SemiBold25, F::SemiBold20, Color::WHITE };
         }
-        snprintf(mText[1], sizeof(mText[1]), "%s, level %u, %u days", PlanText::phaseName(phase),
-                 static_cast<unsigned>(o.level), static_cast<unsigned>(o.runDays));
+        // The phase alone: with the level and days it is too wide over the bar (the audit).
+        snprintf(mText[1], sizeof(mText[1]), "%s", PlanText::phaseName(phase));
         top[nt++] = Line{ mText[1], F::Italic18, F::Italic18, Color::TEAL };
 
         snprintf(mText[2], sizeof(mText[2]), "%u of %u this week", static_cast<unsigned>(o.weekDone),

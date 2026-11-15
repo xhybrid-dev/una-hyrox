@@ -73,6 +73,8 @@ add_executable(hybridx-training-host-tests
     PlanTextTest.cpp
     PlanScheduleTest.cpp
     PlanProgressTest.cpp
+    RepJudgeTest.cpp
+    HoldTimerTest.cpp
     GoldenTest.cpp
     "${TOOLS_DIR}/plan_print/PlanPrint.cpp"
     ${CORE_SOURCES}

@@ -457,8 +457,9 @@ void PlanConfirmScreen::fill()
         }
         lines[n++] = Line{ mText[5], F::Italic18, F::Italic18, Color::TEAL };
     } else if (p.problem[0] != '\0') {
-        snprintf(mText[4], sizeof(mText[4]), "%s", p.problem);
+        WorkoutUi::wrapTwo(p.problem, mText[4], mText[5], sizeof(mText[4]), Theme::font(F::Medium18), 170, 150);
         lines[n++] = Line{ mText[4], F::Medium18, F::Regular16, Color::YELLOW };
+        lines[n++] = Line{ mText[5], F::Medium18, F::Regular16, Color::YELLOW };
     }
     mStack.set(lines, n);
     mButtons->setR1(p.ok ? Widgets::Buttons::AMBER : Widgets::Buttons::NONE);

@@ -15,12 +15,12 @@
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./capture_screens.sh [out-dir] [scenario ...]
 #   scenarios: before rest session done finished noplan problem week notes settings newplan
-#              phoneask phonekeep (default: all)
+#              phoneask phonekeep reps trial (default: all)
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${1:-$REPO/docs/screens}
 shift || true
-SCENARIOS=${*:-before rest session done finished noplan problem week notes settings newplan phoneask phonekeep}
+SCENARIOS=${*:-before rest session done finished noplan problem week notes settings newplan phoneask phonekeep reps trial}
 SOFT="$REPO/Software"
 BIN="$SOFT/Apps/LVGL-GUI/simulator/build/bin"
 DISP=:96
@@ -68,6 +68,9 @@ start_sim() {
 }
 stop_sim() { kill -9 "$SIMPID" 2>/dev/null; wait "$SIMPID" 2>/dev/null; SIMPID=; }
 key()  { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-1}"; }
+hold() { DISPLAY=$DISP xdotool keydown "$1"; sleep "$2"; DISPLAY=$DISP xdotool keyup "$1"; sleep 1; }
+# Save a run: R1 the action menu, L2 to Save, R1 held (the confirm's hold).
+save_run() { key 3 1; for _ in $(seq "$1"); do key 2; done; snap "$2-menu"; hold 3 3; }
 snap() { DISPLAY=$DISP timeout 10 import -window "$WID" "$OUT/tp3-$1.png" 2>/dev/null; echo "  tp3-$1"; }
 fresh() { rm -rf "$SOFT/Output" "$SOFT/SharedData"; mkdir -p "$SOFT/Output"; }
 
@@ -75,6 +78,10 @@ fresh() { rm -rf "$SOFT/Output" "$SOFT/SharedData"; mkdir -p "$SOFT/Output"; }
 DAYS_TODAY=0
 for k in 0 2 3 5; do DAYS_TODAY=$(( DAYS_TODAY | (1 << ((DOW + k) % 7)) )); done
 LONG_TODAY=$(( (DOW + 5) % 7 + 1 ))
+# Today the long run: the time trial in a cut-back week.
+DAYS_LONG=0
+for k in 0 2 3 5; do DAYS_LONG=$(( DAYS_LONG | (1 << ((DOW + k) % 7)) )); done
+LONG_LONG=$(( DOW + 1 ))
 # The same days moved one on: today is a rest day.
 DAYS_REST=0
 for k in 1 3 4 6; do DAYS_REST=$(( DAYS_REST | (1 << ((DOW + k) % 7)) )); done
@@ -180,6 +187,28 @@ for sc in $SCENARIOS; do
         key 3 2; key 3 2; key 2; snap phonekeep-ask; key 3 3; snap phonekeep-kept
         echo "  app_config.json plan: $(tr -d ' \n' < "$SOFT/Output/app_config.json" | grep -oE '"plan":[0-9]')"
         echo "  plan.json: $(grep -oE '"(s|c)":\[[0-9,]+\]' "$SOFT/Output/plan.json" | tr '\n' ' ')" ;;
+    reps)     # week 3: 6 x 400 m; a rep ended by hand, judged on the next step's card
+        config 1 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -2)"
+        start_sim
+        key 3 2; snap reps-today; key 3 8          # Today; R1: the countdown, then the warm-up's card
+        snap reps-warmup; sleep 3; key 4 4         # the card gone, R2: the first rep (its card, 3 s)
+        sleep 14; snap reps-rep1; key 4 1          # 400 m, ended by hand after about 15 s
+        snap reps-card                             # the jog's card: "Last rep", "aim"
+        grep -E "Rep judged" "$LOG" | tail -1 | sed 's/^ *//'
+        sleep 3; snap reps-jog
+        save_run 3 reps; sleep 1; snap reps-saved; sleep 4; snap reps-saved-after ;;
+    trial)    # week 4: the 5K time trial; the warm-up ends only on a held R2
+        config 1 22:00 "$DAYS_LONG" "$LONG_LONG"
+        planfile "$DAYS_LONG" "$LONG_LONG" "$(monday_weeks -3)"
+        start_sim
+        key 3 2; snap trial-today; key 3 8         # Today; R1: the countdown, then the warm-up's card
+        snap trial-warmup; sleep 3
+        key 4 2; snap trial-tap                    # a tap: still the warm-up
+        grep -cE "Planned session started" "$LOG" | sed 's/^/  sessions started: /'
+        DISPLAY=$DISP xdotool keydown 4; sleep 0.5; snap trial-holding; sleep 1; DISPLAY=$DISP xdotool keyup 4; sleep 0.5
+        snap trial-card; sleep 4; snap trial-trial
+        save_run 3 trial; sleep 1; snap trial-saved ;;
     problem)  # a plan, but no 5K
         config 1 "" "$DAYS_TODAY" "$LONG_TODAY"
         start_sim

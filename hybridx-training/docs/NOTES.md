@@ -472,6 +472,37 @@ the gap TP3 fills first.
   - the phone's ask answered Start it (the half from Mon 16 Nov) and, on another pretend watch,
     Keep mine (`app_config.json` back to `"plan":1`, the 10K under way unchanged).
 
+### Step 4: during and after the run
+
+- **A short rep judged on the next card** (brief 8.2): a step whose alerts wait for its end
+  (`AlertMode::AtEnd`: strides, repetitions, the 30-30s' fast halves) is judged from its lap when
+  it ends (`RepJudge.hpp`, header-only, three host tests). A distance rep that ran its distance is
+  judged by its time ("Last rep 1:36, aim 1:34-1:40"); a timed rep, or one ended by the lap button,
+  by its pace ("Last rep 3:18 /km, aim 3:55-4:11"; per mile in imperial). The next step's card
+  shows it in place of the notes: red too fast, green in the band, amber too slow (the gauge's
+  colours), the aim in grey; nothing under 20 m (no GPS).
+- **R2 held on the warm-up before a time trial or race** (the coach review): the planned session's
+  open warm-up before TT5, TT10 or RACE says "Hold R2 to start"; a tap does nothing; a hold of one
+  second (a bar fills under the hint) starts the effort. The hold is Knitting's `HoldTimer`
+  (copied with its 19 host tests): the kernel sends press, then a click only if the button comes up
+  within 500 ms, then release, so that press's own click and release are swallowed after the hold
+  fires, and the next step is not skipped. The service flags the step (`WorkoutStep::holdToStart`);
+  a suspend drops a hold in progress.
+- **Race alerts** (step 3's setting) on the race step: `raceAlertMode()` (pure, a host test): Off
+  silences it, First 2 km lets "too fast" only in the step's first 2 km, Both keeps the plan's own.
+- **The Saved screen's lines** (brief 8.3): after a planned session is saved, `PLAN_SAVED` says how
+  it counts ("Done" green, "Part done" amber, "Not counted" grey, in place of the tick), the week
+  ("Week 3: 1 of 4") and the next session ("Next: Tue, Easy"). They show for 3.5 s; a Streak line
+  (and the load) follows in their place.
+- **Today's target:** a time trial reads "flat out" and hills "strong, uphill" (they have no band;
+  the page had shown the easy range). The easy range is now the range itself: "easy 5:27-6:08 /km"
+  had read 6:07, a band round its middle rounding one end.
+- **Checked:** `capture_screens.sh` gains a repetitions session (a 400 m rep ended by hand after
+  about 15 s: "Last rep 3:18 /km", red, "aim 3:55-4:11") and a 5K time trial (a tap leaves the
+  warm-up running and one session started; the hold starts the 5 km), both saved ("Not counted":
+  under half the session in the simulator); `sim_plan.sh` still runs and saves its session with the
+  workout and a lap per step; 89 host tests; the watch target links.
+
 From the coach review above: a **Race alerts** setting (Off, First 2 km "too fast", Both; default
 Off); **R2 held for about a second** on the open warm-up before a time trial or a race, with a
 "Hold to start" hint; a note on the Paces screen where threshold meets 10K pace ("Threshold is

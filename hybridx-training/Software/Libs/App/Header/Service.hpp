@@ -278,6 +278,12 @@ private:
     bool                   mPlannedRun   = false;  ///< this track follows today's session
     XTraining::Ymd         mPlannedDate  = 0;      ///< the day it was planned for
     bool                   mOutAlerted   = false;  ///< an out-of-band alert played this step
+    // X Training (TP3): the last short rep's result, for the next step's card.
+    char                   mRepResult[24] = {};
+    char                   mRepAim[24]    = {};
+    uint8_t                mRepVerdict    = 0;
+    /// Race alerts "First 2 km": how far into the race step "too fast" may sound.
+    static constexpr uint32_t kRaceAlertCm = 200000;
 
     // -- Structured workouts --------------------------------------------------
 
@@ -369,6 +375,10 @@ private:
     void handleEvent(const CustomMessage::WorkoutDetailsRequest& event);
     void handleEvent(const CustomMessage::PlanRequest& event);   ///< X Training
     void handleEvent(const CustomMessage::NewPlan& event);       ///< X Training
+    /// Judge the short rep that just ended (step @p endedStep, its lap saved if @p lapSaved).
+    void judgeRep(uint16_t endedStep, bool lapSaved, bool ranOut);
+    /// The open warm-up of a time trial or race, which R2 ends only when held.
+    bool holdToStart(const SDK::Workout::Step& s) const;
     void handleEvent(const CustomMessage::WorkoutEnd& event);
 
     // -- Track control --------------------------------------------------------
