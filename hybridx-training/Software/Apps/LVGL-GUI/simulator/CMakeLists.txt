@@ -1,4 +1,4 @@
-# HybridX Run PC simulator (started from RunLVGL's): the app's service and LVGL GUI processes running
+# X Training PC simulator (copied from X Run's, itself from RunLVGL's): the app's service and LVGL GUI processes running
 # against the SDK's mock kernel, with the display in an SDL2 window.
 #
 # Needs a host C++ compiler, CMake, Ninja (or a Visual Studio generator) and
@@ -25,7 +25,7 @@ if("$ENV{UNA_SDK}" STREQUAL "")
     message(FATAL_ERROR "UNA_SDK environment variable is not set. Point it at the SDK root.")
 endif()
 
-project(HybridXRunSimulator C CXX)
+project(HybridXTrainingSimulator C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -45,7 +45,7 @@ foreach(cfg Debug Release RelWithDebInfo MinSizeRel)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CFG} "${SIM_BIN_DIR}")
 endforeach()
 
-add_executable(HybridXRunSimulator
+add_executable(HybridXTrainingSimulator
     main.cpp
     ${GUI_APP_SOURCES}
     ${LIBS_SOURCES}
@@ -54,7 +54,7 @@ add_executable(HybridXRunSimulator
     ${UNA_SDK_SOURCES_SIMULATOR_LVGL}
 )
 
-target_include_directories(HybridXRunSimulator PRIVATE
+target_include_directories(HybridXTrainingSimulator PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}          # ConfigurationSimulator.hpp
     ${GUI_APP_INCLUDE_DIRS}
     ${LIBS_INCLUDE_DIRS}
@@ -64,22 +64,22 @@ target_include_directories(HybridXRunSimulator PRIVATE
 
 # The identity the service writes into settings and FIT files. The values
 # stand in for what the .uapp build derives from CMakeLists.txt and git.
-target_compile_definitions(HybridXRunSimulator PRIVATE
+target_compile_definitions(HybridXTrainingSimulator PRIVATE
     ${UNA_SDK_DEFINES_SIMULATOR}
     ${UNA_SDK_DEFINES_GUI_LVGL}
-    "LV_MEM_SIZE=(56U*1024U)"  # as in HybridXRun-CMake/CMakeLists.txt
-    APP_ID="D0A3ADE4AF694DB2"
-    APP_NAME="HybridXRun"
+    "LV_MEM_SIZE=(56U*1024U)"  # as in HybridXTraining-CMake/CMakeLists.txt
+    APP_ID="6E050D707D4D2D32"
+    APP_NAME="HybridXTraining"
     DEV_ID="HybridX Simulator"
     BUILD_VERSION="0.1.0-sim"
 )
 
 find_package(Threads REQUIRED)
-target_link_libraries(HybridXRunSimulator PRIVATE Threads::Threads)
-una_simulator_link_sdl2(HybridXRunSimulator)
+target_link_libraries(HybridXTrainingSimulator PRIVATE Threads::Threads)
+una_simulator_link_sdl2(HybridXTrainingSimulator)
 
 if(MSVC)
-    target_compile_options(HybridXRunSimulator PRIVATE /W3 /MP)
+    target_compile_options(HybridXTrainingSimulator PRIVATE /W3 /MP)
 else()
-    target_compile_options(HybridXRunSimulator PRIVATE -Wall -Wextra -Wno-unused-parameter)
+    target_compile_options(HybridXTrainingSimulator PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()

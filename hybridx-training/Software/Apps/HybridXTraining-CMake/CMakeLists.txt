@@ -1,21 +1,21 @@
-# HybridX Run -- a run-recording app that also estimates VO2max, with its GUI
-# process built on LVGL. A test app: see ../../../docs/NOTES.md.
+# HybridX Training ("X Training" on the watch) -- X Run's run recording plus
+# built-in training plans, each day's session run through the SDK's workout
+# engine. See ../../../docs/HYBRIDX_TRAINING_BRIEF.md and NOTES.md.
 #
-# Started from the SDK's RunLVGL (Examples/Apps/RunLVGL/Software/Apps/
-# RunLVGL-CMake/CMakeLists.txt), as the standing rules require. The
-# differences: the name and ID, the Libs split into Core / App
-# (../../Libs/libs.cmake), and the version taken from run-v* tags
-# (../../cmake/run-version.cmake).
+# Copied from X Run's (hybridx-run/Software/Apps/HybridXRun-CMake), itself
+# from the SDK's RunLVGL. The differences: the name and ID, the libraries
+# (../../Libs/libs.cmake: X Training's Core, X Run's RunCore, App, Link), and
+# the version from training-v* tags (../../cmake/training-version.cmake).
 cmake_minimum_required(VERSION 3.21)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
 
 # App configuration
-set(APP_NAME "HybridXRun")
-set(APP_USER_NAME "X Run")              # 5 bytes; app_merging.py truncates at 15
-set(APP_FILE_NAME "HybridXRun")
+set(APP_NAME "HybridXTraining")
+set(APP_USER_NAME "X Training")         # 10 bytes; app_merging.py truncates at 15
+set(APP_FILE_NAME "HybridXTraining")
 set(APP_TYPE "Activity")
 set(DEV_ID "HybridX")
-set(APP_ID "D0A3ADE4AF694DB2")          # issued by the UNA portal for "X Run" (9 November 2026); was the development ID 74CDEFFE3DBA395D
+set(APP_ID "6E050D707D4D2D32")          # development ID: md5 of "HybridXTraining"; the portal issues the real one at release
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")
@@ -45,8 +45,8 @@ include(${GUI_PATH}/lvgl-gui.cmake)
 
 project(${APP_NAME})
 
-# Set up version: from run-v* tags, not the SDK's apps-v*.
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/run-version.cmake)
+# Set up version: from training-v* tags, not the SDK's apps-v*.
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/training-version.cmake)
 una_app_setup_version(BUILD_VERSION ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Build service
@@ -62,8 +62,8 @@ set(SERVICE_INCLUDE_DIRS
 )
 una_app_build_service(${APP_NAME}Service.elf)
 
-# Build GUI (LVGL). It also compiles the one part of the VO2max core it uses:
-# the text it shows.
+# Build GUI (LVGL). The parts of the cores it uses are header-only, except
+# RunCore's few GUI sources (RUN_CORE_GUI_SOURCES, libs.cmake).
 set(GUI_SOURCES
     ${GUI_APP_SOURCES}
     ${RUN_CORE_GUI_SOURCES}

@@ -107,3 +107,4 @@ hybridx-training/Output/
 hybridx-training/Software/Output/
 hybridx-training/Software/Apps/LVGL-GUI/simulator/build*/
 hybridx-training/Tools/Plans/__pycache__/
+hybridx-training/Software/SharedData/
