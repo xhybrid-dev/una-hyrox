@@ -1092,3 +1092,24 @@ is now in every place that names it: the watch build's `CMakeLists.txt`, `Resour
 and the simulator's `CMakeLists.txt`; the glance's in its CMake file and `Resources/Glance/app-manifest.json`. X Streak `BF63291BD26E20AC` (was `A75434BA114DFEBE`); X Streak Glance `BC8BFA0808314DB6` (was `D9923B245EF1C6FE`). The packager still names the development ID,
 only to refuse it on a release. The CHANGELOG says 1.0.0. What is left: the tag `streak-v1.0.0`
 (Jon, on GitHub), then the upload.
+
+## X Training joins (15 November 2026; X Training's TP4)
+
+X Training (`hybridx-training/`, training plans) writes its runs to a sixth slot of the activity
+link: `Slot::Training`, `../SharedData/HybridX/act_training.json`, sport 1 (run), with its load.
+- **Code:** `LinkReader` already opens every slot in `kSlotPaths`, so the code change is the
+  library copy (`kSlotCount` 6) and one name.
+- **The name:** This week's list showed "41 min · HybridXTraining" into the arcs. `Coach::appName`
+  now shows it as "X Training", its name on the watch, as it shows Race as "HybridX". The other
+  apps still show their folder names, which fit. Moving them all to their watch names (X Run,
+  X Ride, ...) is Jon's call.
+- **Tests:**
+  - `LinkReaderTest`: every app's file read, in order, X Training's included; X Training's real
+    row read as a Run with its load;
+  - `CoachTest`: the name;
+  - 160 pass.
+- **The pretend watch:** `sim_fixtures_link.sh` leaves an X Training run. The simulator read
+  "5 files, 6 entries, 6 new" and listed it in full.
+- **A release is needed:** a Streak without the sixth slot never counts X Training's runs.
+  Release it first, or with X Training: the other apps' Streak line already counts them once
+  they are rebuilt.

@@ -632,3 +632,79 @@ Not in TP3, as the brief phases it:
 - TP5: missed sessions (a past day now reads "Not logged"), moves and offers, and recalibration
   after a time trial.
 - TP6: the glance.
+
+## TP4: the family (built, 15 November 2026; at its gate)
+
+Brief §10 and REVIEW E3. Four steps, three commits, each built for the simulator and the watch.
+
+### Step 1: the `training` slot (`d12c2ac`)
+- **The link:** `hybridx-link`'s original gains `Slot::Training` =
+  `../SharedData/HybridX/act_training.json` (`kSlotCount` 6), synced into all seven apps.
+- **Streak:** it opens every slot already, so its only change is the name on This week.
+  "HybridXTraining" ran into the arcs, so it shows as "X Training" (Streak NOTES "X Training joins").
+
+### Step 2: X Training writes its slot (`7e35f40`)
+- **The link file:** `Service::writeActivityLink` writes `Slot::Training` as "HybridXTraining",
+  sport 1, with the load. It is called after the `.fit` closes, before the Streak line, which so
+  counts the run just saved.
+- **Found:** TP2 had removed X Run's per-second feed with the VO2max, and the run statistics went
+  with it. Since TP2 the zones, best splits and halves were empty and the load was 0.
+  `feedSecond()` restores the feed.
+- `sim_plan.sh` now checks the link file against the `.fit`: app, start, timer, sport, and the
+  load worked out again from the records.
+
+### Steps 3 and 4: the Run link and X Run's VO2max shown (`54a7fa1`)
+- **The Run link (brief 10.2):**
+  - `feedSecond()` also feeds X Run's window builder, which X Training already held as a copy;
+    `Utilities/check-vo2-link-copies.sh` keeps that copy identical to X Run's, in CI.
+  - On save, `saveVo2Windows()` writes the run's kept minutes to the oldest of
+    `training_vo2_0..2.json`, named by the `.fit`'s start. A treadmill run writes none.
+  - X Run reads them behind its own mark (`vo2.json` version 5; Run NOTES "X Training's runs").
+- **X Run's VO2max shown (brief 10.3):**
+  - `RunVo2Max.hpp` reads X Run's `vo2max.json`. Every value is bounded; a file that is missing,
+    bad or of a newer version gives no figure.
+  - `plan.json`'s optional `"vo2s"` keeps the first figure seen on or after the plan's start.
+  - The Plan screen's second line under the bar reads "VO2max 45.2 in X Run", or "VO2max 45.2, was
+    44.6" once the figure has moved since the start (in any plan). Its wording names X Run; it is
+    never on the Paces screen and never used for a pace.
+
+### Verified
+- **Host tests:**
+  - X Training 95 (`RunVo2MaxTest`, plan.json's `vo2s`);
+  - X Run 204;
+  - Streak 160;
+  - the link 52;
+  - Trail 149.
+- **Builds:**
+  - the simulators of all seven family apps;
+  - the watch targets of X Training (540,748 bytes) and X Run (521,020);
+  - CI runs 311 and 312, green.
+- **`sim_plan.sh`:**
+  - every link check passes (load 5 of 5);
+  - with `STEP_SECS=50` (11 minutes) the session left `training_vo2_0.json`: 5 minutes past the
+    warm-up, max HR 144, its id the `.fit`'s start;
+  - the load was 30 of 30.
+- **X Run's `sim_trail_ingest.sh`, starts 4 and 5:**
+  - two X Training runs counted once, as source 2, in time order;
+  - one of them is older than Trail's mark, and still counted.
+- **The text-fit audit:** 0 problems, with the widest VO2max lines.
+- **The captures:** `docs/screens/tp4-vo2-plan10k.png` and `tp4-vo2-planblock.png`, looked at.
+- **The family check:** see below.
+
+### The gate (TP4): what Jon tests
+`hybridx-link/docs/FAMILY_WATCH_TEST.md` section 7 (steps 19 to 24). In short:
+1. Install the new **X Streak**, **X Run** and **X Training** from one Watch builds run.
+2. Do a session of at least 20 minutes in X Training, then:
+   - Streak counts it once, listed as "X Training";
+   - X Run reads its minutes once;
+   - X Training's Plan screen shows X Run's figure.
+
+**Releases (Jon's tags, after the gate):**
+- **Streak** first, or with X Training: an older Streak never counts X Training's runs.
+- **X Run** with the reader. Its `vo2.json` becomes version 5, which an older X Run cannot read,
+  so do not downgrade it.
+- **The others** (Race, Trail, Workout, Ride) only add X Training to their Streak line. A store
+  update for them is optional.
+
+**For Jon to decide:** whether Streak's This week should show every app by its watch name (X Run,
+X Ride, ...), as it now shows X Training; today the others show their folder names.

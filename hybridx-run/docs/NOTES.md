@@ -1169,3 +1169,34 @@ is now in every place that names it: the watch build's `CMakeLists.txt`, `Resour
 and the simulator's `CMakeLists.txt`; the glance's in its CMake file and `Resources/Glance/app-manifest.json`. X Run `D0A3ADE4AF694DB2` (was `74CDEFFE3DBA395D`); VO2max Glance `A38E5C0975D2394A` (was `1EC7F5A0424304CD`). The packager still names the development ID,
 only to refuse it on a release. The CHANGELOG says 1.0.0. What is left: the tag `run-v1.0.0`
 (Jon, on GitHub), then the upload.
+
+## X Training's runs (15 November 2026; X Training's TP4)
+
+X Training (`hybridx-training/`, a copy of this app with training plans) leaves each run's
+steady minutes for this app's VO2max, exactly as Trail does (L2, L4; brief 10.2 there):
+- **The files:** `../SharedData/HybridX/training_vo2_0..2.json`
+  (`Vo2WindowFile.hpp`, `kTrainingWindowFilePaths`).
+  - Trail's format and slot rule; one writer per file.
+  - X Training's copies of the window builder, the codec and `SafeFile` are checked against these
+    by `hybridx-training/Utilities/check-vo2-link-copies.sh` (CI).
+- **The reading:** `ingestSharedRuns(src)` is the old `ingestTrailRuns()` with the source as an
+  argument. It reads Trail's three files, then X Training's three. Each source is behind its own
+  mark: X Training's runs may be older than Trail's newest, and one shared mark would hide them.
+- **What counts:** an X Training run is judged as a Trail run is: its kept minutes only, by this
+  app's profile and rules. Re-scoring treats both alike.
+- **`vo2.json` version 5:** `"training"` (the mark) and source 2. Versions 1 to 4 still read, and
+  are written back as 5. An older X Run refuses version 5 (and its backup), so going back to an
+  older build loses the history. Do not downgrade.
+
+Verified:
+- 204 host tests:
+  - `Vo2HistoryTest`: the two marks apart; a version 4 file read and written back as 5; source 2
+    only in version 5; the largest file fits `kMaxJsonBytes`, now 128 + 42 a run;
+  - `Vo2TrailIngestTest`: X Training's file names; each mark hides only its own runs.
+- `sim_trail_ingest.sh`, starts 4 and 5 (new):
+  - start 4 counts X Training's run 1791100000 (older than Trail's mark 1791500000) at 51.5 and
+    1791600000 at 50.4, as source 2, each in time order;
+  - start 5 counts nothing again.
+- The family check (`hybridx-link/docs/experiments/family_check.sh`) has X Training's real writer,
+  then this app reading it once.
+- The watch target builds (521,020 bytes).

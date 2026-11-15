@@ -11,8 +11,9 @@ together as well as one at a time ("Family check"). Nothing has run on a watch y
 is Jon's test, below.
 
 **Who is in the family.** Writers: HybridX Run (`act_run.json`), HybridX Race
-(`act_race.json`), HybridX Trail (`act_trail.json`). Reader: HybridX Streak (the app and
-its glance). Not in it: X Sauna (Jon, 27 October 2026: its sessions stay out of the
+(`act_race.json`), HybridX Trail (`act_trail.json`), HybridX Ride (`act_ride.json`), HybridX
+Workout (`act_workout.json`) and X Training (`act_training.json`, from 15 November 2026, its TP4).
+Reader: HybridX Streak (the app and its glance). Not in it: X Sauna (Jon, 27 October 2026: its sessions stay out of the
 shared data and the streak count), and the apps that record no activity (X Weigh-in,
 Knitting, Trail Quest).
 
@@ -100,15 +101,16 @@ copy has drifted. Change the original, then run it with `--sync`.
   `valid()`, so it is not written.
 - `calendarSeconds(y, m, d, h, mi, s)` and `tzOffsetMinutes(utc, localSeconds)`: the
   zone offset from the UTC start and the kernel's broken-down local time of it.
-- `kSlotPaths`: Run, Race, Trail, Ride, Workout. Ride and Workout were reserved before their
-  apps existed, so they work with a Streak that was already released.
+- `kSlotPaths`: Run, Race, Trail, Ride, Workout, Training. Ride and Workout were reserved before
+  their apps existed, so they work with a Streak that was already released. Training (X
+  Training, 15 November 2026) came with a Streak release: an older Streak does not read it.
 
 Host tests: `cmake -S hybridx-link/Tests/Host -B hybridx-link/build-tests &&
 cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-host-tests`.
 
 ## Adding an app
 
-1. If its slot is not in `kSlotPaths` (not run, race, trail, ride or workout), add
+1. If its slot is not in `kSlotPaths` (not run, race, trail, ride, workout or training), add
    it to the end of `Slot` and the table, in the original, bump `kSlotCount` (the
    limit is `kMaxSlots`, 8), and release Streak. Otherwise skip this.
 2. Add the app's `Software/Libs/Link` to `APPS` in `check-link-copies.sh` and run
@@ -128,11 +130,11 @@ cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-
 | 1 | The format, `hybridx-link`, host tests, copy check, CI | Done. Jon to review the format. |
 | 2 | Run writes its summary | Done (simulator-checked; see Run NOTES, "Activity link") |
 | 3 | Streak reads the summaries (app and glance) | Built (simulator-checked; see Streak NOTES, "Activity link"). Jon's watch test next. |
-| 4 | Race, Trail, then the bike and workout apps, one at a time | Race, Trail, Workout and Ride done (simulator-checked; Race NOTES "Amendment — Race tells Streak", Trail NOTES "Activity link", Workout NOTES "W0", Ride NOTES section 5), and the family check passes with all five. |
+| 4 | Race, Trail, then the bike and workout apps, one at a time | Race, Trail, Workout and Ride done (simulator-checked; Race NOTES "Amendment — Race tells Streak", Trail NOTES "Activity link", Workout NOTES "W0", Ride NOTES section 5), and the family check passes with all five. X Training joined on 15 November 2026 with a sixth slot (its NOTES "TP4"). |
 
 ## The Streak line (28 October 2026)
 
-After a save, Run, Race, Trail, Workout and Ride show "3 of 4 this week" and "8-week streak" on their Saved
+After a save, Run, Race, Trail, Workout, Ride and X Training show "3 of 4 this week" and "8-week streak" on their Saved
 screen, in amber, in place of "…has been saved". Streak's PLAN §9 had this for Race.
 
 Streak only works its numbers out when it is opened. So:
@@ -172,11 +174,13 @@ Streak only works its numbers out when it is opened. So:
 
 `hybridx-link/docs/experiments/family_check.sh [out-dir]` puts the whole family on one
 pretend watch:
-- Run, Race, Trail, Workout and Ride each record and save an activity in their own simulator,
-  each from its own app folder;
-- all five share **one** `SharedData` folder (each app's `../SharedData` is a symlink
+- X Training, Run, Race, Trail, Workout and Ride each record and save an activity in their own
+  simulator, each from its own app folder (X Training: today's planned session, 400 s, from a
+  pretend plan);
+- all six share **one** `SharedData` folder (each app's `../SharedData` is a symlink
   to it, as on a watch every app's is the same folder);
-- then Streak opens twice, from its own folder in the same tree.
+- then X Run opens once more (for X Training's minutes), and Streak opens twice, from its own
+  folder in the same tree.
 
 Quick mode opens Streak first, so it leaves its `streak_now.json`, and then records the five
 apps one after another; `LONG=1` records them at once. It checks, with the apps' real writers and
@@ -198,17 +202,19 @@ And the training load (section "Training load", 3 November 2026):
    records' load; Streak's day 15, fitness 0.36, fatigue 2.14, form -1.78, as the reference.
 
 It also reports whether Trail left minutes for Run's VO2max (for information: the
-simulator's heart rate is not steady running, so there are usually none).
+simulator's heart rate is not steady running, so there are usually none), and checks X
+Training's: its `training_vo2_*.json` names the `.fit`'s start, and X Run reads it once, its
+`vo2.json` (version 5) keeping that start as its X Training mark.
 
-- **Quick mode** (the default, about 9 minutes): about 80 s each, with Streak's
-  minimum set to 0 minutes so the short sessions count.
+- **Quick mode** (the default, about 20 minutes): about 80 s each (X Training 400 s, past X Run's
+  5-minute warm-up), with Streak's minimum set to 0 minutes so the short sessions count.
 - **`LONG=1`** (about 14 minutes): 11 minutes each, with Streak's default 10-minute
   minimum.
 - `TREADMILL=1`: Run records a treadmill run (hybridx-run NOTES, "Treadmill"), which Streak
   must count as a Run like any other. Passed on 27 October 2026.
 - `SHOTS=<dir>` saves Streak's screen after each open.
 
-It needs the six simulators built, Xvfb, xdotool and fitdecode. It prints a PASS/FAIL
+It needs the seven simulators built, Xvfb, xdotool and fitdecode. It prints a PASS/FAIL
 table and exits non-zero on any FAIL. Run it after any change to a writer, the
 library or Streak's reader. It runs by hand, not in CI: CI has no simulators.
 

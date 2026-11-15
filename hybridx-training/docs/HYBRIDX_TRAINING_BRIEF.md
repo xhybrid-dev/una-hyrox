@@ -346,7 +346,7 @@ Each phase starts in plan mode and stops at its gate.
 | **TP1** | The pure core with host tests; the plan files and generator; `plan_print` with golden outputs | Jon reads `plan_print` for three runners in each plan (5K 20:00, level 3, five days; 25:00, level 2, four days; 32:00, level 1, three days) and corrects the plan files |
 | **TP2** | The app: X Run copied verbatim, renamed, stripped; the config fields; today's Program run through the workout mode; `plan.json`. `sim_plan.sh` runs a session end to end; `fit_check.sh` decodes the FIT | Jon installs the CI build, sets a plan by USB, runs one real session |
 | **TP3** | The screens (section 8), the easy-step alerts, the short-rep result; the audit; `capture_screens.sh` | **Built** (15 November 2026; NOTES "TP3"). Jon reviews the captures, then a week of the plan on the watch |
-| **TP4** | Family: the `training` slot (Streak release, family rebuild), the Run link (Run release), VO2max on the Plan screen; the family check gains X Training | The family check; Jon's watch test |
+| **TP4** | Family: the `training` slot (Streak release, family rebuild), the Run link (Run release), VO2max on the Plan screen; the family check gains X Training | **Built** (15 November 2026; NOTES "TP4"). The family check; Jon's watch test (`hybridx-link/docs/FAMILY_WATCH_TEST.md` section 7) |
 | **TP5** | The plan's memory and recalibration; `plan_sim` | Jon reviews the scenarios and the rules |
 | **TP6** | The glance and `training_today.json` | Previews, then on the watch |
 | **TP7** | Field test (Jon, and ideally a level 1 and a level 3 runner, three weeks each), then the store release as the family's phase P | Jon's go |
@@ -391,7 +391,7 @@ whether to send UNA the question; later, how X Run and X Training sit together o
 | GPS on short reps | Unreliable live pace | No live alerts there; judged by rep time |
 | Advice that hurts someone | Injury | Level 1 its own plan; caps; cut-backs; no stacking; the "not medical advice" text |
 | Copied content | Copyright | Original plans; equations, not tables; the brand name "VDOT" not used |
-| A family change for the Streak slot | Streak and others need releases | Planned as TP4, after the app works alone |
+| A family change for the Streak slot | Streak and others need releases | Built in TP4: Streak and X Run need releases; the others' rebuilds only add X Training to their Streak line |
 | Size and memory | The app does not fit | It starts at X Run's size; one Program; CI watch builds each phase |
 | The watch's date unset | Wrong day | No "today" without a valid date |
 

@@ -90,7 +90,8 @@ read other apps' `Activity/` folders (Streak NOTES, Gate 0). Each app leaves its
 16 activities in its own `../SharedData/HybridX/act_<slot>.json`; Streak reads them.
 It is not an app. It counts our own apps only, not UNA's built-in ones. Writers so far:
 Run (`act_run.json`), Race (`act_race.json`), Trail (`act_trail.json`), Workout
-(`act_workout.json`) and Ride (`act_ride.json`); the reader is Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
+(`act_workout.json`), Ride (`act_ride.json`) and X Training (`act_training.json`, the sixth slot,
+its TP4); the reader is Streak. X Sauna stays out (Jon, 27 October 2026). Each writer is
 `Service::writeActivityLink` in its own `Service.cpp`, called once the `.fit` has closed.
 The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
 `Service::sendStreakLine()` shows "3 of 4 this week / 8-week streak" on its Saved screen
@@ -105,12 +106,13 @@ The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
   never a copy.
 - **Commands:**
   - host tests: `cmake -S hybridx-link/Tests/Host -B hybridx-link/build-tests && cmake --build hybridx-link/build-tests && hybridx-link/build-tests/hybridx-link-host-tests`;
-  - the family check (Run, Race, Trail, Workout and Ride save into one shared folder, Workout
-    three times, as Free, Strength and Circuit, then Streak opens twice and must count each of the
-    seven once, as its own kind, and each summary's training load must match its `.fit`'s records
-    and Streak's fitness, fatigue and form a reference): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
-    (about 12 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
-    `TREADMILL=1` for a treadmill Run; needs the six simulators built);
+  - the family check (X Training, Run, Race, Trail, Workout and Ride save into one shared folder,
+    Workout three times, as Free, Strength and Circuit, then Streak opens twice and must count each
+    of the eight once, as its own kind, and each summary's training load must match its `.fit`'s
+    records and Streak's fitness, fatigue and form a reference; X Run must read X Training's
+    minutes for its VO2max once): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
+    (about 20 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
+    `TREADMILL=1` for a treadmill Run; needs the seven simulators built);
   - the family on a watch, Jon's step-by-step test: `hybridx-link/docs/FAMILY_WATCH_TEST.md`.
 - **The store release** (phase P, 3 November 2026): the eight listings (X Streak and its
   glance, X Run and the VO2max glance, X Trail, X Workout, X Ride, and HybridX Race 1.1.0), the
@@ -225,8 +227,8 @@ apps.
     [app_config.json]` (`SEED=1` for a history; `DISCARD=1` discards; `TREADMILL=1` a treadmill
     run, with `TREAD_TENTHS`/`TREAD_FINE` for the entry, `TREAD_SKIP=1` or `TREAD_CLOSE=1`); the VO2max screens:
     `docs/experiments/capture_vo2.sh [out-dir]` (into `docs/screens/`);
-  - Trail's runs counted by Run (synthetic files): `docs/experiments/sim_trail_ingest.sh`
-    (needs the simulator and `build-tests/make_trail_run`);
+  - Trail's and X Training's runs counted by Run (synthetic files): `docs/experiments/sim_trail_ingest.sh`
+    (needs the simulator and `build-tests/make_trail_run`; NOTES "X Training's runs");
   - cadence and step length (live Form face, summary Form face, FIT lap and session averages):
     `docs/experiments/fit_form_report.py <file.fit>` checks a saved file's averages against its own
     records (the simulator has a cadence mock, so `sim_run.sh` shows 170 spm);
@@ -544,8 +546,10 @@ Joins the family (a new `act_training.json` slot for Streak; X Run's VO2max both
 TP0 (decisions, the independent review, desk checks), TP1 (the pure core, host-tested) and TP2
 (the app: X Run copied, X Run's VO2max parts removed, today's session run through the workout
 engine and logged in `plan.json`) are done; TP3, the screens (Today, This week, Plan, Paces, New plan,
-Settings, the rep result, the held R2, the Saved lines), is built and at its gate (NOTES "TP3"). No activity link yet
-(TP4): X Training writes nothing in `SharedData`.
+Settings, the rep result, the held R2, the Saved lines), is built and at its gate (NOTES "TP3"). TP4, the family,
+is built and at its gate (NOTES "TP4"): each saved run goes to `act_training.json` for Streak (the link's
+sixth slot) and its steady minutes to `training_vo2_0..2.json` for X Run's VO2max; the Plan screen shows
+X Run's VO2max from `vo2max.json` (and, in a plan, the figure first seen in it, `plan.json`'s `"vo2s"`).
 - **Docs:** brief, architecture, phases (TP0-TP7): `hybridx-training/docs/HYBRIDX_TRAINING_BRIEF.md`;
   the pace model, sessions and the three plans: `PLANS.md`; the independent engineering and
   coaching review: `REVIEW.md`; decisions, verified SDK facts and the TP1 plan: `NOTES.md`.
@@ -566,8 +570,10 @@ Settings, the rep result, the held R2, the Saved lines), is built and at its gat
   service, with the plan in `loadConfig`, `loadPlan`, `updateToday`, `startPlannedSession` and
   `recordPlannedRun`; `Libs/Link` a copy of `hybridx-link` (checked); the GUI
   `Apps/LVGL-GUI`; the watch build `Apps/HybridXTraining-CMake`. Phone settings: the 15 fields
-  in `Resources/app-manifest.json` and `AppConfigFields.cpp` (CI checks they agree). The Streak
-  slot is a family change (TP4; `REVIEW.md` E3).
+  in `Resources/app-manifest.json` and `AppConfigFields.cpp` (CI checks they agree).
+  `Libs/RunCore`'s window builder and codec and `Libs/App`'s `SafeFile` are **copies of X Run's**
+  (the Run link, TP4): edit X Run's, then `hybridx-training/Utilities/check-vo2-link-copies.sh --sync`
+  (CI checks they match).
 - **Watch builds will come from CI**, as for the others. Tags `training-vX.Y.Z`. App folder
   `HybridXTraining`; development APP_ID `6E050D707D4D2D32`.
 - **Commands:**
@@ -587,12 +593,13 @@ Settings, the rep result, the held R2, the Saved lines), is built and at its gat
     `hybridx-training/Software/Apps/HybridXTraining-CMake` into `hybridx-training/build/arm`;
   - simulator: `hybridx-training/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its `build/`;
     run `build/bin/HybridXTrainingSimulator`; keys 1-4 are L1, L2, R1, R2);
-  - today's planned session end to end, with the FIT file checked: `docs/experiments/sim_plan.sh
-    [shots-dir]` (`WEEK=n`, `STEP_SECS=n`, `PLAN=2`; about 2 minutes; needs Xvfb, xdotool,
-    ImageMagick, fitdecode); a saved file alone: `docs/experiments/fit_plan_report.py <file.fit>`.
-  - the screens (TP3) on pretend watches, by key presses: `docs/experiments/capture_screens.sh
-    [out-dir] [scenario ...]` (15 scenarios, into `docs/screens/tp3-*.png`; about 8 minutes;
-    it replaces `Software/Output`);
+  - today's planned session end to end, with the FIT file and the activity link checked:
+    `docs/experiments/sim_plan.sh [shots-dir]` (`WEEK=n`, `STEP_SECS=n`, `PLAN=2`; about 2 minutes;
+    `STEP_SECS=50` runs 11 minutes, past X Run's warm-up, and leaves `training_vo2_0.json`; needs
+    Xvfb, xdotool, ImageMagick, fitdecode); a saved file alone: `docs/experiments/fit_plan_report.py <file.fit>`.
+  - the screens (TP3, TP4) on pretend watches, by key presses: `docs/experiments/capture_screens.sh
+    [out-dir] [scenario ...]` (16 scenarios, into `docs/screens/tp3-*.png`, and `vo2` into
+    `tp4-*.png`; give an absolute out-dir; about 8 minutes; it replaces `Software/Output`);
   - the text-fit audit (the plan's screens with their widest text, measured with LVGL, clear of
     the bezel arcs and never cut): `docs/experiments/audit.sh` (about 30 seconds; after any change
     to a screen's text or layout, or to the plans' words).
