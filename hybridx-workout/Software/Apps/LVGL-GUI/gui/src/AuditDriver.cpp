@@ -173,6 +173,7 @@ Workout::LapsPageData planLaps(SessionType t)
                 r.round   = 8;
                 break;
             case SessionType::Strength:
+            case SessionType::OpenSets:
             case SessionType::Tabata:
             case SessionType::Custom:
                 r.kind = static_cast<uint8_t>(i == 1 ? StepKind::Rest : StepKind::Work);
@@ -263,6 +264,13 @@ const Step kSteps[] = {
     { "plan: strength set 20/20, 59:59", nullptr },
     { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Strength, StepKind::Rest, 19, 20, 0, 1000u, 299000u)); } },
     { "plan: strength rest", nullptr },
+    // Open sets: no total, no countdown; the longest set and the longest rest
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::OpenSets, StepKind::Work, 32, 0, 0, 359999000u, 0)); } },
+    { "plan: open sets, set 32, 99:59:59", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::OpenSets, StepKind::Rest, 31, 0, 0, 3599000u, 0)); } },
+    { "plan: open sets, rest", nullptr },
+    { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::OpenSets, StepKind::Work, 32, 0, 0, 1000u, 0, true)); } },
+    { "plan: open sets, done at set 32", nullptr },
     { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Emom, StepKind::Work, 60, 60, 0, 1000u, 59000u)); } },
     { "plan: EMOM min 60/60", nullptr },
     { nullptr, [] { sModel->injectSnapshot(planSnapshot(SessionType::Amrap, StepKind::Work, 255, 1, 0, 1000u, 3600000u)); } },
@@ -324,6 +332,10 @@ const Step kSteps[] = {
     { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
     { nullptr, [] { key(Btn::L1); key(Btn::L1); sModel->injectLapsPage(planLaps(SessionType::Circuit)); } },
     { "summary: circuit laps, Wall balls", nullptr },
+    { nullptr, [] { sModel->injectSaved(planSaved(SessionType::OpenSets)); ScreenManager::instance().goTo(ScreenId::Main); } },
+    { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
+    { nullptr, [] { key(Btn::L1); key(Btn::L1); sModel->injectLapsPage(planLaps(SessionType::OpenSets)); } },
+    { "summary: open sets laps, Set 60 / Rest 60", nullptr },
     { nullptr, [] { sModel->injectSaved(planSaved(SessionType::Amrap)); ScreenManager::instance().goTo(ScreenId::Main); } },
     { nullptr, [] { ScreenManager::instance().goTo(ScreenId::Summary); } },
     { nullptr, [] { key(Btn::L1); key(Btn::L1); sModel->injectLapsPage(planLaps(SessionType::Amrap)); } },

@@ -47,13 +47,24 @@ LapEventData lapEvent(Cue cue, StepKind finishedKind, uint8_t round, uint8_t fin
 
 TEST(PlanText, EveryKindHasANameAndTheyGoRound)
 {
-    const char *want[] = {"Free", "Strength", "EMOM", "AMRAP", "Tabata", "Intervals", "Circuit"};
+    // Open sets sit beside Strength on the screen; its number in the file is the last.
+    const char *want[] = {"Free", "Strength", "Open sets", "EMOM", "AMRAP", "Tabata", "Intervals", "Circuit"};
     SessionType t = SessionType::Plain;
     for (uint8_t i = 0; i < kSessionTypeCount; ++i) {
         EXPECT_STREQ(kindName(t), want[i]);
         t = nextKind(t);
     }
     EXPECT_EQ(t, SessionType::Plain);   // round again
+    EXPECT_EQ(static_cast<uint8_t>(SessionType::OpenSets), 7);   // saved files name it by number
+}
+
+TEST(PlanText, OpenSetsHasNothingToSetAndSaysSo)
+{
+    PlanField f[3];
+    EXPECT_EQ(planFields(SessionType::OpenSets, f), 0);
+    PlanConfig c;
+    c.type = SessionType::OpenSets;
+    EXPECT_EQ(text([&](char *b, size_t n) { formatPlanSummary(b, n, c); }), "Set / rest");
 }
 
 TEST(PlanText, SecondsDistancesAndCountdowns)
@@ -180,6 +191,8 @@ TEST(PlanText, StepNamesForRowsAndToasts)
     EXPECT_EQ(name(SessionType::Plain, StepKind::Work, 0, 0, 3, true), "Auto 3");
     EXPECT_EQ(name(SessionType::Strength, StepKind::Work, 2), "Set 2");
     EXPECT_EQ(name(SessionType::Strength, StepKind::Rest, 2), "Rest 2");
+    EXPECT_EQ(name(SessionType::OpenSets, StepKind::Work, 12), "Set 12");
+    EXPECT_EQ(name(SessionType::OpenSets, StepKind::Rest, 12), "Rest 12");
     EXPECT_EQ(name(SessionType::Emom, StepKind::Work, 7), "Min 7");
     EXPECT_EQ(name(SessionType::Amrap, StepKind::Work, 4), "Round 4");
     EXPECT_EQ(name(SessionType::Tabata, StepKind::Rest, 8), "Rest 8");
@@ -196,6 +209,8 @@ TEST(PlanText, TheLiveHeading)
     EXPECT_EQ(heading(free), "");
     EXPECT_EQ(heading(view(SessionType::Strength, StepKind::Work, 2, 3)), "Set 2/3");
     EXPECT_EQ(heading(view(SessionType::Strength, StepKind::Rest, 2, 3)), "Rest");
+    EXPECT_EQ(heading(view(SessionType::OpenSets, StepKind::Work, 4, 0)), "Set 4");    // no total
+    EXPECT_EQ(heading(view(SessionType::OpenSets, StepKind::Rest, 4, 0)), "Rest");
     EXPECT_EQ(heading(view(SessionType::Emom, StepKind::Work, 4, 10)), "Min 4/10");
     EXPECT_EQ(heading(view(SessionType::Amrap, StepKind::Work, 4, 1)), "Round 4");
     EXPECT_EQ(heading(view(SessionType::Tabata, StepKind::Rest, 3, 8)), "Rest 3/8");
@@ -219,6 +234,8 @@ TEST(PlanText, WhatCountsDownAndWhatTheButtonDoes)
     EXPECT_TRUE(countsDown(v));
     v = view(SessionType::Circuit, StepKind::Run, 1, 8);
     EXPECT_FALSE(countsDown(v));                  // open: remainingMs 0
+    v = view(SessionType::OpenSets, StepKind::Rest, 1, 0);
+    EXPECT_FALSE(countsDown(v));                  // an open rest counts up
     v = view(SessionType::Tabata, StepKind::Work, 1, 8);
     v.remainingMs = 5000;
     v.done = 1;
@@ -226,6 +243,7 @@ TEST(PlanText, WhatCountsDownAndWhatTheButtonDoes)
 
     EXPECT_TRUE(buttonCounts(uint8_t(SessionType::Plain)));
     EXPECT_TRUE(buttonCounts(uint8_t(SessionType::Strength)));
+    EXPECT_TRUE(buttonCounts(uint8_t(SessionType::OpenSets)));
     EXPECT_TRUE(buttonCounts(uint8_t(SessionType::Amrap)));
     EXPECT_TRUE(buttonCounts(uint8_t(SessionType::Circuit)));
     EXPECT_FALSE(buttonCounts(uint8_t(SessionType::Emom)));
@@ -240,6 +258,8 @@ TEST(PlanText, TheToastSaysWhatBeginsNow)
     };
     EXPECT_EQ(head(SessionType::Strength, lapEvent(Cue::Rest, StepKind::Work, 1)), "Rest");
     EXPECT_EQ(head(SessionType::Strength, lapEvent(Cue::Work, StepKind::Rest, 1)), "Set 2");
+    EXPECT_EQ(head(SessionType::OpenSets, lapEvent(Cue::Rest, StepKind::Work, 1)), "Rest");
+    EXPECT_EQ(head(SessionType::OpenSets, lapEvent(Cue::Work, StepKind::Rest, 1)), "Set 2");
     EXPECT_EQ(head(SessionType::Emom, lapEvent(Cue::Work, StepKind::Work, 4)), "Minute 5");
     EXPECT_EQ(head(SessionType::Tabata, lapEvent(Cue::Work, StepKind::Rest, 3)), "Work 4");
     EXPECT_EQ(head(SessionType::Amrap, lapEvent(Cue::Round, StepKind::Work, 3)), "Round 4");
@@ -259,6 +279,8 @@ TEST(PlanText, TheSummaryLine)
     EXPECT_EQ(line(SessionType::Plain, 1), "1 lap");
     EXPECT_EQ(line(SessionType::Strength, 5), "3 sets");      // set, rest, set, rest, set
     EXPECT_EQ(line(SessionType::Strength, 2), "1 set");       // ended in the first rest
+    EXPECT_EQ(line(SessionType::OpenSets, 7), "4 sets");      // set, rest, set, rest, set, rest, set
+    EXPECT_EQ(line(SessionType::OpenSets, 1), "1 set");
     EXPECT_EQ(line(SessionType::Emom, 10), "10 minutes");
     EXPECT_EQ(line(SessionType::Amrap, 8, 7), "7 rounds");    // the eighth lap is the part round
     EXPECT_EQ(line(SessionType::Tabata, 15), "8 of 8 rounds");

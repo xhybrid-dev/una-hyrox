@@ -82,7 +82,8 @@ struct FitSport {
 constexpr FitSport fitSportOf(SessionType t)
 {
     switch (t) {
-    case SessionType::Strength: return {fitnum::kSportTraining, fitnum::kSubStrengthTraining, "Strength"};
+    case SessionType::Strength:
+    case SessionType::OpenSets: return {fitnum::kSportTraining, fitnum::kSubStrengthTraining, "Strength"};
     case SessionType::Emom:     return {fitnum::kSportHiit, fitnum::kSubEmom, "EMOM"};
     case SessionType::Amrap:    return {fitnum::kSportHiit, fitnum::kSubAmrap, "AMRAP"};
     case SessionType::Tabata:   return {fitnum::kSportHiit, fitnum::kSubTabata, "Tabata"};
@@ -93,8 +94,8 @@ constexpr FitSport fitSportOf(SessionType t)
     }
 }
 
-/// Only strength writes FIT set messages (one a set and one a rest).
-constexpr bool writesSets(SessionType t) { return t == SessionType::Strength; }
+/// Strength and open sets write FIT set messages (one a set and one a rest).
+constexpr bool writesSets(SessionType t) { return t == SessionType::Strength || t == SessionType::OpenSets; }
 
 /// The HybridX activity link's sport code (hybridx-link ActivityLink.hpp,
 /// HybridXLink::Sport): Strength 4, Workout 5, Hybrid 6. A host test ties the
@@ -102,7 +103,8 @@ constexpr bool writesSets(SessionType t) { return t == SessionType::Strength; }
 constexpr uint8_t linkSportCodeOf(SessionType t)
 {
     switch (t) {
-    case SessionType::Strength: return 4;
+    case SessionType::Strength:
+    case SessionType::OpenSets: return 4;
     case SessionType::Circuit:  return 6;
     default:                    return 5;
     }

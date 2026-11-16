@@ -23,6 +23,16 @@ prefix for the SDK's version script. The store release of the Streak family:
 
 - The activity link has a sixth slot, X Training's (`act_training.json`): the Streak line after a
   save also counts X Training's runs. Nothing else changes.
+### Added
+
+- **Open sets**, an eighth kind (Type on the main menu, next to Strength), from a user's request:
+  nothing to set. R2 swaps a set for a rest and back, and each is timed up from zero, so the
+  reps and the rest are whatever you make them (Strength's 3 sets and 60 s rest were too
+  fixed). The live heading reads "Set 4" and "Rest" with no total; the summary says "4 sets".
+  It saves as Strength (FIT training / strength_training, a set message for each set and
+  rest) and counts in X Streak as Strength. At most 32 sets, since the file holds 64 laps;
+  the 32nd set's R2 ends the plan as the last Strength set does, and End from the menu ends
+  it at any time.
 
 ## [1.0.0] - 2026-11-09
 
