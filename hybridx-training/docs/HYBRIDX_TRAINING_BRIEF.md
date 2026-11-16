@@ -304,7 +304,8 @@ one-line text edit, and the golden outputs show its effect in review.
 | `PlanState` | The log and its JSON; done, part done, missed | Corrupt, truncated and one-byte-changed files read as "no plan" |
 | `PlanRules` (TP5) | Missed sessions and weeks, moves, pauses, recalibration | `plan_sim` scenarios |
 | `PlanText` | Names, purposes, the Today, Saved and glance lines | Worst-case widths (the audit) |
-| `TodayFile` (TP6) | The glance's file | Round trip; stale and future files |
+| `TodayFile`, `TodayBuild` (TP6) | The glance's file: written from the plan, read back, and which state it shows today | Round trip; corrupt, truncated and changed files; stale and future files; every plan and level |
+| `GlanceView`, `GlanceLayout` (TP6) | What the glance shows and draws | Every state and kind within the band, the controls, the pips |
 
 **Service:** at GUI start, read the config and `plan.json`, settle missed days, build
 today's Program into `mProgram`, send `PlanToday` and `PlanWeek` (fixed-size structs). A
@@ -316,25 +317,46 @@ message IDs clear of X Run's.
 into a heap buffer at open and freed; nothing allocated in the 1 Hz loop; the LVGL pool at
 X Run's 56 KB, screens built only when shown.
 
-**Builds:** CI builds the app (and later the glance) into `watch-apps` and checks the link
+**Builds:** CI builds the app and the glance into `watch-apps` and checks the link
 copies. Local builds are compile checks only.
 
 ## 12. The glance (TP6)
 
-- A second `.uapp`, `HXTrainingGlance`: display only, 240 × 60, 16 colours.
-- It reads `../SharedData/HybridX/training_today.json`, written by the app when it opens,
-  after each save and when the plan changes. It holds the next 14 days, so the glance stays
-  right for a fortnight without the app being opened:
-  `{"v":1,"plan":1,"wk":6,"wks":10,"race":20261227,"d":[[20261124,3,0,48,9200,"4 x 4 min"],...]}`
-  (the exact format is TP6's).
+- A second `.uapp`, `HXTrainingGlance`: display only, 240 x 60, 16 colours. Its own store listing,
+  "X Training Glance", which needs the app.
+- It reads `../SharedData/HybridX/training_today.json`, written by the app (never by the glance)
+  whenever `updateToday()` runs: when the app opens, after each save, and when the plan changes
+  (a move, a skip, a pause, an offer answered, a new 5K, an ended plan). It holds the Monday of that
+  week through 14 days after today, so the glance stays right for a fortnight without the app being
+  opened. The format is `TodayFile.hpp`'s (built, TP6):
+  `{"v":1,"plan":1,"wks":10,"ps":0,"s":20261012,"e":20261220,"f":20261123,"t":20261207,
+  "d":[[20261123,7,1,6,"4 x 4 min","4:18/km"],...]}`: the plan's span, the window `f` to `t`, and
+  a row a day: date, kind, status (to come, done, part done, missed, skipped), run week, a short
+  "what" and the target pace in the runner's units.
+- **What platform findings changed.** The first draft here had three text lines. Only 18 and 20 point
+  faces draw letters (the 10 point face holds digits alone), and 25 + 23 + 23 px do not fit 60 px
+  (HybridX Streak NOTES S4.2), so the glance has **two lines and a strip of pips**: the week's seven
+  days (done green, today white, to come grey, no session dark, missed or skipped amber) and a bar
+  of how far through the plan it is. "Week 6 of 10, race in 33 days" is not on the face; the app's
+  Plan screen has it. Only text and filled rectangles draw (no lines), and a glance never clicks
+  through (S4.3, S4.4).
 
-  | State | Line 1 | Line 2 | Line 3 |
+  | State | Line 1 | Line 2 | Strip |
   |---|---|---|---|
-  | A session today | TODAY: INTERVALS | 4 x 4 min @ 4:18 | Week 6 of 10, race in 33 days |
-  | Done today | DONE: INTERVALS | Next: Wed, Easy 45 min | Week 6 of 10, 1 of 4 done |
-  | Rest day | REST DAY | Tomorrow: Cruise 3 x 10 | Week 6 of 10, 2 of 4 done |
-  | File older than 14 days | X TRAINING | Open the app to update | |
-  | No plan | X TRAINING | Set up a plan in the UNA app | |
+  | A session today | Today: Intervals | 4 x 4 min @ 4:18/km | the week, today white |
+  | Done today | Done: Intervals (green) | Tomorrow: Easy 45 min, or Wed: Easy 45 min | today green |
+  | Rest day | Rest day | Tomorrow: Cruise | the week |
+  | Skipped today | Skipped: Intervals (amber) | the next session | today amber |
+  | Paused | Plan paused | Resume in the app | none |
+  | Before the start | Plan starts | Mon 4 Jan | none |
+  | Plan complete | Plan complete | Well done | none |
+  | Today is outside the file's days (older than 14 days, or from the future) | X Training | Open the app | none |
+  | No plan | X Training | Set a plan in UNA | none |
+  | No file yet, or the date not set | X Training | Open the app to start, or Set the watch's date | none |
+
+  Each line has shorter wordings behind it (the pace, then the "what", then the label go first),
+  and the longest that fits a 196 px band is used, measured with the faces' own advance widths. The
+  preview, `docs/experiments/glance_preview.py`, draws every state from the real layout code.
 
 ## 13. Phases and gates
 
@@ -348,7 +370,7 @@ Each phase starts in plan mode and stops at its gate.
 | **TP3** | The screens (section 8), the easy-step alerts, the short-rep result; the audit; `capture_screens.sh` | **Built** (15 November 2026; NOTES "TP3"). Jon reviews the captures, then a week of the plan on the watch |
 | **TP4** | Family: the `training` slot (Streak release, family rebuild), the Run link (Run release), VO2max on the Plan screen; the family check gains X Training | **Built** (15 November 2026; NOTES "TP4"). The family check; Jon's watch test (`hybridx-link/docs/FAMILY_WATCH_TEST.md` section 7) |
 | **TP5** | The plan's memory and recalibration; `plan_sim` | **Built** (16 November 2026; NOTES "TP5"). Jon reads `plan_sim`'s scenarios and the rules, then the watch |
-| **TP6** | The glance and `training_today.json` | Previews, then on the watch |
+| **TP6** | The glance and `training_today.json` | **Built** (16 November 2026; NOTES "TP6"). Jon looks at the previews, then the glance on the watch |
 | **TP7** | Field test (Jon, and ideally a level 1 and a level 3 runner, three weeks each), then the store release as the family's phase P | Jon's go |
 
 ## 14. Decisions

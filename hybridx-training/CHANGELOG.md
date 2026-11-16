@@ -11,6 +11,18 @@ prefix for the SDK's version script. The store release of the family:
 
 ## [Unreleased]
 
+### Added
+
+- **A glance** ("X Training Glance", its own store listing, which needs the app): today's session on the
+  glances screen. Line one says what it is ("Today: Intervals"; "Done: Intervals" in green once saved; "Rest
+  day"), line two its "what" and target pace ("4 x 4 min @ 4:18/km") or the next session ("Tomorrow: Cruise"),
+  and under them the week's seven days as pips and a bar of how far through the plan you are. It also says when
+  the plan is paused, not started or complete, and "Open the app" when the app has not been opened for a
+  fortnight. It shows what the app saved; it never writes.
+- **`training_today.json`**: the app now leaves the glance its plan's days (the week so far and the next 14
+  days) in `../SharedData/HybridX/`, each time the app opens and whenever the plan changes or a session is saved.
+  Without the glance installed nothing reads it.
+
 ## [1.0.0] - 2026-11-16
 
 The first store release. On the watch the app list calls it **X Training** (project name

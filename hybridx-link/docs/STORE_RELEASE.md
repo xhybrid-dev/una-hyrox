@@ -38,6 +38,7 @@ the zips CI builds from the tags go to the portal.**
 | X Workout | `HybridXWorkout-<v>.zip` (`workout-store-zip`) | `workout-v1.0.0` | the portal's `B9171EBAF7066A30` |
 | X Ride | `HybridXRide-<v>.zip` (`ride-store-zip`) | `ride-v1.0.0` | the portal's `58F141AE44428F51` |
 | X Training (new) | `HybridXTraining-<v>.zip` (`training-store-zip`) | `training-v1.0.0` | the portal's `C790FB2FDF322688` |
+| X Training Glance (later, TP6) | `Glance/HXTrainingGlance-<v>.zip` (`training-glance-store-zip`, a dry run for now) | with X Training 1.1.0 | not yet: the development `C4B5BAD6DC827E16` until Jon creates the listing |
 | HybridX Race | `HybridXRace-<v>.zip` (`race-store-zip`) | `v1.1.0` and `apps-v1.1.0` | the portal's `5C4D6F49335E5E17` |
 
 Each zip holds four things: the `.uapp`, `app-manifest.json`, `icon.png` and `previews/`.
@@ -369,7 +370,30 @@ your 5K time, run step by step. Counts in X Streak.
 
 **Not claimed yet:** missed-session handling, offers, moves, pauses and recalibration after a time
 trial (TP5: built on 16 November 2026 and simulator-checked, to be claimed once Jon has seen them on
-the watch, then added to the description above); a glance (TP6).
+the watch, then added to the description above). The glance is its own listing (below), built in TP6.
+
+### X Training Glance (TP6: built, not yet on the store)
+
+Its own listing, created after the app's (one listing installs one `.uapp`). Name **X Training Glance**; the
+ID is the development `C4B5BAD6DC827E16` until Jon creates the listing and sends the portal's; then it goes in
+the glance's `CMakeLists.txt` and `Resources/Glance/app-manifest.json`, and the CI step gains `$EXPECT`.
+
+**Short description:** Today's X Training session on the glances screen. Needs the X Training app.
+
+**Longer description:**
+
+> - Today's session at a glance: what it is, its target pace, and when it is done, what comes next.
+> - Your week as seven pips (done, today, still to come, rest, missed) and a bar of how far through
+>   your plan you are.
+> - Says when your plan is paused, has not started, or is complete, and when to open the app.
+>
+> **Needs the X Training app**, which keeps your plan; the glance shows what the app has saved.
+>
+> Made by HybridX.
+
+**Facts checked against the code:** `Libs/Glance` and its host tests (every kind and state fits the band by the
+faces' real widths); `TodayFile`, which the app writes and the glance reads. The previews come from the layout
+code (`glance_preview.py --store`). **Not yet seen on a watch.**
 
 ### HybridX Race 1.1.0 (the update)
 
