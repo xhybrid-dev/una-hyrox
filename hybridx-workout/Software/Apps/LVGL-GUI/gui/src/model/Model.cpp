@@ -135,6 +135,11 @@ void Model::stepPlanField(Workout::PlanField field)
     SDK::send_msg<CustomMessage::SetPlan>(mKernel, Workout::stepField(mPlan, field));
 }
 
+void Model::adjustPlanMinutes(Workout::PlanField field, int delta)
+{
+    SDK::send_msg<CustomMessage::SetPlan>(mKernel, Workout::adjustMinutes(mPlan, field, delta));
+}
+
 void Model::onStart()
 {
     LOG_INFO("called\n");

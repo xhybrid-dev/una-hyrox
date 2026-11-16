@@ -280,3 +280,32 @@ TEST(PlanText, EveryWriterStopsAtItsBuffer)
     EXPECT_STREQ(small, "Wal");
     EXPECT_EQ(formatSummaryLine(nullptr, 0, 0, 1, 0), 0u);
 }
+
+TEST(PlanText, MinutesScrollByTheMinuteAndStopAtTheEnds)
+{
+    // Any whole minute can be chosen, not only the list's (32, say), for an EMOM and an AMRAP.
+    EXPECT_TRUE(isMinutesField(PlanField::EmomMin));
+    EXPECT_TRUE(isMinutesField(PlanField::AmrapMin));
+    EXPECT_FALSE(isMinutesField(PlanField::Work));
+
+    PlanConfig c;
+    c.emomMin = 30;
+    c = adjustMinutes(c, PlanField::EmomMin, 1);
+    c = adjustMinutes(c, PlanField::EmomMin, 1);
+    EXPECT_EQ(c.emomMin, 32);
+    c = adjustMinutes(c, PlanField::EmomMin, -3);
+    EXPECT_EQ(c.emomMin, 29);
+
+    c.amrapMin = 1;
+    EXPECT_EQ(adjustMinutes(c, PlanField::AmrapMin, -1).amrapMin, 1);   // stops, not wraps
+    c.amrapMin = 60;
+    EXPECT_EQ(adjustMinutes(c, PlanField::AmrapMin, 1).amrapMin, 60);
+
+    // Another field is left alone.
+    c.workSec = 40;
+    EXPECT_EQ(adjustMinutes(c, PlanField::Work, 1).workSec, 40);
+
+    // R1's list still steps on from a length off it.
+    c.emomMin = 32;
+    EXPECT_EQ(fieldValue(stepField(c, PlanField::EmomMin), PlanField::EmomMin), 40);
+}
