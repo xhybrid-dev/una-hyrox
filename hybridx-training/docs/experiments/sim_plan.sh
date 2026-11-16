@@ -54,8 +54,10 @@ cat > "$SOFT/Output/app_config.json" <<EOF
 "runMon":$(bool 0),"runTue":$(bool 1),"runWed":$(bool 2),"runThu":$(bool 3),"runFri":$(bool 4),"runSat":$(bool 5),
 "runSun":$(bool 6),"longRunDay":$(( LONG + 1 )),"easyByHr":false}}
 EOF
-printf '{"v":1,"s":[%d,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,%d],"log":[]}' \
-    "$PLAN" "$DAYS" "$LONG" "$START" "$START" "$WEEKS" > "$SOFT/Output/plan.json"
+# "st": the days before today are settled (the pretend plan began weeks ago with nothing logged; the
+# plan's memory, TP5, would log them missed and repeat the weeks).
+printf '{"v":1,"s":[%d,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,%d],"log":[],"st":%s}' \
+    "$PLAN" "$DAYS" "$LONG" "$START" "$START" "$WEEKS" "$TODAY" > "$SOFT/Output/plan.json"
 echo "--- pretend watch: today $TODAY (weekday $DOW), long run day $LONG, days mask $DAYS, plan from $START"
 
 Xvfb $DISP -screen 0 800x800x24 >/dev/null 2>&1 & XPID=$!

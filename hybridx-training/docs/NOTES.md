@@ -723,3 +723,76 @@ Brief §10 and REVIEW E3. Four steps, three commits, each built for the simulato
 
 **For Jon to decide:** whether Streak's This week should show every app by its watch name (X Run,
 X Ride, ...), as it now shows X Training; today the others show their folder names.
+
+## TP5: the plan's memory and recalibration (built, 16 November 2026; at its gate)
+
+PLANS.md 4.3 and 2.6, as written, in a pure core (`PlanRules.hpp`), then the service and screens.
+Jon read nothing of this yet: the gate is below.
+
+### What was built
+- **The rules** (`Software/Libs/Core/PlanRules.*`, with `PlanCalendar`'s week adjustments and `PlanState`'s
+  memory): the days gone are logged **Missed** when the app opens; a **missed key session** takes the
+  place of the week's later quality; a missed easy run is dropped; at a week's end, **less than half
+  done is repeated** (with a race date it takes the next week's place and never the last two weeks of
+  a 10K or three of a half; without one the plan grows, twice at most) and a week with **nothing done**
+  repeats the last cut-back week; **offers** (yesterday's missed long run, once, if today is easy or
+  rest; a missed key session in place of today's easier one); **moves** (tomorrow's session today,
+  today's to tomorrow, skip), hard days kept apart (the nearer becomes easy), a day moved stays moved;
+  **pauses** (nothing missed; 8 to 14 days repeat the last completed week; over 14 days, easy running and
+  a long-day time trial until a trial is run, then the plan resumes where it was paused);
+  **recalibration** (a time trial or race gives a 5K equivalent: faster applies, slower by more than 2%
+  asks, a jump of more than 6% asks).
+- **`plan_sim`** (`Tools/plan_sim`, golden `Tests/Host/golden/plan_sim.md`): 19 scenarios as Markdown.
+  **This is TP5's gate.**
+- **plan.json** (optional keys, so a file from before TP5 reads as before; buffer 3584 bytes): `adj`,
+  `ov`, `ps`, `rt`, `rw`, `st`, `ak`, `od`.
+- **The service**: `settleToday()` at each Today; `PlanRules::sessionOn` for every session shown or
+  started; a time trial's or race's effort that ran its whole distance gives its time (`mTrialSec`,
+  from the step that ended on its own); `recordPlannedRun` applies, asks or keeps and writes the new 5K
+  back as the phone's field (`writeFiveK`); a new message, `PLAN_ACTION` (0x2A), for the answers.
+- **The screens:** Today says Paused, Skipped, an offer ("Long run missed, Do it today?") or a trial's
+  question ("5K trial 22:50, Paces from 22:00, Update them?"); R1 there opens `PlanOfferScreen`
+  (Yes or No, Update or Keep mine). A new main-menu item, **Changes** (`PlanChangesScreen`): Tomorrow's
+  (do it today), Today's (do it tomorrow), Skip today, Pause or Resume, End plan (R1 twice). The result
+  is in Today's title (CHANGED, NOT ALLOWED, NO SESSION). This week marks missed days (orange); Saved
+  says what a trial did ("5K 21:41, new paces").
+
+### Decisions made while building (each cheap to change)
+1. **Missed key session, no later quality this week:** PLANS has nothing for it; the brief's offers
+   list does ("Intervals were missed: do them in place of today's session?"), so it is offered on the
+   next easier session day that week (once; declined, not again).
+2. **A pause of 8 to 14 days:** "the last completed week is repeated" is the week before the one the
+   pause began in; the plan goes on from the week it was paused in, later (no race date), or the next
+   week is repeated (a race date, which cannot move).
+3. **Over 14 days:** every run day is easy, the long-run day is a 5K time trial, until a trial is run;
+   with no race date the plan then resumes at the week it was paused in. With a race date the calendar
+   stands (the weeks passed are lost).
+4. **A day moved stays moved** (no moving it twice), and a move that would lose a hard session is
+   refused.
+5. **A trial counts only if its effort ran its whole distance** (a lap pressed early gives no time).
+6. **One 5K only:** recalibration uses the trial's 5K equivalent for paces; the half's time is untouched.
+
+### Verified
+- 122 host tests (27 `PlanRules`: every rule above, the JSON, an invalid memory refused, a full log
+  with every key within its buffer).
+- The text-fit audit: 0 problems (the new Today statuses with every offered kind, the trial's question,
+  the Saved trial lines).
+- The simulator: `capture_screens.sh offer pause ask changes` (`docs/screens/tp5-*.png`, looked at): a
+  missed long run offered and accepted (plan.json: the Sunday logged missed, an override on Monday), a
+  plan paused and resumed, a 5K of 22:50 waiting and answered "update" (app_config.json's 5K and
+  plan.json's 5K both 22:50; the paces slower), tomorrow's session swapped in and today's skipped.
+  `sim_plan.sh` still saves its session.
+- `sim_trial.sh`: a 5K time trial run end to end in the simulator (below).
+- The watch target links (552,968 bytes).
+
+### Not verified
+- Nothing from the rules has run on a watch. The trial path in the service (the time from the step that
+  ended on its own) is read from the simulator's run only; the first real time trial (week 4) is its test.
+
+### The gate (TP5): what Jon reads and checks
+1. **`Tests/Host/golden/plan_sim.md`** (or `build-tests/plan_sim [n]`): the 19 scenarios. Say what a
+   rule does that you would not want, and which of the decisions above to change.
+2. **On the watch** (the CI build of the last push): the Changes menu; and, when it happens to you, a
+   missed session (this week's rows go orange), the offer, and what week 4's 5K time trial does to your paces.
+3. **To decide:** the six decisions above; and whether the long run's share of the week (Daniels, 30%)
+   should be changed (left from the Daniels check).

@@ -33,9 +33,10 @@ const WheelMenu::Item kItems[App::MenuNav::Root::ID_COUNT] = {
     { Style::Simple, "Free run", nullptr, &poppins_semibold_30 },
     // ID_TREADMILL (HybridX Run): on, a free run is a treadmill run (no GPS)
     { Style::Toggle, "Treadmill", nullptr, &poppins_semibold_25 },   // the intervals menu's switches' face
-    // ID_WEEK, ID_PLAN, ID_PACES (X Training, brief 8.1)
+    // ID_WEEK, ID_PLAN, ID_CHANGES, ID_PACES (X Training, brief 8.1)
     { Style::Simple, "This week", nullptr, &poppins_semibold_30 },
     { Style::Simple, "Plan" },
+    { Style::Simple, "Changes" },   // ID_CHANGES (TP5): move, skip, pause, end
     { Style::Simple, "Paces" },
     // ID_WORKOUTS: UNA's library
     { Style::Simple, "Workouts" },
@@ -165,6 +166,20 @@ void MainScreen::setTodayTip()
         case Info::PhoneAsks:
             std::snprintf(mTodayTip, sizeof(mTodayTip), "New plan from phone");
             break;
+        case Info::Paused:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Plan paused");
+            break;
+        case Info::Offer:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Missed: %s",
+                          XTraining::PlanText::shortName(static_cast<XTraining::Kind>(t.kind)));
+            break;
+        case Info::PaceAsk:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Update paces?");
+            break;
+        case Info::Skipped:
+            std::snprintf(mTodayTip, sizeof(mTodayTip), "Skipped: %s",
+                          XTraining::PlanText::shortName(static_cast<XTraining::Kind>(t.kind)));
+            break;
         case Info::NoPlan:
         default:
             std::snprintf(mTodayTip, sizeof(mTodayTip), "No plan");
@@ -233,6 +248,9 @@ void MainScreen::confirm()
             break;
         case Menu::ID_PLAN:
             ScreenManager::instance().goTo(ScreenId::PlanOverview);
+            break;
+        case Menu::ID_CHANGES:
+            ScreenManager::instance().goTo(ScreenId::PlanChanges);
             break;
         case Menu::ID_PACES:
             ScreenManager::instance().goTo(ScreenId::PlanPaces);

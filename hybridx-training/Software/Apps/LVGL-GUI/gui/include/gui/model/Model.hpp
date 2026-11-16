@@ -150,6 +150,9 @@ public:
     // X Training (TP3): the plan's screens. requestPlan() asks the service; the answer comes
     // as onPlanDay(), onPlanWeek(), onPlanOverview() or onPlanPaces().
     void requestPlan(uint8_t what, uint32_t date = 0);
+    /// TP5: an offer answered, a day moved or skipped, the plan paused, resumed or ended
+    /// (CustomMessage::PlanAction::What). The service answers with Today.
+    void planAction(uint8_t what);
     const CustomMessage::PlanTodayInfo&    getPlanDay() const { return mPlanDay; }
     const CustomMessage::PlanWeekInfo&     getPlanWeek() const { return mPlanWeek; }
     const CustomMessage::PlanOverviewInfo& getPlanOverview() const { return mPlanOverview; }

@@ -350,6 +350,11 @@ void Model::newPlan(uint8_t action, const CustomMessage::PlanSetupInfo& info)
     SDK::send_msg<CustomMessage::NewPlan>(mKernel, action, info);
 }
 
+void Model::planAction(uint8_t what)
+{
+    SDK::send_msg<CustomMessage::PlanAction>(mKernel, what);
+}
+
 void Model::requestPlan(uint8_t what, uint32_t date)
 {
     SDK::send_msg<CustomMessage::PlanRequest>(mKernel, what, date);

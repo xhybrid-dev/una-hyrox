@@ -361,9 +361,16 @@ void WorkoutDetailsScreen::onKey(uint8_t code)
         case Btn::R1:
             if (plan() && todayStartable()) {
                 startToday();
-            } else if (mSource == Source::Today
-                       && mModel.getPlanToday().status == CustomMessage::PlanTodayInfo::PhoneAsks) {
-                ScreenManager::instance().goTo(ScreenId::PlanAsk);
+            } else if (mSource == Source::Today) {
+                using Info = CustomMessage::PlanTodayInfo;
+                const uint8_t status = mModel.getPlanToday().status;
+                if (status == Info::PhoneAsks) {
+                    ScreenManager::instance().goTo(ScreenId::PlanAsk);
+                } else if (status == Info::Offer || status == Info::PaceAsk) {
+                    ScreenManager::instance().goTo(ScreenId::PlanOffer);   // TP5: yes or no, update or keep
+                } else if (status == Info::Paused) {
+                    mModel.planAction(CustomMessage::PlanAction::Resume);   // TP5
+                }
             }
             break;
         case Btn::R2:
@@ -555,6 +562,45 @@ void WorkoutDetailsScreen::setPlanPage()
             add(t.what, F::Medium18, F::Regular16, Color::CYAN);           // "Half marathon, level 2"
             add("Start it?", F::Italic18, F::Italic18, Color::GRAY);
             break;
+        case Info::Skipped:  // TP5: today's session was skipped
+            week(0);
+            add("Skipped", F::SemiBold25, F::SemiBold20, Color::WHITE);
+            add(t.name, F::Medium18, F::Regular16, Color::GRAY);
+            next(1);
+            break;
+        case Info::Paused:   // TP5: the plan is paused; R1 resumes it
+            add("Plan paused", F::SemiBold25, F::SemiBold20, Color::WHITE);
+            add(t.what, F::Medium18, F::Regular16, Color::TEAL);           // "since Tue 12 Jan"
+            add("Nothing is missed", F::Italic18, F::Italic18, Color::GRAY);
+            add("R1: resume it", F::Medium18, F::Regular16, Color::WHITE);
+            break;
+        case Info::Offer:    // TP5: a missed session offered in place of today's
+            if (WorkoutUi::textWidth(t.name, Theme::font(F::SemiBold20)) > 170 && splitAtComma(t.name, 1, 2)) {
+                add(txt[1], F::SemiBold25, F::SemiBold20, Color::WHITE);   // "Long run" / "fast finish"
+                add(txt[2], F::SemiBold25, F::SemiBold20, Color::WHITE);
+            } else {
+                add(t.name, F::SemiBold25, F::SemiBold20, Color::WHITE);
+            }
+            snprintf(txt[0], sizeof(txt[0]), "missed %s", t.what);          // "missed Sun 17 Jan"
+            add(txt[0], F::Italic18, F::Italic18, Color::TEAL);
+            if (t.detail == Info::LongRun) {
+                add("Do it today?", F::Medium25, F::Medium18, Color::WHITE);
+            } else {
+                add("Do it instead of", F::Medium18, F::Regular16, Color::WHITE);
+                add("today's session?", F::Medium18, F::Regular16, Color::WHITE);
+            }
+            add("R1 to answer", F::Italic18, F::Italic18, Color::GRAY);
+            break;
+        case Info::PaceAsk:  // TP5: a time trial's 5K waits for "update your paces?"
+            add("5K trial", F::SemiBold25, F::SemiBold20, Color::WHITE);
+            snprintf(txt[0], sizeof(txt[0]), "%u:%02u", static_cast<unsigned>(t.plannedSec / 60),
+                     static_cast<unsigned>(t.plannedSec % 60));
+            add(txt[0], F::SemiBold35, F::SemiBold30, Color::TEAL);
+            snprintf(txt[1], sizeof(txt[1]), "Paces from %u:%02u", static_cast<unsigned>(t.plannedM / 60),
+                     static_cast<unsigned>(t.plannedM % 60));
+            add(txt[1], F::Medium18, F::Regular16, Color::WHITE);
+            add(t.detail == Info::Jump ? "A big jump?" : "Update them?", F::Italic18, F::Italic18, Color::GRAY);
+            break;
         case Info::Problem:
             add("Check your plan", F::SemiBold25, F::SemiBold20, Color::WHITE);
             addWrapped(t.name, 1, 2, Color::YELLOW);
@@ -577,6 +623,10 @@ void WorkoutDetailsScreen::setPlanPage()
             *c = (*c >= 'a' && *c <= 'z') ? static_cast<char>(*c - 'a' + 'A') : *c;
         }
         snprintf(mTodayTitle, sizeof(mTodayTitle), "%s", day);
+    } else if (mSource == Source::Today && t.notice != Info::NoNotice) {
+        // TP5: how the last change went, in the title (it is the answer to the action)
+        snprintf(mTodayTitle, sizeof(mTodayTitle), "%s", t.notice == Info::Moved ? "CHANGED"
+                                                         : t.notice == Info::NotAllowed ? "NOT ALLOWED" : "NO SESSION");
     } else if (t.weeks != 0 && (t.status == Info::Session || t.status == Info::Done)) {
         snprintf(mTodayTitle, sizeof(mTodayTitle), "WEEK %u OF %u", static_cast<unsigned>(t.runWeek + 1),
                  static_cast<unsigned>(t.weeks));
@@ -587,7 +637,9 @@ void WorkoutDetailsScreen::setPlanPage()
         mTitle->setText(mTodayTitle);
     }
 
-    const bool startable = todayStartable() || t.status == Info::PhoneAsks;
+    const bool startable = todayStartable() || t.status == Info::PhoneAsks
+                        || (mSource == Source::Today && (t.status == Info::Offer || t.status == Info::PaceAsk
+                                                         || t.status == Info::Paused));
     mButtons->setR1(startable ? Widgets::Buttons::AMBER : Widgets::Buttons::NONE);
     if (t.status == Info::Session || t.status == Info::Done) {
         mModel.requestPlanDay(t.date);   // the steps, a scroll away

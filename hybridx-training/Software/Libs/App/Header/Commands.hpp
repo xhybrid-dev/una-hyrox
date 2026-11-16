@@ -59,6 +59,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type PLAN_SETUP                = 0x00000026;   // X Training: the phone's set-up
     constexpr SDK::MessageType::Type PLAN_PREVIEW              = 0x00000027;   // X Training: a new plan's calendar
     constexpr SDK::MessageType::Type PLAN_SAVED                = 0x00000029;   // X Training: the Saved screen's lines
+    constexpr SDK::MessageType::Type PLAN_ACTION               = 0x0000002A;   // X Training: an offer answered, a move, a pause
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -604,13 +605,23 @@ namespace CustomMessage {
             Finished,        ///< The plan's last day has passed.
             Problem,         ///< The set-up cannot make a plan; see text.
             PhoneAsks,       ///< The phone asks for a new plan in place of the one under way.
+            Paused,          ///< The plan is paused (TP5); name/what say since when.
+            Offer,           ///< An offer (TP5): a missed session to do in place of today's.
+            PaceAsk,         ///< A trial's 5K waits for "keep your paces, or update?" (TP5).
+            Skipped,         ///< Today's session was skipped (TP5).
         };
+        /// Offer: what is offered. PaceAsk: why it asks.
+        enum Detail : uint8_t { None = 0, LongRun = 1, KeySession = 2, Slower = 1, Jump = 2 };
+        /// An action's result, set in the answer to a PlanAction.
+        enum Notice : uint8_t { NoNotice = 0, Moved, NotAllowed, NothingToMove };
         static constexpr size_t kText = 36;
         uint8_t  status     = NoPlan;
         uint8_t  kind       = 0;      ///< XTraining::Kind of today's session
         uint8_t  runWeek    = 0;      ///< 0-based; for BeforeStart, 0
         uint8_t  weeks      = 0;
         bool     key        = false;
+        uint8_t  detail     = 0;      ///< Detail: for Offer and PaceAsk
+        uint8_t  notice     = 0;      ///< Notice: after an action
         uint32_t date       = 0;      ///< today, YYYYMMDD; 0 if the watch's date is not set
         uint32_t plannedSec = 0;
         uint32_t plannedM   = 0;
@@ -771,10 +782,26 @@ namespace CustomMessage {
         uint8_t  weekSessions = 0;
         uint32_t nextDate     = 0;      ///< 0 for none
         uint8_t  nextKind     = 0;      ///< XTraining::Kind
+        /// A time trial or race (TP5): its result as a 5K, and what the plan did about it.
+        enum Trial : uint8_t { NoTrial = 0, Applied, Kept, Asks, AsksJump };
+        uint8_t  trial        = NoTrial;
+        uint16_t trialSec     = 0;      ///< The result's 5K equivalent, seconds (under 1 hour)
     };
     struct PlanSaved : public SDK::MessageBase {
         PlanSavedInfo info;
         PlanSaved() : SDK::MessageBase(PLAN_SAVED), info{} {}
+    };
+
+    /// GUI -> Service (TP5): an offer answered, a day moved or skipped, the plan paused, resumed or
+    /// ended, a trial's question answered. The answer is a PlanToday with its notice set.
+    struct PlanAction : public SDK::MessageBase {
+        enum What : uint8_t {
+            AcceptOffer = 1, DeclineOffer, DoTomorrow, MoveTomorrow, Skip, Pause, Resume, EndPlan,
+            AnswerKeep, AnswerUpdate,
+        };
+        uint8_t what = 0;
+        PlanAction() : SDK::MessageBase(PLAN_ACTION) {}
+        explicit PlanAction(uint8_t w) : PlanAction() { what = w; }
     };
 
     /// GUI -> Service: a plan screen's data.

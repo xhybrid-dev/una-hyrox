@@ -546,7 +546,8 @@ Joins the family (a new `act_training.json` slot for Streak; X Run's VO2max both
 TP0 (decisions, the independent review, desk checks), TP1 (the pure core, host-tested) and TP2
 (the app: X Run copied, X Run's VO2max parts removed, today's session run through the workout
 engine and logged in `plan.json`) are done; TP3, the screens (Today, This week, Plan, Paces, New plan,
-Settings, the rep result, the held R2, the Saved lines), is built and at its gate (NOTES "TP3"). TP4, the family,
+Settings, the rep result, the held R2, the Saved lines), is built and at its gate (NOTES "TP3"). TP5, the plan's memory (missed sessions, offers,
+moves, pauses, recalibration; `PlanRules`, `plan_sim`), is built and at its gate (NOTES "TP5"). TP4, the family,
 is built and at its gate (NOTES "TP4"): each saved run goes to `act_training.json` for Streak (the link's
 sixth slot) and its steady minutes to `training_vo2_0..2.json` for X Run's VO2max; the Plan screen shows
 X Run's VO2max from `vo2max.json` (and, in a plan, the figure first seen in it, `plan.json`'s `"vo2s"`).
@@ -601,9 +602,14 @@ X Run's VO2max from `vo2max.json` (and, in a plan, the figure first seen in it, 
     `docs/experiments/sim_plan.sh [shots-dir]` (`WEEK=n`, `STEP_SECS=n`, `PLAN=2`; about 2 minutes;
     `STEP_SECS=50` runs 11 minutes, past X Run's warm-up, and leaves `training_vo2_0.json`; needs
     Xvfb, xdotool, ImageMagick, fitdecode); a saved file alone: `docs/experiments/fit_plan_report.py <file.fit>`.
-  - the screens (TP3, TP4) on pretend watches, by key presses: `docs/experiments/capture_screens.sh
-    [out-dir] [scenario ...]` (16 scenarios, into `docs/screens/tp3-*.png`, and `vo2` into
-    `tp4-*.png`; give an absolute out-dir; about 8 minutes; it replaces `Software/Output`);
+  - the screens (TP3 to TP5) on pretend watches, by key presses: `docs/experiments/capture_screens.sh
+    [out-dir] [scenario ...]` (20 scenarios, into `docs/screens/tp3-*.png`, `vo2` into `tp4-*.png`, and
+    `offer pause ask changes` into `tp5-*.png`; give an absolute out-dir; about 10 minutes; it replaces
+    `Software/Output`); a 5K time trial end to end, with the service's decision: `docs/experiments/sim_trial.sh`
+    (about 20 minutes);
+  - the plan's memory as scenarios (TP5): `hybridx-training/build-tests/plan_sim [n]` (the golden
+    `Tests/Host/golden/plan_sim.md`: `XTRAINING_UPDATE_GOLDEN=1 ... --gtest_filter='PlanRules.Golden*'`
+    after a rule changes, then read the diff);
   - the text-fit audit (the plan's screens with their widest text, measured with LVGL, clear of
     the bezel arcs and never cut): `docs/experiments/audit.sh` (about 30 seconds; after any change
     to a screen's text or layout, or to the plans' words).

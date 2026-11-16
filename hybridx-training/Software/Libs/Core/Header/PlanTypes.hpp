@@ -77,7 +77,8 @@ enum class DayMark : uint8_t {
     Done,       ///< Logged done.
     PartDone,   ///< Logged part done.
     Skipped,    ///< Logged skipped (TP5).
-    NotLogged,  ///< A session on an earlier day with nothing logged.
+    NotLogged,  ///< A session on an earlier day with nothing logged (before it is settled).
+    Missed,     ///< Logged missed (TP5: the day passed with neither a run nor a skip).
 };
 
 /// The four slots of a week in a plan file: the columns of PLANS.md's tables.

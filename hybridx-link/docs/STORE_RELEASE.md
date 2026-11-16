@@ -367,8 +367,9 @@ your 5K time, run step by step. Counts in X Streak.
 - **Streak and X Run:** `act_training.json` and `training_vo2_*.json` (NOTES "TP4"); passed the
   family check on 16 November 2026.
 
-**Not claimed:** missed-session handling, moves and recalibration after a time trial (TP5, not
-yet built); a glance (TP6).
+**Not claimed yet:** missed-session handling, offers, moves, pauses and recalibration after a time
+trial (TP5: built on 16 November 2026 and simulator-checked, to be claimed once Jon has seen them on
+the watch, then added to the description above); a glance (TP6).
 
 ### HybridX Race 1.1.0 (the update)
 
