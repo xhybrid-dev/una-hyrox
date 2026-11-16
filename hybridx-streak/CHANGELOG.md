@@ -10,11 +10,17 @@ strips the prefix for the SDK's version script.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-16
+
 ### Added
 
 - X Training's runs count: its summaries are in a sixth slot of the activity link,
-  `../SharedData/HybridX/act_training.json`, and count as runs. This week's list names the app
-  "X Training" (its folder name, `HybridXTraining`, ran into the arcs).
+  `../SharedData/HybridX/act_training.json`, and count as runs.
+
+### Changed
+
+- This week's list names each app as it is named on the watch (X Run, X Trail, X Ride, X Workout,
+  X Training; Race stays "HybridX"), not by its folder name, which ran into the arcs.
 
 ## [1.0.0] - 2026-11-09
 

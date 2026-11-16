@@ -10,7 +10,17 @@
  *           fiveKSec,fiveKDate,fiveKRecent,halfSec,halfDate],
  *      "c":[status,start,firstWeek,weeks],
  *      "log":[[date,kind,status,startUtc],...],
- *      "vo2s":452}
+ *      "vo2s":452,
+ *      "adj":[[runWeek,delta+8],...],"ov":[[date,from,mode],...],
+ *      "ps":date,"rt":date,"rw":planWeek+1,"st":date,"ak":seconds,"od":date}
+ *
+ * The keys from "adj" on are the plan's memory (TP5, PlanRules.hpp), each written only when it
+ * has something to say and read as none when absent: "adj" the weeks repeated or dropped
+ * (delta stored +8, so none is negative), "ov" the days moved, made easy or rested, "ps" the
+ * day the plan was paused, "rt" the day a retest began (easy running until a time trial), "rw"
+ * the plan week (+1) it resumes at once the trial is run, "st"
+ * the day to which missed sessions are settled, "ak" a new 5K time waiting for the runner's
+ * answer, and "od" a missed session whose offer was declined.
  *
  * "vo2s" (TP4, optional): X Run's VO2max x 10 as first seen in this plan, the
  * VO2max block's second measure (RunVo2Max.hpp); absent until there is one.
@@ -51,6 +61,20 @@ struct PlanSetup {
     Ymd      halfDate = 0;
 };
 
+/// A day that does not run the plan's own session (TP5).
+enum class OverrideMode : uint8_t {
+    Session = 1,  ///< Runs the session planned for date @p from.
+    Easy    = 2,  ///< An easy run instead (a hard day made easy).
+    Rest    = 3,  ///< A rest day instead.
+};
+
+struct Override {
+    Ymd          date = 0;
+    Ymd          from = 0;  ///< For Session: the day whose session this day runs.
+    OverrideMode mode = OverrideMode::Easy;
+};
+constexpr uint8_t kMaxOverrides = 8;
+
 enum class DayStatus : uint8_t {
     Done     = 1,  ///< Reached the end, and saved.
     PartDone = 2,  ///< Saved, at least half the planned time.
@@ -81,13 +105,23 @@ inline bool judgeSession(bool reachedEnd, uint32_t activeSec, uint32_t plannedSe
 class PlanState {
 public:
     static constexpr uint8_t kMaxLog = 84;  ///< 12 weeks of days.
-    static constexpr size_t  kMaxJsonBytes = 2560;
+    static constexpr size_t  kMaxJsonBytes = 3584;
 
     PlanSetup setup;
     Calendar  calendar;
     /// X Run's VO2max x 10 as first seen on or after the plan's start; 0 = not yet (TP4).
     /// Shown beside the figure now; never used for paces.
     uint16_t  vo2StartX10 = 0;
+
+    // The plan's memory (TP5; PlanRules.hpp). Each reads as none from an older file.
+    Ymd      pausedFrom   = 0;  ///< The day the plan was paused; 0 = not paused.
+    Ymd      retestFrom   = 0;  ///< After a long pause: easy running until a time trial; 0 = no.
+    uint8_t  resumeWeek   = 0;  ///< With a retest: the plan week (+1) the plan resumes at after the trial; 0 = none.
+    Ymd      settledTo    = 0;  ///< Days before this are settled (missed ones logged).
+    uint32_t askFiveKSec  = 0;  ///< A 5K time from a trial, waiting for "keep or update"; 0 = none.
+    Ymd      offerDeclined = 0; ///< The missed session whose offer the runner declined.
+    Override overrides[kMaxOverrides];
+    uint8_t  overrideCount = 0;
 
     void clear() { *this = PlanState{}; }
 
@@ -98,6 +132,13 @@ public:
 
     /// The entry for @p date, or null.
     const LogEntry* find(Ymd date) const;
+
+    /// Make @p date run something other than the plan's own session, replacing any earlier
+    /// override for it. When full, the oldest goes.
+    void setOverride(const Override& o);
+    const Override* findOverride(Ymd date) const;
+    /// Forget overrides for days before @p date (they are in the log).
+    void pruneOverrides(Ymd date);
 
     uint8_t logCount() const { return mCount; }
     const LogEntry& log(uint8_t i) const { return mLog[i]; }

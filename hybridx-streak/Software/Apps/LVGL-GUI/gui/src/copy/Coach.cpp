@@ -136,13 +136,20 @@ void lastWeekToast(uint8_t count, uint8_t target, char* out, size_t size)
 
 void appName(const char* folder, char* out, size_t size)
 {
-    if (std::strcmp(folder, "HybridXRace") == 0) {
-        snprintf(out, size, "HybridX");   // "HybridX Race" clips on the wheel's lower line
-    } else if (std::strcmp(folder, "HybridXTraining") == 0) {
-        snprintf(out, size, "X Training");   // its name on the watch; the folder name clips
-    } else {
-        snprintf(out, size, "%s", folder);
+    // Each app by its name on the watch (CLAUDE.md, "Names on the watch"); the folder names
+    // ("HybridXRun") run into the arcs. Race keeps "HybridX": "HybridX Race" clips on the wheel's
+    // lower line. Any other folder (an app of UNA's) is shown as it is.
+    static const struct { const char* folder; const char* name; } kNames[] = {
+        {"HybridXRace", "HybridX"},     {"HybridXRun", "X Run"},         {"HybridXTrail", "X Trail"},
+        {"HybridXRide", "X Ride"},      {"HybridXWorkout", "X Workout"}, {"HybridXTraining", "X Training"},
+    };
+    for (const auto& n : kNames) {
+        if (std::strcmp(folder, n.folder) == 0) {
+            snprintf(out, size, "%s", n.name);
+            return;
+        }
     }
+    snprintf(out, size, "%s", folder);
 }
 
 const char* dayShort(uint8_t weekday)

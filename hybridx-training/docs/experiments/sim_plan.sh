@@ -54,8 +54,10 @@ cat > "$SOFT/Output/app_config.json" <<EOF
 "runMon":$(bool 0),"runTue":$(bool 1),"runWed":$(bool 2),"runThu":$(bool 3),"runFri":$(bool 4),"runSat":$(bool 5),
 "runSun":$(bool 6),"longRunDay":$(( LONG + 1 )),"easyByHr":false}}
 EOF
-printf '{"v":1,"s":[%d,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,%d],"log":[]}' \
-    "$PLAN" "$DAYS" "$LONG" "$START" "$START" "$WEEKS" > "$SOFT/Output/plan.json"
+# "st": the days before today are settled (the pretend plan began weeks ago with nothing logged; the
+# plan's memory, TP5, would log them missed and repeat the weeks).
+printf '{"v":1,"s":[%d,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,%d],"log":[],"st":%s}' \
+    "$PLAN" "$DAYS" "$LONG" "$START" "$START" "$WEEKS" "$TODAY" > "$SOFT/Output/plan.json"
 echo "--- pretend watch: today $TODAY (weekday $DOW), long run day $LONG, days mask $DAYS, plan from $START"
 
 Xvfb $DISP -screen 0 800x800x24 >/dev/null 2>&1 & XPID=$!
@@ -77,6 +79,22 @@ snap() { [ -n "$SHOTS" ] && mkdir -p "$SHOTS" && DISPLAY=$DISP timeout 10 import
 
 echo "--- the plan, as the service read it"
 grep -E "Plan settings|New plan|Paces s/km|Today:" "$LOG" | sed 's/^ *//'
+TP="$REPO/build-tests/today_print"
+TODAYF="$SOFT/SharedData/HybridX/training_today.json"
+# TP6: the glance's file, written as the app opened, read back with the core's own reader.
+today_check() {
+    if [ -x "$TP" ]; then
+        local out
+        if out=$("$TP" "$TODAYF" "$TODAY" --expect "$1"); then echo "PASS training_today.json: the glance shows $1"
+        else echo "FAIL training_today.json: expected the glance to show $1"; TODAY_FAILED=1; fi
+        echo "$out" | sed 's/^/  /' | grep -E "^  (plan|on )"
+    else
+        echo "(build-tests/today_print is not built: the glance's file is not checked)"
+    fi
+}
+TODAY_FAILED=0
+echo "--- training_today.json after the app opened"
+today_check Session
 snap 01-start                             # Today, with today's session under it (TP3)
 key 3 1                                   # R1: Today -> today's page
 snap 01b-today
@@ -111,6 +129,12 @@ sleep 2
 
 echo "--- after the run (service log)"
 grep -E "Planned session|Today:|Workout|plan.json|Track stopped|activity" "$LOG" | sed 's/^ *//' | tail -n 20
+# A session counts once it has run half its planned time (PlanState.hpp judgeSession); stepping
+# through with R2 in seconds does not, and then the file rightly still says to do it. sim_trial.sh
+# runs a whole one.
+if grep -q '"log":\[\[' "$SOFT/Output/plan.json"; then WANT=Done; else WANT=Session; fi
+echo "--- training_today.json after the save: the glance should show $WANT"
+today_check $WANT
 echo "--- plan.json"
 cat "$SOFT/Output/plan.json"; echo
 echo "--- shared files"
@@ -159,3 +183,4 @@ PY
 else
     echo "no .fit written"
 fi
+[ "${TODAY_FAILED:-0}" = 0 ] || exit 1

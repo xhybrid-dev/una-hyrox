@@ -33,6 +33,8 @@ enum class ScreenId : uint8_t {
     NewPlanRace,    // X Training: the race date
     NewPlanConfirm, // X Training: the new plan, to start
     PlanAsk,        // X Training: the phone's new plan, start it or keep yours
+    PlanChanges,    // X Training (TP5): move, skip, pause or end the plan
+    PlanOffer,      // X Training (TP5): an offer, or a trial's question, answered
     // Structured workouts
     WorkoutToday,
     WorkoutList,

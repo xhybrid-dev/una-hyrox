@@ -541,15 +541,21 @@ A thirteenth app, **X Training** on the watch (Jon, 14 November 2026; first brie
 plans (10K, half marathon, VO2max block) at three levels on the runner's own days. The runner
 enters a recent 5K (and optionally a half) on the phone; the watch works out the paces
 (Daniels–Gilbert equations), the calendar and each day's workout, dosed by time, and runs it
-through the SDK's own workout engine, gauges and alerts. Later: a glance with today's workout.
+through the SDK's own workout engine, gauges and alerts. Plus a glance with today's workout (TP6).
 Joins the family (a new `act_training.json` slot for Streak; X Run's VO2max both ways).
 TP0 (decisions, the independent review, desk checks), TP1 (the pure core, host-tested) and TP2
 (the app: X Run copied, X Run's VO2max parts removed, today's session run through the workout
 engine and logged in `plan.json`) are done; TP3, the screens (Today, This week, Plan, Paces, New plan,
-Settings, the rep result, the held R2, the Saved lines), is built and at its gate (NOTES "TP3"). TP4, the family,
+Settings, the rep result, the held R2, the Saved lines), is built and at its gate (NOTES "TP3"). TP5, the plan's memory (missed sessions, offers,
+moves, pauses, recalibration; `PlanRules`, `plan_sim`), is built and at its gate (NOTES "TP5"). TP4, the family,
 is built and at its gate (NOTES "TP4"): each saved run goes to `act_training.json` for Streak (the link's
 sixth slot) and its steady minutes to `training_vo2_0..2.json` for X Run's VO2max; the Plan screen shows
 X Run's VO2max from `vo2max.json` (and, in a plan, the figure first seen in it, `plan.json`'s `"vo2s"`).
+TP6, the glance, is built and at its gate (NOTES "TP6"): the app leaves `../SharedData/HybridX/training_today.json`
+(`TodayFile`, `TodayBuild`; written at the end of `updateToday`) and the glance `HXTrainingGlance`
+(`Software/Libs/Glance`, `Apps/HXTrainingGlance-CMake`; its own listing, "X Training Glance", development App ID
+`C4B5BAD6DC827E16` until the portal issues one) reads it: two lines and a strip of seven pips, not the brief's three
+lines (60 px; Streak NOTES S4.2). Text and filled rectangles only; letters only in the 18 and 20 point faces.
 - **Docs:** brief, architecture, phases (TP0-TP7): `hybridx-training/docs/HYBRIDX_TRAINING_BRIEF.md`;
   the pace model, sessions and the three plans: `PLANS.md`; the independent engineering and
   coaching review: `REVIEW.md`; decisions, verified SDK facts and the TP1 plan: `NOTES.md`.
@@ -574,8 +580,12 @@ X Run's VO2max from `vo2max.json` (and, in a plan, the figure first seen in it, 
   `Libs/RunCore`'s window builder and codec and `Libs/App`'s `SafeFile` are **copies of X Run's**
   (the Run link, TP4): edit X Run's, then `hybridx-training/Utilities/check-vo2-link-copies.sh --sync`
   (CI checks they match).
-- **Watch builds will come from CI**, as for the others. Tags `training-vX.Y.Z`. App folder
-  `HybridXTraining`; development APP_ID `6E050D707D4D2D32`.
+- **Watch builds come from CI**, as for the others. Tags `training-vX.Y.Z`. App folder
+  `HybridXTraining`; App ID `C790FB2FDF322688` (portal-issued, 16 November 2026; the development
+  one was `6E050D707D4D2D32`). The store package: `Utilities/pack-store-zip.sh` (CI artifact
+  `training-store-zip`, a dry run until a `training-v*` tag; the tag and the upload are Jon's),
+  previews `docs/experiments/store_previews.sh`, images `docs/store/` (Cadence colourway),
+  `CHANGELOG.md`, and the listing's text in `hybridx-link/docs/STORE_RELEASE.md`.
 - **Commands:**
   - host tests: `cmake -S hybridx-training/Tests/Host -B hybridx-training/build-tests && cmake --build hybridx-training/build-tests && hybridx-training/build-tests/hybridx-training-host-tests`
     (`ctest --test-dir hybridx-training/build-tests` also checks the generated plan header);
@@ -597,9 +607,23 @@ X Run's VO2max from `vo2max.json` (and, in a plan, the figure first seen in it, 
     `docs/experiments/sim_plan.sh [shots-dir]` (`WEEK=n`, `STEP_SECS=n`, `PLAN=2`; about 2 minutes;
     `STEP_SECS=50` runs 11 minutes, past X Run's warm-up, and leaves `training_vo2_0.json`; needs
     Xvfb, xdotool, ImageMagick, fitdecode); a saved file alone: `docs/experiments/fit_plan_report.py <file.fit>`.
-  - the screens (TP3, TP4) on pretend watches, by key presses: `docs/experiments/capture_screens.sh
-    [out-dir] [scenario ...]` (16 scenarios, into `docs/screens/tp3-*.png`, and `vo2` into
-    `tp4-*.png`; give an absolute out-dir; about 8 minutes; it replaces `Software/Output`);
+  - the screens (TP3 to TP5) on pretend watches, by key presses: `docs/experiments/capture_screens.sh
+    [out-dir] [scenario ...]` (20 scenarios, into `docs/screens/tp3-*.png`, `vo2` into `tp4-*.png`, and
+    `offer pause ask changes` into `tp5-*.png`; give an absolute out-dir; about 10 minutes; it replaces
+    `Software/Output`); a 5K time trial end to end, with the service's decision: `docs/experiments/sim_trial.sh`
+    (about 20 minutes);
+  - the plan's memory as scenarios (TP5): `hybridx-training/build-tests/plan_sim [n]` (the golden
+    `Tests/Host/golden/plan_sim.md`: `XTRAINING_UPDATE_GOLDEN=1 ... --gtest_filter='PlanRules.Golden*'`
+    after a rule changes, then read the diff);
   - the text-fit audit (the plan's screens with their widest text, measured with LVGL, clear of
     the bezel arcs and never cut): `docs/experiments/audit.sh` (about 30 seconds; after any change
     to a screen's text or layout, or to the plans' words).
+  - the glance (TP6; the simulator cannot run glances): every state drawn from the real layout code,
+    `UNA_SDK=... python3 hybridx-training/docs/experiments/glance_preview.py hybridx-training/build-tests/glance_preview
+    <out.png>` (`--store hybridx-training/Resources/Glance/previews` writes the listing's four previews); the file the
+    app wrote, read with the core's reader and the state the glance shows for a date:
+    `hybridx-training/build-tests/today_print <training_today.json> [yyyymmdd] [--expect State]` (`sim_plan.sh` and
+    `sim_trial.sh` run it before and after a session); its package: `Utilities/pack-store-zip.sh --glance` (CI artifact
+    `training-glance-store-zip`, a dry run without `--expect-version` until the glance has its portal ID); a local watch
+    compile check of the glance: Trail Quest's recipe with `hybridx-training/Software/Apps/HXTrainingGlance-CMake`
+    into `hybridx-training/build/arm-glance`; its store images: `hybridx-link/Tools/Brand/store_images.py training-glance`.

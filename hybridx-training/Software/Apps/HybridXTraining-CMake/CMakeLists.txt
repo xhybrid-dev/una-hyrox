@@ -15,7 +15,7 @@ set(APP_USER_NAME "X Training")         # 10 bytes; app_merging.py truncates at 
 set(APP_FILE_NAME "HybridXTraining")
 set(APP_TYPE "Activity")
 set(DEV_ID "HybridX")
-set(APP_ID "6E050D707D4D2D32")          # development ID: md5 of "HybridXTraining"; the portal issues the real one at release
+set(APP_ID "C790FB2FDF322688")          # the portal's ID (Jon, 16 November 2026); the development one was 6E050D707D4D2D32
 set(RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Resources")
 set(OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../Output")
 set(LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Libs")

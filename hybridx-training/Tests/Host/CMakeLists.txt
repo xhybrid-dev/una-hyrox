@@ -40,6 +40,16 @@ set(CORE_SOURCES
     "${CORE_LIBS}/Sources/PlanSchedule.cpp"
     "${CORE_LIBS}/Sources/PlanProgress.cpp"
     "${CORE_LIBS}/Sources/RunVo2Max.cpp"
+    "${CORE_LIBS}/Sources/PlanRules.cpp"
+    "${CORE_LIBS}/Sources/TodayFile.cpp"
+    "${CORE_LIBS}/Sources/TodayBuild.cpp"
+)
+# The glance's pure parts (its service needs the kernel and is not here). GlanceLayout uses the
+# SDK's GlanceControl.h constants, a plain C header, which CORE_INCLUDES reach.
+set(GLANCE_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Glance")
+set(GLANCE_SOURCES
+    "${GLANCE_LIBS}/Sources/GlanceView.cpp"
+    "${GLANCE_LIBS}/Sources/GlanceLayout.cpp"
 )
 set(SDK_JSON_SOURCES
     "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamReader.cpp"
@@ -78,9 +88,15 @@ add_executable(hybridx-training-host-tests
     HoldTimerTest.cpp
     DanielsTest.cpp
     RunVo2MaxTest.cpp
+    PlanRulesTest.cpp
+    TodayFileTest.cpp
+    GlanceViewTest.cpp
+    GlanceLayoutTest.cpp
     GoldenTest.cpp
     "${TOOLS_DIR}/plan_print/PlanPrint.cpp"
+    "${TOOLS_DIR}/plan_sim/PlanSim.cpp"
     ${CORE_SOURCES}
+    ${GLANCE_SOURCES}
     ${SDK_JSON_SOURCES}
     ${SDK_WORKOUT_SOURCES}
     ${SDK_FIT_SOURCES}
@@ -88,6 +104,8 @@ add_executable(hybridx-training-host-tests
 target_include_directories(hybridx-training-host-tests PRIVATE
     ${CORE_INCLUDES}
     "${TOOLS_DIR}/plan_print"
+    "${TOOLS_DIR}/plan_sim"
+    "${GLANCE_LIBS}/Header"
     "${CMAKE_CURRENT_LIST_DIR}"
     "${UNA_SDK_ROOT}/Tests/Host/support"
 )
@@ -107,6 +125,35 @@ add_executable(plan_print
     ${SDK_WORKOUT_SOURCES}
 )
 target_include_directories(plan_print PRIVATE ${CORE_INCLUDES} "${TOOLS_DIR}/plan_print")
+
+# plan_sim: the plan's memory as scenarios (TP5's gate). The golden test uses the same code.
+add_executable(plan_sim
+    "${TOOLS_DIR}/plan_sim/plan_sim.cpp"
+    "${TOOLS_DIR}/plan_sim/PlanSim.cpp"
+    ${CORE_SOURCES}
+    ${SDK_JSON_SOURCES}
+    ${SDK_WORKOUT_SOURCES}
+)
+target_include_directories(plan_sim PRIVATE ${CORE_INCLUDES} "${TOOLS_DIR}/plan_sim")
+
+# glance_preview: the glance's controls for sample plans, for docs/experiments/glance_preview.py
+# to draw (the simulator cannot run glances).
+add_executable(glance_preview
+    tools/glance_preview.cpp
+    ${CORE_SOURCES}
+    ${GLANCE_SOURCES}
+    ${SDK_JSON_SOURCES}
+    ${SDK_WORKOUT_SOURCES}
+)
+target_include_directories(glance_preview PRIVATE ${CORE_INCLUDES} "${GLANCE_LIBS}/Header")
+
+# today_print: a training_today.json read with the core's reader, and what the glance shows (TP6).
+add_executable(today_print
+    "${TOOLS_DIR}/today_print/today_print.cpp"
+    "${CORE_LIBS}/Sources/TodayFile.cpp"
+    ${SDK_JSON_SOURCES}
+)
+target_include_directories(today_print PRIVATE ${CORE_INCLUDES})
 
 enable_testing()
 add_test(NAME hybridx-training-host-tests COMMAND hybridx-training-host-tests)

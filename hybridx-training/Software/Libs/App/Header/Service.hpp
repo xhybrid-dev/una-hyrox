@@ -50,6 +50,7 @@
 #include "PlanBuilder.hpp"
 #include "PlanSchedule.hpp"
 #include "PlanProgress.hpp"
+#include "PlanRules.hpp"
 #include "PlanState.hpp"
 
 class Service : public WristTiltDetector::IListener
@@ -279,6 +280,11 @@ private:
     std::unique_ptr<SDK::AppConfig> mConfig;
     bool mPhoneAsks    = false;   ///< X Training: the phone's settings ask for a new plan
     bool mForceNewPlan = false;   ///< X Training: the next loadPlan() starts the phone's plan afresh
+    uint32_t mTrialSec = 0;       ///< X Training (TP5): a planned trial's or race's time, seconds; 0 = none
+    bool mConfigDirty  = false;   ///< X Training (TP5): the plan's 5K changed; the phone's fields are written back
+    uint8_t mNotice    = 0;       ///< X Training (TP5): the result of the last PlanAction, for the next PlanToday
+    uint8_t mTrialOutcome = 0;    ///< X Training (TP5): PlanSavedInfo::Trial of the run just saved
+    uint16_t mTrialFiveK = 0;     ///< ... and its 5K equivalent
 
     // -- X Training: the plan (docs/HYBRIDX_TRAINING_BRIEF.md sections 7 and 9) ----------
     XTraining::PlanSetup   mPhoneSetup;          ///< what app_config.json asks for
@@ -286,6 +292,7 @@ private:
     XTraining::PlanState   mPlan;                ///< plan.json (about 1 KB of log)
     XTraining::PaceResult  mPaces;               ///< from the plan's 5K (and half)
     XTraining::DaySession  mToday;               ///< today's session (Rest when none)
+    uint32_t               mTodayFileHash = 0;   ///< of the training_today.json last written; 0 = none yet
     CustomMessage::PlanTodayInfo mTodayInfo;     ///< as last sent to the GUI
     /// The alert modes and estimates of the planned session being run.
     XTraining::SessionMeta mSessionMeta;
@@ -336,6 +343,10 @@ private:
     void loadPlan();             ///< plan.json, reconciled with the phone's settings
     void savePlan();
     void updateToday();          ///< today's session from the plan and the watch's date
+    void writeTodayFile();       ///< TP6: training_today.json for the glance, when it has changed
+    void computePaces();         ///< mPaces from the plan's 5K (and a recent half)
+    void settleToday();          ///< TP5: log missed days, repeat a week, save the plan if it changed
+    void writeFiveK();           ///< TP5: the plan's 5K back into the phone's fields, so they agree
     /// What the plan says of @p date (Today's page, a row of This week); @p day the session.
     void dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMessage::PlanTodayInfo& info,
                  XTraining::DaySession& day);
@@ -392,6 +403,7 @@ private:
     void handleEvent(const CustomMessage::WorkoutDetailsRequest& event);
     void handleEvent(const CustomMessage::PlanRequest& event);   ///< X Training
     void handleEvent(const CustomMessage::NewPlan& event);       ///< X Training
+    void handleEvent(const CustomMessage::PlanAction& event);    ///< X Training (TP5)
     /// Judge the short rep that just ended (step @p endedStep, its lap saved if @p lapSaved).
     void judgeRep(uint16_t endedStep, bool lapSaved, bool ranOut);
     /// The open warm-up of a time trial or race, which R2 ends only when held.

@@ -1,0 +1,23 @@
+{
+  "manifest_version": 1,
+  "type": [
+    "glance"
+  ],
+  "name": "X Training Glance",
+  "icon": "icon.png",
+  "binary": "HXTrainingGlance.uapp",
+  "appVersion": "1.0.0",
+  "minKernelVersion": "1.4.0",
+  "requiredHardware": [],
+  "description": "Today's X Training session on the glances screen: what it is, the target pace, whether it is done, the next session, and your week at a glance. Needs the X Training app, which keeps your plan; the glance only shows what the app has saved.",
+  "supportsLaps": false,
+  "supportsDistance": false,
+  "supportsTrack": false,
+  "supportsHeartbeat": false,
+  "supportsElevation": false,
+  "supportsStep": false,
+  "supportsSpeed": "none",
+  "customMeasures": [],
+  "stravaExport": false,
+  "id": "C4B5BAD6DC827E16"
+}

@@ -72,6 +72,8 @@ public:
     void nextKind();
     /// Step one of the plan's numbers to its next choice.
     void stepPlanField(Workout::PlanField field);
+    /// An EMOM's or AMRAP's minutes moved by whole minutes (any length, not only the list's).
+    void adjustPlanMinutes(Workout::PlanField field, int delta);
 
     // What the service last said
     const Workout::SessionSnapshot& snapshot() const { return mSnapshot; }

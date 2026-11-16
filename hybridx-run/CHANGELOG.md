@@ -11,6 +11,8 @@ prefix for the SDK's version script. The store release of the Streak family:
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-16
+
 ### Added
 
 - X Training's runs count towards the VO2max, as Trail's do: X Training leaves each run's steady

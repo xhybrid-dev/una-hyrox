@@ -89,8 +89,19 @@ DayPlace locate(const Calendar& c, Ymd day)
     }
     p.where = DayPlace::Where::In;
     p.runWeek = static_cast<uint8_t>(week);
-    p.planWeek = static_cast<uint8_t>(c.firstWeek + week);
+    p.planWeek = planWeekOf(c, p.runWeek);
     return p;
+}
+
+uint8_t planWeekOf(const Calendar& c, uint8_t runWeek)
+{
+    int32_t pw = static_cast<int32_t>(c.firstWeek) + runWeek;
+    for (uint8_t i = 0; i < c.adjCount && i < kMaxAdjust; ++i) {
+        if (c.adj[i].runWeek <= runWeek) {
+            pw += c.adj[i].delta;
+        }
+    }
+    return static_cast<uint8_t>(pw < 0 ? 0 : (pw > 255 ? 255 : pw));
 }
 
 Ymd dateOf(const Calendar& c, uint8_t runWeek, uint8_t weekday)

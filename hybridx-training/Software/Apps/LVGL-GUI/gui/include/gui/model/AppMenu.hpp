@@ -58,8 +58,8 @@ struct Root {
     // X Training: Today first, then a free run (ID_START: an armed UNA workout, else a
     // free run) with the treadmill switch under it (HybridX Run's, NOTES "Treadmill").
     // X Run's ID_VO2 and RunLVGL's Intervals are not here (brief 8.1, decision 10).
-    enum Id { ID_TODAY = 0, ID_START, ID_TREADMILL, ID_WEEK, ID_PLAN, ID_PACES, ID_WORKOUTS, ID_SETTINGS,
-              ID_COUNT, ID_DEFAULT = ID_TODAY };
+    enum Id { ID_TODAY = 0, ID_START, ID_TREADMILL, ID_WEEK, ID_PLAN, ID_CHANGES, ID_PACES, ID_WORKOUTS,
+              ID_SETTINGS, ID_COUNT, ID_DEFAULT = ID_TODAY };
 
     // The workout list: a Free run row while a workout is armed, then one
     // row per workout. Built at runtime -- no fixed enum.
@@ -78,6 +78,12 @@ struct Root {
     struct Vo2Profile {
         enum Id { ID_BIRTH = 0, ID_MAX_HR, ID_REST_HR, ID_TUNING_LOG,
                   ID_COUNT, ID_DEFAULT = ID_BIRTH };
+    };
+
+    /// X Training (TP5): the plan's changes in the moment (brief 5.2).
+    struct Changes {
+        enum Id { ID_TOMORROW_TODAY = 0, ID_TODAY_TOMORROW, ID_SKIP, ID_PAUSE, ID_END,
+                  ID_COUNT, ID_DEFAULT = ID_TOMORROW_TODAY };
     };
 
     struct Intervals {

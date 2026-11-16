@@ -37,6 +37,8 @@ the zips CI builds from the tags go to the portal.**
 | X Trail | `HybridXTrail-<v>.zip` (`trail-store-zip`) | `trail-v1.0.0` | the portal's `1C83FDDE4EA3C880` |
 | X Workout | `HybridXWorkout-<v>.zip` (`workout-store-zip`) | `workout-v1.0.0` | the portal's `B9171EBAF7066A30` |
 | X Ride | `HybridXRide-<v>.zip` (`ride-store-zip`) | `ride-v1.0.0` | the portal's `58F141AE44428F51` |
+| X Training (new) | `HybridXTraining-<v>.zip` (`training-store-zip`) | `training-v1.0.0` | the portal's `C790FB2FDF322688` |
+| X Training Glance (later, TP6) | `Glance/HXTrainingGlance-<v>.zip` (`training-glance-store-zip`, a dry run for now) | with X Training 1.1.0 | not yet: the development `C4B5BAD6DC827E16` until Jon creates the listing |
 | HybridX Race | `HybridXRace-<v>.zip` (`race-store-zip`) | `v1.1.0` and `apps-v1.1.0` | the portal's `5C4D6F49335E5E17` |
 
 Each zip holds four things: the `.uapp`, `app-manifest.json`, `icon.png` and `previews/`.
@@ -144,9 +146,10 @@ fatigue and form from their heart rate.
 
 > Set a weekly target and keep the streak going.
 >
-> - Sessions saved by **X Run, X Trail, X Ride, X Workout and HybridX Race** count by themselves:
->   open Streak and they are there. Anything else you did can be logged by hand, today or
->   yesterday.
+> - Sessions saved by **X Run, X Trail, X Ride, X Workout, X Training and HybridX Race** count by
+>   themselves:
+>   open Streak and they are there (from 1.1.0, X Training's too). Anything else you did can be
+>   logged by hand, today or yesterday.
 > - Every week you hit your target is a step up the mountain: five summits, from Arthur's Seat at
 >   4 weeks to Everest at two years, and badges at 10, 50, 100 and 250 sessions.
 > - Miss a week? Shields, earned every four good weeks, save the streak.
@@ -327,6 +330,71 @@ turbo. Counts in X Streak.
 
 **Not claimed:** power, cadence or wheel speed.
 
+### X Training (a new listing, 16 November 2026)
+
+**App ID:** `C790FB2FDF322688` (the portal's, Jon, 16 November 2026; in the CMake file, the
+manifest and the simulator). **Tag:** `training-v1.0.0`. **Package:** `HybridXTraining-<v>.zip`
+(`training-store-zip`). **Images:** `hybridx-training/docs/store/`, in the **Cadence** colourway.
+
+**Short description:** Training plans on your wrist: a 10K, half marathon or VO2max block from
+your 5K time, run step by step. Counts in X Streak.
+
+**Longer description:**
+
+> Your plan, on your wrist.
+>
+> - **Three plans:** a 10K (10 weeks), a half marathon (12) and a VO2max block (8), each at
+>   three levels, on the days you run. Give it a recent 5K time in the UNA app, and a race date
+>   if you have one.
+> - **Today's session is ready:** its target pace, distance and time, and what it builds. Press
+>   R1 and it runs step by step: a pace gauge, a buzz when you drift out of range, lead-in beeps,
+>   and each short rep judged on the next step's card.
+> - **Paces from your 5K:** easy, threshold, interval and repetition, with predicted 10K and
+>   half times. Worked out with Daniels' running tables, and checked against them.
+> - **This week and the whole plan:** seven days from Monday with their marks, the weeks by
+>   phase, and your progress. Plan changes can be made on the watch too.
+> - Records every run as a normal run: GPS, heart rate, laps (one per step), cadence and step
+>   length, and the run detail pages. Syncs to the UNA app and Strava.
+> - Counts in **X Streak**, with its training load. Shows X Run's VO2max on the plan screen, and
+>   feeds X Run's VO2max with your runs.
+>
+> Made by HybridX. Training advice is general, not medical: stop if something hurts.
+
+**Facts checked against the code:**
+- **Plans and levels:** `Tools/Plans/*.plan`, `PlanBuilder.cpp` (the caps), `PLANS.md`.
+- **Paces:** `PaceModel.cpp`, held to all 66 rows of Daniels' Tables 5.1 to 5.3 in `DanielsTest`
+  (within 4 s/km; races within 0.25%).
+- **Zone alerts, easy steps "too fast" only, the rep judging, the held R2:** TP3, NOTES.
+- **Streak and X Run:** `act_training.json` and `training_vo2_*.json` (NOTES "TP4"); passed the
+  family check on 16 November 2026.
+
+**Not claimed yet:** missed-session handling, offers, moves, pauses and recalibration after a time
+trial (TP5: built on 16 November 2026 and simulator-checked, to be claimed once Jon has seen them on
+the watch, then added to the description above). The glance is its own listing (below), built in TP6.
+
+### X Training Glance (TP6: built, not yet on the store)
+
+Its own listing, created after the app's (one listing installs one `.uapp`). Name **X Training Glance**; the
+ID is the development `C4B5BAD6DC827E16` until Jon creates the listing and sends the portal's; then it goes in
+the glance's `CMakeLists.txt` and `Resources/Glance/app-manifest.json`, and the CI step gains `$EXPECT`.
+
+**Short description:** Today's X Training session on the glances screen. Needs the X Training app.
+
+**Longer description:**
+
+> - Today's session at a glance: what it is, its target pace, and when it is done, what comes next.
+> - Your week as seven pips (done, today, still to come, rest, missed) and a bar of how far through
+>   your plan you are.
+> - Says when your plan is paused, has not started, or is complete, and when to open the app.
+>
+> **Needs the X Training app**, which keeps your plan; the glance shows what the app has saved.
+>
+> Made by HybridX.
+
+**Facts checked against the code:** `Libs/Glance` and its host tests (every kind and state fits the band by the
+faces' real widths); `TodayFile`, which the app writes and the glance reads. The previews come from the layout
+code (`glance_preview.py --store`). **Not yet seen on a watch.**
+
 ### HybridX Race 1.1.0 (the update)
 
 **What's new** (the listing's release notes, if the portal asks):
@@ -337,3 +405,57 @@ turbo. Counts in X Streak.
 
 Race's description stays as it is on the store (`hybridx-race/docs/SUBMISSION.md`). One line
 can be added to it: "Counts in X Streak."
+
+## The X Training update (16 November 2026)
+
+X Training (the sixth link slot) changes five listings that are already tagged at 1.0.0. Each
+CHANGELOG has its new entry, dated 16 November; the packagers stamp the version from the tag.
+
+| Listing | New version | Tag | What changes for the runner |
+|---|---|---|---|
+| X Streak (and its glance) | 1.1.0 | `streak-v1.1.0` | Counts X Training's runs; names each app as on the watch |
+| X Run (and the VO2max glance) | 1.1.0 | `run-v1.1.0` | Reads X Training's minutes for its VO2max; `vo2.json` becomes version 5 |
+| X Trail | 1.0.1 | `trail-v1.0.1` | Its Streak line counts X Training's runs |
+| X Workout | 1.0.1 | `workout-v1.0.1` | The same |
+| X Ride | 1.0.1 | `ride-v1.0.1` | The same |
+| HybridX Race | not needed | | The same, and it has no CHANGELOG; tag `v1.1.1` and `apps-v1.1.1` only if you want it |
+
+- **Order:** Streak and Run first. A Streak at 1.0.0 never counts X Training, and X Run 1.0.0
+  never reads its minutes. Trail, Workout and Ride can follow, or wait for their next change.
+- **Do not go back** to X Run 1.0.0 once 1.1.0 is on a watch: it cannot read `vo2.json` version 5.
+- **Each tag** makes CI build that app's store zip (`*-store-zip` artifact); upload those, not
+  local builds (steps 4 to 7 above).
+- **X Training is not in this release.** It has no portal listing yet: it needs its portal App
+  ID (it still has the development one, `6E050D707D4D2D32`), a packager, store previews and
+  images, and its test on a watch. That is for its TP5 to TP7.
+
+### What's new, for each update (paste into the portal's release notes, 16 November 2026)
+
+**X Streak 1.1.0** (and X Streak Glance 1.1.0, unchanged):
+> Counts X Training's runs, so a session from your training plan counts towards your week like any
+> other. This week's list now shows each app by its name on the watch (X Run, X Trail, X Ride,
+> X Workout, X Training).
+
+**X Run 1.1.0** (and VO2max Glance 1.1.0, unchanged):
+> Your X Training runs now count towards your VO2max, as X Trail's do: X Run reads them when it
+> opens. Note: X Run's history file moves to a new version, so once this is installed do not go
+> back to 1.0.0.
+
+**X Trail 1.0.1**, **X Workout 1.0.1**, **X Ride 1.0.1**:
+> The Streak line after a save now also counts X Training's runs.
+
+**X Workout 1.0.1** adds:
+> EMOM and AMRAP minutes can be any whole minute from 1 to 60: on that settings screen, L2 adds a
+> minute and L1 takes one off (R1 still steps the usual lengths).
+
+### Checked on 16 November 2026, before the tags
+
+All nine packages were built locally as their tags will build them (`-DBUILD_VERSION=...`) and
+each packager passed with `--expect-version`: the portal form, both SDK validators and the
+App ID matching in every place (X Streak 1.1.0 and its glance, X Run 1.1.0 and its glance, X Trail,
+X Workout and X Ride 1.0.1, and X Training 1.0.0). As on 9 November, those local zips are compile
+checks only; the zips CI builds from the tags are the ones that go to the portal.
+
+**Tag commands** (on the branch's head after the check below, or on `main` after the merge):
+`streak-v1.1.0`, `run-v1.1.0`, then `trail-v1.0.1`, `workout-v1.0.1`, `ride-v1.0.1`, and
+`training-v1.0.0` once TP5's gate has passed.

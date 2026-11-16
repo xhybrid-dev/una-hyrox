@@ -234,6 +234,30 @@ reads them. Install all three from the same Watch builds run (section 2).
 
 Send: the photos of steps 19 to 23, and the files from step 24.
 
+## 8. X Training's glance (X Training's TP6, 16 November 2026)
+
+The glance (`HXTrainingGlance_<version>.uapp`, from the same Watch builds run as the app) shows today's
+session on the glances screen. It reads `training_today.json`, which the app writes, so the app has to be a
+build from TP6 on and must have been opened once with a plan.
+
+25. **Install and add it:** copy `HXTrainingGlance_<version>.uapp` into `Apps/HXTrainingGlance/` on the
+    watch (as step 2 of section 2), power-cycle, and add **X Training** to the glances screen. Open the
+    app once (Today), then look at the glances screen.
+26. **A session day:** line one reads **"Today: <the session>"** in white, line two its "what" and pace
+    ("4 x 4 min @ 4:18/km"; an easy run just its time). Under them, seven small blocks for Monday to Sunday
+    (today white, to come grey, rest dark, done green) and a bar to the right of them. Photograph it.
+27. **Done:** run and save today's session, then look at the glance again (no need to open the app): it
+    reads **"Done: <the session>"** in green, the next session on line two ("Tomorrow: Easy" or "Wed: Easy 45
+    min"), and today's block is green.
+28. **Other days, if they come up:** a rest day ("Rest day", then "Tomorrow: ..."); a session you skipped
+    (amber); the plan paused from **Changes** (**"Plan paused"**, "Resume in the app"); and, after a week or two
+    without opening the app, it still shows the right day. After 14 days it says **"Open the app"**.
+    Also check that the text sits inside the face (not clipped at the sides, not touching the blocks) and
+    that nothing is cut off at the 60 px height.
+
+Send: a photo of steps 26 and 27, a photo of any other state, and `Apps/SharedData/HybridX/training_today.json`
+(over USB) if the glance showed something wrong.
+
 ## What each result decides
 
 - **Everything as in the tables:** the family's link works on a watch; next are the releases

@@ -28,6 +28,7 @@ uint32_t markColor(DayMark m)
         case DayMark::PartDone:  return Color::YELLOW_DARK;
         case DayMark::Today:     return Color::CYAN;
         case DayMark::ToCome:    return Color::WHITE;
+        case DayMark::Missed:    return Color::ORANGE_DARK;
         case DayMark::Skipped:
         case DayMark::NotLogged: return Color::GRAY;
         case DayMark::Rest:
@@ -42,6 +43,7 @@ const char* markWords(DayMark m)
         case DayMark::PartDone:  return "Part done";
         case DayMark::Today:     return "Today";
         case DayMark::Skipped:   return "Skipped";
+        case DayMark::Missed:    return "Missed";
         case DayMark::NotLogged: return "Not logged";
         case DayMark::Rest:      return "Rest day";
         case DayMark::ToCome:

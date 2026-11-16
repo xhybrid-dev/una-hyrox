@@ -69,6 +69,44 @@ void PlanState::record(const LogEntry& e)
     ++mCount;
 }
 
+void PlanState::setOverride(const Override& o)
+{
+    for (uint8_t i = 0; i < overrideCount; ++i) {
+        if (overrides[i].date == o.date) {
+            overrides[i] = o;
+            return;
+        }
+    }
+    if (overrideCount == kMaxOverrides) {
+        for (uint8_t i = 1; i < overrideCount; ++i) {
+            overrides[i - 1] = overrides[i];
+        }
+        --overrideCount;
+    }
+    overrides[overrideCount++] = o;
+}
+
+const Override* PlanState::findOverride(Ymd date) const
+{
+    for (uint8_t i = 0; i < overrideCount; ++i) {
+        if (overrides[i].date == date) {
+            return &overrides[i];
+        }
+    }
+    return nullptr;
+}
+
+void PlanState::pruneOverrides(Ymd date)
+{
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < overrideCount; ++i) {
+        if (overrides[i].date >= date) {
+            overrides[n++] = overrides[i];
+        }
+    }
+    overrideCount = n;
+}
+
 const LogEntry* PlanState::find(Ymd date) const
 {
     for (uint8_t i = 0; i < mCount; ++i) {
@@ -120,6 +158,45 @@ size_t PlanState::toJson(char* buf, size_t cap) const
     w.endArray();
     if (vo2StartX10 != 0) {
         w.add("vo2s", vo2StartX10);
+    }
+    if (calendar.adjCount > 0) {
+        w.startArray("adj");
+        for (uint8_t i = 0; i < calendar.adjCount; ++i) {
+            w.startArray();
+            w.add(calendar.adj[i].runWeek);
+            w.add(static_cast<uint8_t>(calendar.adj[i].delta + 8));
+            w.endArray();
+        }
+        w.endArray();
+    }
+    if (overrideCount > 0) {
+        w.startArray("ov");
+        for (uint8_t i = 0; i < overrideCount; ++i) {
+            w.startArray();
+            w.add(static_cast<uint32_t>(overrides[i].date));
+            w.add(static_cast<uint32_t>(overrides[i].from));
+            w.add(static_cast<uint8_t>(overrides[i].mode));
+            w.endArray();
+        }
+        w.endArray();
+    }
+    if (pausedFrom != 0) {
+        w.add("ps", static_cast<uint32_t>(pausedFrom));
+    }
+    if (retestFrom != 0) {
+        w.add("rt", static_cast<uint32_t>(retestFrom));
+    }
+    if (resumeWeek != 0) {
+        w.add("rw", resumeWeek);
+    }
+    if (settledTo != 0) {
+        w.add("st", static_cast<uint32_t>(settledTo));
+    }
+    if (askFiveKSec != 0) {
+        w.add("ak", askFiveKSec);
+    }
+    if (offerDeclined != 0) {
+        w.add("od", static_cast<uint32_t>(offerDeclined));
     }
     w.endMap();
     if (w.isError()) {
@@ -187,7 +264,7 @@ bool PlanState::fromJson(const char* text, size_t len)
         }
     }
     if (!inRange(c[0], 0, static_cast<int64_t>(Calendar::Status::BadDate)) || !dateOrZero(c[1])
-        || !inRange(c[2], 0, 16) || !inRange(c[3], 0, 16) || c[2] + c[3] > 16) {
+        || !inRange(c[2], 0, 16) || !inRange(c[3], 0, 20) || c[2] + c[3] > 20) {
         return false;
     }
     st.calendar.status = static_cast<Calendar::Status>(c[0]);
@@ -233,6 +310,77 @@ bool PlanState::fromJson(const char* text, size_t len)
             return false;
         }
         st.vo2StartX10 = static_cast<uint16_t>(vo2s);
+    }
+
+    // TP5: the plan's memory, each optional and checked when there.
+    size_t an = 0;
+    if (r.getArrayLength("adj", an)) {
+        if (an > kMaxAdjust) {
+            return false;
+        }
+        int prev = -1;
+        for (size_t i = 0; i < an; ++i) {
+            int64_t rw = 0, d = 0;
+            if (!getAt(r, "adj", static_cast<int>(i), 0, rw) || !getAt(r, "adj", static_cast<int>(i), 1, d)
+                || !inRange(rw, 0, 20) || !inRange(d, 0, 16) || static_cast<int>(rw) < prev) {
+                return false;
+            }
+            prev = static_cast<int>(rw);
+            st.calendar.adj[i] = WeekAdjust{static_cast<uint8_t>(rw), static_cast<int8_t>(d - 8)};
+        }
+        st.calendar.adjCount = static_cast<uint8_t>(an);
+    }
+    if (r.getArrayLength("ov", an)) {
+        if (an > kMaxOverrides) {
+            return false;
+        }
+        for (size_t i = 0; i < an; ++i) {
+            int64_t d = 0, f = 0, m = 0;
+            if (!getAt(r, "ov", static_cast<int>(i), 0, d) || !getAt(r, "ov", static_cast<int>(i), 1, f)
+                || !getAt(r, "ov", static_cast<int>(i), 2, m) || !dateOrZero(d) || d == 0 || !dateOrZero(f)
+                || !inRange(m, 1, 3) || (m == 1 && f == 0)) {
+                return false;
+            }
+            st.overrides[i] = Override{static_cast<Ymd>(d), static_cast<Ymd>(f), static_cast<OverrideMode>(m)};
+        }
+        st.overrideCount = static_cast<uint8_t>(an);
+    }
+    int64_t dv = 0;
+    if (r.get("ps", dv)) {
+        if (!dateOrZero(dv)) {
+            return false;
+        }
+        st.pausedFrom = static_cast<Ymd>(dv);
+    }
+    if (r.get("rt", dv)) {
+        if (!dateOrZero(dv)) {
+            return false;
+        }
+        st.retestFrom = static_cast<Ymd>(dv);
+    }
+    if (r.get("rw", dv)) {
+        if (!inRange(dv, 0, 20)) {
+            return false;
+        }
+        st.resumeWeek = static_cast<uint8_t>(dv);
+    }
+    if (r.get("st", dv)) {
+        if (!dateOrZero(dv)) {
+            return false;
+        }
+        st.settledTo = static_cast<Ymd>(dv);
+    }
+    if (r.get("od", dv)) {
+        if (!dateOrZero(dv)) {
+            return false;
+        }
+        st.offerDeclined = static_cast<Ymd>(dv);
+    }
+    if (r.get("ak", dv)) {
+        if (!inRange(dv, PaceConfig::kMin5kSec, PaceConfig::kMax5kSec)) {
+            return false;
+        }
+        st.askFiveKSec = static_cast<uint32_t>(dv);
     }
     *this = st;
     return true;

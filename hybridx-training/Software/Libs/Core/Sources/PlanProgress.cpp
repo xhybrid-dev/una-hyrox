@@ -7,6 +7,8 @@
 
 #include "PlanProgress.hpp"
 
+#include "PlanRules.hpp"
+
 namespace XTraining {
 namespace PlanProgress {
 
@@ -25,6 +27,7 @@ DayMark mark(const DaySession& day, Ymd today, const PlanState& state)
         case DayStatus::Done:     return DayMark::Done;
         case DayStatus::PartDone: return DayMark::PartDone;
         case DayStatus::Skipped:  return DayMark::Skipped;
+        case DayStatus::Missed:   return DayMark::Missed;
         default:                  break;
         }
     }
@@ -57,7 +60,7 @@ Counts counts(const PlanState& state, const PlanDef& plan, const Paces& paces, Y
     const DayNum todayNum = Date::toDayNum(today);
     for (uint8_t w = 0; w < state.calendar.weeks; ++w) {
         DaySession days[7];
-        if (!PlanSchedule::week(state.setup, plan, state.calendar, paces, w, days)) {
+        if (!PlanRules::week(state, plan, paces, w, days)) {
             continue;
         }
         for (const DaySession& d : days) {

@@ -83,8 +83,16 @@ COLOURWAYS = {
         "watch": "teal",
         "icon": {"disc": (0, 0, 85), "glyph": (0, 170, 170), "glyph2": (255, 255, 255)},
     },
+    "training": {
+        "name": "Cadence", "app": "X Training", "folder": "hybridx-training",
+        "dark": hexrgb("#24123F"), "deep": hexrgb("#150A26"), "accent": hexrgb("#8B5CF6"),
+        "accent2": hexrgb("#FFB020"), "light": hexrgb("#F4F0FB"), "ink": hexrgb("#24123F"),
+        "mute": hexrgb("#BDB1D6"), "mute_on_light": hexrgb("#4C3F6B"),
+        "watch": "black",
+        "icon": {"disc": (85, 0, 170), "glyph": (255, 255, 255), "glyph2": (255, 170, 0)},
+    },
 }
-FAMILY = ["race", "run", "trail", "ride", "workout", "streak"]
+FAMILY = ["race", "run", "trail", "ride", "workout", "streak", "training"]
 
 
 # -- Fonts ---------------------------------------------------------------------------

@@ -241,6 +241,31 @@ inline PlanConfig stepField(PlanConfig c, PlanField f)
     return clamp(c);
 }
 
+/// The minutes of an EMOM or an AMRAP: any whole minute, not only the list's.
+inline bool isMinutesField(PlanField f)
+{
+    return f == PlanField::EmomMin || f == PlanField::AmrapMin;
+}
+
+/// @p c with a minutes field moved by @p delta whole minutes (clamped to its range, not wrapped),
+/// so any length can be chosen, 32 minutes say. Other fields are returned as they were.
+inline PlanConfig adjustMinutes(PlanConfig c, PlanField f, int delta)
+{
+    if (!isMinutesField(f)) {
+        return c;
+    }
+    const int v = static_cast<int>(fieldValue(c, f)) + delta;
+    const int lo = f == PlanField::EmomMin ? kEmomMinMin : kAmrapMinMin;
+    const int hi = f == PlanField::EmomMin ? kEmomMinMax : kAmrapMinMax;
+    const uint8_t m = static_cast<uint8_t>(v < lo ? lo : (v > hi ? hi : v));
+    if (f == PlanField::EmomMin) {
+        c.emomMin = m;
+    } else {
+        c.amrapMin = m;
+    }
+    return clamp(c);
+}
+
 /// A field's value as its hint shows it: "3", "60 s", "5 min", "1 km".
 inline size_t formatField(char *out, size_t cap, const PlanConfig &c, PlanField f)
 {

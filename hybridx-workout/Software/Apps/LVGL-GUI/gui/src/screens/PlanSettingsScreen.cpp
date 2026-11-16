@@ -72,8 +72,19 @@ void PlanSettingsScreen::onKey(uint8_t code)
 {
     namespace Btn = SDK::GUI::Button;
     switch (code) {
-        case Btn::L1: mMenu->prev(); break;
-        case Btn::L2: mMenu->next(); break;
+        case Btn::L1:
+        case Btn::L2:
+            // A lone minutes setting has no other row to move to, so L1 and L2 scroll it one
+            // minute at a time (R1 still steps the usual lengths): 32 minutes is two presses
+            // from 30.
+            if (mCount == 1 && Workout::isMinutesField(mFields[0])) {
+                mModel.adjustPlanMinutes(mFields[0], code == Btn::L2 ? 1 : -1);
+            } else if (code == Btn::L1) {
+                mMenu->prev();
+            } else {
+                mMenu->next();
+            }
+            break;
         case Btn::R1:
             if (mMenu->selected() < mCount) {
                 // The service saves it and answers with the new value (onSettings).

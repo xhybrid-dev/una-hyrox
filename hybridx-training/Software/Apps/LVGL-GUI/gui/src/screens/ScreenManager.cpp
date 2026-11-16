@@ -35,6 +35,7 @@
 #include "gui/screens/PlanScreen.hpp"
 #include "gui/screens/PacesScreen.hpp"
 #include "gui/screens/NewPlanScreens.hpp"
+#include "gui/screens/PlanChangesScreens.hpp"
 #include "gui/screens/TrackWorkoutStepScreen.hpp"
 #include "gui/screens/WorkoutDetailsScreen.hpp"
 #include "gui/screens/WorkoutListScreen.hpp"
@@ -155,6 +156,8 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::NewPlanRace:               return new RaceDateScreen(m);
         case ScreenId::NewPlanConfirm:            return new PlanConfirmScreen(m);
         case ScreenId::PlanAsk:                   return new PlanAskScreen(m);
+        case ScreenId::PlanChanges:               return new PlanChangesScreen(m);
+        case ScreenId::PlanOffer:                 return new PlanOfferScreen(m);
 
 
         case ScreenId::MenuSettings:              return new MenuSettingsScreen(m);

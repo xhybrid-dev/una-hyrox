@@ -40,6 +40,8 @@
 #include "RepJudge.hpp"
 #include "TimeText.hpp"
 #include "data/PlanData.hpp"
+#include "TodayBuild.hpp"
+#include "TodayFile.hpp"
 #include "RunVo2Max.hpp"
 #include "SafeFile.hpp"
 #include "ActivityLink.hpp"
@@ -250,6 +252,10 @@ void Service::run()
 
                 case CustomMessage::NEW_PLAN:  {       // X Training: New plan, the phone's ask
                     handleEvent(*static_cast<CustomMessage::NewPlan*>(msg));
+                } break;
+
+                case CustomMessage::PLAN_ACTION:  {    // X Training (TP5): offers, moves, pauses
+                    handleEvent(*static_cast<CustomMessage::PlanAction*>(msg));
                 } break;
 
                 case CustomMessage::TREADMILL_DISTANCE:  {   // HybridX Run
@@ -1477,6 +1483,13 @@ void Service::stopTrack(bool discard)
 
     SDK::send_msg<CustomMessage::TrackStateUpd>(mKernel, mTrackState);
 
+    // X Training: what Today says changes with a session saved (done, a new 5K to answer): say it
+    // again now, not at the next start of the app.
+    if (mPlan.active()) {
+        updateToday();
+        sendPlanToday();
+    }
+
     // Persist the outdoor stride LUT synchronously before the task tears down
     // (only writes if >= 1 sample was accepted this session). finalise()
     // returns false both when nothing was accepted (nothing to persist) and on
@@ -2130,6 +2143,18 @@ void Service::onWorkoutStepEnded(SDK::Workout::Engine::Change how)
     }
     // X Training: a short rep is judged now, on the next step's card (brief 8.2).
     judgeRep(ended, lapSaved, how == SDK::Workout::Engine::Change::Auto);
+    // TP5: a time trial's or race's effort that ran its whole distance gives its time to recalibrate
+    // the paces (PLANS.md 2.6); a lap pressed early does not.
+    if (mPlannedRun && how == SDK::Workout::Engine::Change::Auto && ended < SDK::Workout::kMaxSteps) {
+        using XTraining::Kind;
+        const Kind k = mSessionMeta.session.kind;
+        const SDK::Workout::Step& es = mProgram.steps[ended];
+        if ((k == Kind::TimeTrial5k || k == Kind::TimeTrial10k || k == Kind::Race)
+            && es.intensity == SDK::Workout::Intensity::Active && es.end == SDK::Workout::StepEnd::Distance) {
+            mTrialSec = mEngine.ended().timeMs / 1000u;
+            LOG_INFO("Trial effort: %lu s\n", static_cast<unsigned long>(mTrialSec));
+        }
+    }
     mWorkoutReachedEnd = mWorkoutReachedEnd || mEngine.status().reachedEnd;
 
     if (mEngine.status().finished) {
@@ -2765,12 +2790,7 @@ void Service::loadPlan()
         savePlan();
     }
 
-    uint32_t half = mPlan.setup.halfSec;
-    if (half != 0 && (today == 0 || mPlan.setup.halfDate == 0
-                      || Date::toDayNum(today) - Date::toDayNum(mPlan.setup.halfDate) > kHalfMaxAgeDays)) {
-        half = 0;
-    }
-    mPaces = PaceModel::compute({mPlan.setup.fiveKSec, half});
+    computePaces();
     if (mPaces.ok) {
         const Paces& q = mPaces.paces;
         LOG_INFO("Paces s/km: easy %u-%u, half %u, threshold %u, 10K %u, interval %u, repetition %u\n",
@@ -2793,6 +2813,56 @@ void Service::readRunVo2Max()
         LOG_INFO("X Run's VO2max: %u (x10), %u runs\n", static_cast<unsigned>(mRunVo2.x10),
                  static_cast<unsigned>(mRunVo2.runs));
     }
+}
+
+void Service::computePaces()
+{
+    using namespace XTraining;
+    const Ymd today = localDate();
+    uint32_t half = mPlan.setup.halfSec;
+    if (half != 0 && (today == 0 || mPlan.setup.halfDate == 0
+                      || Date::toDayNum(today) - Date::toDayNum(mPlan.setup.halfDate) > kHalfMaxAgeDays)) {
+        half = 0;
+    }
+    mPaces = PaceModel::compute({mPlan.setup.fiveKSec, half});
+}
+
+void Service::settleToday()
+{
+    // The plan's memory (TP5; PlanRules.hpp): the days gone are logged missed, a missed key session
+    // takes a later quality's place, a week less than half done is repeated.
+    using namespace XTraining;
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    const Ymd today = localDate();
+    if (def == nullptr || !mPlan.active() || !mPaces.ok || today == 0) {
+        return;
+    }
+    const Ymd before = mPlan.settledTo;
+    const PlanRules::Settled s = PlanRules::settle(mPlan, *def, mPaces.paces, today);
+    if (s.missed > 0 || s.repeated || mPlan.settledTo != before) {
+        savePlan();
+    }
+    if (s.missed > 0 || s.repeated || s.keyMoved > 0) {
+        LOG_INFO("Plan settled: %u missed, %u key moved%s%s\n", static_cast<unsigned>(s.missed),
+                 static_cast<unsigned>(s.keyMoved), s.repeated ? ", week repeated" : "",
+                 s.nothingDone ? " (nothing done: the last cut-back week)" : "");
+    }
+}
+
+void Service::writeFiveK()
+{
+    // The 5K the plan now runs on (a time trial's, or the runner's answer), written back as the
+    // phone's own field, so that the phone and the watch agree (as the New plan screen does).
+    char text[24] = {};
+    std::snprintf(text, sizeof(text), "%u:%02u", static_cast<unsigned>(mPlan.setup.fiveKSec / 60),
+                  static_cast<unsigned>(mPlan.setup.fiveKSec % 60));
+    mConfig->setString(TrainingConfig::kFiveK, text);
+    mConfig->setBool(TrainingConfig::kFiveKRecent, true);
+    if (!mConfig->save()) {
+        LOG_ERROR("Could not write the new 5K to app_config.json\n");
+    }
+    mPhoneSetup.fiveKSec = mPlan.setup.fiveKSec;
+    mPhoneSetup.fiveKRecent = true;
 }
 
 void Service::savePlan()
@@ -2818,7 +2888,59 @@ void Service::updateToday()
     }
     Info info{};
     const Ymd today = localDate();
+    if (mConfigDirty) {
+        writeFiveK();   // a trial's new 5K, or the runner's answer, back into the phone's fields
+        mConfigDirty = false;
+    }
+    computePaces();     // the 5K may have changed since the paces were last worked out
+    settleToday();      // TP5: the days gone are logged, a key session moved, a week repeated
     dayInfo(today, today, info, mToday);
+    // TP5: what the plan has to say before the session: a pause, a trial's question, an offer.
+    const PlanDef* pdef = PlanData::find(mPlan.setup.plan);
+    if (pdef != nullptr && mPlan.active() && mPaces.ok && today != 0 && info.status != Info::Problem
+        && info.status != Info::NoPlan) {
+        if (mPlan.pausedFrom != 0 && Date::toDayNum(today) >= Date::toDayNum(mPlan.pausedFrom)) {
+            info = Info{};
+            info.date = today;
+            info.weeks = mPlan.calendar.weeks;
+            info.status = Info::Paused;
+            copyText(info.name, sizeof(info.name), "Plan paused");
+            char since[24];
+            TimeText::dayDate(mPlan.pausedFrom, since, sizeof(since));
+            std::snprintf(info.what, sizeof(info.what), "since %s", since);
+            mToday = DaySession{};
+        } else if (mPlan.askFiveKSec != 0) {
+            info = Info{};
+            info.date = today;
+            info.weeks = mPlan.calendar.weeks;
+            info.status = Info::PaceAsk;
+            const bool jump = mPlan.askFiveKSec * 100u < mPlan.setup.fiveKSec * 94u;
+            info.detail = jump ? Info::Jump : Info::Slower;
+            std::snprintf(info.name, sizeof(info.name), "Your 5K: %u:%02u", static_cast<unsigned>(mPlan.askFiveKSec / 60),
+                          static_cast<unsigned>(mPlan.askFiveKSec % 60));
+            info.plannedSec = mPlan.askFiveKSec;     // the trial's 5K, and the 5K the paces use now,
+            info.plannedM   = mPlan.setup.fiveKSec;  // as numbers for the question's two choices
+            std::snprintf(info.what, sizeof(info.what), "your paces: %u:%02u", static_cast<unsigned>(mPlan.setup.fiveKSec / 60),
+                          static_cast<unsigned>(mPlan.setup.fiveKSec % 60));
+            mToday = DaySession{};
+        } else if (info.status == Info::Session || info.status == Info::RestDay) {
+            const PlanRules::Offer o = PlanRules::offer(mPlan, *pdef, mPaces.paces, today);
+            if (o.kind != PlanRules::Offer::Kind::None) {
+                const Info keep = info;
+                info = Info{};
+                info.date = today;
+                info.weeks = keep.weeks;
+                info.runWeek = keep.runWeek;
+                info.status = Info::Offer;
+                info.kind = static_cast<uint8_t>(o.session.kind);
+                info.detail = o.kind == PlanRules::Offer::Kind::LongRun ? Info::LongRun : Info::KeySession;
+                copyText(info.name, sizeof(info.name), PlanText::name(o.session.kind));
+                TimeText::dayDate(o.from, info.what, sizeof(info.what));
+                info.key = o.kind == PlanRules::Offer::Kind::KeySession;
+                // today's own session stays in mToday: it can be started once the offer is answered
+            }
+        }
+    }
     if (mPhoneAsks) {
         // The question first; today's session (of the plan under way) once it is answered.
         const PlanDef* want = PlanData::find(mPhoneSetup.plan);
@@ -2842,10 +2964,61 @@ void Service::updateToday()
         }
     }
     mTodayInfo = info;
+    writeTodayFile();   // the glance's view of the plan, as it stands now
     LOG_INFO("Today: status %u, %s %s %s (week %u of %u); next %lu %s %s\n", static_cast<unsigned>(info.status),
              info.name, info.what, info.target, static_cast<unsigned>(info.runWeek + 1),
              static_cast<unsigned>(info.weeks), static_cast<unsigned long>(info.nextDate),
              PlanText::name(static_cast<Kind>(info.nextKind)), info.nextWhat);
+}
+
+void Service::writeTodayFile()
+{
+    // TP6: ../SharedData/HybridX/training_today.json, which the glance reads (TodayFile.hpp). The
+    // window of days is built from the plan as it stands, through PlanRules, so a move or a
+    // pause is in it. Rewritten only when the text differs from the last write, so the many
+    // calls (every open of Today) cost no flash. Nothing here touches mProgram or mToday.
+    using namespace XTraining;
+    const Ymd today = localDate();
+    if (today == 0) {
+        return;   // no date: what is there stands
+    }
+    std::unique_ptr<TodayData> data(new (std::nothrow) TodayData());
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[TodayFile::kMaxJsonBytes]);
+    if (!data || !buf) {
+        LOG_WARNING("No memory for training_today.json\n");
+        return;
+    }
+    {
+        // A spare Program for each session's pace (about 10 KB, for the moment); without it the
+        // file just has no pace.
+        std::unique_ptr<SDK::Workout::Program> scratch(new (std::nothrow) SDK::Workout::Program());
+        TodayBuild::fill(mPlan, mPaces.ok ? &mPaces.paces : nullptr, mIsImperial, today, scratch.get(), *data);
+    }
+    const size_t len = TodayFile::write(*data, buf.get(), TodayFile::kMaxJsonBytes);
+    if (len == 0) {
+        LOG_WARNING("Could not make training_today.json\n");
+        return;
+    }
+    uint32_t hash = 2166136261u;   // FNV-1a
+    for (size_t i = 0; i < len; ++i) {
+        hash = (hash ^ static_cast<uint8_t>(buf[i])) * 16777619u;
+    }
+    if (hash == 0) {
+        hash = 1;
+    }
+    if (hash == mTodayFileHash) {
+        return;
+    }
+    mKernel.fs.mkdir("../SharedData");   // already there on a watch that has run Streak or Race
+    mKernel.fs.mkdir(HybridXLink::kSharedDir);
+    if (RunVo2::SafeFile::write(mKernel.fs, TodayFile::kPath, buf.get(), len)) {
+        mTodayFileHash = hash;
+        LOG_INFO("training_today.json: plan %u, %u days, %lu bytes\n", static_cast<unsigned>(data->plan),
+                 static_cast<unsigned>(data->count), static_cast<unsigned long>(len));
+    } else {
+        mTodayFileHash = 0;   // try again at the next change
+        LOG_WARNING("Could not save training_today.json\n");
+    }
 }
 
 void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMessage::PlanTodayInfo& info,
@@ -2882,7 +3055,7 @@ void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMes
             copyText(info.name, sizeof(info.name), "Plan starts");
             TimeText::dayDate(mPlan.calendar.start, info.what, sizeof(info.what));
         } else if (where.where != DayPlace::Where::In
-                   || !PlanSchedule::day(mPlan.setup, *def, mPlan.calendar, mPaces.paces, date, day)) {
+                   || !PlanRules::sessionOn(mPlan, *def, mPaces.paces, date, day)) {
             info.status = Info::Finished;
             copyText(info.name, sizeof(info.name), "Plan complete");
         } else {
@@ -2895,7 +3068,8 @@ void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMes
             } else {
                 const LogEntry* done = mPlan.find(date);
                 info.status = done != nullptr && (done->status == DayStatus::Done || done->status == DayStatus::PartDone)
-                            ? Info::Done : Info::Session;
+                            ? Info::Done
+                            : (done != nullptr && done->status == DayStatus::Skipped ? Info::Skipped : Info::Session);
                 PlanText::what(day.asRun, def->raceCm, info.what, sizeof(info.what));
                 // The estimates and the main target, from the program as it will be built.
                 BuildOptions o;
@@ -3084,6 +3258,72 @@ void Service::handleEvent(const CustomMessage::NewPlan& event)
     }
 }
 
+void Service::handleEvent(const CustomMessage::PlanAction& event)
+{
+    // TP5: the runner's answers and moves (PlanRules.hpp). The result goes back with Today.
+    using namespace XTraining;
+    using A = CustomMessage::PlanAction;
+    using Info = CustomMessage::PlanTodayInfo;
+    if (mTrackState != Track::State::INACTIVE) {
+        return;
+    }
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    const Ymd today = localDate();
+    if (def == nullptr || !mPlan.active() || !mPaces.ok || today == 0) {
+        return;
+    }
+    uint8_t notice = Info::Moved;
+    bool save = true;
+    const auto result = [&](PlanRules::MoveResult r) {
+        notice = r == PlanRules::MoveResult::Ok ? Info::Moved
+               : r == PlanRules::MoveResult::NotAllowed ? Info::NotAllowed : Info::NothingToMove;
+        save = r == PlanRules::MoveResult::Ok;
+    };
+    switch (event.what) {
+    case A::AcceptOffer:
+        PlanRules::acceptOffer(mPlan, PlanRules::offer(mPlan, *def, mPaces.paces, today), today);
+        break;
+    case A::DeclineOffer:
+        PlanRules::declineOffer(mPlan, PlanRules::offer(mPlan, *def, mPaces.paces, today));
+        break;
+    case A::DoTomorrow:   result(PlanRules::doTomorrowToday(mPlan, *def, mPaces.paces, today)); break;
+    case A::MoveTomorrow: result(PlanRules::moveTodayTomorrow(mPlan, *def, mPaces.paces, today)); break;
+    case A::Skip:         result(PlanRules::skipToday(mPlan, *def, mPaces.paces, today)); break;
+    case A::Pause:        PlanRules::pause(mPlan, today); break;
+    case A::Resume: {
+        uint32_t days = 0;
+        const PlanRules::Resumed r = PlanRules::resume(mPlan, *def, mPaces.paces, today, &days);
+        LOG_INFO("Plan resumed after %lu days: %u\n", static_cast<unsigned long>(days), static_cast<unsigned>(r));
+    } break;
+    case A::AnswerKeep:   PlanRules::answerAsk(mPlan, false, today); break;
+    case A::AnswerUpdate:
+        PlanRules::answerAsk(mPlan, true, today);
+        mConfigDirty = true;
+        break;
+    case A::EndPlan: {
+        // No plan: the phone's field goes to none and the plan is read from it, which clears it.
+        CustomMessage::PlanSetupInfo i = toSetupInfo(mPlan.setup);
+        i.plan = 0;
+        writeConfig(i);
+        LOG_INFO("The plan is ended on the watch\n");
+        loadConfig();
+        updateToday();
+        sendPlanToday();
+        return;
+    }
+    default:
+        return;
+    }
+    if (save) {
+        savePlan();
+    }
+    LOG_INFO("Plan action %u: notice %u\n", static_cast<unsigned>(event.what), static_cast<unsigned>(notice));
+    updateToday();
+    mTodayInfo.notice = notice;
+    sendPlanToday();
+    mTodayInfo.notice = 0;
+}
+
 void Service::writeConfig(const CustomMessage::PlanSetupInfo& i)
 {
     // The phone's fields for a plan (not the half, nor easy by heart rate, which stay as set).
@@ -3121,7 +3361,7 @@ void Service::sendPlanWeek(SDK::Workout::Ymd today)
     DaySession days[7];
     if (def != nullptr && mPlan.active() && mPaces.ok && mSetupProblem == nullptr && today != 0) {
         const uint8_t runWeek = PlanProgress::weekToShow(mPlan.calendar, today);
-        if (PlanSchedule::week(mPlan.setup, *def, mPlan.calendar, mPaces.paces, runWeek, days)) {
+        if (PlanRules::week(mPlan, *def, mPaces.paces, runWeek, days)) {
             w.ok      = true;
             w.runWeek = runWeek;
             w.weeks   = mPlan.calendar.weeks;
@@ -3220,7 +3460,7 @@ bool Service::planDay(SDK::Workout::Ymd date, XTraining::DaySession& out) const
     if (def == nullptr || !mPlan.active() || !mPaces.ok || date == 0) {
         return false;
     }
-    return PlanSchedule::day(mPlan.setup, *def, mPlan.calendar, mPaces.paces, date, out);
+    return PlanRules::sessionOn(mPlan, *def, mPaces.paces, date, out);   // the plan's memory applied (TP5)
 }
 
 bool Service::nextSession(SDK::Workout::Ymd from, XTraining::DaySession& out) const
@@ -3284,6 +3524,7 @@ bool Service::startPlannedSession()
     mRepVerdict   = 0;
     mPlannedRun  = true;
     mPlannedDate = mToday.date;
+    mTrialSec    = 0;   // a trial's time is set when its effort runs out (onWorkoutStepEnded)
     LOG_INFO("Planned session started: %s, %u steps, about %lu s and %lu m (week %u of %u)\n", mProgram.name,
              static_cast<unsigned>(mProgram.stepCount), static_cast<unsigned long>(mSessionMeta.plannedSec),
              static_cast<unsigned long>(mSessionMeta.plannedM), static_cast<unsigned>(mToday.runWeek + 1),
@@ -3299,7 +3540,15 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
     // Done, part done, or too short to count (PlanState.hpp, judgeSession()).
     DayStatus status = DayStatus::Missed;
     uint8_t outcome = Saved::TooShort;
-    if (!judgeSession(mWorkoutReachedEnd, static_cast<uint32_t>(track.duration), mSessionMeta.plannedSec, status)) {
+    // TP5: a time trial or race whose effort ran its whole distance counts, however short its warm-up
+    // and cool-down (the estimate takes typical ones): the effort is the session.
+    const bool effortRan = mTrialSec != 0;
+    const bool counted = judgeSession(mWorkoutReachedEnd, static_cast<uint32_t>(track.duration),
+                                      mSessionMeta.plannedSec, status);
+    if (!counted && effortRan) {
+        status = mWorkoutReachedEnd ? DayStatus::Done : DayStatus::PartDone;
+    }
+    if (!counted && !effortRan) {
         LOG_INFO("Planned session too short to count: %lu of %lu s\n", static_cast<unsigned long>(track.duration),
                  static_cast<unsigned long>(mSessionMeta.plannedSec));
     } else {
@@ -3308,7 +3557,26 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
         outcome = status == DayStatus::Done ? Saved::Done : Saved::PartDone;
         LOG_INFO("Planned session %s: %lu, %s\n", status == DayStatus::Done ? "done" : "part done",
                  static_cast<unsigned long>(mPlannedDate), PlanText::name(mSessionMeta.session.kind));
+        // TP5: a time trial or race recalibrates the paces: faster applies, slower or a big jump asks.
+        mTrialOutcome = Saved::NoTrial;
+        mTrialFiveK = 0;
+        if (mTrialSec != 0) {
+            const PlanDef* td = PlanData::find(mPlan.setup.plan);
+            const PlanRules::Recal r = PlanRules::onTrial(mPlan, mSessionMeta.session.kind,
+                                                          td != nullptr ? td->raceCm / 100u : 0u, mTrialSec, localDate());
+            savePlan();
+            mTrialFiveK = static_cast<uint16_t>(r.fiveKSec > 3599u ? 3599u : r.fiveKSec);
+            if (r.fiveKSec != 0) {
+                mTrialOutcome = r.action == PlanRules::Recal::Action::Apply ? Saved::Applied
+                              : r.action == PlanRules::Recal::Action::Ask ? (r.jump ? Saved::AsksJump : Saved::Asks)
+                                                                            : Saved::Kept;
+            }
+            mConfigDirty = mConfigDirty || r.action == PlanRules::Recal::Action::Apply;
+            LOG_INFO("Trial %lu s = a 5K of %lu s: action %u\n", static_cast<unsigned long>(mTrialSec),
+                     static_cast<unsigned long>(r.fiveKSec), static_cast<unsigned>(r.action));
+        }
     }
+    mTrialSec = 0;
     // The Saved screen's lines (brief 8.3): how it counts, the week, and the next session.
     auto msg = SDK::make_msg<CustomMessage::PlanSaved>(mKernel);
     if (!msg) {
@@ -3317,6 +3585,10 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
     Saved& s = msg->info;
     s = Saved{};
     s.outcome = outcome;
+    s.trial = mTrialOutcome;
+    s.trialSec = mTrialFiveK;
+    mTrialOutcome = Saved::NoTrial;
+    mTrialFiveK = 0;
     const PlanDef* def = PlanData::find(mPlan.setup.plan);
     const Ymd today = localDate();
     if (def != nullptr && mPlan.active() && mPaces.ok && today != 0) {

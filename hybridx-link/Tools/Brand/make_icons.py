@@ -136,8 +136,18 @@ def g_streak(pen, c, c2):
     pen.poly([(30.6, 8.5), (38.5, 11), (30.6, 13.5)], c2)
 
 
+def g_training(pen, c, c2):
+    # The plan: a week of bars climbing, the last (the goal) in the second colour, over a
+    # baseline. Bars are wide and few, so they read at 30 px.
+    base = 45.0
+    for n, (x, h) in enumerate(((14.5, 9), (23, 14.5), (31.5, 20.5), (40, 27))):
+        top = base - h
+        pen.line([(x + 2.4, top + 2.4), (x + 2.4, base - 2.4)], 5.4, c2 if n == 3 else c)
+    pen.line([(11.5, base + 4.2), (48.5, base + 4.2)], 2.6, c)
+
+
 GLYPHS = {"race": g_race, "run": g_run, "trail": g_trail, "ride": g_ride,
-          "workout": g_workout, "streak": g_streak}
+          "workout": g_workout, "streak": g_streak, "training": g_training}
 
 
 def icon(kind, size, disc, glyph, glyph2, ss=4):
@@ -159,6 +169,7 @@ def master_colours(kind, glance=False):
         "ride":    (cw["accent"], (255, 255, 255), cw["accent2"]),
         "workout": (cw["accent"], cw["dark"], cw["dark"]),
         "streak":  (cw["dark"], cw["accent"], cw["light"]),
+        "training": (cw["accent"], (255, 255, 255), cw["accent2"]),
     }
     disc, g1, g2 = table[kind]
     if glance:
@@ -166,6 +177,8 @@ def master_colours(kind, glance=False):
             return cw["light"], cw["dark"], cw["accent"]
         if kind == "run":
             return cw["light"], cw["dark"], cw["accent"]
+        if kind == "training":
+            return cw["light"], cw["dark"], cw["accent2"]
     return disc, g1, g2
 
 
@@ -176,12 +189,14 @@ def grid_colours(kind, glance=False):
             return (255, 255, 255), (0, 0, 85), (0, 170, 170)
         if kind == "run":
             return (255, 255, 255), (85, 0, 0), (255, 0, 0)
+        if kind == "training":
+            return (255, 255, 255), (85, 0, 170), (255, 170, 0)
     return ic["disc"], ic["glyph"], ic["glyph2"]
 
 
 def main():
     os.makedirs(OUT_MASTERS, exist_ok=True)
-    listings = [(k, False) for k in brand.FAMILY] + [("streak", True), ("run", True)]
+    listings = [(k, False) for k in brand.FAMILY] + [("streak", True), ("run", True), ("training", True)]
     previews = []
     for kind, glance in listings:
         cw = brand.COLOURWAYS[kind]

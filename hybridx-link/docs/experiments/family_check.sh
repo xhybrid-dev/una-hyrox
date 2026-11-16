@@ -79,7 +79,7 @@ tday() { [ $(( (TDAYS >> $1) & 1 )) = 1 ] && echo true || echo false; }
 printf '{"schema":1,"values":{"plan":1,"fiveK":"22:00","fiveKRecent":true,"halfTime":"","raceDate":"","level":2,"runMon":%s,"runTue":%s,"runWed":%s,"runThu":%s,"runFri":%s,"runSat":%s,"runSun":%s,"longRunDay":%d,"easyByHr":false}}' \
     "$(tday 0)" "$(tday 1)" "$(tday 2)" "$(tday 3)" "$(tday 4)" "$(tday 5)" "$(tday 6)" $(( TLONG + 1 )) \
     > "$OUT/Training/Output/app_config.json"
-printf '{"v":1,"s":[1,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,10],"log":[]}' "$TDAYS" "$TLONG" "$TSTART" "$TSTART" \
+printf '{"v":1,"s":[1,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,10],"log":[],"st":%s}' "$TDAYS" "$TLONG" "$TSTART" "$TSTART" "$(date +%Y%m%d)" \
     > "$OUT/Training/Output/plan.json"
 
 PIDS=()

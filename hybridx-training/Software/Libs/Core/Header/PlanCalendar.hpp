@@ -29,6 +29,15 @@ struct CalendarInput {
     uint8_t minWeeks  = 0;
 };
 
+/// From run week @p runWeek on, the plan week is shifted by @p delta (TP5, PlanRules): a week
+/// repeated is -1 from the week after it, and, when a race date holds the plan's end, +1 again
+/// where the plan rejoins (the week it dropped).
+struct WeekAdjust {
+    uint8_t runWeek = 0;
+    int8_t  delta   = 0;
+};
+constexpr uint8_t kMaxAdjust = 8;
+
 struct Calendar {
     enum class Status : uint8_t {
         Ok,         ///< The whole plan.
@@ -41,6 +50,8 @@ struct Calendar {
     Ymd     start     = 0;  ///< The first Monday run.
     uint8_t firstWeek = 0;  ///< The plan week (0-based) the first Monday runs.
     uint8_t weeks     = 0;  ///< Weeks run, from firstWeek.
+    WeekAdjust adj[kMaxAdjust];  ///< Weeks repeated or dropped since the start, in run-week order.
+    uint8_t    adjCount = 0;
 
     bool usable() const { return status == Status::Ok || status == Status::Truncated
                                  || status == Status::TooClose; }
@@ -60,6 +71,10 @@ namespace PlanCalendar {
 Ymd firstStart(Ymd setupDay);
 
 Calendar make(const CalendarInput& in);
+
+/// The plan week (0-based, into PlanDef::weeks, not clamped) that run week @p runWeek uses:
+/// firstWeek + runWeek, shifted by the adjustments up to and including it.
+uint8_t planWeekOf(const Calendar& c, uint8_t runWeek);
 
 DayPlace locate(const Calendar& c, Ymd day);
 

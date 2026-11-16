@@ -122,6 +122,13 @@ void TrackResultScreen::onPlanSaved()
     } else if (o == Saved::TooShort) {
         snprintf(week, sizeof(week), "Less than half run");
     }
+    if (s.trial != Saved::NoTrial && s.trialSec != 0) {
+        // TP5: a time trial or race: its result as a 5K, and what the plan did about it
+        // (PLANS.md 2.6), in place of the week's count.
+        static const char* const kDid[5] = { "", "new paces", "paces kept", "ask in Today", "a jump: ask" };
+        snprintf(week, sizeof(week), "5K %u:%02u, %s", static_cast<unsigned>(s.trialSec / 60),
+                 static_cast<unsigned>(s.trialSec % 60), kDid[s.trial < 5 ? s.trial : 0]);
+    }
     char next[40] = "";
     if (s.nextDate != 0) {
         snprintf(next, sizeof(next), "Next: %s, %s",

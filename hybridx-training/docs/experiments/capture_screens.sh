@@ -15,13 +15,15 @@
 #
 # Usage:  UNA_SDK=/path/to/una-sdk ./capture_screens.sh [out-dir] [scenario ...]
 #   scenarios: before rest session done finished noplan problem week notes settings newplan
-#              phoneask phonekeep reps trial vo2 (default: all)
-# vo2 (TP4) writes into docs/screens/tp4-*.png: X Run's VO2max on the Plan screen.
+#              phoneask phonekeep reps trial vo2 offer pause ask changes (default: all)
+# vo2 (TP4) writes into docs/screens/tp4-*.png: X Run's VO2max on the Plan screen. offer, pause, ask
+# and changes (TP5) write tp5-*.png: the plan's memory (a missed long run offered, a paused plan, a
+# trial's 5K waiting for an answer, moving, skipping and pausing).
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${1:-$REPO/docs/screens}
 shift || true
-SCENARIOS=${*:-before rest session done finished noplan problem week notes settings newplan phoneask phonekeep reps trial vo2}
+SCENARIOS=${*:-before rest session done finished noplan problem week notes settings newplan phoneask phonekeep reps trial vo2 offer pause ask changes}
 SOFT="$REPO/Software"
 BIN="$SOFT/Apps/LVGL-GUI/simulator/build/bin"
 DISP=:96
@@ -53,8 +55,9 @@ EOF
 # plan.json for the 10K plan at level 2, 5K 22:00, from @start, with an optional log entry.
 planfile() {
     local days=$1 long=$2 start=$3 log=${4:-}
-    printf '{"v":1,"s":[1,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,10],"log":[%s]}' \
-        "$days" "$(( long - 1 ))" "$start" "$start" "$log" > "$SOFT/Output/plan.json"
+    local extra=${5:-}
+    printf '{"v":1,"s":[1,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,10],"log":[%s],"st":%s%s}' \
+        "$days" "$(( long - 1 ))" "$start" "$start" "$log" "${SETTLED:-$TODAY}" "$extra" > "$SOFT/Output/plan.json"
 }
 
 start_sim() {
@@ -91,6 +94,7 @@ LONG_REST=$(( (DOW + 6) % 7 + 1 ))
 cd "$BIN" || exit 1
 for sc in $SCENARIOS; do
     echo "--- $sc"
+    SNAPPFX=
     fresh
     case $sc in
     before)   # Jon's first install: the plan starts next Monday
@@ -137,14 +141,14 @@ for sc in $SCENARIOS; do
         key 2; snap week-day-step1                # L2: its first step
         key 4; key 4                              # R2: back to the week, then the menu
         key 2; key 3 2; snap week-plan            # L2: Plan; R1
-        key 4; key 2; key 3 2; snap week-paces1   # R2; L2: Paces; R1
+        key 4; key 2; key 2; key 3 2; snap week-paces1   # R2; L2 x2 (Changes, Paces); R1
         key 2; snap week-paces2; key 2; snap week-paces3
         key 2; snap week-paces4 ;;                # no note for this runner: stays on the third
     notes)    # a 32:00 5K (threshold meets 10K pace) and a half well behind it
         config 1 32:00 "$DAYS_TODAY" "$LONG_TODAY" 2:40:00
         planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)"
         start_sim
-        key 2; key 2; key 2; key 2; key 2; key 3 2; snap notes-paces1
+        key 2; key 2; key 2; key 2; key 2; key 2; key 3 2; snap notes-paces1
         key 2; snap notes-paces2; key 2; snap notes-paces3; key 2; snap notes-paces4 ;;
     settings) # the plan's three settings, race alerts turned through its values
         config 1 22:00 "$DAYS_TODAY" "$LONG_TODAY"
@@ -236,6 +240,56 @@ for sc in $SCENARIOS; do
         vo2file 452
         start_sim
         key 2; key 2; key 2; key 2; key 3 2; SNAPPFX=tp4 snap vo2-planblock ;;
+    offer)    SNAPPFX=tp5; # TP5: yesterday's long run was missed; today rests: it is offered, and accepted
+        # Run days: yesterday (the long run), then +1, +2 and +4 days; the plan began four weeks ago and
+        # every session before yesterday is logged done.
+        Y=$(( (DOW + 6) % 7 )); D_OFFER=0
+        for k in 6 1 2 4; do D_OFFER=$(( D_OFFER | (1 << ((DOW + k) % 7)) )); done
+        YD=$(date -d "$(date +%F) -1 day" +%F)
+        START=$(date -d "$YD -$(( $(date -d "$YD" +%u) - 1 )) days -4 weeks" +%Y%m%d); LOGS=""
+        for n in $(seq 0 40); do
+            d=$(date -d "$START +$n days" +%Y%m%d); yd=$(date -d "$YD" +%Y%m%d)
+            [ "$d" -ge "$yd" ] && break
+            wd=$(( $(date -d "$START +$n days" +%u) - 1 ))
+            [ $(( (D_OFFER >> wd) & 1 )) = 1 ] && LOGS="${LOGS:+$LOGS,}[$d,1,1,0]"
+        done
+        config 1 22:00 "$D_OFFER" "$(( Y + 1 ))"
+        SETTLED=$(date -d "$(date +%F) -1 day" +%Y%m%d) planfile "$D_OFFER" "$(( Y + 1 ))" "$START" "$LOGS"
+        start_sim
+        snap offer-main; key 3 2; snap offer-today
+        key 3 2; snap offer-ask; key 3 2; snap offer-yes
+        echo "  plan.json log tail: $(grep -oE '\[[0-9]{8},[0-9],[0-9],[0-9]+\]' "$SOFT/Output/plan.json" | tail -2 | tr '\n' ' ')"
+        echo "  plan.json ov: $(grep -oE '"ov":\[\[[0-9,]+\]\]' "$SOFT/Output/plan.json")" ;;
+    pause)    SNAPPFX=tp5; # TP5: a plan paused three days ago: Today says so; R1 resumes it
+        config 1 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)" "" ",\"ps\":$(date -d "$(date +%F) -3 days" +%Y%m%d)"
+        start_sim
+        snap pause-main; key 3 2; snap pause-today
+        key 3 2; snap pause-resumed
+        echo "  plan.json: $(grep -oE '"(ps|st|adj)":[^]]*' "$SOFT/Output/plan.json" | tr '\n' ' ')" ;;
+    ask)      SNAPPFX=tp5; # TP5: a time trial's 5K (22:50, slower than the 22:00) waits for "update or keep"
+        config 1 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)" "" ",\"ak\":1370"
+        start_sim
+        snap ask-main; key 3 2; snap ask-today
+        key 3 2; snap ask-choice; key 3 2; snap ask-updated
+        echo "  app_config.json fiveK: $(tr -d ' \n' < "$SOFT/Output/app_config.json" | grep -oE '"fiveK":"[^"]*"')"
+        echo "  plan.json: $(grep -oE '"(s|ak)":[^]]*' "$SOFT/Output/plan.json" | tr '\n' ' ')" ;;
+    changes)  SNAPPFX=tp5; # TP5: the Changes menu: today's session to tomorrow, skipped, the plan paused, ended
+        # Run days with tomorrow among them: today, +1, +3 and +5 days on; the long run +5.
+        D_MOVE=0
+        for k in 0 1 3 5; do D_MOVE=$(( D_MOVE | (1 << ((DOW + k) % 7)) )); done
+        config 1 22:00 "$D_MOVE" "$(( (DOW + 5) % 7 + 1 ))"
+        planfile "$D_MOVE" "$(( (DOW + 5) % 7 + 1 ))" "$(monday_weeks -4)"
+        start_sim
+        key 2; key 2; key 2; key 2; key 2; snap changes-main     # L2 x5: Changes
+        key 3 2; snap changes-menu; key 2; snap changes-move; key 2; snap changes-skip
+        key 2; snap changes-pause; key 2; snap changes-end; key 3 1; snap changes-end-ask
+        key 1; key 1; key 1; key 1; key 1                          # back to the first
+        key 3 2; snap changes-tomorrow                             # tomorrow's session today: Today
+        echo "  plan.json ov: $(grep -oE '"ov":\[\[[0-9,]+\],?\[?[0-9,]*\]*\]' "$SOFT/Output/plan.json")"
+        key 4 2; key 3 2; key 2; key 2; key 3 2; snap changes-skipped   # Main; Changes; Skip today
+        echo "  plan.json log: $(grep -oE '\[[0-9]{8},[0-9]+,4,[0-9]+\]' "$SOFT/Output/plan.json" | tr '\n' ' ')" ;;
     *) echo "unknown scenario $sc" >&2 ;;
     esac
     grep -E "Today:" "$LOG" | tail -1 | sed 's/^ *//'

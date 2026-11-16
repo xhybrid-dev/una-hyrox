@@ -25,7 +25,7 @@ still open. Same conventions as the other apps' notes: evidence first, file cita
 | Project name in the docs | HybridX Training |
 | Repository folder | `hybridx-training/` (was `hybridx-plan/` in the first brief, commit `0e1b710`) |
 | App folder on the watch, and the link's `app` | `HybridXTraining`: 15 characters, the link's limit exactly (`ActivityLink.hpp:55`) |
-| Development APP_ID | `6E050D707D4D2D32` (first 16 hex of md5 of `HybridXTraining`); the portal issues the real one at release |
+| APP_ID | `C790FB2FDF322688` (portal-issued, 16 November 2026). The development one, `6E050D707D4D2D32` (first 16 hex of md5 of `HybridXTraining`), is kept only for the packager to refuse |
 | Glance | `HXTrainingGlance`, development APP_ID `C4B5BAD6DC827E16` (md5 of that name) |
 | Tags | `training-vX.Y.Z` |
 | Shared files | `act_training.json` (link slot `training`), `training_today.json` (the glance's), `training_vo2_0..2.json` (the Run link) |
@@ -723,3 +723,191 @@ Brief §10 and REVIEW E3. Four steps, three commits, each built for the simulato
 
 **For Jon to decide:** whether Streak's This week should show every app by its watch name (X Run,
 X Ride, ...), as it now shows X Training; today the others show their folder names.
+
+## TP5: the plan's memory and recalibration (built, 16 November 2026; at its gate)
+
+PLANS.md 4.3 and 2.6, as written, in a pure core (`PlanRules.hpp`), then the service and screens.
+Jon read nothing of this yet: the gate is below.
+
+### What was built
+- **The rules** (`Software/Libs/Core/PlanRules.*`, with `PlanCalendar`'s week adjustments and `PlanState`'s
+  memory): the days gone are logged **Missed** when the app opens; a **missed key session** takes the
+  place of the week's later quality; a missed easy run is dropped; at a week's end, **less than half
+  done is repeated** (with a race date it takes the next week's place and never the last two weeks of
+  a 10K or three of a half; without one the plan grows, twice at most) and a week with **nothing done**
+  repeats the last cut-back week; **offers** (yesterday's missed long run, once, if today is easy or
+  rest; a missed key session in place of today's easier one); **moves** (tomorrow's session today,
+  today's to tomorrow, skip), hard days kept apart (the nearer becomes easy), a day moved stays moved;
+  **pauses** (nothing missed; 8 to 14 days repeat the last completed week; over 14 days, easy running and
+  a long-day time trial until a trial is run, then the plan resumes where it was paused);
+  **recalibration** (a time trial or race gives a 5K equivalent: faster applies, slower by more than 2%
+  asks, a jump of more than 6% asks).
+- **`plan_sim`** (`Tools/plan_sim`, golden `Tests/Host/golden/plan_sim.md`): 19 scenarios as Markdown.
+  **This is TP5's gate.**
+- **plan.json** (optional keys, so a file from before TP5 reads as before; buffer 3584 bytes): `adj`,
+  `ov`, `ps`, `rt`, `rw`, `st`, `ak`, `od`.
+- **The service**: `settleToday()` at each Today; `PlanRules::sessionOn` for every session shown or
+  started; a time trial's or race's effort that ran its whole distance gives its time (`mTrialSec`,
+  from the step that ended on its own); `recordPlannedRun` applies, asks or keeps and writes the new 5K
+  back as the phone's field (`writeFiveK`); a new message, `PLAN_ACTION` (0x2A), for the answers.
+- **The screens:** Today says Paused, Skipped, an offer ("Long run missed, Do it today?") or a trial's
+  question ("5K trial 22:50, Paces from 22:00, Update them?"); R1 there opens `PlanOfferScreen`
+  (Yes or No, Update or Keep mine). A new main-menu item, **Changes** (`PlanChangesScreen`): Tomorrow's
+  (do it today), Today's (do it tomorrow), Skip today, Pause or Resume, End plan (R1 twice). The result
+  is in Today's title (CHANGED, NOT ALLOWED, NO SESSION). This week marks missed days (orange); Saved
+  says what a trial did ("5K 21:41, new paces").
+
+### Decisions made while building (each cheap to change)
+1. **Missed key session, no later quality this week:** PLANS has nothing for it; the brief's offers
+   list does ("Intervals were missed: do them in place of today's session?"), so it is offered on the
+   next easier session day that week (once; declined, not again).
+2. **A pause of 8 to 14 days:** "the last completed week is repeated" is the week before the one the
+   pause began in; the plan goes on from the week it was paused in, later (no race date), or the next
+   week is repeated (a race date, which cannot move).
+3. **Over 14 days:** every run day is easy, the long-run day is a 5K time trial, until a trial is run;
+   with no race date the plan then resumes at the week it was paused in. With a race date the calendar
+   stands (the weeks passed are lost).
+4. **A day moved stays moved** (no moving it twice), and a move that would lose a hard session is
+   refused.
+5. **A trial counts only if its effort ran its whole distance** (a lap pressed early gives no time).
+6. **One 5K only:** recalibration uses the trial's 5K equivalent for paces; the half's time is untouched.
+
+### Verified
+- 122 host tests (27 `PlanRules`: every rule above, the JSON, an invalid memory refused, a full log
+  with every key within its buffer).
+- The text-fit audit: 0 problems (the new Today statuses with every offered kind, the trial's question,
+  the Saved trial lines).
+- The simulator: `capture_screens.sh offer pause ask changes` (`docs/screens/tp5-*.png`, looked at): a
+  missed long run offered and accepted (plan.json: the Sunday logged missed, an override on Monday), a
+  plan paused and resumed, a 5K of 22:50 waiting and answered "update" (app_config.json's 5K and
+  plan.json's 5K both 22:50; the paces slower), tomorrow's session swapped in and today's skipped.
+  `sim_plan.sh` still saves its session.
+- `sim_trial.sh`: a 5K time trial run end to end in the simulator (about 17 minutes; the simulator's GPS
+  runs 5 m/s). It found two faults, both fixed: (1) the session was "too short to count" (976 of 2820 s:
+  the estimate takes a typical warm-up and cool-down), so the trial was never used; a trial or race whose
+  effort ran its whole distance now counts, however short its warm-up. (2) Today was not refreshed after a
+  save, so the app said the session was still to do (and did not ask about the new 5K) until restarted; it
+  is refreshed as the run stops. Result of the last run: the effort 948 s, "Planned session done", "Trial 948
+  s = a 5K of 948 s: action 2" (ask: a 28% jump), plan.json holding `"ak":948` with the 5K still 22:00, and
+  Saved reading "Done / 5K 15:48, a jump: ask / Next: Wed, Easy+str".
+- The watch target links (553,016 bytes).
+
+### Not verified
+- Nothing from the rules has run on a watch. The "apply" and "keep" results and the answers were checked
+  by the host tests and by the `ask` capture (update); the first real time trial (week 4) is the test of
+  the whole path on a watch.
+
+### The gate (TP5): what Jon reads and checks
+1. **`Tests/Host/golden/plan_sim.md`** (or `build-tests/plan_sim [n]`): the 19 scenarios. Say what a
+   rule does that you would not want, and which of the decisions above to change.
+2. **On the watch** (the CI build of the last push): the Changes menu; and, when it happens to you, a
+   missed session (this week's rows go orange), the offer, and what week 4's 5K time trial does to your paces.
+3. **To decide:** the six decisions above; and whether the long run's share of the week (Daniels, 30%)
+   should be changed (left from the Daniels check).
+
+## TP6: the glance and `training_today.json` (built, 16 November 2026; at its gate)
+
+Brief section 12. Jon, 16 November: "Happy for you to progress with the Glance whilst I build the
+release packages." Jon has seen none of it yet: the gate is below.
+
+### What was built
+- **The file** (`Software/Libs/Core/Header/TodayFile.hpp`, `Sources/TodayFile.cpp`):
+  `../SharedData/HybridX/training_today.json`, written by the app only. `{"v":1,"plan":1,"wks":10,
+  "ps":0,"s":start,"e":end,"f":first,"t":last,"d":[[date,kind,status,runWeek,"what","pace"],...]}`: the
+  plan's span, the window the file covers (the Monday of the week it was written through 14 days
+  after, so at most 21 rows and about 1.2 KB), and a row for each plan day in it. Integers only and
+  none negative (the family's rule); the strings are printable ASCII with no quote or backslash. An
+  ended plan, or none, is `{"v":1,"plan":0}`. Reading checks every value (a newer version, a repeated
+  or out-of-order day, a day outside the window or the plan, an escape or an over-long string, a
+  number where a string goes, any truncation) and anything wrong reads as no data.
+- **`TodayFile::pick`**: the one place that decides what the glance says for a date: no file, no plan,
+  no clock, **stale** (today outside the window: a file from a fortnight ago, or one from the future),
+  paused, before the start, complete, or a session, done, skipped or a rest day. The glance and the tests
+  both use it.
+- **`TodayBuild::fill`** (pure): the file's data from `PlanState`, through `PlanRules::sessionOn`, so a moved,
+  eased or rested day is already in the rows; the status from the log; the words from the new
+  `PlanText::glanceWhat` (`100 min, 20 fast`, `40 min + strides`) and the pace as `4:18/km` or `6:55/mi`
+  (the pace of a session's main steps; easy runs have none). The service passes a spare `Program` for
+  the paces and none if it has no memory for it (then the file has no pace).
+- **The service** (`Service::writeTodayFile`, called at the end of `updateToday`): every open, save, move,
+  skip, pause, answered offer, new 5K and ended plan reaches it. It touches neither `mProgram` nor
+  `mToday`, rewrites the file only when its text differs from the last write (an FNV-1a hash), writes with
+  `SafeFile` (so a look during a save reads `.bak`), and does nothing while the watch has no date (what is
+  there stands).
+- **The glance** (`Software/Libs/Glance`, `Apps/HXTrainingGlance-CMake`): `Service` (the SDK's glance steps,
+  Run's nearly as it is), `GlanceView` (the file and today's date from `localtime_r`, with Streak's 2026-01-01
+  clock floor, to a view: the state, today's row, the next session, the week's seven pips), `GlanceLayout`
+  (two lines and the strip, 11 controls; the longest wording that fits the band, and cut to fit as a last
+  resort). It never writes. 32 KB as a watch build.
+- **Release plumbing:** `Utilities/pack-store-zip.sh --glance` (Run's, and the app's phone-settings bounds
+  check, which the copy from Ride had lost, restored); `Resources/Glance/` (manifest, icon, four store
+  previews); `docs/store/glance/` (a banner and three cards, from `hybridx-link/Tools/Brand`); CI builds the glance,
+  puts its `.uapp` in `watch-apps` and packages it as its own artifact, `training-glance-store-zip`.
+- **Tools:** `build-tests/today_print <file> [date] [--expect State]` reads a file with the core's reader and
+  says what the glance would show; `build-tests/glance_preview` and `docs/experiments/glance_preview.py` draw
+  every state from the real layout code; `sim_plan.sh` and `sim_trial.sh` check the file before and after a session.
+
+### Where it differs from the brief
+- **Two lines and a strip, not three lines.** The brief's table had three text lines (the third being "Week
+  6 of 10, race in 33 days"). Only 18 and 20 point faces draw letters and 25 + 23 + 23 px do not fit 60 px
+  (Streak NOTES S4.2), so the week is seven pips and the plan's progress a bar (weeks begun of all), as
+  Streak's beads did. The race countdown and "Week 6 of 10" are not on the face; the Plan screen has them.
+  The brief's section 12 now says so.
+- No `race` key in the file (nothing shows it), and no written-at time (nothing read it).
+
+### Decisions made while building (each cheap to change)
+1. **A 196 px band, centred** (22 px in from each edge). Streak's words ran 14 px in on the left and 8 on the
+   right and looked right in Jon's photo; the mock-up's darkened edges are 34 px (the list's separators span
+   172). A wider band would show more of the pace.
+2. **"Easy" for an easy run with strides**, whose second line says `40 min + strides`. `Easy+str` is the app's
+   week-list word and is cryptic on a glance.
+3. **A past session with nothing logged is an amber pip**, the same as a missed one: the glance cannot settle it
+   (only the app does) and the truth is that it was not done.
+4. **Only a session's target pace is shown** (intervals, cruise, tempo, race pace); an easy run shows its time.
+5. **Skipped today** is amber, with the next session on the second line; **part done** counts as done.
+6. **The no-plan line is `Set a plan in UNA`**, the brief's longer sentence being 230 px.
+7. **CI packages the glance as a dry run, in its own artifact, without `--expect-version`.** It carries the
+   development App ID (`C4B5BAD6DC827E16`, md5 of `HXTrainingGlance`) until Jon has created its listing; with
+   `--expect-version` the packager refuses that, which would have failed a `training-v*` tag build of the app.
+
+### Verified
+- **Host tests: 166 pass** (44 new): `TodayFile` (round trip of every kind, status and an empty string; the
+  largest file fits; every truncation refused; a changed byte never gives a file that breaks the rules; each
+  rule of the file; more than 21 rows), `pick` (every state, the window's edges, a week change, a file from the
+  future), `TodayBuild` (a real plan, every plan at every level on every third day of its length, the log and
+  moves in the rows, paused, no plan), `GlanceView` and `GlanceLayout` (every kind in every state with the
+  longest words fits the band by the faces' real widths; the control budget; everything inside the area; the
+  adaptation to a short, narrow or poor area; the bar).
+- **`sim_plan.sh`**: the file is written as the app opens and reads back as "Session"; after the 3-minute
+  stepped run (which does not count: under half the planned time) it still says Session, correctly.
+- **`sim_trial.sh`** (a whole 5K time trial, about 20 minutes): the file reads back as "Session" before the run
+  and **"Done" straight after the save**, with no reopening of the app, with the next session (Wed, Easy+str 35
+  min) after it. The trial's 951 s was a 5K of 15:51 and the app's own question about the paces was
+  pending: the glance still says Done, which is right.
+- **The ARM compile checks** of the glance (32 KB `.uapp`) and the whole app; the packager in both modes (the
+  app's with the bounds check, and the glance's).
+- **The preview sheet** and the four store previews, looked at.
+
+### Not verified
+- **Never on a watch.** The platform facts are Streak's and Run's (area 240 x 60, 32 controls, text and filled
+  rectangles, the 18 and 20 point faces), but this glance's own text boxes and strip have not been seen. Streak
+  NOTES S4.2 still has "18 point text sits inside its 23 px box" open too.
+- **That the glance's `localtime_r` is the app's local date** (the same call as Streak's glance, which Jon has
+  seen show the right week; the app uses the kernel's time tracker). A zone change between the two would move
+  the day by a look.
+- **The glance's read of `../SharedData/HybridX/training_today.json`** is Run's `vo2max.json` read, repeated;
+  the app's write is checked by the simulator, the read by the host tests and the layout by the previews.
+- **The portal:** the glance's listing and App ID (Jon), and the portal's view of a glance manifest like the
+  others (the packager checks the same rules as for Run's glance).
+
+### The gate (TP6): what Jon looks at and does
+1. **The previews:** `hybridx-training/docs/store/glance/` and `Resources/Glance/previews/` (and, for every state,
+   `glance_preview.py`). Say if a state's wording, the pips, or the bar want changing, and whether the race
+   countdown ("race in 33 days") is missed enough to give up a pip row or a bar for it.
+2. **On the watch:** the CI build of the last push gives `HXTrainingGlance_0.0.0-dev.uapp` and the app. Follow
+   `hybridx-link/docs/FAMILY_WATCH_TEST.md` section 8 (steps 25 to 28): open the app once, then look at the glance
+   before and after a session, and photograph it.
+3. **To decide and do:** create the "X Training Glance" listing in the portal and send me its App ID (until then
+   the glance carries a development ID and CI packages it as a dry run); and whether to tag `training-v1.0.0`
+   now (the app without the glance's file, which the field test does not need) with the glance arriving in 1.1.0
+   (recommended), or wait for it.

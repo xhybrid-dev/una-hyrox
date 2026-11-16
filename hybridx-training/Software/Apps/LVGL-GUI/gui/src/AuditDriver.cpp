@@ -210,6 +210,28 @@ struct Step {
     { nullptr, [] { sModel->injectPlanToday(session(Kind::K)); } },                           \
     { "today: " #K, nullptr }
 
+/// TP5: an offer for a missed session of kind K (a long run, or a key session)
+Info offerOf(Kind k, uint8_t detail)
+{
+    Info t = notToday(Info::Offer, XTraining::PlanText::name(k), "Wed 30 Sep");
+    t.kind   = static_cast<uint8_t>(k);
+    t.detail = detail;
+    return t;
+}
+
+Info paceAsk(uint32_t newSec, uint32_t oldSec, uint8_t detail)
+{
+    Info t = notToday(Info::PaceAsk, "Your 5K: 59:59", "your paces: 59:59");
+    t.plannedSec = newSec;
+    t.plannedM   = oldSec;
+    t.detail     = detail;
+    return t;
+}
+
+#define OFFER_KIND(K, D)                                                                      \
+    { nullptr, [] { sModel->injectPlanToday(offerOf(Kind::K, Info::D)); } },                  \
+    { "today: offer, " #K, nullptr }
+
 const Step kSteps[] = {
     { nullptr, [] { findWidest(); sModel->injectPlanToday(session(Kind::Easy)); go(ScreenId::PlanToday); } },
     { nullptr, [] {} },
@@ -229,6 +251,24 @@ const Step kSteps[] = {
     { "today: no plan", nullptr },
     { nullptr, [] { sModel->injectPlanToday(notToday(Info::PhoneAsks, "New plan from your phone", "Half marathon, level 2")); } },
     { "today: the phone asks", nullptr },
+    { nullptr, [] { sModel->injectPlanToday(notToday(Info::Paused, "Plan paused", "since Wed 30 Sep")); } },
+    { "today: paused", nullptr },
+    { nullptr, [] { sModel->injectPlanToday(session(Kind::LongFinish, Info::Skipped)); } },
+    { "today: skipped, next a long run with a fast finish", nullptr },
+    OFFER_KIND(Long, LongRun), OFFER_KIND(LongFinish, LongRun), OFFER_KIND(Tempo, KeySession),
+    OFFER_KIND(Cruise, KeySession), OFFER_KIND(Intervals, KeySession), OFFER_KIND(ThirtyThirty, KeySession),
+    OFFER_KIND(Hills, KeySession), OFFER_KIND(Reps, KeySession), OFFER_KIND(Pace10k, KeySession),
+    OFFER_KIND(PaceHalf, KeySession), OFFER_KIND(TimeTrial5k, KeySession), OFFER_KIND(TimeTrial10k, KeySession),
+    { nullptr, [] { sModel->injectPlanToday(paceAsk(59 * 60 + 59, 59 * 60 + 58, Info::Slower)); } },
+    { "today: the trial's 5K, slower", nullptr },
+    { nullptr, [] { sModel->injectPlanToday(paceAsk(12 * 60, 12 * 60 + 40, Info::Jump)); } },
+    { "today: the trial's 5K, a big jump", nullptr },
+    { nullptr, [] {
+          Info t = session(Kind::LongFinish);
+          t.notice = Info::NotAllowed;   // the title says how the last change went
+          sModel->injectPlanToday(t);
+      } },
+    { "today: a change not allowed", nullptr },
     { nullptr, [] { sModel->injectPlanToday(notToday(Info::Problem, "The race is too close or past")); } },
     { "today: problem, race", nullptr },
     { nullptr, [] { sModel->injectPlanToday(notToday(Info::Problem, "Choose a plan in the UNA app")); } },
@@ -359,6 +399,30 @@ const Step kSteps[] = {
           sModel->injectPlanSaved(s);
       } },
     { "saved: not counted, under half the session", nullptr },
+    { nullptr, [] {
+          CustomMessage::PlanSavedInfo s;
+          s.outcome = CustomMessage::PlanSavedInfo::Done;
+          s.trial = CustomMessage::PlanSavedInfo::Applied; s.trialSec = 3599;
+          s.nextDate = 20260930; s.nextKind = static_cast<uint8_t>(Kind::LongFinish);
+          sModel->injectPlanSaved(s);
+      } },
+    { "saved: a trial, new paces", nullptr },
+    { nullptr, [] {
+          CustomMessage::PlanSavedInfo s;
+          s.outcome = CustomMessage::PlanSavedInfo::PartDone;
+          s.trial = CustomMessage::PlanSavedInfo::Kept; s.trialSec = 3599;
+          s.nextDate = 20260930; s.nextKind = static_cast<uint8_t>(Kind::TimeTrial10k);
+          sModel->injectPlanSaved(s);
+      } },
+    { "saved: a trial, paces kept", nullptr },
+    { nullptr, [] {
+          CustomMessage::PlanSavedInfo s;
+          s.outcome = CustomMessage::PlanSavedInfo::Done;
+          s.trial = CustomMessage::PlanSavedInfo::AsksJump; s.trialSec = 3599;
+          s.nextDate = 20260930; s.nextKind = static_cast<uint8_t>(Kind::LongFinish);
+          sModel->injectPlanSaved(s);
+      } },
+    { "saved: a trial, a big jump", nullptr },
 };
 constexpr int kStepCount = static_cast<int>(sizeof(kSteps) / sizeof(kSteps[0]));
 

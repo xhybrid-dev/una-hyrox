@@ -4,10 +4,9 @@
  * @brief   How the plan is going, for the This week and Plan screens (TP3):
  *          each day's mark, and the counts of sessions done.
  *
- * TP3 marks a past day with nothing logged "not logged", not "missed": the
- * missed-session rules, and the set-up day before which days do not count,
- * are TP5's (brief section 9). DayMark is in PlanTypes.hpp, for the GUI; the
- * functions are the service's.
+ * A past day with nothing logged reads "not logged" until PlanRules::settle() logs it
+ * missed (TP5, brief section 9). DayMark is in PlanTypes.hpp, for the GUI; the functions are
+ * the service's.
  ******************************************************************************
  */
 

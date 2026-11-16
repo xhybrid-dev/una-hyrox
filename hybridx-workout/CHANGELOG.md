@@ -11,6 +11,18 @@ prefix for the SDK's version script. The store release of the Streak family:
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-16
+
+### Added
+
+- An EMOM's or AMRAP's minutes can be any whole minute from 1 to 60: on that settings screen L1
+  and L2 scroll it down and up one minute at a time (32 is two presses from 30). R1 still steps
+  through the usual lengths.
+
+### Changed
+
+- The activity link has a sixth slot, X Training's (`act_training.json`): the Streak line after a
+  save also counts X Training's runs. Nothing else changes.
 ### Added
 
 - **Open sets**, an eighth kind (Type on the main menu, next to Strength), from a user's request:
