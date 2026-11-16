@@ -51,8 +51,8 @@ snap trial-effort
 for _ in $(seq 150); do grep -q "Trial effort" "$LOG" && break; sleep 10; done   # about 17 minutes
 grep -E "Trial effort" "$LOG" | sed 's/^ *//'
 sleep 5; snap trial-after
-key 4 2                                             # R2: the cool-down's lap
-sleep 3
+key 4 2                                             # R2: the cool-down's lap: "Workout completed"
+sleep 10                                            # it dismisses itself; keys are lost until then
 key 3 1; key 2; key 2; snap trial-menu              # R1 the menu; L2 x2: Save & End (the workout is over, so no End workout row)
 DISPLAY=$DISP xdotool keydown 3; sleep 3; DISPLAY=$DISP xdotool keyup 3; sleep 2
 snap trial-saved
