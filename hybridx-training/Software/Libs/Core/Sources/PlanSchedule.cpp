@@ -12,7 +12,7 @@ namespace PlanSchedule {
 
 const Week& weekFor(const PlanDef& plan, const Calendar& cal, uint8_t runWeek, bool fiveKRecent)
 {
-    const uint8_t pw = static_cast<uint8_t>(cal.firstWeek + runWeek);
+    const uint8_t pw = PlanCalendar::planWeekOf(cal, runWeek);
     const uint8_t last = static_cast<uint8_t>(plan.weekCount - 1);
     const Week& written = plan.weeks[pw <= last ? pw : last];
     if (runWeek == 0 && pw != last) {
@@ -62,7 +62,7 @@ bool week(const PlanSetup& setup, const PlanDef& plan, const Calendar& cal, cons
         s = DaySession{};
         s.date = PlanCalendar::dateOf(cal, runWeek, d);
         s.runWeek = runWeek;
-        s.planWeek = static_cast<uint8_t>(cal.firstWeek + runWeek);
+        s.planWeek = PlanCalendar::planWeekOf(cal, runWeek);
         s.weekday = d;
         s.phase = wk.phase;
         s.role = layout.role[d];

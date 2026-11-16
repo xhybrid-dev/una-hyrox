@@ -40,6 +40,7 @@ set(CORE_SOURCES
     "${CORE_LIBS}/Sources/PlanSchedule.cpp"
     "${CORE_LIBS}/Sources/PlanProgress.cpp"
     "${CORE_LIBS}/Sources/RunVo2Max.cpp"
+    "${CORE_LIBS}/Sources/PlanRules.cpp"
 )
 set(SDK_JSON_SOURCES
     "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamReader.cpp"
@@ -78,8 +79,10 @@ add_executable(hybridx-training-host-tests
     HoldTimerTest.cpp
     DanielsTest.cpp
     RunVo2MaxTest.cpp
+    PlanRulesTest.cpp
     GoldenTest.cpp
     "${TOOLS_DIR}/plan_print/PlanPrint.cpp"
+    "${TOOLS_DIR}/plan_sim/PlanSim.cpp"
     ${CORE_SOURCES}
     ${SDK_JSON_SOURCES}
     ${SDK_WORKOUT_SOURCES}
@@ -88,6 +91,7 @@ add_executable(hybridx-training-host-tests
 target_include_directories(hybridx-training-host-tests PRIVATE
     ${CORE_INCLUDES}
     "${TOOLS_DIR}/plan_print"
+    "${TOOLS_DIR}/plan_sim"
     "${CMAKE_CURRENT_LIST_DIR}"
     "${UNA_SDK_ROOT}/Tests/Host/support"
 )
@@ -107,6 +111,16 @@ add_executable(plan_print
     ${SDK_WORKOUT_SOURCES}
 )
 target_include_directories(plan_print PRIVATE ${CORE_INCLUDES} "${TOOLS_DIR}/plan_print")
+
+# plan_sim: the plan's memory as scenarios (TP5's gate). The golden test uses the same code.
+add_executable(plan_sim
+    "${TOOLS_DIR}/plan_sim/plan_sim.cpp"
+    "${TOOLS_DIR}/plan_sim/PlanSim.cpp"
+    ${CORE_SOURCES}
+    ${SDK_JSON_SOURCES}
+    ${SDK_WORKOUT_SOURCES}
+)
+target_include_directories(plan_sim PRIVATE ${CORE_INCLUDES} "${TOOLS_DIR}/plan_sim")
 
 enable_testing()
 add_test(NAME hybridx-training-host-tests COMMAND hybridx-training-host-tests)
