@@ -880,6 +880,10 @@ release packages." Jon has seen none of it yet: the gate is below.
   adaptation to a short, narrow or poor area; the bar).
 - **`sim_plan.sh`**: the file is written as the app opens and reads back as "Session"; after the 3-minute
   stepped run (which does not count: under half the planned time) it still says Session, correctly.
+- **`sim_trial.sh`** (a whole 5K time trial, about 20 minutes): the file reads back as "Session" before the run
+  and **"Done" straight after the save**, with no reopening of the app, with the next session (Wed, Easy+str 35
+  min) after it. The trial's 951 s was a 5K of 15:51 and the app's own question about the paces was
+  pending: the glance still says Done, which is right.
 - **The ARM compile checks** of the glance (32 KB `.uapp`) and the whole app; the packager in both modes (the
   app's with the bounds check, and the glance's).
 - **The preview sheet** and the four store previews, looked at.
