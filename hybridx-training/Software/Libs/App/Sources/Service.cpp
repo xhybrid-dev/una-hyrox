@@ -3480,7 +3480,15 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
     // Done, part done, or too short to count (PlanState.hpp, judgeSession()).
     DayStatus status = DayStatus::Missed;
     uint8_t outcome = Saved::TooShort;
-    if (!judgeSession(mWorkoutReachedEnd, static_cast<uint32_t>(track.duration), mSessionMeta.plannedSec, status)) {
+    // TP5: a time trial or race whose effort ran its whole distance counts, however short its warm-up
+    // and cool-down (the estimate takes typical ones): the effort is the session.
+    const bool effortRan = mTrialSec != 0;
+    const bool counted = judgeSession(mWorkoutReachedEnd, static_cast<uint32_t>(track.duration),
+                                      mSessionMeta.plannedSec, status);
+    if (!counted && effortRan) {
+        status = mWorkoutReachedEnd ? DayStatus::Done : DayStatus::PartDone;
+    }
+    if (!counted && !effortRan) {
         LOG_INFO("Planned session too short to count: %lu of %lu s\n", static_cast<unsigned long>(track.duration),
                  static_cast<unsigned long>(mSessionMeta.plannedSec));
     } else {
