@@ -28,6 +28,7 @@ not yellow and black on all of them, but a varied, cohesive portfolio.
 | X Ride | Velodrome | navy `#0E1A4F` | cobalt `#2346E8`, signal orange `#FF6A1A` | `#F2F4FB` | black |
 | X Workout | Iron | graphite `#161618` | pink `#FF2E88` | `#EDEDED` | black |
 | X Streak | Glacier | navy `#0B1F33` | ice teal `#2EC4C4` | snow `#F4FAFB` | teal |
+| X Training | Cadence | aubergine `#24123F` | violet `#8B5CF6`, amber `#FFB020` | `#F4F0FB` | black |
 
 Two of the colourways come from HybridX's own work: Engine is the "Build a Bigger Engine" VO2max
 campaign's palette, and Iron's pink is the HybridX app's pink mode.
@@ -44,6 +45,7 @@ campaign's palette, and Iron's pink is the HybridX app's pink mode.
   | Ride | the bike | cobalt |
   | Workout | a kettlebell | pink |
   | Streak | the summit | navy |
+  | Training | the plan's climbing bars | violet |
 
 - **Glances:** each glance has its app's glyph reversed onto the light colour.
 - **What it writes:**

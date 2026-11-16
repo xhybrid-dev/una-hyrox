@@ -574,8 +574,12 @@ X Run's VO2max from `vo2max.json` (and, in a plan, the figure first seen in it, 
   `Libs/RunCore`'s window builder and codec and `Libs/App`'s `SafeFile` are **copies of X Run's**
   (the Run link, TP4): edit X Run's, then `hybridx-training/Utilities/check-vo2-link-copies.sh --sync`
   (CI checks they match).
-- **Watch builds will come from CI**, as for the others. Tags `training-vX.Y.Z`. App folder
-  `HybridXTraining`; development APP_ID `6E050D707D4D2D32`.
+- **Watch builds come from CI**, as for the others. Tags `training-vX.Y.Z`. App folder
+  `HybridXTraining`; App ID `C790FB2FDF322688` (portal-issued, 16 November 2026; the development
+  one was `6E050D707D4D2D32`). The store package: `Utilities/pack-store-zip.sh` (CI artifact
+  `training-store-zip`, a dry run until a `training-v*` tag; the tag and the upload are Jon's),
+  previews `docs/experiments/store_previews.sh`, images `docs/store/` (Cadence colourway),
+  `CHANGELOG.md`, and the listing's text in `hybridx-link/docs/STORE_RELEASE.md`.
 - **Commands:**
   - host tests: `cmake -S hybridx-training/Tests/Host -B hybridx-training/build-tests && cmake --build hybridx-training/build-tests && hybridx-training/build-tests/hybridx-training-host-tests`
     (`ctest --test-dir hybridx-training/build-tests` also checks the generated plan header);

@@ -354,6 +354,29 @@ jobs:
             hybridx-ride/Output/HybridXRide-*.zip
           if-no-files-found: error
 
+      - name: X Training store package
+        # The Streak family's release (hybridx-link/docs/STORE_RELEASE.md), from
+        # hybridx-training/Utilities/pack-store-zip.sh (X Ride's): the .uapp, manifest, icon and
+        # previews in one zip. A dry run unless the push is a training-v* tag, when the script also
+        # refuses a binary whose version is not the tag's and a package still carrying the
+        # development APP_ID.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          EXPECT=""
+          case "${GITHUB_REF_NAME:-}" in
+            training-v*) EXPECT="--expect-version ${GITHUB_REF_NAME#training-v}" ;;
+          esac
+          # shellcheck disable=SC2086
+          bash hybridx-training/Utilities/pack-store-zip.sh $EXPECT
+
+      - name: Upload the X Training store package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: training-store-zip
+          path: |
+            hybridx-training/Output/HybridXTraining-*.zip
+          if-no-files-found: error
+
   host-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20

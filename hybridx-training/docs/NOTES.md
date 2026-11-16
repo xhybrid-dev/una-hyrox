@@ -25,7 +25,7 @@ still open. Same conventions as the other apps' notes: evidence first, file cita
 | Project name in the docs | HybridX Training |
 | Repository folder | `hybridx-training/` (was `hybridx-plan/` in the first brief, commit `0e1b710`) |
 | App folder on the watch, and the link's `app` | `HybridXTraining`: 15 characters, the link's limit exactly (`ActivityLink.hpp:55`) |
-| Development APP_ID | `6E050D707D4D2D32` (first 16 hex of md5 of `HybridXTraining`); the portal issues the real one at release |
+| APP_ID | `C790FB2FDF322688` (portal-issued, 16 November 2026). The development one, `6E050D707D4D2D32` (first 16 hex of md5 of `HybridXTraining`), is kept only for the packager to refuse |
 | Glance | `HXTrainingGlance`, development APP_ID `C4B5BAD6DC827E16` (md5 of that name) |
 | Tags | `training-vX.Y.Z` |
 | Shared files | `act_training.json` (link slot `training`), `training_today.json` (the glance's), `training_vo2_0..2.json` (the Run link) |

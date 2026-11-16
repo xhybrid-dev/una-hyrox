@@ -37,6 +37,7 @@ the zips CI builds from the tags go to the portal.**
 | X Trail | `HybridXTrail-<v>.zip` (`trail-store-zip`) | `trail-v1.0.0` | the portal's `1C83FDDE4EA3C880` |
 | X Workout | `HybridXWorkout-<v>.zip` (`workout-store-zip`) | `workout-v1.0.0` | the portal's `B9171EBAF7066A30` |
 | X Ride | `HybridXRide-<v>.zip` (`ride-store-zip`) | `ride-v1.0.0` | the portal's `58F141AE44428F51` |
+| X Training (new) | `HybridXTraining-<v>.zip` (`training-store-zip`) | `training-v1.0.0` | the portal's `C790FB2FDF322688` |
 | HybridX Race | `HybridXRace-<v>.zip` (`race-store-zip`) | `v1.1.0` and `apps-v1.1.0` | the portal's `5C4D6F49335E5E17` |
 
 Each zip holds four things: the `.uapp`, `app-manifest.json`, `icon.png` and `previews/`.
@@ -326,6 +327,47 @@ turbo. Counts in X Streak.
 - **Bike sensors:** the SDK connects heart-rate straps only (Gate B0).
 
 **Not claimed:** power, cadence or wheel speed.
+
+### X Training (a new listing, 16 November 2026)
+
+**App ID:** `C790FB2FDF322688` (the portal's, Jon, 16 November 2026; in the CMake file, the
+manifest and the simulator). **Tag:** `training-v1.0.0`. **Package:** `HybridXTraining-<v>.zip`
+(`training-store-zip`). **Images:** `hybridx-training/docs/store/`, in the **Cadence** colourway.
+
+**Short description:** Training plans on your wrist: a 10K, half marathon or VO2max block from
+your 5K time, run step by step. Counts in X Streak.
+
+**Longer description:**
+
+> Your plan, on your wrist.
+>
+> - **Three plans:** a 10K (10 weeks), a half marathon (12) and a VO2max block (8), each at
+>   three levels, on the days you run. Give it a recent 5K time in the UNA app, and a race date
+>   if you have one.
+> - **Today's session is ready:** its target pace, distance and time, and what it builds. Press
+>   R1 and it runs step by step: a pace gauge, a buzz when you drift out of range, lead-in beeps,
+>   and each short rep judged on the next step's card.
+> - **Paces from your 5K:** easy, threshold, interval and repetition, with predicted 10K and
+>   half times. Worked out with Daniels' running tables, and checked against them.
+> - **This week and the whole plan:** seven days from Monday with their marks, the weeks by
+>   phase, and your progress. Plan changes can be made on the watch too.
+> - Records every run as a normal run: GPS, heart rate, laps (one per step), cadence and step
+>   length, and the run detail pages. Syncs to the UNA app and Strava.
+> - Counts in **X Streak**, with its training load. Shows X Run's VO2max on the plan screen, and
+>   feeds X Run's VO2max with your runs.
+>
+> Made by HybridX. Training advice is general, not medical: stop if something hurts.
+
+**Facts checked against the code:**
+- **Plans and levels:** `Tools/Plans/*.plan`, `PlanBuilder.cpp` (the caps), `PLANS.md`.
+- **Paces:** `PaceModel.cpp`, held to all 66 rows of Daniels' Tables 5.1 to 5.3 in `DanielsTest`
+  (within 4 s/km; races within 0.25%).
+- **Zone alerts, easy steps "too fast" only, the rep judging, the held R2:** TP3, NOTES.
+- **Streak and X Run:** `act_training.json` and `training_vo2_*.json` (NOTES "TP4"); passed the
+  family check on 16 November 2026.
+
+**Not claimed:** missed-session handling, moves and recalibration after a time trial (TP5, not
+yet built); a glance (TP6).
 
 ### HybridX Race 1.1.0 (the update)
 

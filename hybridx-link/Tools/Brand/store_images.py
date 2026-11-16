@@ -128,6 +128,22 @@ LISTINGS = {
              "previews/5-circuit-station.png", True),
         ],
     },
+    "training": {
+        "title": "X TRAINING", "kicker": "For UNA Watch",
+        "tagline": "Your plan, on your wrist.",
+        "body": "A 10K, half marathon or VO2max plan from your 5K time, run step by step with pace targets.",
+        "hero": "previews/2-today.png",
+        "cards": [
+            (["TODAY'S", "SESSION,", "READY"], "Open the app and it is there: the session, its target pace and how long it takes.",
+             "previews/2-today.png", False),
+            (["PACES FROM", "YOUR 5K"], "Easy, threshold, interval and repetition paces from one time, checked against Daniels' tables.",
+             "previews/5-paces.png", True),
+            (["EVERY STEP", "TIMED"], "A pace gauge, a buzz when you drift, and each short rep judged on the next step's card.",
+             "previews/6-rep.png", False),
+            (["SEE THE", "WEEKS AHEAD"], "This week from Monday, and the whole plan with X Run's VO2max beside it.",
+             "previews/4-plan.png", True),
+        ],
+    },
     "streak": {
         "title": "X STREAK", "kicker": "For UNA Watch",
         "tagline": "Keep the streak. Climb the mountain.",
@@ -160,7 +176,7 @@ LISTINGS = {
 }
 
 FAMILY_NAMES = {"race": "HybridX Race", "run": "X Run", "trail": "X Trail", "ride": "X Ride",
-                "workout": "X Workout", "streak": "X Streak"}
+                "workout": "X Workout", "streak": "X Streak", "training": "X Training"}
 
 # -- Colours on a card -----------------------------------------------------------------------
 
@@ -249,7 +265,7 @@ class Card:
 # -- Pieces -----------------------------------------------------------------------------------
 
 
-NAMES = ["HybridX Race", "X Run", "X Trail", "X Ride", "X Workout", "X Streak", "UNA app",
+NAMES = ["HybridX Race", "X Run", "X Trail", "X Ride", "X Workout", "X Streak", "X Training", "UNA app",
          "300 m", "3 km", "25 m", "100 m", "1 km", "5 km", "10 runs", "4 weeks"]
 
 
@@ -377,11 +393,13 @@ def family_card(cw, name, light=False):
     M = 72
     tag(c, (M, M), "Part of the family", 24, s["label"])
     y, _ = headline(c, M, M + 64, ["THE X FAMILY"], 936, 150, s["text"])
-    size = 190
-    gap_x = (1080 - 2 * M - 3 * size) / 2
+    # Three columns for six apps, four for seven (two rows each, clear of the line at the foot).
+    ncols = 3 if len(brand.FAMILY) <= 6 else 4
+    size = 190 if ncols == 3 else 168
+    gap_x = (1080 - 2 * M - ncols * size) / (ncols - 1)
     top = y + 70
     for i, k in enumerate(brand.FAMILY):
-        col, row = i % 3, i // 3
+        col, row = i % ncols, i // ncols
         x = M + col * (size + gap_x)
         yy = top + row * (size + 92)
         icon_on(c.img, k + "-1024.png", size, (int(x), int(yy)), s["ground"], s["text"])
@@ -445,7 +463,7 @@ def family_banner(name):
         tag(c, (x0 + cw_ / 2, 740), FAMILY_NAMES[k], 26, (255, 255, 255), "ma")
         tag(c, (x0 + cw_ / 2, 790), cw["name"], 22, cw["mute"] if k != "race" else cw["accent"], "ma")
     headline(c, 96, 96, ["THE X FAMILY"], 1100, 170, (255, 255, 255))
-    c.put((1000, 96 + 130), "Six apps for UNA Watch.", grotesk(40, 500), COLOURWAYS["race"]["accent"],
+    c.put((1000, 96 + 130), "Seven apps for UNA Watch.", grotesk(40, 500), COLOURWAYS["race"]["accent"],
           "ls", what="family tag")
     c.put((1000, 96 + 180), "Every session counts in X Streak.", grotesk(40, 500), (255, 255, 255),
           "ls", what="family tag")
@@ -455,7 +473,10 @@ def family_banner(name):
 
 
 def main():
+    only = sys.argv[1:]   # listing keys to make; none = every listing (the family banner always)
     for key, listing in LISTINGS.items():
+        if only and key not in only:
+            continue
         kind = listing.get("kind", key)
         glance = listing.get("glance", False)
         cw = COLOURWAYS[kind]
