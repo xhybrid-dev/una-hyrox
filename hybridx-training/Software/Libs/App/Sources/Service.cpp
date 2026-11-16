@@ -40,6 +40,8 @@
 #include "RepJudge.hpp"
 #include "TimeText.hpp"
 #include "data/PlanData.hpp"
+#include "TodayBuild.hpp"
+#include "TodayFile.hpp"
 #include "RunVo2Max.hpp"
 #include "SafeFile.hpp"
 #include "ActivityLink.hpp"
@@ -2962,10 +2964,61 @@ void Service::updateToday()
         }
     }
     mTodayInfo = info;
+    writeTodayFile();   // the glance's view of the plan, as it stands now
     LOG_INFO("Today: status %u, %s %s %s (week %u of %u); next %lu %s %s\n", static_cast<unsigned>(info.status),
              info.name, info.what, info.target, static_cast<unsigned>(info.runWeek + 1),
              static_cast<unsigned>(info.weeks), static_cast<unsigned long>(info.nextDate),
              PlanText::name(static_cast<Kind>(info.nextKind)), info.nextWhat);
+}
+
+void Service::writeTodayFile()
+{
+    // TP6: ../SharedData/HybridX/training_today.json, which the glance reads (TodayFile.hpp). The
+    // window of days is built from the plan as it stands, through PlanRules, so a move or a
+    // pause is in it. Rewritten only when the text differs from the last write, so the many
+    // calls (every open of Today) cost no flash. Nothing here touches mProgram or mToday.
+    using namespace XTraining;
+    const Ymd today = localDate();
+    if (today == 0) {
+        return;   // no date: what is there stands
+    }
+    std::unique_ptr<TodayData> data(new (std::nothrow) TodayData());
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[TodayFile::kMaxJsonBytes]);
+    if (!data || !buf) {
+        LOG_WARNING("No memory for training_today.json\n");
+        return;
+    }
+    {
+        // A spare Program for each session's pace (about 10 KB, for the moment); without it the
+        // file just has no pace.
+        std::unique_ptr<SDK::Workout::Program> scratch(new (std::nothrow) SDK::Workout::Program());
+        TodayBuild::fill(mPlan, mPaces.ok ? &mPaces.paces : nullptr, mIsImperial, today, scratch.get(), *data);
+    }
+    const size_t len = TodayFile::write(*data, buf.get(), TodayFile::kMaxJsonBytes);
+    if (len == 0) {
+        LOG_WARNING("Could not make training_today.json\n");
+        return;
+    }
+    uint32_t hash = 2166136261u;   // FNV-1a
+    for (size_t i = 0; i < len; ++i) {
+        hash = (hash ^ static_cast<uint8_t>(buf[i])) * 16777619u;
+    }
+    if (hash == 0) {
+        hash = 1;
+    }
+    if (hash == mTodayFileHash) {
+        return;
+    }
+    mKernel.fs.mkdir("../SharedData");   // already there on a watch that has run Streak or Race
+    mKernel.fs.mkdir(HybridXLink::kSharedDir);
+    if (RunVo2::SafeFile::write(mKernel.fs, TodayFile::kPath, buf.get(), len)) {
+        mTodayFileHash = hash;
+        LOG_INFO("training_today.json: plan %u, %u days, %lu bytes\n", static_cast<unsigned>(data->plan),
+                 static_cast<unsigned>(data->count), static_cast<unsigned long>(len));
+    } else {
+        mTodayFileHash = 0;   // try again at the next change
+        LOG_WARNING("Could not save training_today.json\n");
+    }
 }
 
 void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMessage::PlanTodayInfo& info,

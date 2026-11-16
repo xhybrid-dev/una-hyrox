@@ -49,11 +49,10 @@ TodayStatus statusOf(const PlanState& st, Ymd date)
 
 }  // namespace
 
-void fill(const PlanState& st, const Paces* paces, bool imperial, Ymd today, uint32_t utc,
-          SDK::Workout::Program* scratch, TodayData& out)
+void fill(const PlanState& st, const Paces* paces, bool imperial, Ymd today, SDK::Workout::Program* scratch,
+          TodayData& out)
 {
     out = TodayData{};
-    out.writtenUtc = utc;
     const PlanDef* def = PlanData::find(st.setup.plan);
     if (def == nullptr || !st.active() || paces == nullptr || today == 0 || !Date::valid(today)
         || !Date::valid(st.calendar.start)) {

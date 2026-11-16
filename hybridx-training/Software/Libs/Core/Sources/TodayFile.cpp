@@ -94,7 +94,6 @@ size_t write(const TodayData& data, char* buf, size_t cap)
     SDK::JsonStreamWriter w(buf, cap);
     w.startMap();
     w.add("v", static_cast<uint8_t>(1));
-    w.add("u", data.writtenUtc);
     w.add("plan", data.plan);
     if (data.plan != 0) {
         w.add("wks", data.weeks);
@@ -140,10 +139,6 @@ bool read(const char* text, size_t len, TodayData& out)
         return false;
     }
     TodayData d;
-    if (!r.get("u", v) || !inRange(v, 0, 0xFFFFFFFFll)) {
-        return false;
-    }
-    d.writtenUtc = static_cast<uint32_t>(v);
     if (!r.get("plan", v) || !inRange(v, 0, 3)) {
         return false;
     }

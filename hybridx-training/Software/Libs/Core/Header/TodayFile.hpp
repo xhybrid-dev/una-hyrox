@@ -9,7 +9,7 @@
  * it was written through 14 days after, so the glance stays right for a fortnight
  * without the app being opened.
  *
- *   {"v":1,"u":1795000000,"plan":1,"wks":10,"ps":0,"s":20261012,"e":20261220,
+ *   {"v":1,"plan":1,"wks":10,"ps":0,"s":20261012,"e":20261220,
  *    "f":20261123,"t":20261207,
  *    "d":[[20261123,7,1,6,"4 x 4 min","4:18/km"],[20261124,0,0,6,"",""],...]}
  *
@@ -62,7 +62,6 @@ struct TodayData {
     static constexpr uint8_t kMaxDays = 21;  ///< The week's Monday through 14 days after a Sunday.
     static constexpr uint8_t kMaxWeeks = 40;
 
-    uint32_t writtenUtc = 0;
     uint8_t  plan   = 0;       ///< The PlanId; 0 = no plan.
     uint8_t  weeks  = 0;
     Ymd      pausedFrom = 0;

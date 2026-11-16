@@ -125,6 +125,14 @@ add_executable(plan_sim
 )
 target_include_directories(plan_sim PRIVATE ${CORE_INCLUDES} "${TOOLS_DIR}/plan_sim")
 
+# today_print: a training_today.json read with the core's reader, and what the glance shows (TP6).
+add_executable(today_print
+    "${TOOLS_DIR}/today_print/today_print.cpp"
+    "${CORE_LIBS}/Sources/TodayFile.cpp"
+    ${SDK_JSON_SOURCES}
+)
+target_include_directories(today_print PRIVATE ${CORE_INCLUDES})
+
 enable_testing()
 add_test(NAME hybridx-training-host-tests COMMAND hybridx-training-host-tests)
 # The generated plan header must match the plan files.

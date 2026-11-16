@@ -27,7 +27,6 @@ constexpr Ymd kWrit  = 20270120u;
 TodayData makeData(Ymd today = kWrit)
 {
     TodayData d;
-    d.writtenUtc = 1800000000u;
     d.plan   = 1;
     d.weeks  = 10;
     d.start  = kStart;
@@ -81,7 +80,6 @@ bool readString(const std::string& s, TodayData& out) { return TodayFile::read(s
 
 void expectSame(const TodayData& a, const TodayData& b)
 {
-    EXPECT_EQ(a.writtenUtc, b.writtenUtc);
     EXPECT_EQ(a.plan, b.plan);
     EXPECT_EQ(a.weeks, b.weeks);
     EXPECT_EQ(a.pausedFrom, b.pausedFrom);
@@ -129,9 +127,8 @@ TEST(TodayFile, RoundTripKeepsEveryKindStatusAndAnEmptyString)
 TEST(TodayFile, NoPlanIsAFileOfItsOwn)
 {
     TodayData d;
-    d.writtenUtc = 1800000000u;
     const std::string s = written(d);
-    EXPECT_EQ(s, "{\"v\":1,\"u\":1800000000,\"plan\":0}");
+    EXPECT_EQ(s, "{\"v\":1,\"plan\":0}");
     TodayData back;
     ASSERT_TRUE(readString(s, back));
     EXPECT_EQ(back.plan, 0);
@@ -265,7 +262,7 @@ TEST(TodayFile, RowFieldsAreRangeChecked)
 
 TEST(TodayFile, MoreThan21RowsAreRefused)
 {
-    std::string s = "{\"v\":1,\"u\":1,\"plan\":1,\"wks\":10,\"ps\":0,\"s\":20270104,\"e\":20270314,"
+    std::string s = "{\"v\":1,\"plan\":1,\"wks\":10,\"ps\":0,\"s\":20270104,\"e\":20270314,"
                     "\"f\":20270118,\"t\":20270208,\"d\":[";
     for (int i = 0; i < 22; ++i) {
         char row[64];
@@ -440,7 +437,7 @@ TEST(TodayBuild, ARealPlanRoundTripsAndNamesThePlansSessions)
 {
     Plan p;
     TodayData d;
-    TodayBuild::fill(p.st, &p.paces, false, kWrit, 1800000000u, p.scratch.get(), d);
+    TodayBuild::fill(p.st, &p.paces, false, kWrit, p.scratch.get(), d);
     ASSERT_EQ(d.plan, static_cast<uint8_t>(PlanId::TenK));
     EXPECT_EQ(d.weeks, p.st.calendar.weeks);
     EXPECT_EQ(d.start, kStart);
@@ -479,7 +476,7 @@ TEST(TodayBuild, EveryPlanLevelAndAWeekOfEveryDayFitsTheFile)
             for (int n = 0; n < def.weekCount * 7; n += 3) {
                 const Ymd today = Date::addDays(kStart, n);
                 TodayData d;
-                TodayBuild::fill(p.st, &p.paces, n % 2 == 0, today, 1800000000u, p.scratch.get(), d);
+                TodayBuild::fill(p.st, &p.paces, n % 2 == 0, today, p.scratch.get(), d);
                 ASSERT_EQ(d.plan, static_cast<uint8_t>(id));
                 char buf[TodayFile::kMaxJsonBytes];
                 const size_t len = TodayFile::write(d, buf, sizeof(buf));
@@ -503,7 +500,7 @@ TEST(TodayBuild, TheLogAndMovesAreInTheRows)
     p.st.record({20270118u, Kind::Easy, DayStatus::PartDone, 0});
     p.st.record({20270122u, Kind::Easy, DayStatus::Missed, 0});
     TodayData d;
-    TodayBuild::fill(p.st, &p.paces, false, 20270120u, 1u, p.scratch.get(), d);
+    TodayBuild::fill(p.st, &p.paces, false, 20270120u, p.scratch.get(), d);
     EXPECT_EQ(d.find(20270119u)->status, TodayStatus::Done);
     EXPECT_EQ(d.find(20270120u)->status, TodayStatus::Skipped);
     EXPECT_EQ(d.find(20270118u)->status, TodayStatus::PartDone);
@@ -511,7 +508,7 @@ TEST(TodayBuild, TheLogAndMovesAreInTheRows)
     EXPECT_EQ(d.find(20270121u)->status, TodayStatus::ToCome);
     // An override (today made easy, tomorrow rested) shows in the rows.
     p.st.setOverride({20270121u, 0, OverrideMode::Rest});
-    TodayBuild::fill(p.st, &p.paces, false, 20270120u, 1u, p.scratch.get(), d);
+    TodayBuild::fill(p.st, &p.paces, false, 20270120u, p.scratch.get(), d);
     EXPECT_EQ(d.find(20270121u)->kind, Kind::Rest);
 }
 
@@ -520,15 +517,15 @@ TEST(TodayBuild, PausedAndNoPlanAndNoPaces)
     Plan p;
     p.st.pausedFrom = 20270125u;
     TodayData d;
-    TodayBuild::fill(p.st, &p.paces, false, kWrit, 1u, p.scratch.get(), d);
+    TodayBuild::fill(p.st, &p.paces, false, kWrit, p.scratch.get(), d);
     EXPECT_EQ(d.pausedFrom, 20270125u);
     EXPECT_EQ(TodayFile::pick(&d, 20270126u).state, State::Paused);
     // No paces (a 5K the model refuses), no plan, no date: no plan to show.
-    TodayBuild::fill(p.st, nullptr, false, kWrit, 1u, p.scratch.get(), d);
+    TodayBuild::fill(p.st, nullptr, false, kWrit, p.scratch.get(), d);
     EXPECT_EQ(d.plan, 0);
-    TodayBuild::fill(PlanState{}, &p.paces, false, kWrit, 1u, p.scratch.get(), d);
+    TodayBuild::fill(PlanState{}, &p.paces, false, kWrit, p.scratch.get(), d);
     EXPECT_EQ(d.plan, 0);
-    TodayBuild::fill(p.st, &p.paces, false, 0, 1u, p.scratch.get(), d);
+    TodayBuild::fill(p.st, &p.paces, false, 0, p.scratch.get(), d);
     EXPECT_EQ(d.plan, 0);
 }
 
@@ -536,8 +533,8 @@ TEST(TodayBuild, NoScratchLeavesThePaceOut)
 {
     Plan p;
     TodayData withPace, without;
-    TodayBuild::fill(p.st, &p.paces, false, 20270119u, 1u, p.scratch.get(), withPace);
-    TodayBuild::fill(p.st, &p.paces, false, 20270119u, 1u, nullptr, without);
+    TodayBuild::fill(p.st, &p.paces, false, 20270119u, p.scratch.get(), withPace);
+    TodayBuild::fill(p.st, &p.paces, false, 20270119u, nullptr, without);
     bool any = false;
     for (uint8_t i = 0; i < withPace.count; ++i) {
         any = any || withPace.day[i].pace[0] != '\0';

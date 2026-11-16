@@ -292,6 +292,7 @@ private:
     XTraining::PlanState   mPlan;                ///< plan.json (about 1 KB of log)
     XTraining::PaceResult  mPaces;               ///< from the plan's 5K (and half)
     XTraining::DaySession  mToday;               ///< today's session (Rest when none)
+    uint32_t               mTodayFileHash = 0;   ///< of the training_today.json last written; 0 = none yet
     CustomMessage::PlanTodayInfo mTodayInfo;     ///< as last sent to the GUI
     /// The alert modes and estimates of the planned session being run.
     XTraining::SessionMeta mSessionMeta;
@@ -342,6 +343,7 @@ private:
     void loadPlan();             ///< plan.json, reconciled with the phone's settings
     void savePlan();
     void updateToday();          ///< today's session from the plan and the watch's date
+    void writeTodayFile();       ///< TP6: training_today.json for the glance, when it has changed
     void computePaces();         ///< mPaces from the plan's 5K (and a recent half)
     void settleToday();          ///< TP5: log missed days, repeat a week, save the plan if it changed
     void writeFiveK();           ///< TP5: the plan's 5K back into the phone's fields, so they agree

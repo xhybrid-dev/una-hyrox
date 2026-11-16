@@ -43,6 +43,18 @@ WID=$(DISPLAY=$DISP xdotool search --name 'X Training' | head -1)
 key()  { DISPLAY=$DISP xdotool key "$1"; sleep "${2:-1}"; }
 snap() { [ -n "$SHOTS" ] && mkdir -p "$SHOTS" && DISPLAY=$DISP timeout 10 import -window "$WID" "$SHOTS/$1.png" 2>/dev/null; return 0; }
 
+TP="$REPO/build-tests/today_print"
+TODAYF="$SOFT/SharedData/HybridX/training_today.json"
+FAILED=0
+# TP6: the glance's file, read back with the core's own reader: what it would show today.
+today_check() {
+    [ -x "$TP" ] || { echo "(build-tests/today_print is not built: the glance's file is not checked)"; return; }
+    local out
+    if out=$("$TP" "$TODAYF" "$TODAY" --expect "$1"); then echo "PASS training_today.json: the glance shows $1"
+    else echo "FAIL training_today.json: expected the glance to show $1"; FAILED=1; fi
+    echo "$out" | grep -E "^on " | sed 's/^/  /'
+}
+today_check Session                                 # as the app opened: today's trial is to do
 grep -E "Today:" "$LOG" | tail -1 | sed 's/^ *//'
 key 3 2; key 3 8                                    # Today; R1: the countdown, then the warm-up
 sleep 3
@@ -59,5 +71,7 @@ snap trial-saved
 echo "--- after the save"
 grep -E "Planned session|Trial|Plan settled|Plan action" "$LOG" | sed 's/^ *//'
 echo "plan.json: $(grep -oE '"(s|ak)":[^]]*' "$SOFT/Output/plan.json" | tr '\n' ' ')"
+today_check Done                                    # the trial counted: the glance says it is done
 sleep 5; snap trial-today; key 4 1; key 3 2; snap trial-today2
 grep -E "Today:" "$LOG" | tail -1 | sed 's/^ *//'
+[ "$FAILED" = 0 ] || exit 1

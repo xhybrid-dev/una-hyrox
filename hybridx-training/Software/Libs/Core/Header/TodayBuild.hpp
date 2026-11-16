@@ -34,9 +34,9 @@ void paceText(uint16_t secPerKm, bool imperial, char* buf, size_t cap);
 /// Fill @p out for @p today (yyyymmdd; 0 = the clock is not set) from @p st. A plan that is not
 /// set, not usable, or without paces (@p paces null) gives "no plan" (plan 0): the glance then
 /// says to set one up. @p scratch is a Program to build each session into for its pace; null
-/// leaves the pace out (no memory for it). @p utc is written as given.
-void fill(const PlanState& st, const Paces* paces, bool imperial, Ymd today, uint32_t utc,
-          SDK::Workout::Program* scratch, TodayData& out);
+/// leaves the pace out (no memory for it).
+void fill(const PlanState& st, const Paces* paces, bool imperial, Ymd today, SDK::Workout::Program* scratch,
+          TodayData& out);
 
 }  // namespace TodayBuild
 }  // namespace XTraining
