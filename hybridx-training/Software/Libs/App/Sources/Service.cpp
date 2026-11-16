@@ -1481,6 +1481,13 @@ void Service::stopTrack(bool discard)
 
     SDK::send_msg<CustomMessage::TrackStateUpd>(mKernel, mTrackState);
 
+    // X Training: what Today says changes with a session saved (done, a new 5K to answer): say it
+    // again now, not at the next start of the app.
+    if (mPlan.active()) {
+        updateToday();
+        sendPlanToday();
+    }
+
     // Persist the outdoor stride LUT synchronously before the task tears down
     // (only writes if >= 1 sample was accepted this session). finalise()
     // returns false both when nothing was accepted (nothing to persist) and on

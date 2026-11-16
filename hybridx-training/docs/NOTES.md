@@ -782,12 +782,20 @@ Jon read nothing of this yet: the gate is below.
   plan paused and resumed, a 5K of 22:50 waiting and answered "update" (app_config.json's 5K and
   plan.json's 5K both 22:50; the paces slower), tomorrow's session swapped in and today's skipped.
   `sim_plan.sh` still saves its session.
-- `sim_trial.sh`: a 5K time trial run end to end in the simulator (below).
-- The watch target links (552,968 bytes).
+- `sim_trial.sh`: a 5K time trial run end to end in the simulator (about 17 minutes; the simulator's GPS
+  runs 5 m/s). It found two faults, both fixed: (1) the session was "too short to count" (976 of 2820 s:
+  the estimate takes a typical warm-up and cool-down), so the trial was never used; a trial or race whose
+  effort ran its whole distance now counts, however short its warm-up. (2) Today was not refreshed after a
+  save, so the app said the session was still to do (and did not ask about the new 5K) until restarted; it
+  is refreshed as the run stops. Result of the last run: the effort 948 s, "Planned session done", "Trial 948
+  s = a 5K of 948 s: action 2" (ask: a 28% jump), plan.json holding `"ak":948` with the 5K still 22:00, and
+  Saved reading "Done / 5K 15:48, a jump: ask / Next: Wed, Easy+str".
+- The watch target links (553,016 bytes).
 
 ### Not verified
-- Nothing from the rules has run on a watch. The trial path in the service (the time from the step that
-  ended on its own) is read from the simulator's run only; the first real time trial (week 4) is its test.
+- Nothing from the rules has run on a watch. The "apply" and "keep" results and the answers were checked
+  by the host tests and by the `ask` capture (update); the first real time trial (week 4) is the test of
+  the whole path on a watch.
 
 ### The gate (TP5): what Jon reads and checks
 1. **`Tests/Host/golden/plan_sim.md`** (or `build-tests/plan_sim [n]`): the 19 scenarios. Say what a
