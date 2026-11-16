@@ -131,6 +131,18 @@ TEST(GlanceLayout, EveryKindFitsInEveryStateWithTheLongestWords)
     }
 }
 
+TEST(GlanceLayout, AnEasyRunWithStridesIsJustEasyOnTheGlance)
+{
+    Words w;
+    words(session(Kind::EasyStrides, "40 min + strides"), w);
+    EXPECT_STREQ(w.head, "Today: Easy");
+    EXPECT_STREQ(w.line, "40 min + strides");
+    words(after(State::Done, Kind::Intervals, true, true, Kind::EasyStrides, "40 min + strides"), w);
+    EXPECT_STREQ(w.line, "Tomorrow: Easy");   // the rest would not fit
+    words(after(State::Done, Kind::Intervals, true, false, Kind::EasyStrides, "40 min"), w);
+    EXPECT_STREQ(w.line, "Wed: Easy 40 min");
+}
+
 TEST(GlanceLayout, LongWordsGiveWayToShorterOnes)
 {
     Words w;
@@ -182,7 +194,7 @@ TEST(GlanceLayout, TheFullLayout)
 
 TEST(GlanceLayout, EverythingIsInsideTheAreaAndTheBand)
 {
-    const int16_t widths[] = {240, 230, 208, 200, 180};
+    const int16_t widths[] = {240, 230, 196, 190, 180};
     const int16_t heights[] = {60, 59, 55, 48, 40, 25, 20};
     for (const int16_t w : widths) {
         for (const int16_t h : heights) {
@@ -221,7 +233,7 @@ TEST(GlanceLayout, ItAdaptsToWhatTheWatchGives)
     EXPECT_EQ(l.count, 2);
     layout(v, kW, 50, kBudget, l);
     EXPECT_EQ(l.kind, Layout::Kind::Compact) << "a short area";
-    layout(v, 200, kH, kBudget, l);
+    layout(v, kBandW - 1, kH, kBudget, l);
     EXPECT_EQ(l.kind, Layout::Kind::Compact) << "a narrow area";
     layout(v, kW, 40, kBudget, l);
     EXPECT_EQ(l.kind, Layout::Kind::Tiny);

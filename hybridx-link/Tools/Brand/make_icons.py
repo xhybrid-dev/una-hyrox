@@ -177,6 +177,8 @@ def master_colours(kind, glance=False):
             return cw["light"], cw["dark"], cw["accent"]
         if kind == "run":
             return cw["light"], cw["dark"], cw["accent"]
+        if kind == "training":
+            return cw["light"], cw["dark"], cw["accent2"]
     return disc, g1, g2
 
 
@@ -187,12 +189,14 @@ def grid_colours(kind, glance=False):
             return (255, 255, 255), (0, 0, 85), (0, 170, 170)
         if kind == "run":
             return (255, 255, 255), (85, 0, 0), (255, 0, 0)
+        if kind == "training":
+            return (255, 255, 255), (85, 0, 170), (255, 170, 0)
     return ic["disc"], ic["glyph"], ic["glyph2"]
 
 
 def main():
     os.makedirs(OUT_MASTERS, exist_ok=True)
-    listings = [(k, False) for k in brand.FAMILY] + [("streak", True), ("run", True)]
+    listings = [(k, False) for k in brand.FAMILY] + [("streak", True), ("run", True), ("training", True)]
     previews = []
     for kind, glance in listings:
         cw = brand.COLOURWAYS[kind]

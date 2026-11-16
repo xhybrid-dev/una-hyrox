@@ -4,7 +4,9 @@
 # (x-weighin/Utilities/pack-store-zip.sh, itself HybridX Race's), with X Training's
 # names, IDs and paths: the Streak family's release, hybridx-link/docs/STORE_RELEASE.md.
 #
-# One store listing, one package: the app (it has no glance; --glance is refused).
+# Two store listings, two packages: the app, and with --glance its glance (HXTrainingGlance,
+# built into Output/Glance/), listed on its own and needing the app. Same checks for
+# both; the glance has no phone settings and no simulator.
 #
 # The layout is the one Docs/deploy.md specifies: the .uapp, app-manifest.json,
 # icon.png, and a previews/ folder of screenshots. Everything the manifest says
@@ -15,7 +17,7 @@
 # names it.
 #
 # Usage:
-#   UNA_SDK=/path/to/una-sdk ./pack-store-zip.sh [--expect-version X.Y.Z]
+#   UNA_SDK=/path/to/una-sdk ./pack-store-zip.sh [--glance] [--expect-version X.Y.Z]
 #
 # --expect-version asserts; it does not override. CI passes it on a training-v* tag,
 # so a forgotten tag, a stale build or a development APP_ID fails the release.
@@ -33,18 +35,27 @@ GLANCE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --expect-version) EXPECT_VERSION="${2:-}"; shift 2 ;;
-        --glance) echo "X Training has no glance." >&2; exit 2 ;;
+        --glance) GLANCE=1; shift ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
 
-# What this package is.
-NAME="HybridXTraining"
-OUT="$APP/Output"
-RES="$APP/Resources"
-CMAKE_LISTS="$APP/Software/Apps/HybridXTraining-CMake/CMakeLists.txt"
-SIM_LISTS="$APP/Software/Apps/LVGL-GUI/simulator/CMakeLists.txt"
-DEV_APP_ID="6E050D707D4D2D32"                  # first 16 hex of md5("HybridXTraining")
+# What differs between the two packages.
+if [ "$GLANCE" = 1 ]; then
+    NAME="HXTrainingGlance"
+    OUT="$APP/Output/Glance"
+    RES="$APP/Resources/Glance"
+    CMAKE_LISTS="$APP/Software/Apps/HXTrainingGlance-CMake/CMakeLists.txt"
+    SIM_LISTS=""                                   # a glance has no simulator
+    DEV_APP_ID="C4B5BAD6DC827E16"                  # first 16 hex of md5("HXTrainingGlance")
+else
+    NAME="HybridXTraining"
+    OUT="$APP/Output"
+    RES="$APP/Resources"
+    CMAKE_LISTS="$APP/Software/Apps/HybridXTraining-CMake/CMakeLists.txt"
+    SIM_LISTS="$APP/Software/Apps/LVGL-GUI/simulator/CMakeLists.txt"
+    DEV_APP_ID="6E050D707D4D2D32"                  # first 16 hex of md5("HybridXTraining")
+fi
 STAGE="$OUT/Release"
 
 if [ -z "${UNA_SDK:-}" ]; then
@@ -128,7 +139,13 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE/previews"
 
 cp "$OUT/$BINARY" "$STAGE/$BINARY"
-cp "$APP/Resources/icon_60x60.png" "$STAGE/icon.png"
+# A glance's store listing has its own icon (its app's glyph reversed onto the light colour;
+# hybridx-link/Tools/Brand/make_icons.py); otherwise the app's.
+if [ -f "$RES/icon_60x60.png" ]; then
+    cp "$RES/icon_60x60.png" "$STAGE/icon.png"
+else
+    cp "$APP/Resources/icon_60x60.png" "$STAGE/icon.png"
+fi
 
 shopt -s nullglob
 PREVIEWS=("$RES/previews"/*.png)
@@ -183,8 +200,10 @@ if [ "$GLANCE" = 1 ]; then
     # No phone settings: the validator checks there are none to mismatch.
     python3 "$PACKER/validate_app_config.py" --check "$STAGE/app-manifest.json"
 else
-    # No phone settings either: the validator checks there are none to mismatch.
-    python3 "$PACKER/validate_app_config.py" --check "$STAGE/app-manifest.json"
+    python3 "$PACKER/validate_app_config.py" \
+            --check "$STAGE/app-manifest.json" \
+            --check-bounds "$APP/Software/Libs/App/Sources/AppConfigFields.cpp" \
+            --check-bounds "$APP/Software/Libs/App/Header/AppConfigFields.hpp"
 fi
 
 ZIP="$OUT/$NAME-$VERSION.zip"

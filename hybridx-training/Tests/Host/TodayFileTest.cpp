@@ -565,6 +565,8 @@ TEST(PlanText, GlanceWhat)
     EXPECT_STREQ(b, "100 min, 20 fast");
     PlanText::glanceWhat(Session{Kind::Intervals, 4, 240, 0, 0}, 0, b, sizeof(b));
     EXPECT_STREQ(b, "4 x 4 min");
+    PlanText::glanceWhat(Session{Kind::EasyStrides, 0, 40, 0, 0}, 0, b, sizeof(b));
+    EXPECT_STREQ(b, "40 min + strides");
     PlanText::glanceWhat(Session{Kind::Race, 0, 0, 0, 0}, 1000000, b, sizeof(b));
     EXPECT_STREQ(b, "10 km");
     for (uint8_t k = 1; k < kKindCount; ++k) {

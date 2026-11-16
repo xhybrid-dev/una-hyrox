@@ -160,6 +160,21 @@ LISTINGS = {
              "previews/5-shield.png", True),
         ],
     },
+    "training-glance": {
+        "kind": "training", "glance": True, "name": "X Training Glance", "needs": "X Training",
+        "title": "X TRAINING GLANCE", "kicker": "For UNA Watch",
+        "tagline": "Today's session, at a glance.",
+        "body": "Today's X Training session, its target pace and your week on the glances screen. Needs X Training.",
+        "hero": "Glance/previews/1-today.png",
+        "cards": [
+            (["TODAY'S", "SESSION,", "AT A GLANCE"], "What it is, the target pace, and your week as seven pips, without opening the app.",
+             "Glance/previews/1-today.png", True),
+            (["DONE?", "WHAT'S", "NEXT"], "Tick it off and the glance says what comes next, tomorrow or later in the week.",
+             "Glance/previews/2-done.png", False),
+            (["NEEDS", "X TRAINING"], "X Training keeps your plan. The glance shows what it has saved.",
+             "Glance/previews/3-rest-day.png", True),
+        ],
+    },
     "streak-glance": {
         "kind": "streak", "glance": True, "name": "X Streak Glance", "needs": "X Streak",
         "title": "X STREAK GLANCE", "kicker": "For UNA Watch",

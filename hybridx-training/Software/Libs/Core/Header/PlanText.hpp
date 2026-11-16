@@ -202,14 +202,21 @@ inline int what(const Session& s, uint32_t raceCm, char* buf, size_t cap)
     return n < 0 ? 0 : n;
 }
 
-/// The "what" line as the glance has room for it (at most 19 characters): as what(), except
-/// the fast-finish long run, "100 min, 20 fast" for "100 min, last 20 at half pace".
+/// The "what" line as the glance has room for it (at most 19 characters): as what(), except the
+/// fast-finish long run, "100 min, 20 fast" for "100 min, last 20 at half pace", and an easy run
+/// with strides, "40 min + strides" (the glance calls both of those just "Easy").
 inline int glanceWhat(const Session& s, uint32_t raceCm, char* buf, size_t cap)
 {
-    if (s.kind == Kind::LongFinish && buf != nullptr && cap > 0) {
-        const int n = std::snprintf(buf, cap, "%u min, %u fast", static_cast<unsigned>(s.a),
-                                    static_cast<unsigned>(s.b));
-        return n < 0 ? 0 : n;
+    if (buf != nullptr && cap > 0) {
+        int n = -1;
+        if (s.kind == Kind::LongFinish) {
+            n = std::snprintf(buf, cap, "%u min, %u fast", static_cast<unsigned>(s.a), static_cast<unsigned>(s.b));
+        } else if (s.kind == Kind::EasyStrides) {
+            n = std::snprintf(buf, cap, "%u min + strides", static_cast<unsigned>(s.a));
+        }
+        if (n >= 0) {
+            return n;
+        }
     }
     return what(s, raceCm, buf, cap);
 }

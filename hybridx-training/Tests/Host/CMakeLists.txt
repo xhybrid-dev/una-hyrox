@@ -136,6 +136,17 @@ add_executable(plan_sim
 )
 target_include_directories(plan_sim PRIVATE ${CORE_INCLUDES} "${TOOLS_DIR}/plan_sim")
 
+# glance_preview: the glance's controls for sample plans, for docs/experiments/glance_preview.py
+# to draw (the simulator cannot run glances).
+add_executable(glance_preview
+    tools/glance_preview.cpp
+    ${CORE_SOURCES}
+    ${GLANCE_SOURCES}
+    ${SDK_JSON_SOURCES}
+    ${SDK_WORKOUT_SOURCES}
+)
+target_include_directories(glance_preview PRIVATE ${CORE_INCLUDES} "${GLANCE_LIBS}/Header")
+
 # today_print: a training_today.json read with the core's reader, and what the glance shows (TP6).
 add_executable(today_print
     "${TOOLS_DIR}/today_print/today_print.cpp"

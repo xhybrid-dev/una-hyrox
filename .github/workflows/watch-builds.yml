@@ -107,6 +107,8 @@ jobs:
           # HybridX Training ("X Training"): X Run's recording plus built-in training
           # plans -- see hybridx-training/docs/HYBRIDX_TRAINING_BRIEF.md and NOTES.md.
           build hybridx-training/Software/Apps/HybridXTraining-CMake training
+          # X Training's glance (TP6): today's session on the glances screen.
+          build hybridx-training/Software/Apps/HXTrainingGlance-CMake training-glance
 
       - name: Collect
         run: |
@@ -130,6 +132,7 @@ jobs:
           cp hybridx-ride/Output/*.uapp watch-apps/
           cp hybridx-workout/Output/*.uapp watch-apps/
           cp hybridx-training/Output/*.uapp watch-apps/
+          cp hybridx-training/Output/Glance/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -375,6 +378,24 @@ jobs:
           name: training-store-zip
           path: |
             hybridx-training/Output/HybridXTraining-*.zip
+          if-no-files-found: error
+
+      - name: X Training Glance store package
+        # The glance is its own store listing (hybridx-link/docs/STORE_RELEASE.md), packaged by
+        # the same script with --glance. A dry run always, for now: it carries the development
+        # APP_ID until the portal issues the glance's own, and the script refuses that with
+        # --expect-version, which would fail a training-v* tag build of the app. When the ID is in
+        # (the glance's CMakeLists.txt and Resources/Glance/app-manifest.json), pass $EXPECT here too.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          bash hybridx-training/Utilities/pack-store-zip.sh --glance
+
+      - name: Upload the X Training Glance store package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: training-glance-store-zip
+          path: |
+            hybridx-training/Output/Glance/HXTrainingGlance-*.zip
           if-no-files-found: error
 
   host-tests:

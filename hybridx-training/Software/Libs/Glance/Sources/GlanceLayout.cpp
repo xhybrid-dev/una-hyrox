@@ -40,6 +40,13 @@ constexpr int16_t kStripW   = kPipsW + kBarGap + kBarW;  ///< 178
 
 constexpr int kCandidates = 4;
 
+/// The session's name on the glance: the app's short name, but "Easy" for an easy run with strides
+/// ("Easy+str" is cryptic here; the line under it says "40 min + strides").
+const char* glanceName(Kind k)
+{
+    return k == Kind::EasyStrides ? "Easy" : PlanText::shortName(k);
+}
+
 /// A set of wordings, longest first.
 struct Choices {
     char    s[kCandidates][GLANCE_TEXT_SIZE + 1] {};
@@ -76,7 +83,7 @@ void nextLine(const View& v, Choices& c)
 {
     char day[12];
     std::snprintf(day, sizeof(day), "%s", v.nextTomorrow ? "Tomorrow" : TimeText::weekdayName(v.nextWeekday));
-    const char* name = PlanText::shortName(v.nextKind);
+    const char* name = glanceName(v.nextKind);
     if (v.nextWhat[0] != '\0') {
         c.add("%s: %s %s", day, name, v.nextWhat);
     }
@@ -88,7 +95,7 @@ void wordChoices(const View& v, Choices& head, Choices& line, uint8_t& headColou
 {
     using S = TodayFile::State;
     headColour = GLANCE_COLOR_WHITE;
-    const char* name = PlanText::shortName(v.kind);
+    const char* name = glanceName(v.kind);
     switch (v.state) {
     case S::Session:
         head.add("Today: %s", name);

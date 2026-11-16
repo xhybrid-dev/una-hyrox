@@ -58,9 +58,10 @@ struct Layout {
 /// Controls the full layout needs: two lines, seven pips, the bar's track and its fill.
 constexpr uint32_t kFullControls = 2 + 7 + 2;
 
-/// The width words may use, centred: held in from the list's scroll arcs on both edges
-/// (Streak NOTES S4.3 kept 14 px in on the left and 8 on the right).
-constexpr int16_t kBandW = 208;
+/// The width words may use, centred: held 22 px in from the list's scroll arcs on both edges
+/// (Streak NOTES S4.3 kept 14 px in on the left and 8 on the right, and the mock-up's darkened
+/// edges are 34).
+constexpr int16_t kBandW = 196;
 
 /// Lay out @p v in a @p width x @p height area with at most @p maxControls controls.
 void layout(const View& v, int16_t width, int16_t height, uint32_t maxControls, Layout& out);
