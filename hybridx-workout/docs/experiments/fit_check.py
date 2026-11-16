@@ -3,7 +3,7 @@
 says what the app means it to say.
 
     fit_check.py <file.fit> <scenario>      scenario: full | autolap | nohr | crash | sim
-                                            or a plan: strength | emom | amrap | tabata | custom | circuit
+                                            or a plan: strength | opensets | emom | amrap | tabata | custom | circuit
 
 Checks: valid header and CRC; file_id; the one developer field
 (resting_calories, as the SDK's Workout example); timer events in pairs; one
@@ -33,6 +33,10 @@ PLAN = {
     "strength": dict(sport="training", sub="strength_training", name="Strength",
                      timer=[40, 30, 45, 10, 35], trig=["manual", "time", "manual", "manual", "manual"],
                      inten=[A, R, A, R, A], records=160),
+    # Open sets: the same laps, but the workout is ended from the menu, not by the plan.
+    "opensets": dict(sport="training", sub="strength_training", name="Strength",
+                     timer=[40, 30, 45, 10, 35], trig=["manual"] * 5,
+                     inten=[A, R, A, R, A], records=160, open=True),
     "emom":     dict(sport="hiit", sub="emom", name="EMOM",
                      timer=[60, 60, 60], trig=["time"] * 3, inten=[A] * 3, records=180),
     "amrap":    dict(sport="hiit", sub="amrap", name="AMRAP",
@@ -199,10 +203,14 @@ sets = by.get("set", [])
 if plan:
     timers = [l["total_timer_time"] for l in laps]
     check(timers == plan["timer"], f"lap timer times {timers} == {plan['timer']}")
-    check(sess["total_elapsed_time"] - sess["total_timer_time"] == 10,
-          f"the 10 s on the Done screen are a pause, not active time ({sess['total_elapsed_time']} - {sess['total_timer_time']})")
-    check(laps[-1]["total_elapsed_time"] - laps[-1]["total_timer_time"] == 10, "... and they are the last lap's")
-if scenario == "strength":
+    if plan.get("open"):
+        check(sess["total_elapsed_time"] == sess["total_timer_time"],
+              f"no pause: End came from the menu, not a Done screen ({sess['total_elapsed_time']} vs {sess['total_timer_time']})")
+    else:
+        check(sess["total_elapsed_time"] - sess["total_timer_time"] == 10,
+              f"the 10 s on the Done screen are a pause, not active time ({sess['total_elapsed_time']} - {sess['total_timer_time']})")
+        check(laps[-1]["total_elapsed_time"] - laps[-1]["total_timer_time"] == 10, "... and they are the last lap's")
+if scenario in ("strength", "opensets"):
     check(len(sets) == len(laps), f"one set message a lap ({len(sets)} sets, {len(laps)} laps)")
     check([x.get("set_type") for x in sets] == plan["inten"], f"set types {[x.get('set_type') for x in sets]}")
     check([x.get("duration") for x in sets] == plan["timer"], f"set durations {[x.get('duration') for x in sets]} s")

@@ -13,6 +13,8 @@
 #
 # Short plans, so the whole run takes about 9 minutes (Tabata is fixed at 3:50):
 #   strength  2 sets, 10 s rest: R2 at 15 s (set 1 ends), the rest runs out, R2 at 40 s
+#   opensets  R2 at 15, 25 and 40 s (set, rest, set, rest): nothing ends by itself, so
+#             End comes from the menu (Resume, L2, L2 to End) with the workout in a rest
 #   emom      2 minutes
 #   amrap     a 1-minute cap, rounds at 20 and 40 s
 #   tabata    8 x 20/10
@@ -20,7 +22,7 @@
 #   circuit   1 round, 100 m run: R2 at 10 s (station), R2 at 20 s (the end)
 #
 # Needs Xvfb, xdotool and fitdecode (pip); build the simulator first.
-# Usage:  UNA_SDK=/path/to/una-sdk ./sim_plan.sh [type ...]   (default: all six)
+# Usage:  UNA_SDK=/path/to/una-sdk ./sim_plan.sh [type ...]   (default: all seven)
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
@@ -29,7 +31,7 @@ FS="$REPO/Software/Output"
 SHARED="$REPO/Software/SharedData/HybridX"
 DISP=:96
 LOG=${SIM_LOG:-/tmp/hybridx-workout-plan.log}
-TYPES=${*:-strength emom amrap tabata custom circuit}
+TYPES=${*:-strength opensets emom amrap tabata custom circuit}
 
 [ -x "$BIN/HybridXWorkoutSimulator" ] || { echo "Build the simulator first ($BIN)" >&2; exit 1; }
 mkdir -p "$SHARED"
@@ -55,13 +57,15 @@ settings() {
         tabata)   echo "{$base,\"type\":4}" ;;
         custom)   echo "{$base,\"type\":5}" ;;
         circuit)  echo "{$base,\"type\":6}" ;;
+        opensets) echo "{$base,\"type\":7}" ;;
     esac
 }
-presses() { case $1 in strength) echo "15 40" ;; amrap) echo "20 40" ;; circuit) echo "10 20" ;; *) echo "" ;; esac; }
-runfor()  { case $1 in strength) echo 42 ;; emom) echo 122 ;; amrap) echo 62 ;; tabata) echo 232 ;; custom) echo 42 ;; circuit) echo 22 ;; esac; }
+presses() { case $1 in strength) echo "15 40" ;; opensets) echo "15 25 40" ;; amrap) echo "20 40" ;; circuit) echo "10 20" ;; *) echo "" ;; esac; }
+runfor()  { case $1 in strength) echo 42 ;; opensets) echo 45 ;; emom) echo 122 ;; amrap) echo 62 ;; tabata) echo 232 ;; custom) echo 42 ;; circuit) echo 22 ;; esac; }
 expect()  {
     case $1 in
         strength) echo "Strength training strength_training 4 3 active,rest,active" ;;
+        opensets) echo "Strength training strength_training 4 4 active,rest,active,rest" ;;
         emom)     echo "EMOM hiit emom 5 2 active,active" ;;
         amrap)    echo "AMRAP hiit amrap 5 3 active,active,active" ;;
         tabata)   echo "Tabata hiit tabata 5 15 $(python3 -c 'print(",".join(["active","rest"]*7+["active"]))')" ;;
@@ -86,7 +90,11 @@ for T in $TYPES; do
         key 4 0.2                               # R2
     done
     python3 -c "import time; time.sleep(max(0, $T0 + $(runfor "$T") + 3 - time.time()))"
-    key 3 1                                     # the done menu opens on End workout
+    if [ "$T" = opensets ]; then
+        key 3 1; key 2; key 2                   # the menu opens on Resume: down to End
+    else
+        key 3 1                                 # the done menu opens on End workout
+    fi
     down 3; sleep 1.8; up 3                     # hold R1 to end
     sleep 4
     kill -9 $SIMPID 2>/dev/null; wait $SIMPID 2>/dev/null; SIMPID=""
@@ -95,7 +103,11 @@ for T in $TYPES; do
     FIT=$(find "$FS/Activity" -name '*.fit' 2>/dev/null | head -1)
     if [ -z "$FIT" ]; then echo "  FAIL no .fit"; rc=1; continue; fi
     python3 -I "$HERE/fit_check.py" "$FIT" "sim-$T" > "$LOG.check" 2>&1 || { rc=1; grep FAIL "$LOG.check"; }
-    grep -q "Plan done" "$LOG" && echo "  ok   the plan ran to its end" || { echo "  FAIL the plan did not end"; rc=1; }
+    if [ "$T" = opensets ]; then
+        grep -q "Plan done" "$LOG" && { echo "  FAIL open sets ended by themselves"; rc=1; } || echo "  ok   no plan end: the menu ended it"
+    else
+        grep -q "Plan done" "$LOG" && echo "  ok   the plan ran to its end" || { echo "  FAIL the plan did not end"; rc=1; }
+    fi
     python3 -I - "$FIT" "$SHARED/act_workout.json" $(expect "$T") <<'EOF' || rc=1
 import json, sys, fitdecode
 fit, act, name, sport, sub, link, nlaps, inten = sys.argv[1:9]

@@ -21,6 +21,10 @@
  * last lap is the last step. The service then offers End and Discard, not
  * Resume (resuming would stretch the last step's lap).
  *
+ * Open sets have no timed step at all: the button swaps set and rest, and the
+ * plan ends only after its 32nd set (the laps run out), when the button ends it
+ * as for the last strength set. Before then End from the action menu does.
+ *
  * A plain workout (SessionType::Plain) has no plan: press() takes a lap and
  * tick() does nothing; the model's own auto lap works as in W0.
  ******************************************************************************
@@ -102,6 +106,7 @@ public:
             }
             return Cue::Round;
         case SessionType::Strength:
+        case SessionType::OpenSets:
         case SessionType::Circuit:
             return finishStep(m, nowMs, m.activeMs(nowMs), false);
         default:

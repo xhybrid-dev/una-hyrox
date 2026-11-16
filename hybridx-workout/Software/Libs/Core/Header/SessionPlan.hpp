@@ -23,6 +23,9 @@
  * - Custom intervals: work, rest and rounds.
  * - Circuit: rounds of a run then a station, in Race's station order. The
  *   button moves to the next segment.
+ * - Open sets (Jon, 15 November 2026, from a user's request): set, rest, set,
+ *   rest..., every step open. The button swaps set for rest and back; no
+ *   number to choose. It is limited only by the model's laps: kOpenSetsMax sets.
  * The timers (EMOM, Tabata, custom) ignore the button: their clock is the
  * point. A plan ends after its last step; there is no rest after the last
  * work interval or set.
@@ -51,8 +54,9 @@ enum class SessionType : uint8_t {
     Tabata,
     Custom,         ///< Custom intervals: work, rest, rounds
     Circuit,
+    OpenSets,       ///< Set and rest, both open: the button swaps them, nothing to set
 };
-constexpr uint8_t kSessionTypeCount = 7;
+constexpr uint8_t kSessionTypeCount = 8;
 
 enum class StepKind : uint8_t { Work = 0, Rest, Run, Station };
 
@@ -68,6 +72,9 @@ constexpr uint16_t kRestSecMin = 5,       kRestSecMax = 600,      kRestSecDefaul
 constexpr uint8_t  kRoundsMin = 1,        kRoundsMax = 30,        kRoundsDefault = 6;
 constexpr uint8_t  kCircuitRoundsMin = 1, kCircuitRoundsMax = 8,  kCircuitRoundsDefault = 8;
 constexpr uint16_t kRunMMin = 100,        kRunMMax = 1000,        kRunMStep = 100, kRunMDefault = 1000;
+
+/// Open sets: as many sets as the laps allow (a set, then a rest, ..., ending on a set).
+constexpr uint8_t  kOpenSetsMax = 32;
 
 constexpr uint8_t  kTabataRounds = 8;
 constexpr uint16_t kTabataWorkSec = 20;
@@ -172,6 +179,7 @@ constexpr uint8_t stepCount(const PlanConfig &raw)
     case SessionType::Tabata:   return static_cast<uint8_t>(2 * kTabataRounds - 1);
     case SessionType::Custom:   return static_cast<uint8_t>(2 * c.rounds - 1);
     case SessionType::Circuit:  return static_cast<uint8_t>(2 * c.circuitRounds);
+    case SessionType::OpenSets: return static_cast<uint8_t>(2 * kOpenSetsMax - 1);
     case SessionType::Plain:
     default:                    return 0;
     }
@@ -232,6 +240,10 @@ constexpr Step stepAt(const PlanConfig &raw, uint8_t i)
             s.distanceM = c.runM;
         }
         break;
+    case SessionType::OpenSets:
+        s.round = pair;         // rounds stays 0: there is no total to show
+        s.kind = odd ? StepKind::Rest : StepKind::Work;
+        break;
     case SessionType::Plain:
     default:
         break;
@@ -259,6 +271,7 @@ static_assert(2 * kSetsMax - 1 <= kMaxLaps, "strength plan must fit the laps");
 static_assert(kEmomMinMax <= kMaxLaps, "EMOM plan must fit the laps");
 static_assert(2 * kRoundsMax - 1 <= kMaxLaps, "custom plan must fit the laps");
 static_assert(2 * kCircuitRoundsMax <= kMaxLaps, "circuit plan must fit the laps");
+static_assert(2 * kOpenSetsMax - 1 <= kMaxLaps, "open sets plan must fit the laps");
 static_assert(kCircuitRoundsMax <= kCircuitStationCount, "one station a round");
 
 } // namespace Workout

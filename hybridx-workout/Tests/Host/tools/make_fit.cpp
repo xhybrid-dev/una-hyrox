@@ -50,6 +50,7 @@ struct Step {
 struct PlanScript {
     Workout::PlanConfig   plan;
     std::vector<uint32_t> presses;
+    uint32_t              endAt = 0;   ///< An open-ended plan (open sets): End at this second, no Done screen
 };
 
 bool planScript(const std::string &name, PlanScript &out)
@@ -61,6 +62,12 @@ bool planScript(const std::string &name, PlanScript &out)
         p.plan.sets = 3;
         p.plan.setRestSec = 30;
         p.presses = {40, 115, 125, 160};
+    } else if (name == "opensets") {
+        // The same laps as "strength", but the rests end on the button and so does the
+        // workout, from the menu: open sets never finish by themselves.
+        p.plan.type = SessionType::OpenSets;
+        p.presses = {40, 70, 115, 125};
+        p.endAt = 160;
     } else if (name == "emom") {
         p.plan.type = SessionType::Emom;
         p.plan.emomMin = 3;
@@ -156,7 +163,7 @@ int main(int argc, char **argv)
         // runner; the button at the scripted seconds. Heart rate climbs 100 to
         // 170 and back, a step a minute, so the zones change.
         size_t next = 0;
-        while (!runner.done() && t < 900) {
+        while (!runner.done() && t < 900 && !(script.endAt && t >= script.endAt)) {
             const uint16_t hr = static_cast<uint16_t>(100u + 10u * ((t / 60u) % 8u));
             sample(hr, true);
             const uint32_t nowMs = clockBase + t * 1000u;
@@ -172,7 +179,9 @@ int main(int argc, char **argv)
                 }
             }
         }
-        t += 10;   // a while on the "Done" screen before End
+        if (!script.endAt) {
+            t += 10;   // a while on the "Done" screen before End
+        }
     }
 
     bool first = true;

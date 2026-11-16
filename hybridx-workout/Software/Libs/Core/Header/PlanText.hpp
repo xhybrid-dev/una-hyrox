@@ -37,6 +37,7 @@ inline const char *kindName(SessionType t)
 {
     switch (t) {
     case SessionType::Strength: return "Strength";
+    case SessionType::OpenSets: return "Open sets";
     case SessionType::Emom:     return "EMOM";
     case SessionType::Amrap:    return "AMRAP";
     case SessionType::Tabata:   return "Tabata";
@@ -47,10 +48,21 @@ inline const char *kindName(SessionType t)
     }
 }
 
-/// The kind after @p t, round to Free.
+/// The kind after @p t, round to Free. Open sets sit next to Strength on the
+/// screen but keep the last number in the file, so a saved type never changes meaning.
 constexpr SessionType nextKind(SessionType t)
 {
-    return static_cast<SessionType>((static_cast<uint8_t>(t) + 1u) % kSessionTypeCount);
+    switch (t) {
+    case SessionType::Plain:    return SessionType::Strength;
+    case SessionType::Strength: return SessionType::OpenSets;
+    case SessionType::OpenSets: return SessionType::Emom;
+    case SessionType::Emom:     return SessionType::Amrap;
+    case SessionType::Amrap:    return SessionType::Tabata;
+    case SessionType::Tabata:   return SessionType::Custom;
+    case SessionType::Custom:   return SessionType::Circuit;
+    case SessionType::Circuit:
+    default:                    return SessionType::Plain;
+    }
 }
 
 /// The stations as the screens name them: mixed case and short, so a lap row
@@ -120,6 +132,7 @@ inline uint8_t planFields(SessionType t, PlanField out[3])
         out[0] = PlanField::CircuitRounds; out[1] = PlanField::RunM;
         return 2;
     case SessionType::Tabata:   // fixed: 8 x 20/10
+    case SessionType::OpenSets: // nothing to set
     case SessionType::Plain:
     default:
         return 0;
@@ -310,6 +323,9 @@ inline size_t formatPlanSummary(char *out, size_t cap, const PlanConfig &raw)
         std::snprintf(tmp, sizeof(tmp), "%u %s, %s", static_cast<unsigned>(c.circuitRounds),
                       c.circuitRounds == 1 ? "round" : "rounds", a);
         break;
+    case SessionType::OpenSets:
+        std::snprintf(tmp, sizeof(tmp), "Set / rest");
+        break;
     case SessionType::Plain:
     default:
         tmp[0] = '\0';
@@ -332,6 +348,7 @@ inline size_t formatStepName(char *out, size_t cap, uint8_t type, uint8_t kind, 
     const unsigned r = round;
     switch (t) {
     case SessionType::Strength:
+    case SessionType::OpenSets:
         std::snprintf(tmp, sizeof(tmp), "%s %u", k == StepKind::Rest ? "Rest" : "Set", r);
         break;
     case SessionType::Emom:
@@ -378,6 +395,12 @@ inline size_t formatStepHeading(char *out, size_t cap, const PlanView &v)
             return detail::copyOut(out, cap, "Rest");
         }
         std::snprintf(tmp, sizeof(tmp), "Set %u/%u", static_cast<unsigned>(v.round), static_cast<unsigned>(v.rounds));
+        break;
+    case SessionType::OpenSets:     // no total: the workout is as long as you make it
+        if (k == StepKind::Rest) {
+            return detail::copyOut(out, cap, "Rest");
+        }
+        std::snprintf(tmp, sizeof(tmp), "Set %u", static_cast<unsigned>(v.round));
         break;
     case SessionType::Emom:
         std::snprintf(tmp, sizeof(tmp), "Min %u/%u", static_cast<unsigned>(v.round), static_cast<unsigned>(v.rounds));
@@ -443,7 +466,7 @@ inline size_t formatCueHeading(char *out, size_t cap, uint8_t type, const LapEve
     case Cue::Work:
         // After rest r comes set or work r + 1; after EMOM minute r, minute r + 1.
         std::snprintf(tmp, sizeof(tmp), "%s %u",
-                      t == SessionType::Strength ? "Set" : (t == SessionType::Emom ? "Minute" : "Work"), next);
+                      (t == SessionType::Strength || t == SessionType::OpenSets) ? "Set" : (t == SessionType::Emom ? "Minute" : "Work"), next);
         break;
     case Cue::Round:
     default:
@@ -468,7 +491,8 @@ inline size_t formatSummaryLine(char *out, size_t cap, uint8_t type, uint8_t lap
     const char *one = "lap";
     const char *many = "laps";
     switch (static_cast<SessionType>(type)) {
-    case SessionType::Strength: n = (laps + 1u) / 2u; one = "set"; many = "sets"; break;
+    case SessionType::Strength:
+    case SessionType::OpenSets: n = (laps + 1u) / 2u; one = "set"; many = "sets"; break;
     case SessionType::Emom:     one = "minute"; many = "minutes"; break;
     case SessionType::Amrap:    n = amrapRounds; one = "round"; many = "rounds"; break;
     case SessionType::Tabata:

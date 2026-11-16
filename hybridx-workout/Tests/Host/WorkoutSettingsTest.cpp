@@ -124,3 +124,22 @@ TEST(WorkoutSettings, ATooSmallBufferWritesNothing)
     EXPECT_EQ(s.toJson(tiny, sizeof(tiny)), 0u);
     EXPECT_STREQ(tiny, "");
 }
+
+TEST(WorkoutSettings, OpenSetsKeepTheirNumberAndTheNextOneIsNotAKind)
+{
+    const char *t = R"({"v":2,"autolap":0,"type":7})";
+    WorkoutSettings s;
+    ASSERT_TRUE(s.fromJson(t, std::strlen(t)));
+    EXPECT_EQ(s.plan.type, SessionType::OpenSets);
+    const char *u = R"({"v":2,"autolap":0,"type":8})";
+    WorkoutSettings s2;
+    ASSERT_TRUE(s2.fromJson(u, std::strlen(u)));
+    EXPECT_EQ(s2.plan.type, SessionType::Plain);
+
+    char buf[WorkoutSettings::kMaxJsonBytes];
+    const size_t len = s.toJson(buf, sizeof(buf));
+    ASSERT_GT(len, 0u);
+    WorkoutSettings back;
+    ASSERT_TRUE(back.fromJson(buf, len));
+    EXPECT_EQ(back.plan.type, SessionType::OpenSets);
+}

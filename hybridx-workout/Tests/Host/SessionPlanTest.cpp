@@ -52,6 +52,22 @@ TEST(SessionPlan, StrengthIsSetsWithRestsBetween)
     EXPECT_EQ(plannedMs(c), 0u);   // open sets: no planned length
 }
 
+TEST(SessionPlan, OpenSetsAreSetAndRestForever)
+{
+    const PlanConfig c = of(SessionType::OpenSets);
+    ASSERT_EQ(stepCount(c), 2 * kOpenSetsMax - 1);   // ends on a set, as strength does
+    for (uint8_t i = 0; i < stepCount(c); ++i) {
+        const Step s = stepAt(c, i);
+        EXPECT_EQ(s.kind, i % 2 == 0 ? StepKind::Work : StepKind::Rest) << int(i);
+        EXPECT_EQ(s.round, i / 2 + 1) << int(i);
+        EXPECT_EQ(s.rounds, 0) << int(i);            // no total
+        EXPECT_FALSE(s.timed()) << int(i);           // every step is open...
+        EXPECT_EQ(s.endsAfterMs(), 0u) << int(i);    // ...with no cap either
+    }
+    EXPECT_EQ(plannedMs(c), 0u);
+    EXPECT_EQ(stepCount(c), kMaxLaps - 1);           // within the laps with one to spare
+}
+
 TEST(SessionPlan, EmomIsTimedMinutes)
 {
     PlanConfig c = of(SessionType::Emom);
