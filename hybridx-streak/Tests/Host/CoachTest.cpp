@@ -143,8 +143,13 @@ TEST(Coach, NamesForTheScreens)
     EXPECT_STREQ(buf, "HybridX");
     Coach::appName("Running", buf, sizeof(buf));
     EXPECT_STREQ(buf, "Running");
-    Coach::appName("HybridXTraining", buf, sizeof(buf));
-    EXPECT_STREQ(buf, "X Training");
+    const char* const names[][2] = {{"HybridXRun", "X Run"},         {"HybridXTrail", "X Trail"},
+                                    {"HybridXRide", "X Ride"},       {"HybridXWorkout", "X Workout"},
+                                    {"HybridXTraining", "X Training"}};
+    for (const auto& n : names) {
+        Coach::appName(n[0], buf, sizeof(buf));
+        EXPECT_STREQ(buf, n[1]);
+    }
     EXPECT_STREQ(Coach::scopeName(Streak::kScopeAny), "Everything");
     EXPECT_STREQ(Coach::scopeName(static_cast<uint8_t>(Streak::Kind::Run)), "Runs only");
     EXPECT_STREQ(Coach::dayShort(1), "Mon");

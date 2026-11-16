@@ -59,7 +59,7 @@ void bestWeekToast(uint8_t sessions, char* out, size_t size);   ///< "Best week 
 void shieldToast(uint8_t shields, char* out, size_t size);      ///< "+1 shield · 2 held"
 void lastWeekToast(uint8_t count, uint8_t target, char* out, size_t size);   ///< "Last week: 2 of 3"
 
-/// An app folder as the athlete knows it: "HybridXRace" -> "HybridX", "HybridXTraining" -> "X Training".
+/// An app folder as the athlete knows it: "HybridXRace" -> "HybridX", "HybridXRun" -> "X Run", ... (their watch names).
 void appName(const char* folder, char* out, size_t size);
 /// "Mon", "Tue", ... for a weekday (0 = Sunday).
 const char* dayShort(uint8_t weekday);

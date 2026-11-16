@@ -337,3 +337,26 @@ turbo. Counts in X Streak.
 
 Race's description stays as it is on the store (`hybridx-race/docs/SUBMISSION.md`). One line
 can be added to it: "Counts in X Streak."
+
+## The X Training update (16 November 2026)
+
+X Training (the sixth link slot) changes five listings that are already tagged at 1.0.0. Each
+CHANGELOG has its new entry, dated 16 November; the packagers stamp the version from the tag.
+
+| Listing | New version | Tag | What changes for the runner |
+|---|---|---|---|
+| X Streak (and its glance) | 1.1.0 | `streak-v1.1.0` | Counts X Training's runs; names each app as on the watch |
+| X Run (and the VO2max glance) | 1.1.0 | `run-v1.1.0` | Reads X Training's minutes for its VO2max; `vo2.json` becomes version 5 |
+| X Trail | 1.0.1 | `trail-v1.0.1` | Its Streak line counts X Training's runs |
+| X Workout | 1.0.1 | `workout-v1.0.1` | The same |
+| X Ride | 1.0.1 | `ride-v1.0.1` | The same |
+| HybridX Race | not needed | | The same, and it has no CHANGELOG; tag `v1.1.1` and `apps-v1.1.1` only if you want it |
+
+- **Order:** Streak and Run first. A Streak at 1.0.0 never counts X Training, and X Run 1.0.0
+  never reads its minutes. Trail, Workout and Ride can follow, or wait for their next change.
+- **Do not go back** to X Run 1.0.0 once 1.1.0 is on a watch: it cannot read `vo2.json` version 5.
+- **Each tag** makes CI build that app's store zip (`*-store-zip` artifact); upload those, not
+  local builds (steps 4 to 7 above).
+- **X Training is not in this release.** It has no portal listing yet: it needs its portal App
+  ID (it still has the development one, `6E050D707D4D2D32`), a packager, store previews and
+  images, and its test on a watch. That is for its TP5 to TP7.
