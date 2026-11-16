@@ -70,7 +70,7 @@ in the way.
 - **No heart-rate targets for quality.** Right: heart rate lags reps of a few minutes.
 - **No goal time.** Right for v1. The Paces screen shows what current fitness predicts.
 - **Outdoors only.** Time-dosed sessions make a treadmill version easy later (show the belt
-  speed in km/h), but it is not v1.
+  speed in km/h), but it is not v1. *(Done on 16 November 2026, at Jon's request: NOTES "Treadmill sessions".)*
 
 ## 5. Not done, and why
 

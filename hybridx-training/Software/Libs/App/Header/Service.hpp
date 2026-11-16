@@ -272,7 +272,17 @@ private:
     bool         mTreadmill        = false;   ///< this track is a treadmill run (latched at start)
     bool         mAwaitingDistance = false;   ///< saved up to its session; waiting for the console's distance
     std::time_t  mLastTreadUtc     = 0;
-    float        mTreadEstimateM   = 0.0f;    ///< the distance worked out from cadence, at the stop
+    float        mTreadEstimateM   = 0.0f;    ///< the run's total at the stop: what the counters hold (the belt
+                                              ///< speed where one is assumed, the cadence estimate elsewhere)
+    float        mTreadModelM      = 0.0f;    ///< what the stride model made of the steps alone, at the stop: what it learns against
+    // Treadmill sessions (Jon, 16 November 2026): a step with a designated speed is run with the belt
+    // assumed to be at it (SessionMeta::beltMmps); the speed and distance of the run are that, elsewhere
+    // the cadence estimate. The estimator itself keeps running alone, for the stride model.
+    float        mTreadSpeedMps    = 0.0f;    ///< the speed this second: assumed belt speed, or the estimate's
+    bool         mTreadSpeedValid  = false;   ///< ... and whether the runner is running (the estimate's validity)
+    float        mBeltDistanceM    = 0.0f;    ///< the run's distance so far on that basis
+    float        mLastEstDistM     = 0.0f;    ///< the estimator's own distance at the last second
+    bool         mBeltUsed         = false;   ///< a second of this run took an assumed belt speed
     float        mTreadSteps[SDK::Calibration::StrideLut::kBinCount] {};   ///< steps per cadence bin, for the learning
     ActivityWriter::TrackData mPendingTrack {};   ///< the session, held until the distance is known
 
@@ -370,6 +380,7 @@ private:
     void recordPlannedRun(const ActivityWriter::TrackData& track);
     /// Whether a zone alert may play on this step of a planned session (PLANS.md 2.5).
     bool zoneAlertAllowed(SDK::Workout::ZoneAlerts::Alert alert);
+    uint32_t beltMmpsNow() const;   ///< the assumed belt speed of the step being run, mm/s; 0 = use the estimate
     void sendRunStats();         ///< the run detail page's numbers to the GUI (start, pause, save)
     void updateForm();           ///< cadence and step length for this tick: screen, record and averages
     void feedSecond();           ///< X Run's per-second feed: the run statistics and the VO2 windows

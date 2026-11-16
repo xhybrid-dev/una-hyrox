@@ -24,6 +24,17 @@
 #   WEEK=n     weeks the plan has run (0-9);
 #   STEP_SECS  seconds to run each step before pressing R2 (default 12);
 #   PLAN=2     the half-marathon plan instead (12 weeks).
+#   TREADMILL=1  a treadmill session (NOTES "Treadmill sessions"): the main menu's Treadmill switch is turned
+#              on, Today starts with no GPS fix, and after Save the console's distance is answered:
+#              TREAD_TENTHS presses of L2 (default 2, +0.20), R1, TREAD_FINE presses of L2 (default 3,
+#              +0.03), R1; TREAD_SKIP=1 presses R2 instead (the run's own total stands). The .fit is then
+#              checked by fit_treadmill_plan_report.py: sub_sport treadmill, no positions, and each
+#              designated step's lap = its assumed belt speed x its time.
+#   REPS_BY_DISTANCE=1  the watch setting "Reps by distance" on, so the reps are distance steps.
+#   AUTO=1     (with TREADMILL=1) let each distance-ended step end by itself, as a runner's would, and skip
+#              the others with the lap button after AUTO_SKIP_SECS (default 5): with WEEK=2 (the 400 m
+#              repetitions) the 400 m reps and jogs take about 22 minutes, a little under half the session
+#              (it counts from half its planned time: AUTO_SKIP_SECS=120 does, in about 26 minutes). The rule is that each ends when speed x time reaches its distance.
 set -u
 SHOTS=${1:-}
 WEEK=${WEEK:-4}
@@ -60,6 +71,10 @@ printf '{"v":1,"s":[%d,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,%d],"log":[],"st
     "$PLAN" "$DAYS" "$LONG" "$START" "$START" "$WEEKS" "$TODAY" > "$SOFT/Output/plan.json"
 echo "--- pretend watch: today $TODAY (weekday $DOW), long run day $LONG, days mask $DAYS, plan from $START"
 
+if [ "${REPS_BY_DISTANCE:-0}" = 1 ]; then
+    printf '{"reps_by_distance":true}' > "$SOFT/Output/settings.json"
+fi
+
 Xvfb $DISP -screen 0 800x800x24 >/dev/null 2>&1 & XPID=$!
 sleep 2
 cd "$BIN"
@@ -79,6 +94,12 @@ snap() { [ -n "$SHOTS" ] && mkdir -p "$SHOTS" && DISPLAY=$DISP timeout 10 import
 
 echo "--- the plan, as the service read it"
 grep -E "Plan settings|New plan|Paces s/km|Today:" "$LOG" | sed 's/^ *//'
+if [ "${TREADMILL:-0}" = 1 ]; then
+    key 2; key 2                          # L2 twice: Today -> Free run -> the Treadmill switch
+    key 3                                 # R1: on
+    snap 01a-treadmill-on
+    key 1; key 1                          # L1 twice: back to Today
+fi
 TP="$REPO/build-tests/today_print"
 TODAYF="$SOFT/SharedData/HybridX/training_today.json"
 # TP6: the glance's file, written as the app opened, read back with the core's own reader.
@@ -106,6 +127,28 @@ grep -E "Planned session started" "$LOG" | sed 's/^ *//'
 STEPS=$(grep -oE "Planned session started: .*, ([0-9]+) steps" "$LOG" | grep -oE "[0-9]+ steps" | grep -oE "[0-9]+")
 RUNS=0
 # Step through: each step runs a few seconds, then R2 ends it, until the workout ends.
+if [ "${AUTO:-0}" = 1 ]; then
+    # A distance-ended step is left to end by itself (the engine, on the assumed belt speed); any other is
+    # skipped with the lap button after 5 s. A step that does not end in 400 s is pressed on.
+    for i in $(seq 1 200); do
+        line=$(grep "Treadmill step" "$LOG" | tail -1)
+        n=$(grep -c "Treadmill step" "$LOG")
+        if echo "$line" | grep -q "ends by distance"; then
+            for _ in $(seq 400); do
+                sleep 1
+                [ "$(grep -c 'Treadmill step' "$LOG")" -gt "$n" ] && break
+                grep -q "Workout completed" "$LOG" && break
+            done
+            [ "$(grep -c 'Treadmill step' "$LOG")" -gt "$n" ] || grep -q "Workout completed" "$LOG" || key 4 1
+        else
+            sleep "${AUTO_SKIP_SECS:-5}"
+            key 4 1
+        fi
+        [ "$i" = 3 ] && snap 04-a-step
+        RUNS=$i
+        grep -q "Workout completed" "$LOG" && break
+    done
+else
 for i in $(seq 1 60); do
     sleep "$STEP_SECS"
     [ "$i" = 2 ] && snap 04-a-step
@@ -113,6 +156,7 @@ for i in $(seq 1 60); do
     RUNS=$i
     grep -q "Workout completed" "$LOG" && break   # the service, after the last step
 done
+fi
 echo "--- $RUNS steps ended with R2 (the program has $STEPS steps, repeats included in the run)"
 sleep 2
 snap 05-completed                         # "Workout completed", which dismisses itself
@@ -123,8 +167,26 @@ snap 06-menu
 key 2; key 2                              # L2 twice: Save (Resume, End workout or Summary, Save)
 snap 06b-menu-save
 hold 3 3                                  # hold R1: save
-sleep 3
-snap 07-saved
+if [ "${TREADMILL:-0}" = 1 ]; then
+    snap 07-saved                         # the Saved screen with the plan's lines (recorded as the run stopped)
+    sleep 6                               # then the distance screen
+else
+    sleep 3
+    snap 07-saved
+fi
+if [ "${TREADMILL:-0}" = 1 ]; then
+    snap 07a-distance
+    if [ "${TREAD_SKIP:-0}" = 1 ]; then
+        key 4 2                           # R2: the run's own total stands
+    else
+        for _ in $(seq "${TREAD_TENTHS:-2}"); do key 2 0.3; done
+        snap 07b-distance-tenths
+        key 3                             # R1: on to the hundredths
+        for _ in $(seq "${TREAD_FINE:-3}"); do key 2 0.3; done
+        key 3 2                           # R1: save
+    fi
+    snap 07c-summary
+fi
 sleep 2
 
 echo "--- after the run (service log)"
@@ -141,7 +203,14 @@ echo "--- shared files"
 find "$SOFT/SharedData" -type f 2>/dev/null | sort
 echo "--- the FIT file"
 FIT=$(find "$SOFT/Output" -name "*.fit" | head -1)
-if [ -n "$FIT" ]; then
+if [ -n "$FIT" ] && [ "${TREADMILL:-0}" = 1 ]; then
+    # The metres the service was given at the distance screen (0 = skipped), from its own log line.
+    ENTERED=$(grep -oE "Treadmill run saved: .* entered [0-9]+ m" "$LOG" | grep -oE "entered [0-9]+ m" | grep -oE "[0-9]+" | tail -1)
+    ENTERED=${ENTERED:-0}
+    echo "--- the treadmill's distance: entered $ENTERED m (0 = skipped)"
+    python3 "$REPO/docs/experiments/fit_treadmill_plan_report.py" "$FIT" --log "$LOG" --entered "$ENTERED" \
+        --link "$SOFT/SharedData/HybridX/act_training.json"
+elif [ -n "$FIT" ]; then
     python3 "$REPO/docs/experiments/fit_plan_report.py" "$FIT"
     # TP4: the activity link (act_training.json, for HybridX Streak) holds this session: the
     # .fit's start and timer, sport 1 (run), and the training load from the .fit's records

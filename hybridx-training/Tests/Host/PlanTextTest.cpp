@@ -49,3 +49,39 @@ TEST(PlanText, What)
     PlanText::what(Session{Kind::LongFinish, 0, 100, 20, 0}, 0, small, sizeof(small));
     EXPECT_EQ(std::strlen(small), 4u);
 }
+
+TEST(PlanText, SpeedAsABeltShowsIt)
+{
+    char b[32];
+    PlanText::speedText(3333, false, b, sizeof(b));
+    EXPECT_STREQ(b, "12.0");
+    PlanText::speedText(3333, true, b, sizeof(b));   // 7.46 mph
+    EXPECT_STREQ(b, "7.5");
+    PlanText::speedText(0, false, b, sizeof(b));
+    EXPECT_STREQ(b, "0.0");
+    PlanText::speedText(2778, false, b, sizeof(b));   // 10.0 km/h
+    EXPECT_STREQ(b, "10.0");
+    PlanText::speedText(4000, true, b, sizeof(b));    // 8.95 mph
+    EXPECT_STREQ(b, "8.9");
+
+    PlanText::speedRange(3500, 3700, false, b, sizeof(b));
+    EXPECT_STREQ(b, "12.6-13.3 km/h");
+    PlanText::speedRange(3500, 3700, true, b, sizeof(b));
+    EXPECT_STREQ(b, "7.8-8.3 mph");
+
+    // A pace band: 4:18/km +/- 6 s. The fast pace is the high speed.
+    PlanText::speedBand(252, 264, false, b, sizeof(b));
+    EXPECT_STREQ(b, "13.6-14.3 km/h");
+    PlanText::speedBand(252, 264, true, b, sizeof(b));
+    EXPECT_STREQ(b, "8.5-8.9 mph");
+    // No pace: no speed, never a divide by zero.
+    PlanText::speedBand(0, 0, false, b, sizeof(b));
+    EXPECT_STREQ(b, "0.0-0.0 km/h");
+    // A small buffer is cut, terminated.
+    char tiny[6];
+    PlanText::speedBand(252, 264, false, tiny, sizeof(tiny));
+    EXPECT_EQ(std::strlen(tiny), 5u);
+    // Every session's longest target fits what the screens hold (36 bytes).
+    PlanText::speedBand(180, 400, true, b, sizeof(b));
+    EXPECT_LT(std::strlen(b), 24u);
+}

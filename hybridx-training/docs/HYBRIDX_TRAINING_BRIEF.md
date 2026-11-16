@@ -36,7 +36,7 @@ structured workout.
   Streak line, and feeds X Run's VO2max.
 - **Later: a glance** with today's workout, the only "reminder" the platform allows.
 
-Not in v1: building your own plan, changing the plan from heart-rate data, treadmill plans.
+Not in v1: building your own plan, changing the plan from heart-rate data. (Treadmill sessions came on 16 November 2026: decision 9, NOTES "Treadmill sessions".)
 
 ## 2. The overlap with UNA's own Running
 
@@ -386,7 +386,7 @@ Each phase starts in plan mode and stops at its gate.
 6. No fitness number on screen: a 5K equivalent and predictions.
 7. Weeks start on Monday.
 8. Recalibration: faster applies, slower asks, a big jump asks.
-9. Outdoors only for plan sessions; treadmill stays for free runs.
+9. ~~Outdoors only for plan sessions; treadmill stays for free runs.~~ **Reversed (Jon, 16 November 2026):** the main menu's Treadmill switch applies to a planned session too, as UNA's treadmill mode (cadence-derived speed and distance, no GPS, the console's distance after Save), with the belt assumed to be at each step's designated speed (NOTES "Treadmill sessions"). Outdoors stays the encouraged way, for accuracy.
 10. UNA's Workouts library stays on the menu; RunLVGL's Intervals goes.
 
 **Still Jon's:** the plans' content (`PLANS.md` §9); (the rows from Daniels' book: done, 15 November

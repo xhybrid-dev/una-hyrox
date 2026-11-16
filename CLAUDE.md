@@ -551,6 +551,13 @@ moves, pauses, recalibration; `PlanRules`, `plan_sim`), is built and at its gate
 is built and at its gate (NOTES "TP4"): each saved run goes to `act_training.json` for Streak (the link's
 sixth slot) and its steady minutes to `training_vo2_0..2.json` for X Run's VO2max; the Plan screen shows
 X Run's VO2max from `vo2max.json` (and, in a plan, the figure first seen in it, `plan.json`'s `"vo2s"`).
+Treadmill sessions (16 November 2026, Jon; NOTES "Treadmill sessions"): the main menu's Treadmill switch now applies to
+today's planned session too (it was outdoors only, brief decision 9, now reversed), as X Run's treadmill free run does
+(cadence-derived speed and distance, no GPS, the console's distance after Save), with the belt **assumed to be at each
+step's designated speed** (`SessionMeta::beltMmps`, set by `PlanBuilder`): such a step's speed and distance come from
+that, so a distance step ends by itself after distance / speed; easy, warm-up, cool-down and trial-effort steps use the
+cadence estimate; open steps stay lap presses; speed alerts are off on a treadmill; a treadmill trial or race never
+recalibrates the paces. Targets show as belt speeds (`PlanText::beltTarget`).
 TP6, the glance, is built and at its gate (NOTES "TP6"): the app leaves `../SharedData/HybridX/training_today.json`
 (`TodayFile`, `TodayBuild`; written at the end of `updateToday`) and the glance `HXTrainingGlance`
 (`Software/Libs/Glance`, `Apps/HXTrainingGlance-CMake`; its own listing, "X Training Glance", development App ID
@@ -618,6 +625,12 @@ lines (60 px; Streak NOTES S4.2). Text and filled rectangles only; letters only 
   - the text-fit audit (the plan's screens with their widest text, measured with LVGL, clear of
     the bezel arcs and never cut): `docs/experiments/audit.sh` (about 30 seconds; after any change
     to a screen's text or layout, or to the plans' words).
+  - a treadmill session in the simulator (the plan's session with the Treadmill switch on, then the distance screen
+    answered): `TREADMILL=1 docs/experiments/sim_plan.sh [shots-dir]` (about 3 minutes; `TREAD_TENTHS`, `TREAD_FINE`,
+    `TREAD_SKIP=1` as X Run's; `REPS_BY_DISTANCE=1`; `AUTO=1 WEEK=2` lets the 400 m reps and jogs end by themselves,
+    about 22 minutes), its `.fit` checked by `docs/experiments/fit_treadmill_plan_report.py <file.fit> --log <log>
+    [--entered M] [--link act_training.json]` (treadmill sub-sport, no positions, and each designated lap = belt speed x time);
+    a free run with the switch on: `docs/experiments/sim_treadmill_free.sh [seconds] [shots-dir]`;
   - the glance (TP6; the simulator cannot run glances): every state drawn from the real layout code,
     `UNA_SDK=... python3 hybridx-training/docs/experiments/glance_preview.py hybridx-training/build-tests/glance_preview
     <out.png>` (`--store hybridx-training/Resources/Glance/previews` writes the listing's four previews); the file the

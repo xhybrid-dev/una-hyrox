@@ -218,6 +218,10 @@ public:
             break;
         }
         mM.alert[i] = alert;
+        if (t.kind == TargetKind::Speed && alert != AlertMode::FastOnly && end != StepEnd::Open) {
+            const uint32_t mid = (t.band.lowMmps + t.band.highMmps) / 2u;
+            mM.beltMmps[i] = static_cast<uint16_t>(mid > 0xFFFFu ? 0xFFFFu : mid);
+        }
         mSec += estSec;
         mCm += estCm;
         if (quality) {
@@ -564,8 +568,10 @@ private:
         const uint16_t from = mE.add(Intensity::Active, "Rep", StepEnd::Distance, cm, fast, AlertMode::AtEnd,
                                      secFor(cm, mid(fast.band)), cm, true);
         TargetSpec open;
-        mE.add(Intensity::Rest, "Jog", StepEnd::Distance, cm, open, AlertMode::None, secFor(cm, mJogMmps), cm,
-               false);
+        const uint16_t jog = mE.add(Intensity::Rest, "Jog", StepEnd::Distance, cm, open, AlertMode::None,
+                                    secFor(cm, mJogMmps), cm, false);
+        // A jog ended by distance has no pace to assume but the plan's jog pace (on a treadmill).
+        mMeta.beltMmps[jog] = static_cast<uint16_t>(mJogMmps > 0xFFFFu ? 0xFFFFu : mJogMmps);
         mE.repeat(from, mS.reps);
         mMeta.repM = mS.a;
         noteTarget(mPaces.repetition, 8);

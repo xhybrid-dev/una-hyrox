@@ -370,7 +370,9 @@ your 5K time, run step by step. Counts in X Streak.
 
 **Not claimed yet:** missed-session handling, offers, moves, pauses and recalibration after a time
 trial (TP5: built on 16 November 2026 and simulator-checked, to be claimed once Jon has seen them on
-the watch, then added to the description above). The glance is its own listing (below), built in TP6.
+the watch, then added to the description above); **treadmill sessions** (today's session with the Treadmill
+switch on: cadence speed and distance, the belt assumed at each step's designated speed, the console's distance
+after Save; built on 16 November 2026 and simulator-checked, to be claimed once Jon has seen it on the watch). The glance is its own listing (below), built in TP6.
 
 ### X Training Glance (TP6: built, not yet on the store)
 

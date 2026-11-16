@@ -258,6 +258,38 @@ build from TP6 on and must have been opened once with a plan.
 Send: a photo of steps 26 and 27, a photo of any other state, and `Apps/SharedData/HybridX/training_today.json`
 (over USB) if the glance showed something wrong.
 
+## 9. A planned session on a treadmill (X Training, 16 November 2026)
+
+With the main menu's **Treadmill** switch on, today's planned session runs as UNA's treadmill mode does:
+no GPS, speed and distance from your cadence, the console's distance asked for after Save. Where a step has
+a designated speed, the watch **assumes the belt is at it** (and says so as the target, in km/h or mph), so
+set the belt to the speed shown for each rep. You need the CI build of the last push of X Training.
+
+29. **The switch:** in X Training's main menu, L2 twice from Today to **Treadmill**, R1 to turn it on (the
+    switch shows on). Open **Today**: the target now reads as a belt speed ("14.0 km/h" for intervals,
+    "easy 9.8-11.0 km/h" for an easy run), where it read a pace.
+30. **Start it:** R1 on Today, R1 to start. It should go straight to the countdown **without waiting for a
+    GPS fix**, and the GPS icon shows absent. The step cards show the belt speed. Set the treadmill to it for
+    each rep, and to a comfortable easy speed for the easy parts.
+31. **A rep by distance or by time:** a rep that says "400 m" ends by itself after the time that distance
+    takes at the belt speed shown (400 m at 14.0 km/h: 103 s); a timed rep ends on its time. A step that
+    ends on a lap press (a warm-up before a time trial, the walk down after a hill) still does. Note whether
+    the lap changes at about the right moment; if the belt was not really at that speed, say so.
+32. **No pace buzzes:** you will not hear "too fast" or "too slow" on a treadmill (the speed is assumed, or
+    a cadence estimate too rough to buzz on). The heart-rate buzzes still work if easy by heart rate is on.
+33. **Save:** hold R1 and Save as usual. The Saved screen says Done (or Part done) and the next session; then
+    the console's distance: enter what the treadmill shows (L2 up by 0.10, R1 for hundredths, R1 to save; R2
+    keeps the watch's own total). The summary's map page says "No map on a treadmill".
+34. **Afterwards:** Today says **Done today**, the glance (if installed) says Done, and X Streak counts it as
+    a Run (the toast "+1 Run" the next time you open it). The treadmill file is in `Apps/HybridXTraining/Activity/`
+    (copy it over USB if anything looked wrong).
+35. **An easy run:** do the same with an easy day. It is timed; the distance is the watch's cadence estimate
+    until you enter the console's, and the entries teach the stride model (it learns from entered runs of 2 km or
+    more, after outdoor runs have taught the shared stride table).
+
+Send: photos of steps 29, 30 and 33 (the Saved screen and the distance screen), what you set the belt to and
+how the lap changes lined up (step 31), and the console's distance against the watch's own.
+
 ## What each result decides
 
 - **Everything as in the tables:** the family's link works on a watch; next are the releases

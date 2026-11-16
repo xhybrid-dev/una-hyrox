@@ -13,6 +13,17 @@ prefix for the SDK's version script. The store release of the family:
 
 ### Added
 
+- **Treadmill sessions:** the main menu's **Treadmill** switch now applies to today's planned session as well
+  as a free run (until now Today ignored it and recorded outdoors, with GPS). With it on, Today starts with no
+  GPS fix, and the speed and distance come from your cadence as in UNA's treadmill mode; after Save the
+  console's distance is asked for, and the file is a treadmill run (Streak counts it as a Run). Where a step
+  has a designated speed (intervals, cruise, reps, race pace) the belt is **assumed to be at it**: a 400 m rep
+  at 14.0 km/h ends by itself after 103 s, a 3-minute rep has covered 700 m, and each lap has that distance;
+  easy running, warm-ups and cool-downs use the cadence estimate, and a step that ends on a lap press stays
+  so. Today, the step list and the step cards show the **belt speed** (km/h or mph) as the target. On a
+  treadmill the pace buzzes ("too fast", "too slow") are off, and a time trial or race counts as a session
+  but does not change your paces.
+
 - **A glance** ("X Training Glance", its own store listing, which needs the app): today's session on the
   glances screen. Line one says what it is ("Today: Intervals"; "Done: Intervals" in green once saved; "Rest
   day"), line two its "what" and target pace ("4 x 4 min @ 4:18/km") or the next session ("Tomorrow: Cruise"),

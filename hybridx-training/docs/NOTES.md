@@ -391,7 +391,8 @@ the gap TP3 fills first.
   estimate ("9.1 km, 49 min"); L2 scrolls the steps, drawn as for a UNA workout from the
   service's program; R1 starts it (the countdown, or the no-GPS question first). On any other
   day the state and the next session ("Next: Tue 17 Nov / Cruise intervals / 3 x 6 min"). A
-  planned session is always outdoors: the treadmill switch applies to free runs only (decision 9).
+  planned session is always outdoors: the treadmill switch applies to free runs only (decision 9). *(Reversed on
+  16 November 2026: see "Treadmill sessions".)*
 - **The service:** `PlanTodayInfo` gains today's date and the next session (`nextSession()`,
   from tomorrow, or from the plan's first day before it starts); the details request takes
   `kPlanDay` and a date (`buildPlanDay()`), so the step list is the program Start would run.
@@ -911,3 +912,84 @@ release packages." Jon has seen none of it yet: the gate is below.
    the glance carries a development ID and CI packages it as a dry run); and whether to tag `training-v1.0.0`
    now (the app without the glance's file, which the field test does not need) with the glance arriving in 1.1.0
    (recommended), or wait for it.
+
+## Treadmill sessions (16 November 2026, Jon's request; built, simulator-checked, not yet on a watch)
+
+Jon turned the main menu's **Treadmill** switch on and Today still recorded outdoors with GPS. **Cause (traced):** the
+switch worked for a **Free run** (X Run's code, kept in TP2), but a session from **Today** ignored it on purpose: brief
+decision 9 ("outdoors only for plan sessions") was built into `Model::trackStart`, `Service::handleEvent(TrackStart)`
+and `WorkoutDetailsScreen::startToday` (which also waited for a GPS fix), and nothing said why. Jon asked for X Run's
+treadmill way in the plan too ("outdoors is encouraged for accuracy, but sometimes treadmills must be used") and gave
+the rule for intervals: **unless corrected, assume the treadmill is set to the designated speed**, so "400 m at 12 km/h"
+takes the time that distance takes at 12 km/h and the lap changes by itself; "until lap press" stays a lap press.
+Decision 9 is reversed (brief, REVIEW and the TP3 note are marked).
+
+### What a treadmill session is
+- **The start:** with the switch on, Today goes straight to the countdown (no GPS fix, no no-fix question); GPS and
+  pressure are let go; the stride model fixes its tier for the run; no outdoor stride learning, no VO2max windows (as X
+  Run's treadmill run, unchanged). A UNA-library workout still waits, as in X Run.
+- **Belt speed per step** (`SessionMeta::beltMmps`, set by `PlanBuilder`, host-tested for every session at every level):
+  a step with a pace target that is not an easy band (intervals, cruise, tempo, strides, 30-30s, repetitions, race pace
+  and the race) gets the **middle of its target band**; the 400 m jog after a repetition, which has no pace, gets the plan's
+  jog pace. Easy steps, warm-ups, cool-downs, hills, a timed jog and a time trial's effort (no designated speed) get 0: the
+  cadence estimate. Open steps stay lap presses.
+- **The run's speed and distance** (`Service`, the 1 Hz treadmill block): on a step with a belt speed, speed = that and
+  distance += speed x dt, **while the cadence says the runner is running** (the estimator's own validity and 5 s hold:
+  step off the belt and the distance stops); elsewhere the estimator's speed and its own distance step. The distance
+  counter, speed counter, records, laps, run statistics, the gauge and the **workout engine** all take that, so a
+  distance step ends by itself when speed x time reaches it. The estimator keeps running alone (its distance and steps per
+  cadence bin are what the SDK's stride model learns against).
+- **After Save** the session is held for the console's distance (`TreadmillDistanceScreen`, as X Run). The run's total (the
+  belt speeds and the estimate) is what the screen offers and what its band is taken from; **the entry is "unless
+  corrected"**: it sets the file's distance and average speed, and the SDK still learns from it against its own
+  estimate (tier 3 only, runs of 2 km or more). A run with no assumed step (a free run, an easy session) takes exactly the
+  old path. The `.fit` is `sub_sport` treadmill, with the estimate in the `distance_estimate` developer field.
+- **The plan** counts the session by time as for an outdoor one, **recorded when the run stops** (not when the file closes,
+  which waits for the distance) so the Saved screen can show its lines before the distance screen. A treadmill **time trial
+  or race** still counts, but **never recalibrates the paces**: its distance is an estimate (or the assumed race pace).
+- **What the screen says:** with the switch on the target is the belt speed ("14.0 km/h", "7.5 mph"; an easy band as
+  "easy 9.8-11.0 km/h") on **Today**, in the **step list** and on the **step card**. The live gauge keeps its pace arc and
+  readout (the assumed pace on a designated step). Switching the switch refreshes Today at once.
+
+### Decisions made while building (each cheap to change)
+1. **Pace buzzes are off on a treadmill** (speed targets only): on a designated step the assumed speed is always in its
+   band, and on an easy step the estimate is too rough to police. Heart-rate alerts still work. (`processWorkout`.)
+2. **Easy steps use the cadence estimate**, not the middle of their band: the easy band is wide and the runner picks the
+   speed in it; the console's distance after the run is the check (Jon: "for easy runs based on time, it's easy with a
+   distance confirmation after the run").
+3. **A distance jog gets the plan's jog pace** (the only way for it to end by itself).
+4. **A treadmill trial or race never recalibrates.**
+5. **The belt is assumed while you run, not while you stand:** with no cadence the distance stops.
+
+### Verified
+- **Host tests: 169 pass** (3 new): belt speeds for every session, level and runner (set exactly on quality speed steps and
+  distance jogs, inside the step's band, never on open, easy, hill or trial steps), a 400 m rep implies the right time,
+  and the speed text (km/h, mph, bands).
+- **Simulator** (`TREADMILL=1 sim_plan.sh`; the `.fit` checked by `fit_treadmill_plan_report.py`):
+  - **Intervals 5 x 3 min:** Today reads "14.0 km/h", the step card "14.0 km/h", the Treadmill switch and the distance
+    screen are as X Run's; no GPS; the file is running / treadmill, 169 records with a distance and no position, the
+    total is the entry (810 m, over the run's own 582 m) and the activity link carries it; **each rep lap = belt speed x its
+    time** (252 m vs 252 m).
+  - **Repetitions 5 x 400 m** (`AUTO=1 WEEK=2`, 22 minutes, the reps and jogs ended by themselves): the 15.1 km/h rep took
+    **95 s and 400.0 m** every time, the 8.8 km/h jog **164 s and 400.0 m**: 10 laps, 4000 m vs 3996 m by the rule; the run's
+    own total 4075 m against the cadence model's 4266 m; the entry 4310 m taken.
+  - **A counted session, the distance skipped** (`AUTO=1 AUTO_SKIP_SECS=120 TREAD_SKIP=1 WEEK=2`, 26 minutes): the plan
+    log says **Done** (`[20261116, 10, 1, ...]`) the moment the run stopped, **before** the distance screen; Today and the glance
+    read Done; the same 10 laps (95 s and 400.0 m, 164 s and 400.0 m); with the distance skipped the file takes the run's
+    own total (4812 m, `distance_estimate` the same, the cadence model's own 5003 m kept for the stride model); the activity
+    link carries 4812 m as a Run.
+  - **The Saved screen** on a treadmill session shows the plan's lines ("Not counted, Week 5: 0 of 4, Next: Tue, Easy+str" for
+    a short run) before the distance screen, then "No map on a treadmill" in the summary.
+  - **A Free run with the switch on** (`sim_treadmill_free.sh`, the path Jon may also have used): treadmill sub-sport, no
+    positions, the entry taken, the link carrying it. Unchanged from X Run.
+- **Watch compile check** of the whole app (556,912 bytes); the **text-fit audit** (0 problems: the belt-speed targets are no
+  longer than the pace bands it already measures).
+
+### Not verified
+- **On a watch.** Whether the cadence-derived speed on a real belt agrees with the assumed one (tier 1 is a stride from your
+  height); whether a real step off the belt drops the cadence fast enough to stop the distance; the feel of an interval that
+  ends by itself on a treadmill. The console's distance after the run is the check, and Jon's test is
+  `hybridx-link/docs/FAMILY_WATCH_TEST.md` section 9 (steps 29 to 35).
+- **A treadmill time trial or race end to end** (the guard is a one-line condition in `recordPlannedRun`, read, not run: a 5K
+  at the simulator's treadmill speed would take about an hour).
+- **Imperial** targets on the screens ("7.5 mph"): the text is host-tested; the simulator ran metric.
