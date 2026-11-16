@@ -41,6 +41,8 @@ set(CORE_SOURCES
     "${CORE_LIBS}/Sources/PlanProgress.cpp"
     "${CORE_LIBS}/Sources/RunVo2Max.cpp"
     "${CORE_LIBS}/Sources/PlanRules.cpp"
+    "${CORE_LIBS}/Sources/TodayFile.cpp"
+    "${CORE_LIBS}/Sources/TodayBuild.cpp"
 )
 set(SDK_JSON_SOURCES
     "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamReader.cpp"
@@ -80,6 +82,7 @@ add_executable(hybridx-training-host-tests
     DanielsTest.cpp
     RunVo2MaxTest.cpp
     PlanRulesTest.cpp
+    TodayFileTest.cpp
     GoldenTest.cpp
     "${TOOLS_DIR}/plan_print/PlanPrint.cpp"
     "${TOOLS_DIR}/plan_sim/PlanSim.cpp"
