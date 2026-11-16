@@ -1,12 +1,18 @@
 #!/bin/bash
 #
-# The HybridX family on one pretend watch: Run, Race, Trail, Workout and Ride each
-# record and save an activity in their own simulator, all five leaving their
+# The HybridX family on one pretend watch: X Training, Run, Race, Trail, Workout and Ride
+# each record and save an activity in their own simulator, all six leaving their
 # summaries in ONE shared folder, then HybridX Streak opens (twice) and must find every one,
 # once. Workout saves three, one of each link sport it writes: a Free workout (Workout),
-# a strength plan (Strength) and a circuit (Hybrid), so Streak must count seven, each as
-# its own kind, and the seventh save's Streak line meets the target of 7 ("1-week streak"). It checks the activity link end to end with the apps' real writers and
+# a strength plan (Strength) and a circuit (Hybrid), so Streak must count eight, each as
+# its own kind; the seventh save's Streak line meets the target of 7 (Streak's most) and starts
+# the streak ("1-week streak"), and the eighth reads "8 of 7 this week" with it. It checks the activity link end to end with the apps' real writers and
 # Streak's real reader (docs/ACTIVITY_LINK.md, "Family check").
+#
+# X Training (its TP4) runs today's planned session from a pretend plan (its sim_plan.sh's),
+# for at least 400 s so that some minutes pass X Run's 5-minute warm-up, and leaves them for
+# X Run's VO2max (training_vo2_*.json). X Run then opens once more and must read them once,
+# behind its own mark for X Training.
 #
 # Training load (ACTIVITY_LINK.md, "Training load"): each summary's 8th number must be the
 # Edwards load worked out again here from its own .fit's records (each record's heart rate in
@@ -27,13 +33,13 @@
 # Streak cannot list other apps' folders on a watch, and here it finds none
 # either (no app folder is its sibling), so it sees only the summaries.
 #
-# Quick (default): about 80 s of recording each, one after another, with
-# Streak's minimum set to 0 minutes so each short session counts (about 12 minutes).
+# Quick (default): about 80 s of recording each (X Training 400 s), one after another, with
+# Streak's minimum set to 0 minutes so each short session counts (about 20 minutes).
 # LONG=1: 11 minutes each, with Streak's default 10-minute minimum.
 # TREADMILL=1: Run records a treadmill run (no GPS; distance from cadence) and
 # keeps its estimate on the distance screen (hybridx-run NOTES, "Treadmill").
 #
-# Needs: the six simulators built (each app's Software/Apps/LVGL-GUI/simulator/
+# Needs: the seven simulators built (each app's Software/Apps/LVGL-GUI/simulator/
 # build/bin), Xvfb, xdotool, python3 with fitdecode. Exits non-zero on a FAIL.
 # Usage:  family_check.sh [out-dir]
 set -u
@@ -41,25 +47,40 @@ ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 OUT=${1:-/tmp/hybridx-family}
 LONG=${LONG:-0}
 if [ "$LONG" = 1 ]; then SECS=660; else SECS=80; fi
+TSECS=$(( SECS > 400 ? SECS : 400 ))   # X Training: past X Run's 5-minute warm-up
 
 bin() { echo "$ROOT/$1/Software/Apps/LVGL-GUI/simulator/build/bin/$2"; }
 for pair in hybridx-run:HybridXRunSimulator hybridx-race:HybridXRaceSimulator \
             hybridx-trail:HybridXTrailSimulator hybridx-workout:HybridXWorkoutSimulator \
-            hybridx-ride:HybridXRideSimulator hybridx-streak:HybridXStreakSimulator; do
+            hybridx-ride:HybridXRideSimulator hybridx-streak:HybridXStreakSimulator \
+            hybridx-training:HybridXTrainingSimulator; do
     [ -x "$(bin "${pair%%:*}" "${pair##*:}")" ] || { echo "Build the simulator first: $(bin "${pair%%:*}" "${pair##*:}")" >&2; exit 1; }
 done
 
 rm -rf "$OUT"
 mkdir -p "$OUT/SharedData/HybridX"
-for app in Run Race Trail Workout Ride Streak; do
+for app in Training Run Race Trail Workout Ride Streak; do
     mkdir -p "$OUT/$app/Output" "$OUT/$app/a/b/c/d/e"
     ln -s ../SharedData "$OUT/$app/SharedData"
 done
-# Run needs an age for its maximum heart rate; Trail needs a route.
-printf '{"schema":1,"values":{"birthYear":1986,"birthMonth":5}}' > "$OUT/Run/Output/app_config.json"
+# Run needs an age for its maximum heart rate, and a resting heart rate to score any run's
+# minutes (the simulator's own watch figure comes too late: without it X Run leaves X Training's
+# run waiting, "no VO2 profile yet"); Trail needs a route.
+printf '{"schema":1,"values":{"birthYear":1986,"birthMonth":5,"restingHr":50}}' > "$OUT/Run/Output/app_config.json"
 mkdir -p "$OUT/Trail/Output/Routes"
 python3 "$ROOT/hybridx-trail/Tools/TestRoutes/make_sim_routes.py" "$OUT/Trail/Output/Routes" >/dev/null
 printf "sim-wrong-turn.gpx" > "$OUT/Trail/Output/route.sel"
+# X Training: a 10K plan at level 2 under way, week 5, today its first quality day (its
+# sim_plan.sh's pretend watch: the phone's settings match the plan, so it is kept).
+TDOW=$(( $(date +%u) - 1 )); TLONG=$(( (TDOW + 5) % 7 )); TDAYS=0
+for k in 0 2 3 5; do TDAYS=$(( TDAYS | (1 << ((TLONG + k) % 7)) )); done
+TSTART=$(date -d "$(date +%F) -$TDOW days -28 days" +%Y%m%d)
+tday() { [ $(( (TDAYS >> $1) & 1 )) = 1 ] && echo true || echo false; }
+printf '{"schema":1,"values":{"plan":1,"fiveK":"22:00","fiveKRecent":true,"halfTime":"","raceDate":"","level":2,"runMon":%s,"runTue":%s,"runWed":%s,"runThu":%s,"runFri":%s,"runSat":%s,"runSun":%s,"longRunDay":%d,"easyByHr":false}}' \
+    "$(tday 0)" "$(tday 1)" "$(tday 2)" "$(tday 3)" "$(tday 4)" "$(tday 5)" "$(tday 6)" $(( TLONG + 1 )) \
+    > "$OUT/Training/Output/app_config.json"
+printf '{"v":1,"s":[1,2,%d,%d,0,0,0,1320,%s,1,0,0],"c":[0,%s,0,10],"log":[]}' "$TDAYS" "$TLONG" "$TSTART" "$TSTART" \
+    > "$OUT/Training/Output/plan.json"
 
 PIDS=()
 cleanup() { for p in "${PIDS[@]}"; do kill -9 "$p" 2>/dev/null; done; }
@@ -79,7 +100,18 @@ hold() { DISPLAY=":$1" xdotool keydown "$2"; sleep "$3"; DISPLAY=":$1" xdotool k
 gpsfix() { for _ in $(seq 60); do grep -qs "Mock.Buzzer::play" "$OUT/$1.log" && break; sleep 1; done; sleep 2; }
 
 # The key flows are the apps' own scripts' (Run and Trail sim_run.sh, Race and
-# Workout and Ride capture_screens.sh). Keys 1-4 are L1, L2, R1, R2.
+# Workout and Ride capture_screens.sh, X Training sim_plan.sh). Keys 1-4 are L1, L2, R1, R2.
+training_app() {   # X Training: R1 Today, R1 start (the countdown); R1 menu; L2 x3 Save & End; hold R1
+    # Mid-session the menu is Resume, End workout, Summary, Save & End, Discard: Save is third down.
+    start Training 98 "$(bin hybridx-training HybridXTrainingSimulator)"; gpsfix Training
+    key 98 3 1; key 98 3 6; sleep "$TSECS"
+    key 98 3 1; key 98 2; key 98 2; key 98 2; hold 98 3 3; sleep 4
+    cleanup
+}
+run_again() {   # X Run opens once more, after X Training's save: it reads X Training's minutes
+    start Run 91 "$(bin hybridx-run HybridXRunSimulator)" Run-2; sleep 8
+    cleanup; PIDS=()
+}
 run_app() {   # Run: R1 start; R1 menu; L2 L2 Save; hold R1
     start Run 91 "$(bin hybridx-run HybridXRunSimulator)"; gpsfix Run
     if [ "${TREADMILL:-0}" = 1 ]; then
@@ -166,14 +198,16 @@ echo "Opening Streak, to leave its summary of the week..."
 open_streak Streak-0
 
 if [ "$LONG" = 1 ]; then
-    echo "Recording: Run, Race, Trail, Workout (three in turn) and Ride at once, about $SECS s each..."
-    run_app & A=$!; trail_app & B=$!; race_app & C=$!; workout_app & D=$!; ride_app & E=$!
-    wait $A $B $C $D $E
+    echo "Recording: X Training, Run, Race, Trail, Workout (three in turn) and Ride at once, about $SECS s each..."
+    training_app & T=$!; run_app & A=$!; trail_app & B=$!; race_app & C=$!; workout_app & D=$!; ride_app & E=$!
+    wait $T $A $B $C $D $E
 else
     # One after another, so each Streak line counts the sessions saved before it.
-    echo "Recording: Run, then Race, then Trail, then Workout (Free, Strength, Circuit), then Ride, about $SECS s each..."
-    run_app; race_app; trail_app; workout_app; ride_app
+    echo "Recording: X Training ($TSECS s), then Run, Race, Trail, Workout (Free, Strength, Circuit), then Ride, about $SECS s each..."
+    training_app; run_app; race_app; trail_app; workout_app; ride_app
 fi
+echo "Opening X Run again, for X Training's minutes..."
+run_again
 
 echo "Opening Streak twice..."
 open_streak Streak-1
@@ -211,7 +245,7 @@ def fit_load(frames):
     return (weighted + 30) // 60, secs
 loads = []   # every entry's load, for Streak's day
 
-for app, slot, sports in (("Run", "run", [1]), ("Race", "race", [6]), ("Trail", "trail", [1]),
+for app, slot, sports in (("Training", "training", [1]), ("Run", "run", [1]), ("Race", "race", [6]), ("Trail", "trail", [1]),
                           ("Workout", "workout", [5, 4, 6]), ("Ride", "ride", [2])):
     fits = sorted(glob.glob(f"{out}/{app}/Output/Activity/*/*.fit") + glob.glob(f"{out}/{app}/Output/Activity/*.fit"))
     path = f"{out}/SharedData/HybridX/act_{slot}.json"
@@ -258,20 +292,21 @@ def streak_line(log):
         return None
     m = re.findall(r'Streak line: "([^"]*)" "([^"]*)"', text)
     return m[-1] if m else None
-# The seventh session meets the target of 7, so its line also starts the streak: "1-week streak".
-for n, app in enumerate(("Run", "Race", "Trail", "Workout-free", "Workout-strength", "Workout-circuit", "Ride"),
-                        start=1):
+# The seventh session meets the target of 7 (Streak's most), so its line, and the eighth's, also
+# carry the streak: "1-week streak".
+for n, app in enumerate(("Training", "Run", "Race", "Trail", "Workout-free", "Workout-strength", "Workout-circuit",
+                         "Ride"), start=1):
     got = streak_line(app)
     if long_run:
         m = re.match(r"(\d) of 7 this week$", got[0]) if got else None
-        check(f"{app}'s Streak line", m is not None and 1 <= int(m.group(1)) <= 7, f"{got}")
+        check(f"{app}'s Streak line", m is not None and 1 <= int(m.group(1)) <= 8, f"{got}")
     else:
-        want_line = (f"{n} of 7 this week", "1-week streak" if n == 7 else "")
+        want_line = (f"{n} of 7 this week", "1-week streak" if n >= 7 else "")
         check(f"{app}'s Streak line", got == want_line, f"{got}")
 
 first, second = summaries("Streak-1"), summaries("Streak-2")
-check("Streak, first open", first is not None and first[:3] == (5, 7, 7), f"files, entries, new = {first[:3] if first else None}")
-check("Streak, second open", second is not None and second[2] == 0 and second[3] == 7,
+check("Streak, first open", first is not None and first[:3] == (6, 8, 8), f"files, entries, new = {first[:3] if first else None}")
+check("Streak, second open", second is not None and second[2] == 0 and second[3] == 8,
       f"new {second[2] if second else None}, already counted {second[3] if second else None}")
 
 # What Streak counts, from its public state (StateCodec): goal "g" = [target, week
@@ -291,7 +326,7 @@ def counted(name):
             continue
         got.append((st["a"][app] if app < len(st["a"]) else "?", KINDS[kind] if kind < len(KINDS) else "?"))
     return sorted(got)
-want = sorted([("HybridXRace", "Hybrid"), ("HybridXRide", "Ride"), ("HybridXRun", "Run"),
+want = sorted([("HybridXTraining", "Run"), ("HybridXRace", "Hybrid"), ("HybridXRide", "Ride"), ("HybridXRun", "Run"),
                ("HybridXTrail", "Run"), ("HybridXWorkout", "Workout"), ("HybridXWorkout", "Strength"),
                ("HybridXWorkout", "Hybrid")])
 c1, c2 = counted("streak-1.json"), counted("streak-2.json")
@@ -341,6 +376,38 @@ else:
 # Trail's minutes for Run's VO2max: information only (the simulator's heart rate is not steady running).
 vo2 = sorted(os.path.basename(p) for p in glob.glob(f"{out}/SharedData/HybridX/trail_vo2_*.json"))
 rows.append(("info", "Trail -> Run VO2 windows", ", ".join(vo2) if vo2 else "none left (expected in the simulator)"))
+
+# X Training's minutes for Run's VO2max (X Training TP4): its file names its run by the .fit's
+# start, and X Run, opened once more after it, counts that run once, behind its own mark.
+tfiles = sorted(glob.glob(f"{out}/SharedData/HybridX/training_vo2_*.json"))
+tfits = sorted(glob.glob(f"{out}/Training/Output/Activity/*/*.fit") + glob.glob(f"{out}/Training/Output/Activity/*.fit"))
+# Quick mode opens X Run after X Training's save, so its first open reads them; LONG=1 records
+# at once, so the second does. Either way: once across both.
+run2 = ""
+for log in ("Run", "Run-2"):
+    try:
+        run2 += open(f"{out}/{log}.log", errors="replace").read()
+    except OSError:
+        pass
+try:
+    rh = json.load(open(f"{out}/Run/Output/vo2.json"))
+except (OSError, ValueError):
+    rh = {}
+if not tfiles:
+    tlog = open(f"{out}/Training.log", errors="replace").read() if os.path.exists(f"{out}/Training.log") else ""
+    check("X Training -> Run VO2 windows", "nothing to leave for X Run" in tlog and rh.get("training", 0) == 0,
+          "none left (the simulator's minutes not steady enough); X Run's mark stays 0")
+else:
+    tdoc = json.load(open(tfiles[0]))
+    with fitdecode.FitReader(tfits[0]) as r:
+        tsess = next(f for f in r if isinstance(f, fitdecode.FitDataMessage) and f.name == "session")
+    tstart = int(tsess.get_value("start_time").timestamp())
+    check("X Training's VO2 windows", len(tfiles) == 1 and tdoc.get("v") == 1 and tdoc.get("id") == tstart,
+          f"{os.path.basename(tfiles[0])}: run {tdoc.get('id')} (the .fit's start {tstart}), "
+          f"{len(tdoc.get('w', []))} windows, max HR {tdoc.get('max')}")
+    seen = re.findall(rf"X Training run {tstart}: (\d+) windows", run2)
+    check("X Run reads them once", len(seen) == 1 and rh.get("v") == 5 and rh.get("training") == tstart,
+          f"logged {len(seen)} time(s); vo2.json v{rh.get('v')}, training mark {rh.get('training')}")
 
 w = max(len(r[1]) for r in rows)
 for status, name, detail in rows:

@@ -122,6 +122,10 @@ grade is noisy.
 | **L4** Trail. **Done** | Copies of the builder, file codec and `SafeFile` (`Software/Libs/Vo2Link`, CI identity check); fed each second with Run's corrected speed; one of three slot files written on save; average grade-adjusted speed computed (no screen) | Simulator run writes a file that Run's L2 reads: **yes, with the real file** |
 | **L5** On the watch | Both apps from CI; a flat run and a hilly run in each app, with the Garmin on the other wrist; tune acceptance and the cost variant | Jon's field test |
 
+A second source (15 November 2026): X Training writes the same records to its own
+`training_vo2_0..2.json`, and Run reads them behind a second mark (Run NOTES "X Training's
+runs"; `vo2.json` version 5).
+
 Releases: `run-vX.Y.Z` and `trail-vX.Y.Z`. L2 and L4 ship together, or Run first
 (Run alone with no file just reads empty).
 

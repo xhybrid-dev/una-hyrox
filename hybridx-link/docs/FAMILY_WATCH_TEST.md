@@ -65,6 +65,7 @@ All the apps come from one place: the **watch-apps** artifact of a green CI run.
    | X Trail | `HybridXTrail_*.uapp` | `Apps/HybridXTrail/` |
    | X Workout | `HybridXWorkout_*.uapp` | `Apps/HybridXWorkout/` |
    | X Ride | `HybridXRide_*.uapp` | `Apps/HybridXRide/` |
+   | X Training (section 7) | `HybridXTraining_*.uapp` | `Apps/HybridXTraining/` (keep its `app_config.json` and `plan.json`) |
    | X Sauna | `XSauna_*.uapp` | `Apps/XSauna/` |
 
    **Race:** the store's Race (1.0.0) predates the link, so it neither writes a summary nor
@@ -191,6 +192,8 @@ These sessions count too (each adds one to the week); that is fine.
 
 ## 6. What to send me
 
+(For X Training, section 7 says what to send.)
+
 - The photos (or what each Saved screen and Streak toast said), against the table in section 3.
 - The files from step 11, before the sync if you can.
 - For step 3: did the buzzes feel different from each other (the work buzz, the rest buzz, the
@@ -204,6 +207,32 @@ These sessions count too (each adds one to the week); that is fine.
 - For step 18: the Saved screens' loads and Streak's Today; whether the numbers feel sensible
   for the effort (Edwards' score: 30 minutes mostly in zones 3 and 4 is about 90 to 120).
 - Anything that was awkward on the wrist.
+
+## 7. X Training joins the family (X Training's TP4, 15 November 2026)
+
+X Training's runs count in Streak (a sixth file, `act_training.json`) and feed X Run's VO2max
+(`training_vo2_0..2.json`), and its Plan screen shows X Run's figure. It needs the new Streak and
+the new X Run as well: an older Streak never counts X Training's runs, and an older X Run never
+reads them. Install all three from the same Watch builds run (section 2).
+
+19. **Before:** open X Run once and note its VO2max (the start screen's "VO2max 45.2"; none is
+    fine). Open X Training, L2 to **Plan**, R1: under the bar, **"VO2max 45.2 in X Run"** (your
+    figure). No line if X Run has none yet. In the VO2max plan, the line later reads "VO2max 45.9,
+    was 45.2" (the figure when the plan began).
+20. **A session:** today's session from **Today** (or a **Free run**), at least 20 minutes of
+    steady running outdoors, then Save. The Saved screen has the plan's lines, then the amber
+    Streak line, with the session counted ("N of 3 this week").
+21. **Streak:** open it. The toast is "+1 Run · N min", and **This week** lists it as
+    **"X Training"**. Close it and open it again: no second toast.
+22. **X Run:** open it (outdoors is not needed; close it once it has loaded). It reads X Training's
+    minutes now, once. If the run had enough steady minutes, its VO2max may move. Open X Run a
+    second time: nothing changes.
+23. **X Training's Plan screen** again: the figure is X Run's new one.
+24. **The files:** copy `Apps/SharedData/HybridX/` over USB. `act_training.json` holds the session,
+    and `training_vo2_0.json` holds its minutes (its `"id"` is the run's start). Also copy
+    `Apps/HybridXRun/vo2.json`: it is version 5, and its `"training"` mark is that same start.
+
+Send: the photos of steps 19 to 23, and the files from step 24.
 
 ## What each result decides
 

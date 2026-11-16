@@ -10,6 +10,12 @@ strips the prefix for the SDK's version script.
 
 ## [Unreleased]
 
+### Added
+
+- X Training's runs count: its summaries are in a sixth slot of the activity link,
+  `../SharedData/HybridX/act_training.json`, and count as runs. This week's list names the app
+  "X Training" (its folder name, `HybridXTraining`, ran into the arcs).
+
 ## [1.0.0] - 2026-11-09
 
 The first store release (`hybridx-link/docs/STORE_RELEASE.md`). On the watch the app
