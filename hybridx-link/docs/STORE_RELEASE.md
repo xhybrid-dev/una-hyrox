@@ -145,9 +145,10 @@ fatigue and form from their heart rate.
 
 > Set a weekly target and keep the streak going.
 >
-> - Sessions saved by **X Run, X Trail, X Ride, X Workout and HybridX Race** count by themselves:
->   open Streak and they are there. Anything else you did can be logged by hand, today or
->   yesterday.
+> - Sessions saved by **X Run, X Trail, X Ride, X Workout, X Training and HybridX Race** count by
+>   themselves:
+>   open Streak and they are there (from 1.1.0, X Training's too). Anything else you did can be
+>   logged by hand, today or yesterday.
 > - Every week you hit your target is a step up the mountain: five summits, from Arthur's Seat at
 >   4 weeks to Everest at two years, and badges at 10, 50, 100 and 250 sessions.
 > - Miss a week? Shields, earned every four good weeks, save the streak.
@@ -402,3 +403,34 @@ CHANGELOG has its new entry, dated 16 November; the packagers stamp the version 
 - **X Training is not in this release.** It has no portal listing yet: it needs its portal App
   ID (it still has the development one, `6E050D707D4D2D32`), a packager, store previews and
   images, and its test on a watch. That is for its TP5 to TP7.
+
+### What's new, for each update (paste into the portal's release notes, 16 November 2026)
+
+**X Streak 1.1.0** (and X Streak Glance 1.1.0, unchanged):
+> Counts X Training's runs, so a session from your training plan counts towards your week like any
+> other. This week's list now shows each app by its name on the watch (X Run, X Trail, X Ride,
+> X Workout, X Training).
+
+**X Run 1.1.0** (and VO2max Glance 1.1.0, unchanged):
+> Your X Training runs now count towards your VO2max, as X Trail's do: X Run reads them when it
+> opens. Note: X Run's history file moves to a new version, so once this is installed do not go
+> back to 1.0.0.
+
+**X Trail 1.0.1**, **X Workout 1.0.1**, **X Ride 1.0.1**:
+> The Streak line after a save now also counts X Training's runs.
+
+**X Workout 1.0.1** adds:
+> EMOM and AMRAP minutes can be any whole minute from 1 to 60: on that settings screen, L2 adds a
+> minute and L1 takes one off (R1 still steps the usual lengths).
+
+### Checked on 16 November 2026, before the tags
+
+All nine packages were built locally as their tags will build them (`-DBUILD_VERSION=...`) and
+each packager passed with `--expect-version`: the portal form, both SDK validators and the
+App ID matching in every place (X Streak 1.1.0 and its glance, X Run 1.1.0 and its glance, X Trail,
+X Workout and X Ride 1.0.1, and X Training 1.0.0). As on 9 November, those local zips are compile
+checks only; the zips CI builds from the tags are the ones that go to the portal.
+
+**Tag commands** (on the branch's head after the check below, or on `main` after the merge):
+`streak-v1.1.0`, `run-v1.1.0`, then `trail-v1.0.1`, `workout-v1.0.1`, `ride-v1.0.1`, and
+`training-v1.0.0` once TP5's gate has passed.
