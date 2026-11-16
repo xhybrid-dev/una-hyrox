@@ -44,6 +44,13 @@ set(CORE_SOURCES
     "${CORE_LIBS}/Sources/TodayFile.cpp"
     "${CORE_LIBS}/Sources/TodayBuild.cpp"
 )
+# The glance's pure parts (its service needs the kernel and is not here). GlanceLayout uses the
+# SDK's GlanceControl.h constants, a plain C header, which CORE_INCLUDES reach.
+set(GLANCE_LIBS "${CMAKE_CURRENT_LIST_DIR}/../../Software/Libs/Glance")
+set(GLANCE_SOURCES
+    "${GLANCE_LIBS}/Sources/GlanceView.cpp"
+    "${GLANCE_LIBS}/Sources/GlanceLayout.cpp"
+)
 set(SDK_JSON_SOURCES
     "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamReader.cpp"
     "${UNA_SDK_ROOT}/Libs/Source/JSON/JsonStreamWriter.cpp"
@@ -83,10 +90,13 @@ add_executable(hybridx-training-host-tests
     RunVo2MaxTest.cpp
     PlanRulesTest.cpp
     TodayFileTest.cpp
+    GlanceViewTest.cpp
+    GlanceLayoutTest.cpp
     GoldenTest.cpp
     "${TOOLS_DIR}/plan_print/PlanPrint.cpp"
     "${TOOLS_DIR}/plan_sim/PlanSim.cpp"
     ${CORE_SOURCES}
+    ${GLANCE_SOURCES}
     ${SDK_JSON_SOURCES}
     ${SDK_WORKOUT_SOURCES}
     ${SDK_FIT_SOURCES}
@@ -95,6 +105,7 @@ target_include_directories(hybridx-training-host-tests PRIVATE
     ${CORE_INCLUDES}
     "${TOOLS_DIR}/plan_print"
     "${TOOLS_DIR}/plan_sim"
+    "${GLANCE_LIBS}/Header"
     "${CMAKE_CURRENT_LIST_DIR}"
     "${UNA_SDK_ROOT}/Tests/Host/support"
 )

@@ -28,3 +28,16 @@ set(LIBS_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/App/Header
     ${CMAKE_CURRENT_LIST_DIR}/Link/Header
 )
+
+# The glance (HXTrainingGlance-CMake): its own service, view and layout (TP6), with the one
+# core source it needs to read the app's file (TodayFile). The glance's Service.hpp is its
+# own, so it has a directory of its own (as HybridX Run's and Streak's glances).
+file(GLOB TRAINING_GLANCE_LIB_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/Glance/Sources/*.cpp)
+set(TRAINING_GLANCE_SOURCES
+    ${TRAINING_GLANCE_LIB_SOURCES}
+    ${CMAKE_CURRENT_LIST_DIR}/Core/Sources/TodayFile.cpp
+)
+set(TRAINING_GLANCE_INCLUDE_DIRS
+    ${CMAKE_CURRENT_LIST_DIR}/Glance/Header
+    ${CMAKE_CURRENT_LIST_DIR}/Core/Header
+)
