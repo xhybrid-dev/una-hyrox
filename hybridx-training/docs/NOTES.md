@@ -689,7 +689,22 @@ Brief §10 and REVIEW E3. Four steps, three commits, each built for the simulato
   - one of them is older than Trail's mark, and still counted.
 - **The text-fit audit:** 0 problems, with the widest VO2max lines.
 - **The captures:** `docs/screens/tp4-vo2-plan10k.png` and `tp4-vo2-planblock.png`, looked at.
-- **The family check:** see below.
+- **The family check** (`hybridx-link/docs/experiments/family_check.sh`, quick mode, 16 November
+  2026): all 39 checks pass.
+  - **X Training:** its summary matches its `.fit` (400 s, load 18 of 18). Its Streak line is
+    "1 of 7"; the next seven saves read "2 of 7" to "8 of 7", the seventh and eighth with
+    "1-week streak".
+  - **Streak:** it found 6 files, 8 entries and 8 new, counted X Training's run once as a Run, and
+    on its second open found nothing new.
+  - **X Run:** X Training left 1 window (max HR 143), which X Run read once: `vo2.json` v5, training
+    mark the `.fit`'s start. One window is too few for an estimate in the simulator, as expected.
+  - **Three earlier runs failed, all on the check, not the apps:**
+    - two presses of L2 reached Summary, not Save & End, mid-session;
+    - Streak's target of 8 is above its most, 7;
+    - X Run had no resting heart rate, so it rightly left the run waiting.
+
+    One more run crossed midnight into a new Streak week, and failed only the checks that assume
+    one day.
 
 ### The gate (TP4): what Jon tests
 `hybridx-link/docs/FAMILY_WATCH_TEST.md` section 7 (steps 19 to 24). In short:

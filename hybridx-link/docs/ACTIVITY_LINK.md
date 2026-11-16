@@ -233,6 +233,15 @@ lines read "1 of 7" to "7 of 7", and the seventh, meeting the target, "1-week st
 first open found 7 new in the five files, the second none, and it counted the three Workout
 sessions as Workout, Strength and Hybrid, once each.
 
+X Training joined on 16 November 2026 (X Training NOTES "TP4"): the quick mode passed all 39
+checks with six apps and eight sessions.
+- **Streak lines:** "1 of 7" to "8 of 7"; the seventh, meeting the target (Streak's most is 7),
+  and the eighth carry "1-week streak".
+- **Streak:** it counted X Training's run as a Run, once.
+- **X Run:** it read X Training's minutes once, behind its own mark.
+- **Midnight:** a run that crosses midnight into a new week fails the checks that assume one day
+  (the streak text, Streak's first day). Run it again within one day.
+
 Earlier run (27 October 2026): every check passed in both modes. Streak showed 3 of its 7
 dots after the first open, and the same after the second. In `LONG=1`, the 11-minute
 sessions counted under Streak's default 10-minute minimum, and Trail also left
