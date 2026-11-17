@@ -37,7 +37,7 @@ the zips CI builds from the tags go to the portal.**
 | X Trail | `HybridXTrail-<v>.zip` (`trail-store-zip`) | `trail-v1.0.0` | the portal's `1C83FDDE4EA3C880` |
 | X Workout | `HybridXWorkout-<v>.zip` (`workout-store-zip`) | `workout-v1.0.0` | the portal's `B9171EBAF7066A30` |
 | X Ride | `HybridXRide-<v>.zip` (`ride-store-zip`) | `ride-v1.0.0` | the portal's `58F141AE44428F51` |
-| X Training (new) | `HybridXTraining-<v>.zip` (`training-store-zip`) | `training-v1.0.0` | the portal's `C790FB2FDF322688` |
+| X Training (new) | `HybridXTraining-<v>.zip` (`training-store-zip`) | `training-v1.0.0` (published; the update is `training-v1.1.0`) | the portal's `C790FB2FDF322688` |
 | X Training Glance (later, TP6) | `Glance/HXTrainingGlance-<v>.zip` (`training-glance-store-zip`, a dry run for now) | with X Training 1.1.0 | not yet: the development `C4B5BAD6DC827E16` until Jon creates the listing |
 | HybridX Race | `HybridXRace-<v>.zip` (`race-store-zip`) | `v1.1.0` and `apps-v1.1.0` | the portal's `5C4D6F49335E5E17` |
 
@@ -461,3 +461,25 @@ checks only; the zips CI builds from the tags are the ones that go to the portal
 **Tag commands** (on the branch's head after the check below, or on `main` after the merge):
 `streak-v1.1.0`, `run-v1.1.0`, then `trail-v1.0.1`, `workout-v1.0.1`, `ride-v1.0.1`, and
 `training-v1.0.0` once TP5's gate has passed.
+
+**X Training 1.1.0 (17 November 2026).** 1.0.0 was published from the tag `training-v1.0.0`, which is the
+merge of PR #62 on the morning of 16 November: TP4 and before, so without the plan's memory (TP5), the
+glance's file (TP6), the treadmill sessions, and the release set-up (the portal's App ID, the packager).
+`training-v1.1.0` is tagged on the branch's newest commit, which has all of those. Jon agreed TP5's plan and
+rules on 17 November. Its "what's new" for the portal:
+
+> **What's new in 1.1.0**
+> - **The plan learns from what you do.** A session you miss is noted; a missed key session takes a later
+>   quality session's place, a week you mostly missed is repeated, and a missed long run is offered the next
+>   day. A new **Changes** item on the main menu moves tomorrow's session to today (or today's to tomorrow),
+>   skips a session, pauses the plan, or ends it.
+> - **Time trials and races update your paces.** After a 5K time trial or a race the watch works out the 5K it
+>   means: faster times update your paces from your next run; slower ones, or a big jump, ask you first.
+> - **Treadmill sessions.** With the Treadmill switch on, today's session runs on the treadmill as UNA's
+>   treadmill mode does: no GPS, speed and distance from your cadence, and the console's distance asked for
+>   after you save. Where a step has a set speed the watch assumes the belt is at it, so a rep ends after the
+>   time its distance takes; targets show as belt speeds (km/h or mph).
+> - Getting ready for a glance that shows today's session (a separate listing, to follow).
+
+The long description above is unchanged until Jon has seen these on the watch (the plan's memory and the
+treadmill sessions are "not claimed yet" above; add them to the description once he has).

@@ -547,7 +547,7 @@ TP0 (decisions, the independent review, desk checks), TP1 (the pure core, host-t
 (the app: X Run copied, X Run's VO2max parts removed, today's session run through the workout
 engine and logged in `plan.json`) are done; TP3, the screens (Today, This week, Plan, Paces, New plan,
 Settings, the rep result, the held R2, the Saved lines), is built and at its gate (NOTES "TP3"). TP5, the plan's memory (missed sessions, offers,
-moves, pauses, recalibration; `PlanRules`, `plan_sim`), is built and at its gate (NOTES "TP5"). TP4, the family,
+moves, pauses, recalibration; `PlanRules`, `plan_sim`), is built, and Jon agreed its plan and rules on 17 November 2026 (NOTES "TP5"); it ships in 1.1.0. TP4, the family,
 is built and at its gate (NOTES "TP4"): each saved run goes to `act_training.json` for Streak (the link's
 sixth slot) and its steady minutes to `training_vo2_0..2.json` for X Run's VO2max; the Plan screen shows
 X Run's VO2max from `vo2max.json` (and, in a plan, the figure first seen in it, `plan.json`'s `"vo2s"`).
