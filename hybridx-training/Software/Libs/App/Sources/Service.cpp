@@ -50,6 +50,7 @@
 #include "Treadmill.hpp"
 
 #include "SDK/Calibration/StrideMath.hpp"
+#include "SDK/Calibration/CadenceStrideModelConfig.hpp"
 #include "SDK/Workout/StepLabel.hpp"
 
 #define LOG_MODULE_PRX      "Service"
@@ -593,8 +594,11 @@ void Service::handleEvent(const CustomMessage::TrackStart& event)
     // A workout from the list replaces any armed intervals.
     mWorkoutRequested = event.workout;
     mIntervalsMode    = event.intervalsMode && event.workout == CustomMessage::TrackStart::kNoWorkout;
-    // HybridX Run: the treadmill setting applies to a plain run only, for now (NOTES, "Treadmill").
-    mTreadmill        = mSettings.treadmill && !event.intervalsMode && event.workout == CustomMessage::TrackStart::kNoWorkout;
+    // HybridX Run: the treadmill setting applies to a plain run (NOTES, "Treadmill"); X Training: and to
+    // today's planned session (NOTES "Treadmill sessions"), not to a workout from UNA's library.
+    mTreadmill        = mSettings.treadmill && !event.intervalsMode
+                     && (event.workout == CustomMessage::TrackStart::kNoWorkout
+                         || event.workout == CustomMessage::TrackStart::kPlanSession);
 
     startTrack(mTimeTracker.getExpectedUTC());
 }
@@ -613,6 +617,7 @@ void Service::handleEvent(const CustomMessage::SettingsSave& event)
     // X Training: easy by heart rate is the phone's; reps by distance changes the sessions.
     const bool easyChanged = mSettings.easyByHr != event.settings.easyByHr;
     const bool repsChanged = mSettings.repsByDistance != event.settings.repsByDistance;
+    const bool treadmillChanged = mSettings.treadmill != event.settings.treadmill;
     mSettings = event.settings;
     mSettingsSerializer.save(event.settings);
 
@@ -633,6 +638,10 @@ void Service::handleEvent(const CustomMessage::SettingsSave& event)
         if (mPlan.setup.plan != XTraining::PlanId::None) {
             savePlan();
         }
+        updateToday();
+        sendPlanToday();
+    } else if (treadmillChanged && mTrackState == Track::State::INACTIVE) {
+        // Today's target is the belt speed on a treadmill (NOTES "Treadmill sessions").
         updateToday();
         sendPlanToday();
     }
@@ -827,8 +836,8 @@ ActivityWriter::RecordData Service::prepareRecordData()
     if (mTreadmill) {
         // HybridX Run: the speed and distance worked out from cadence. The records keep the
         // estimate; only the session takes the athlete's correction (as the SDK's example).
-        fitRecord.set(ActivityWriter::RecordData::Field::SPEED, mTreadEstimator.speedValid());
-        fitRecord.speed    = mTreadEstimator.speedMps();
+        fitRecord.set(ActivityWriter::RecordData::Field::SPEED, mTreadSpeedValid);
+        fitRecord.speed    = mTreadSpeedMps;
         fitRecord.set(ActivityWriter::RecordData::Field::DISTANCE, true);
         fitRecord.distance = mDistanceCounter.getValueActive();
     }
@@ -978,6 +987,11 @@ void Service::startTrack(std::time_t utc)
     if (mTreadmill) {
         mTreadModel.startSession(mHeightM);
         mTreadEstimator.startSession();
+        mTreadSpeedMps   = 0.0f;
+        mTreadSpeedValid = false;
+        mBeltDistanceM   = 0.0f;
+        mLastEstDistM    = 0.0f;
+        mBeltUsed        = false;
         mGpsWanted = false;
         mSensorGpsLocation.disconnect();
         LOG_INFO("Treadmill run: stride tier %u, height %u cm\n", static_cast<unsigned>(mTreadModel.phase()),
@@ -1115,10 +1129,28 @@ void Service::processTrack()
             const uint32_t nowMs = mKernel.sys.getTimeMs();
             const bool fresh = mCadenceSeen && static_cast<uint32_t>(nowMs - mCadenceLastMs) <= kFormFreshMs;
             mTreadEstimator.tick(mRunningCadence.cadenceSpm, fresh && mRunningCadence.cadenceValid, dt);
-            mDistanceCounter.add(mTreadEstimator.distanceM());   // cumulative, monotonic
-            // Every tick: speedMps() is 0 once the hold-forward runs out, which updates only the
+            // The estimator runs alone, whatever the run does with it: its distance and its steps per
+            // cadence bin are what the stride model learns against after the run.
+            const float estM    = mTreadEstimator.distanceM();
+            const float estStep = estM > mLastEstDistM ? estM - mLastEstDistM : 0.0f;
+            mLastEstDistM       = estM;
+            // X Training (Jon, 16 November 2026): a step with a designated speed is run with the belt
+            // assumed to be at it, while the cadence says the runner is running; everywhere else (easy
+            // steps, warm-ups, cool-downs, a trial's effort, a free run) the cadence estimate.
+            const uint32_t belt = beltMmpsNow();
+            mTreadSpeedValid    = mTreadEstimator.speedValid();
+            if (belt > 0 && mTreadSpeedValid) {
+                mTreadSpeedMps  = static_cast<float>(belt) / 1000.0f;
+                mBeltDistanceM += mTreadSpeedMps * dt;
+                mBeltUsed       = true;
+            } else {
+                mTreadSpeedMps  = mTreadEstimator.speedMps();
+                mBeltDistanceM += estStep;
+            }
+            mDistanceCounter.add(mBeltDistanceM);   // cumulative, monotonic
+            // Every tick: the speed is 0 once the hold-forward runs out, which updates only the
             // current value (below the counter's valid minimum), never the average or maximum.
-            mSpeedCounter.add(mTreadEstimator.speedMps());
+            mSpeedCounter.add(mTreadSpeedMps);
         }
     } else if (mTrackState == Track::State::ACTIVE) {
         mSpeedFilter.tick(mGpsSpeedMs, mGpsSpeedValid && mGpsSpeedFresh,
@@ -1135,7 +1167,7 @@ void Service::processTrack()
     mGpsSpeedFresh  = false;
     mGpsPosFresh    = false;
     mGpsSpeedPeakMs = 0.0f;
-    mTrackData.speed = mTreadmill ? mTreadEstimator.speedMps() : mSpeedFilter.getSpeed();
+    mTrackData.speed = mTreadmill ? mTreadSpeedMps : mSpeedFilter.getSpeed();
 
     mTrackData.avgSpeed    = speedFromTotals(mTrackData.distance, mTrackData.totalTime);
     mTrackData.maxSpeed    = mSpeedCounter.getMaximum();
@@ -1455,15 +1487,22 @@ void Service::stopTrack(bool discard)
             // treadmill's console shows (the GUI asks; finishTreadmill() closes the file).
             fitTrack.treadmill = true;
             mPendingTrack      = fitTrack;
-            mTreadEstimateM    = fitTrack.distance;
+            mTreadEstimateM    = fitTrack.distance;           // what the counters hold: assumed belt speed and estimate
+            mTreadModelM       = mTreadEstimator.distanceM();   // the stride model's own: what it learns against
             const float* hist  = mTreadEstimator.stepHistogram();
             for (size_t i = 0; i < SDK::Calibration::StrideLut::kBinCount; ++i) {
                 mTreadSteps[i] = hist[i];
             }
             mAwaitingDistance = true;
             SDK::send_msg<CustomMessage::TreadmillAsk>(mKernel, mTreadEstimateM);
-            LOG_INFO("Treadmill run: waiting for the distance (estimate %lu m)\n",
-                     static_cast<unsigned long>(mTreadEstimateM + 0.5f));
+            LOG_INFO("Treadmill run: waiting for the distance (estimate %lu m, cadence model %lu m, %s)\n",
+                     static_cast<unsigned long>(mTreadEstimateM + 0.5f), static_cast<unsigned long>(mTreadModelM + 0.5f),
+                     mBeltUsed ? "belt speeds assumed" : "all from cadence");
+            // X Training: the plan counts the session now, so the Saved screen can say so before the distance
+            // is asked for (it needs the time and whether it ran to its end, not the distance).
+            if (mPlannedRun) {
+                recordPlannedRun(fitTrack);
+            }
         } else {
             closeActivity(fitTrack);
         }
@@ -1589,10 +1628,18 @@ void Service::finishTreadmill(float metres)
 
     // The SDK's model decides the distance for the file: the entry if it passes its sanity
     // gates, else the estimate (0 = skipped). It learns from the entry only in its top tier.
+    // The model learns against its own estimate from the steps; what the file takes is decided here when belt
+    // speeds were assumed (the estimate offered, and the picker's band, are the run's total then).
     const SDK::Calibration::CadenceStrideModel::CalibrationResult res =
-        mTreadModel.applyPostRunCalibration(mTreadSteps, mTreadEstimateM, metres > 0.0f ? metres : 0.0f);
+        mTreadModel.applyPostRunCalibration(mTreadSteps, mTreadModelM, metres > 0.0f ? metres : 0.0f);
+    float finalM = res.distanceForFitM;
+    if (mBeltUsed) {
+        namespace Cfg = SDK::Calibration::Config;
+        const bool inBand = metres >= Cfg::kDActualRatioMin * mTreadEstimateM && metres <= Cfg::kDActualRatioMax * mTreadEstimateM;
+        finalM = (metres > 0.0f && inBand) ? metres : mTreadEstimateM;
+    }
     const RunVo2::Treadmill::Totals t = RunVo2::Treadmill::correct(
-        mTreadEstimateM, res.distanceForFitM, static_cast<float>(mPendingTrack.duration), mPendingTrack.speedMax);
+        mTreadEstimateM, finalM, static_cast<float>(mPendingTrack.duration), mPendingTrack.speedMax);
 
     mPendingTrack.distance          = t.distanceM;
     mPendingTrack.speedAvg          = t.speedAvg;
@@ -1998,7 +2045,8 @@ void Service::handleEvent(const CustomMessage::WorkoutDetailsRequest& event)
     if (event.index == CustomMessage::WorkoutDetailsRequest::kPlanDay) {
         // X Training: a day of the plan (0: today). Start builds today's again.
         const bool ok = buildPlanDay(event.date != 0 ? event.date : localDate());
-        SDK::send_msg<CustomMessage::WorkoutDetails>(mKernel, event.index, ok ? &mProgram : nullptr);
+        SDK::send_msg<CustomMessage::WorkoutDetails>(mKernel, event.index, ok ? &mProgram : nullptr,
+                                                    ok ? mSessionMeta.beltMmps : nullptr);
         return;
     }
     const bool ok = mTrackState == Track::State::INACTIVE && readWorkout(event.index);
@@ -2089,6 +2137,14 @@ void Service::startWorkoutStep()
     } else {
         mHrGauge.startStep();
     }
+
+    if (mTreadmill && mWorkoutRequested == CustomMessage::TrackStart::kPlanSession
+        && mEngine.status().step < SDK::Workout::kMaxSteps) {
+        LOG_INFO("Treadmill step %u: belt %u mm/s, ends by %s\n", static_cast<unsigned>(mEngine.status().step),
+                 static_cast<unsigned>(mSessionMeta.beltMmps[mEngine.status().step]),
+                 s.end == SDK::Workout::StepEnd::Distance ? "distance"
+                 : s.end == SDK::Workout::StepEnd::Time   ? "time" : "open");
+    }
 }
 
 SDK::Workout::Zone Service::targetZone() const
@@ -2100,12 +2156,25 @@ SDK::Workout::Zone Service::targetZone() const
     }
 }
 
+uint32_t Service::beltMmpsNow() const
+{
+    // The assumed belt speed of the step being run (SessionMeta::beltMmps); 0 outside a planned session,
+    // on a step with no designated speed, or while no step runs.
+    const SDK::Workout::Engine::Status& st = mEngine.status();
+    if (!mPlannedRun || !mWorkoutMode || !st.running || st.step >= SDK::Workout::kMaxSteps) {
+        return 0;
+    }
+    return mSessionMeta.beltMmps[st.step];
+}
+
 void Service::processWorkout()
 {
-    const float    speedMs   = mSpeedFilter.getSpeed();
+    // On a treadmill the speed is the assumed belt speed or the cadence estimate (the SDK's engine takes
+    // "a stride-derived speed on a treadmill"); outdoors, the GPS filter's.
+    const float    speedMs   = mTreadmill ? mTreadSpeedMps : mSpeedFilter.getSpeed();
     const uint32_t speedMmps = speedMs > 0.0f ? static_cast<uint32_t>(speedMs * 1000.0f) : 0u;
-    const auto how = mEngine.update(activeTimeMs(), activeDistanceCm(), speedMmps,
-                                    mSpeedFilter.hasCurrentSample());
+    const bool     speedOk   = mTreadmill ? mTreadSpeedValid : mSpeedFilter.hasCurrentSample();
+    const auto how = mEngine.update(activeTimeMs(), activeDistanceCm(), speedMmps, speedOk);
     if (how != SDK::Workout::Engine::Change::None) {
         onWorkoutStepEnded(how);
         return;
@@ -2115,15 +2184,18 @@ void Service::processWorkout()
 
     // The filter's validity rides over a second that brings no fresh sample;
     // the gauge treats a false as a lost signal, and so it must stay until
-    // the distance across a lost fix has come in.
-    mSpeedGauge.tick(speedMs, mSpeedFilter.isValid() && mGpsCatchUp.caughtUp(),
+    // the distance across a lost fix has come in. On a treadmill there is no fix to lose.
+    mSpeedGauge.tick(speedMs, mTreadmill ? mTreadSpeedValid : (mSpeedFilter.isValid() && mGpsCatchUp.caughtUp()),
                      st.stepDistanceCm);
     mHrGauge.tick(mHrCounter.getCurrent(), hasTrustedHr());
 
     const auto alert = mZoneAlerts.tick(targetZone());
     const bool beep  = mLeadIn.tick(st);
-    // X Training: a planned session's easy steps say only "too fast" (PLANS.md 2.5).
-    if (alert != SDK::Workout::ZoneAlerts::Alert::None && zoneAlertAllowed(alert)) {
+    // X Training: a planned session's easy steps say only "too fast" (PLANS.md 2.5). On a treadmill
+    // the speed targets do not alert at all: a designated step's speed is the assumed belt speed, always
+    // in its band, and an easy step's is a cadence estimate too rough to police (heart-rate targets still do).
+    const bool speedTarget = mProgram.steps[st.step].target == SDK::Workout::Target::Speed;
+    if (alert != SDK::Workout::ZoneAlerts::Alert::None && !(mTreadmill && speedTarget) && zoneAlertAllowed(alert)) {
         playZoneAlert(alert);
     } else if (beep) {
         playBuzzerPattern(skLeadInBeepMs);
@@ -2263,6 +2335,13 @@ void Service::sendWorkoutStep(const SDK::Workout::Step* step, bool next)
         std::strncpy(msg->notes, notes, sizeof(msg->notes) - 1);
         SDK::Workout::stepDuration(*step, mIsImperial, msg->duration, sizeof(msg->duration));
         SDK::Workout::stepTarget(*step, mIsImperial, msg->target, sizeof(msg->target));
+        if (mTreadmill && step->target == SDK::Workout::Target::Speed) {
+            // A treadmill is set in km/h (or mph): the belt speed assumed for the step, else its band.
+            const size_t idx = static_cast<size_t>(step - mProgram.steps);
+            const uint32_t belt = (mPlannedRun && idx < SDK::Workout::kMaxSteps) ? mSessionMeta.beltMmps[idx] : 0u;
+            XTraining::PlanText::beltTarget(belt, true, step->speedLowMmps, step->speedHighMmps, mIsImperial,
+                                            msg->target, sizeof(msg->target));
+        }
         msg->intensity = static_cast<uint8_t>(step->intensity);
         if (!next) {
             msg->rep  = mEngine.status().rep;
@@ -2469,8 +2548,8 @@ void Service::feedSecond()
     s.hrTrust       = mTrackData.hrTrustLevel;   // the raw value: the core applies RunLVGL's 1-3 test
     if (mTreadmill) {
         // Indoors the speed is the cadence model's and the incline unknown (X Run NOTES, "Treadmill").
-        s.speedMs       = mTreadEstimator.speedMps();
-        s.speedValid    = mTreadEstimator.speedValid();
+        s.speedMs       = mTreadSpeedMps;
+        s.speedValid    = mTreadSpeedValid;
         s.speedScale    = 1.0f;
         s.deadReckoning = false;
         s.gradeValid    = false;
@@ -3081,7 +3160,13 @@ void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMes
                     info.plannedSec = meta.plannedSec;
                     info.plannedM   = meta.plannedM;
                     const Kind k = day.asRun.kind;
-                    if (meta.targetPace != 0) {
+                    if (meta.targetPace != 0 && mSettings.treadmill) {
+                        // A treadmill is set in km/h: the one speed assumed for the session's main steps (the middle
+                        // of their band, as the builder's belt speeds), which the laps and distance are worked from.
+                        const SpeedBand sb = PaceModel::band(meta.targetPace, meta.targetPlusMinus);
+                        PlanText::beltTarget((sb.lowMmps + sb.highMmps) / 2u, true, 0, 0, mIsImperial, info.target,
+                                             sizeof(info.target));
+                    } else if (meta.targetPace != 0) {
                         paceBand(info.target, sizeof(info.target), meta.targetPace, meta.targetPlusMinus, mIsImperial);
                     } else if (k == Kind::TimeTrial5k || k == Kind::TimeTrial10k) {
                         copyText(info.target, sizeof(info.target), "flat out");   // no target (PLANS.md 2.5)
@@ -3089,6 +3174,11 @@ void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMes
                         copyText(info.target, sizeof(info.target), "strong, uphill");
                     } else if (mPlan.setup.easyByHr) {
                         copyText(info.target, sizeof(info.target), "easy, zone 2");
+                    } else if (mSettings.treadmill) {
+                        // The easy range as a belt speed: "easy 9.8-11.0 km/h".
+                        char band[24];
+                        PlanText::speedBand(mPaces.paces.easyFast, mPaces.paces.easySlow, mIsImperial, band, sizeof(band));
+                        std::snprintf(info.target, sizeof(info.target), "easy %s", band);
                     } else {
                         // The easy range itself (a band round its middle would round one end).
                         char band[24];
@@ -3489,8 +3579,9 @@ bool Service::buildPlanDay(SDK::Workout::Ymd date)
     o.level = mPlan.setup.level;
     o.easyByHr = mPlan.setup.easyByHr;
     o.repsByDistance = mPlan.setup.repsByDistance;
-    SessionMeta meta;
-    return PlanBuilder::build(day.asRun, mPaces.paces, o, def->raceCm, mProgram, meta);
+    // The meta stays (mSessionMeta, which only a run reads, and not before it is started again): the step
+    // list shows a treadmill's belt speeds from it.
+    return PlanBuilder::build(day.asRun, mPaces.paces, o, def->raceCm, mProgram, mSessionMeta);
 }
 
 void Service::sendPlanToday()
@@ -3560,7 +3651,7 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
         // TP5: a time trial or race recalibrates the paces: faster applies, slower or a big jump asks.
         mTrialOutcome = Saved::NoTrial;
         mTrialFiveK = 0;
-        if (mTrialSec != 0) {
+        if (mTrialSec != 0 && !mTreadmill) {   // a treadmill's distance is an estimate: its time says nothing of a 5K
             const PlanDef* td = PlanData::find(mPlan.setup.plan);
             const PlanRules::Recal r = PlanRules::onTrial(mPlan, mSessionMeta.session.kind,
                                                           td != nullptr ? td->raceCm / 100u : 0u, mTrialSec, localDate());

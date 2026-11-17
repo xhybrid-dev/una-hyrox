@@ -202,6 +202,62 @@ inline int what(const Session& s, uint32_t raceCm, char* buf, size_t cap)
     return n < 0 ? 0 : n;
 }
 
+/// A speed as a belt shows it: km/h, or mph when @p imperial, to one decimal ("12.0"), from mm/s.
+inline int speedText(uint32_t mmps, bool imperial, char* buf, size_t cap)
+{
+    if (buf == nullptr || cap == 0) {
+        return 0;
+    }
+    const uint64_t tenths = imperial ? (static_cast<uint64_t>(mmps) * 22369u + 500000u) / 1000000u
+                                     : (static_cast<uint64_t>(mmps) * 36u + 500u) / 1000u;
+    const int n = std::snprintf(buf, cap, "%u.%u", static_cast<unsigned>(tenths / 10u),
+                                static_cast<unsigned>(tenths % 10u));
+    return n < 0 ? 0 : n;
+}
+
+/// A band of speeds as a belt shows it, slow to fast: "13.6-14.3 km/h" (or mph), from mm/s.
+inline int speedRange(uint32_t lowMmps, uint32_t highMmps, bool imperial, char* buf, size_t cap)
+{
+    if (buf == nullptr || cap == 0) {
+        return 0;
+    }
+    char lo[16], hi[16];
+    speedText(lowMmps, imperial, lo, sizeof(lo));
+    speedText(highMmps, imperial, hi, sizeof(hi));
+    const int n = std::snprintf(buf, cap, "%s-%s %s", lo, hi, imperial ? "mph" : "km/h");
+    return n < 0 ? 0 : n;
+}
+
+/// The same for a band of paces in seconds per kilometre: the fast pace is the high speed. A pace of
+/// 0 reads as no speed.
+inline int speedBand(uint16_t fastPace, uint16_t slowPace, bool imperial, char* buf, size_t cap)
+{
+    const uint32_t hi = fastPace == 0 ? 0u : 1000000u / fastPace;
+    const uint32_t lo = slowPace == 0 ? 0u : 1000000u / slowPace;
+    return speedRange(lo, hi, imperial, buf, cap);
+}
+
+/// A step's speed target as a treadmill shows it: the one belt speed when the step has one assumed
+/// ("14.0 km/h"), else its band ("9.8-11.0 km/h"); nothing when the step has no speed target.
+inline int beltTarget(uint32_t beltMmps, bool hasSpeedTarget, uint32_t lowMmps, uint32_t highMmps, bool imperial,
+                      char* buf, size_t cap)
+{
+    if (buf == nullptr || cap == 0) {
+        return 0;
+    }
+    buf[0] = '\0';
+    if (!hasSpeedTarget) {
+        return 0;
+    }
+    if (beltMmps > 0) {
+        char v[16];
+        speedText(beltMmps, imperial, v, sizeof(v));
+        const int n = std::snprintf(buf, cap, "%s %s", v, imperial ? "mph" : "km/h");
+        return n < 0 ? 0 : n;
+    }
+    return speedRange(lowMmps, highMmps, imperial, buf, cap);
+}
+
 /// The "what" line as the glance has room for it (at most 19 characters): as what(), except the
 /// fast-finish long run, "100 min, 20 fast" for "100 min, last 20 at half pace", and an easy run
 /// with strides, "40 min + strides" (the glance calls both of those just "Easy").

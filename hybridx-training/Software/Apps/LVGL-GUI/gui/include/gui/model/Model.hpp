@@ -247,6 +247,9 @@ public:
     /// The workout asked for, or null if it could not be read. Valid until
     /// the next request or run.
     const SDK::Workout::Program* getWorkoutDetails() const;
+    /// X Training: the details program's belt speeds, mm/s a step (0 = the cadence estimate), or null
+    /// (a UNA workout). Used by the step list on a treadmill.
+    const uint16_t* getWorkoutBelt() const { return mWorkoutBelt; }
 
     void endWorkout();
     const WorkoutFace&     getWorkoutFace() const;
@@ -312,6 +315,7 @@ private:
     // Structured workouts
     const SDK::Workout::Library* mWorkoutLibrary = nullptr;
     const SDK::Workout::Program* mWorkoutDetails = nullptr;
+    const uint16_t*              mWorkoutBelt    = nullptr;
     uint16_t        mTodayWorkout   = CustomMessage::WorkoutList::kNoToday;
     bool            mTodayPrompted  = false;
     uint16_t        mChosenWorkout  = 0;

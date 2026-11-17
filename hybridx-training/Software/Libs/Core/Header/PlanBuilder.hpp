@@ -88,6 +88,12 @@ constexpr uint16_t kThreeDayFinishMaxMin = 20;
 struct SessionMeta {
     Session   session;              ///< As run, after forLevel().
     AlertMode alert[SDK::Workout::kMaxSteps] = {};
+    /// On a treadmill (Jon's rule: the belt is assumed to be at the designated speed): the speed in
+    /// mm/s a step runs at, for the steps that have one, else 0 = use the cadence estimate. A step with a
+    /// pace target that is not an easy band (intervals, cruise, strides, 30-30s, the race), and the jog
+    /// after a rep that is ended by distance. Never an easy step, a warm-up, a cool-down, a hill or a time
+    /// trial (no designated speed), nor a step that ends on a lap press.
+    uint16_t  beltMmps[SDK::Workout::kMaxSteps] = {};
     uint32_t  plannedSec = 0;       ///< Estimated, open steps included as a typical length.
     uint32_t  plannedM   = 0;       ///< Estimated from each step's pace.
     uint32_t  qualitySec = 0;       ///< Time on steps faster than easy.

@@ -319,8 +319,14 @@ void WorkoutDetailsScreen::rowText(uint16_t row, char* label, char* tip, size_t 
     const bool hasDuration = text[0] != '\0';
     snprintf(label, cap, "%s", hasDuration ? text : WorkoutUi::kindLabel(static_cast<uint8_t>(s.intensity)));
 
-    // The target, else the kind of step, else Open.
+    // The target, else the kind of step, else Open. On a treadmill a speed target is a belt speed:
+    // the one assumed for the step where it has one (X Training's plan days), else its band.
     SDK::Workout::stepTarget(s, mImperial, text, sizeof(text));
+    if (plan() && mModel.getSettings().treadmill && s.target == SDK::Workout::Target::Speed) {
+        const uint16_t* belt = mModel.getWorkoutBelt();
+        XTraining::PlanText::beltTarget(belt != nullptr ? belt[r.step] : 0u, true, s.speedLowMmps, s.speedHighMmps,
+                                        mImperial, text, sizeof(text));
+    }
     if (text[0] != '\0') {
         snprintf(tip, cap, "%s", text);
     } else if (hasDuration) {
@@ -426,10 +432,12 @@ bool WorkoutDetailsScreen::todayStartable() const
 void WorkoutDetailsScreen::startToday()
 {
     // As Start with a workout armed: the countdown, or first the question when there is no
-    // fix. A planned session is always outdoors (brief, decision 9).
+    // fix. On a treadmill (the main menu's switch) there is no GPS to wait for.
     mModel.armWorkout(Model::kPlanSession);
     mModel.setPendingIntervalsMode(false);
-    ScreenManager::instance().goTo(mGpsFix ? ScreenId::TrackIntervalsCountdown : ScreenId::TrackStartConfirm);
+    const bool treadmill = mModel.getSettings().treadmill;
+    ScreenManager::instance().goTo(treadmill || mGpsFix ? ScreenId::TrackIntervalsCountdown
+                                                        : ScreenId::TrackStartConfirm);
 }
 
 void WorkoutDetailsScreen::setPlanPage()

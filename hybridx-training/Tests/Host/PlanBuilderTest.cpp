@@ -437,6 +437,102 @@ TEST(PlanBuilder, EasyByHeartRateAndRepsByDistance)
     EXPECT_EQ(p->steps[2].end, StepEnd::Time);  // the jog stays timed
 }
 
+TEST(PlanBuilder, BeltSpeedsForATreadmill)
+{
+    // Jon's rule (16 November 2026): on a treadmill the belt is assumed to be at a step's designated
+    // speed. Which steps have one: a pace target that is not an easy band, and the jog after a rep
+    // that ends by distance. Never an easy step, a warm-up, a cool-down, a hill, a trial's effort, or
+    // a step that ends on a lap press.
+    const std::vector<Each> all = everySession();
+    auto program = std::make_unique<Program>();
+    SessionMeta meta;
+    for (uint32_t fiveK : {18u * 60u, 22u * 60u, 30u * 60u, 40u * 60u}) {
+        const Paces paces = pacesFor(fiveK);
+        for (uint8_t level = 1; level <= 3; ++level) {
+            for (int opt = 0; opt < 4; ++opt) {
+                BuildOptions o;
+                o.level = level;
+                o.easyByHr = opt & 1;
+                o.repsByDistance = opt & 2;
+                for (const Each& e : all) {
+                    SCOPED_TRACE(testing::Message() << e.plan->name << " week " << int(e.week) + 1 << " "
+                                                    << PlanText::name(e.session->kind) << " 5K " << fiveK
+                                                    << " level " << int(level) << " opt " << opt);
+                    const Scaling sc = PlanBuilder::scaling(*e.plan, level, paces);
+                    const Session s = PlanBuilder::forLevel(*e.session, sc);
+                    ASSERT_TRUE(PlanBuilder::build(s, paces, o, e.plan->raceCm, *program, meta));
+                    for (uint16_t i = 0; i < program->stepCount; ++i) {
+                        const Step& st = program->steps[i];
+                        const bool designated = st.end != StepEnd::Repeat && st.end != StepEnd::Open
+                                             && st.target == Target::Speed && meta.alert[i] != AlertMode::FastOnly;
+                        const bool jogByDistance = st.end == StepEnd::Distance && st.target == Target::Open
+                                                && st.intensity == SDK::Workout::Intensity::Rest;
+                        if (designated) {
+                            EXPECT_GE(meta.beltMmps[i], st.speedLowMmps) << "step " << i;
+                            EXPECT_LE(meta.beltMmps[i], st.speedHighMmps) << "step " << i;
+                            EXPECT_GT(meta.beltMmps[i], 0) << "step " << i;
+                        } else if (jogByDistance) {
+                            EXPECT_GT(meta.beltMmps[i], 0) << "step " << i;
+                            EXPECT_LT(meta.beltMmps[i], PaceModel::mmps(paces.easyFast)) << "a jog is slower than easy";
+                        } else {
+                            EXPECT_EQ(meta.beltMmps[i], 0) << "step " << i << " " << st.name;
+                        }
+                        if (st.end == StepEnd::Open || st.end == StepEnd::Repeat) {
+                            EXPECT_EQ(meta.beltMmps[i], 0) << "step " << i;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(PlanBuilder, BeltSpeedsGiveTheRightTimeForADistance)
+{
+    const Paces paces = pacesFor(22 * 60);
+    auto p = std::make_unique<Program>();
+    SessionMeta m;
+    // 4 x 4 min at interval pace by distance: 900 m, at the middle of the band (4:18/km: 3876 mm/s).
+    BuildOptions o;
+    o.repsByDistance = true;
+    ASSERT_TRUE(PlanBuilder::build(Session{Kind::Intervals, 4, 240, 0, 0}, paces, o, 0, *p, m));
+    ASSERT_EQ(p->steps[1].end, StepEnd::Distance);
+    const uint32_t beltRep = m.beltMmps[1];
+    EXPECT_GT(beltRep, 0u);
+    EXPECT_NEAR(static_cast<double>(p->steps[1].distanceCm) * 10.0 / beltRep, 232.0, 1.0)
+        << "900 m at 4:18/km takes 232 s";
+    EXPECT_EQ(m.beltMmps[0], 0) << "the warm-up is by the cadence estimate";
+    EXPECT_EQ(m.beltMmps[2], 0) << "a timed jog too";
+    // The same session by time: the rep still has its belt speed, so its distance is speed x time.
+    o.repsByDistance = false;
+    ASSERT_TRUE(PlanBuilder::build(Session{Kind::Intervals, 4, 240, 0, 0}, paces, o, 0, *p, m));
+    ASSERT_EQ(p->steps[1].end, StepEnd::Time);
+    EXPECT_EQ(m.beltMmps[1], beltRep);
+
+    // Repetitions: 400 m at repetition pace, and a 400 m jog at the plan's jog pace.
+    o = BuildOptions{};
+    ASSERT_TRUE(PlanBuilder::build(Session{Kind::Reps, 6, 400, 0, 0}, paces, o, 0, *p, m));
+    int rep = -1, jog = -1;
+    for (uint16_t i = 0; i < p->stepCount; ++i) {
+        if (std::strcmp(p->steps[i].name, "Rep") == 0 && rep < 0) rep = i;
+        if (std::strcmp(p->steps[i].name, "Jog") == 0 && jog < 0) jog = i;
+    }
+    ASSERT_GE(rep, 0);
+    ASSERT_GE(jog, 0);
+    EXPECT_EQ(p->steps[rep].distanceCm, 40000u);
+    EXPECT_GT(m.beltMmps[rep], m.beltMmps[jog]);
+    EXPECT_GT(m.beltMmps[jog], 0u);
+
+    // A trial's effort has no designated speed; the race does.
+    ASSERT_TRUE(PlanBuilder::build(Session{Kind::TimeTrial5k, 0, 0, 0, 0}, paces, BuildOptions{}, 0, *p, m));
+    for (uint16_t i = 0; i < p->stepCount; ++i) {
+        EXPECT_EQ(m.beltMmps[i], 0) << "step " << i;
+    }
+    ASSERT_TRUE(PlanBuilder::build(Session{Kind::Race, 0, 0, 0, 0}, paces, BuildOptions{}, 1000000u, *p, m));
+    EXPECT_EQ(m.beltMmps[0], 0) << "the open warm-up";
+    EXPECT_GT(m.beltMmps[1], 0u) << "the race is at its pace";
+}
+
 TEST(PlanBuilder, ShortRepsAreJudgedAfterwards)
 {
     const Paces paces = pacesFor(22 * 60);

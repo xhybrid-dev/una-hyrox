@@ -393,18 +393,23 @@ namespace CustomMessage {
     struct WorkoutDetails : public SDK::MessageBase {
         uint16_t                     index;    ///< In the list
         const SDK::Workout::Program* program;  ///< Non-owning
+        /// X Training: a plan day's belt speeds, mm/s a step (0 = the cadence estimate), for the step
+        /// list on a treadmill; null for a UNA workout. Non-owning, as the program.
+        const uint16_t*              belt;
 
         WorkoutDetails()
             : SDK::MessageBase(WORKOUT_DETAILS)
             , index(0)
             , program(nullptr)
+            , belt(nullptr)
         {}
 
-        WorkoutDetails(uint16_t index, const SDK::Workout::Program* program)
+        WorkoutDetails(uint16_t index, const SDK::Workout::Program* program, const uint16_t* belt = nullptr)
             : WorkoutDetails()
         {
             this->index   = index;
             this->program = program;
+            this->belt    = belt;
         }
     };
 

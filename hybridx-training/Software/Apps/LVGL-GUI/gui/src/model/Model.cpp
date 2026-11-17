@@ -169,11 +169,12 @@ void Model::trackStart(bool intervalsMode)
     mStreakLine2[0] = '\0';
     // An armed workout is followed unless Intervals were chosen; either way
     // it is used up by this run.
-    // HybridX Run: a treadmill run is a plain run for now (NOTES, "Treadmill"), so it follows
-    // no workout; the service reads the same setting.
-    // X Training: a planned session is always outdoors (brief, decision 9).
-    const bool    treadmill = mSettings.treadmill && !intervalsMode && mArmedWorkout != kPlanSession;
-    const int16_t workout   = (intervalsMode || treadmill) ? kNoWorkout : mArmedWorkout;
+    // HybridX Run: a treadmill run follows no workout from UNA's library (NOTES, "Treadmill"); the
+    // service reads the same setting. X Training: today's planned session does run on a treadmill
+    // (NOTES "Treadmill sessions"; it was outdoors only, brief decision 9, until 16 November 2026).
+    const bool    treadmill = mSettings.treadmill && !intervalsMode;
+    const int16_t workout   = (intervalsMode || (treadmill && mArmedWorkout != kPlanSession)) ? kNoWorkout
+                                                                                              : mArmedWorkout;
     mArmedWorkout = kNoWorkout;
 
     mTrackData.intervalsMode = intervalsMode;
@@ -631,6 +632,7 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
                 break;
             }
             mWorkoutDetails = msg->program;
+            mWorkoutBelt    = msg->belt;
             modelListener->onWorkoutDetails();
         } break;
 
