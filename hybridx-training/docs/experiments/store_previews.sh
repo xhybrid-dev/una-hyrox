@@ -1,17 +1,21 @@
 #!/bin/bash
 #
-# The store previews for X Training: 6 simulator screens, 480x480, into Resources/previews/
+# The store previews for X Training: 9 simulator screens, 480x480, into Resources/previews/
 # (the folder pack-store-zip.sh puts in the zip). They are copied from the app's screen
-# captures in docs/screens/ (capture_screens.sh), chosen by eye: a capture's key presses can
-# drift with the machine's load, so a file name is only approximately what it shows, and a
-# capture is looked at before it is committed. The previews:
+# captures in docs/screens/ (capture_screens.sh; the tm-* ones from `TREADMILL=1 sim_plan.sh`,
+# 17 November 2026), chosen by eye: a capture's key presses can drift with the machine's load, so
+# a file name is only approximately what it shows, and a capture is looked at before it is
+# committed. The previews, in the order the store shows them:
 #
-#  1-menu     (tp3-session-main.png)   the main menu, Today first with its session
-#  2-today    (tp3-session-today.png)  today's session: the target, the distance, the purpose
-#  3-week     (tp3-week-week.png)      this week, seven rows from Monday
-#  4-plan     (tp4-vo2-plan10k.png)    the plan's weeks, and X Run's VO2max
-#  5-paces    (tp3-week-paces1.png)    the paces from the 5K
-#  6-rep      (tp3-reps-card.png)      a short rep's result on the next step's card
+#  1-today         (tp3-session-today.png)   today's session: the target, the distance, the purpose
+#  2-gauge         (tm-gauge.png)            the pace gauge, with the time left in the step
+#  3-rep           (tp3-reps-card.png)       a short rep's result on the next step's card
+#  4-week          (tp3-week-week.png)       this week, seven rows from Monday
+#  5-paces         (tp3-week-paces1.png)     the paces from the 5K
+#  6-changes       (tp5-changes-menu.png)    Changes: move, skip, pause or end the plan (1.1.0)
+#  7-missed        (tp5-offer-today.png)     a missed long run, offered back (1.1.0)
+#  8-treadmill     (tm-today.png)            today on a treadmill: the target as a belt speed (1.1.0)
+#  9-treadmill-rep (tm-rep.png)              a 400 m rep at 15.1 km/h on a treadmill (1.1.0)
 #
 # --recapture first re-runs capture_screens.sh (about 8 minutes; Xvfb, xdotool, ImageMagick,
 # fitdecode and the simulator built) into docs/screens. Look at the previews again before
@@ -44,10 +48,13 @@ PY
 }
 mkdir -p "$OUT"
 rm -f "$OUT"/*.png
-pick tp3-session-main.png 1-menu
-pick tp3-session-today.png 2-today
-pick tp3-week-week.png 3-week
-pick tp4-vo2-plan10k.png 4-plan
+pick tp3-session-today.png 1-today
+pick tm-gauge.png 2-gauge
+pick tp3-reps-card.png 3-rep
+pick tp3-week-week.png 4-week
 pick tp3-week-paces1.png 5-paces
-pick tp3-reps-card.png 6-rep
+pick tp5-changes-menu.png 6-changes
+pick tp5-offer-today.png 7-missed
+pick tm-today.png 8-treadmill
+pick tm-rep.png 9-treadmill-rep
 exit $rc

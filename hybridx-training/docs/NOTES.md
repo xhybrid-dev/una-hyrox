@@ -1008,3 +1008,11 @@ The CHANGELOG's 1.1.0 holds them (the TP5 line moved out of 1.0.0, which the tag
 new" text is in `hybridx-link/docs/STORE_RELEASE.md`. Not yet seen on a watch: TP5's rules, the glance, the treadmill
 sessions: `hybridx-link/docs/FAMILY_WATCH_TEST.md` sections 7 to 10 are Jon's test. The glance has no portal listing or App ID
 yet, so it is not part of this upload (CI packages it as a dry run).
+
+**The store kit for 1.1.0 (17 November, while Jon tests):** nine 480 x 480 previews in `Resources/previews/` (the three new
+ones are the Changes menu, a missed long run offered back, and Today on a treadmill with its belt-speed target, plus a 400 m rep at
+15.1 km/h; the treadmill captures are `docs/screens/tm-*.png`, from `TREADMILL=1 sim_plan.sh`), a banner and seven squares in
+`docs/store/` (new cards "The plan learns" and "Treadmill, too"; the old "See the weeks ahead" card is now "See the week
+ahead"), and the paste-ready listing, release notes and upload order in `docs/store/LISTING.md` (the source is
+`hybridx-link/docs/STORE_RELEASE.md`). The packager passes with them (`--expect-version 1.1.0`). They must be in the commit the
+tag `training-v1.1.0` points at, because the CI zip is built from the tag: tag the newest commit.

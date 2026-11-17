@@ -591,8 +591,8 @@ lines (60 px; Streak NOTES S4.2). Text and filled rectangles only; letters only 
   `HybridXTraining`; App ID `C790FB2FDF322688` (portal-issued, 16 November 2026; the development
   one was `6E050D707D4D2D32`). The store package: `Utilities/pack-store-zip.sh` (CI artifact
   `training-store-zip`, a dry run until a `training-v*` tag; the tag and the upload are Jon's),
-  previews `docs/experiments/store_previews.sh`, images `docs/store/` (Cadence colourway),
-  `CHANGELOG.md`, and the listing's text in `hybridx-link/docs/STORE_RELEASE.md`.
+  previews `docs/experiments/store_previews.sh` (nine, 1.1.0), images `docs/store/` (Cadence colourway), the paste-ready
+  listing `docs/store/LISTING.md`, `CHANGELOG.md`, and the listing's text in `hybridx-link/docs/STORE_RELEASE.md`.
 - **Commands:**
   - host tests: `cmake -S hybridx-training/Tests/Host -B hybridx-training/build-tests && cmake --build hybridx-training/build-tests && hybridx-training/build-tests/hybridx-training-host-tests`
     (`ctest --test-dir hybridx-training/build-tests` also checks the generated plan header);
