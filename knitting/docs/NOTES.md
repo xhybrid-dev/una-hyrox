@@ -525,3 +525,13 @@ press from press and release with its own timing"). Since 1.5 s lost, the kernel
 
 The store text's line about the music controls (added for 1.1.1) is removed until a watch
 confirms the music control really is off.
+
+### 1.1.2 confirmed on the watch (17 November 2026)
+
+Jon, on the watch: **holding L2 resets, and the music controls do not open.** The L2 clash is
+fixed. We did not find out which of the three changes did it (the 0.8 s hold, the music control
+off from the GUI, or both), and `hold_diag.txt` was not needed. The 1.1.1 service message
+alone did not work, so keep the GUI's `Model::setCapabilities` call. Left to do: the tag
+`knitting-v1.1.2` (Jon's), so CI builds `Knitting_1.1.2.uapp` and the store package; then the
+store upload. The store text's music-controls line can go back in (while Knitting is open,
+holding L2 does not open the music controls).
