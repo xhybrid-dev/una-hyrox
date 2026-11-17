@@ -11,7 +11,18 @@ prefix for the SDK's version script. The store release of the family:
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-17
+
+The plan learns from what you do, a planned session can run on a treadmill, and a glance is ready for
+today's session. (1.0.0 was published before the plan's memory was built.)
+
 ### Added
+
+- **The plan remembers** (TP5): days gone are logged missed, a missed key session takes a later
+  quality's place, a week less than half done is repeated, a missed long run is offered the next
+  day; **Changes** on the main menu does tomorrow's session today, moves today's to tomorrow,
+  skips, pauses or ends the plan; a time trial or race recalibrates the paces (faster applies,
+  slower or a big jump asks).
 
 - **Treadmill sessions:** the main menu's **Treadmill** switch now applies to today's planned session as well
   as a free run (until now Today ignored it and recorded outdoors, with GPS). With it on, Today starts with no
@@ -57,11 +68,6 @@ HybridX Training; its folder stays `HybridXTraining`).
   long run and the race date, and writes them back to the phone's settings.
 - **Records every run as X Run does:** GPS, heart rate, laps (a lap per step), the FIT file, the
   run detail pages, cadence and step length, and the treadmill.
-- **The plan remembers** (TP5): days gone are logged missed, a missed key session takes a later
-  quality's place, a week less than half done is repeated, a missed long run is offered the next
-  day; **Changes** on the main menu does tomorrow's session today, moves today's to tomorrow,
-  skips, pauses or ends the plan; a time trial or race recalibrates the paces (faster applies,
-  slower or a big jump asks).
 - **Counts in X Streak** (its own slot, `act_training.json`) with its training load, shows the
   Streak line when it is saved, and leaves its steady minutes for X Run's VO2max
   (`training_vo2_*.json`). The Plan screen shows X Run's VO2max when X Run has one.

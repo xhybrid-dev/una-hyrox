@@ -799,6 +799,9 @@ Jon read nothing of this yet: the gate is below.
   the whole path on a watch.
 
 ### The gate (TP5): what Jon reads and checks
+**Jon agreed the plan and the rules on 17 November 2026** ("Yes I do agree with that plan we have for TP5 and the
+rest of the build"), and bundles TP5 into his test release 1.1.0 (see "Release 1.1.0" below); the watch is still to
+see it. What he was asked to read and check:
 1. **`Tests/Host/golden/plan_sim.md`** (or `build-tests/plan_sim [n]`): the 19 scenarios. Say what a
    rule does that you would not want, and which of the decisions above to change.
 2. **On the watch** (the CI build of the last push): the Changes menu; and, when it happens to you, a
@@ -993,3 +996,23 @@ Decision 9 is reversed (brief, REVIEW and the TP3 note are marked).
 - **A treadmill time trial or race end to end** (the guard is a one-line condition in `recordPlannedRun`, read, not run: a 5K
   at the simulator's treadmill speed would take about an hour).
 - **Imperial** targets on the screens ("7.5 mph"): the text is host-tested; the simulator ran metric.
+
+## Release 1.1.0 (17 November 2026)
+
+Jon published **1.0.0** before the update work, and the store takes a version once. What `training-v1.0.0` is: the merge of
+PR #62 on the morning of 16 November (the same commit as `streak-v1.1.0` and `run-v1.1.0`): TP4 and before. It has **no**
+plan memory (TP5), no glance file (TP6), no treadmill sessions, and not the release set-up (the portal's App ID, the
+packager, the CI package). **1.1.0** is tagged on the branch's newest commit and carries all of those: the plan's memory
+and recalibration (Jon agreed its plan and rules on 17 November), the file the glance reads, and the treadmill sessions.
+The CHANGELOG's 1.1.0 holds them (the TP5 line moved out of 1.0.0, which the tag did not contain); the portal's "what's
+new" text is in `hybridx-link/docs/STORE_RELEASE.md`. Not yet seen on a watch: TP5's rules, the glance, the treadmill
+sessions: `hybridx-link/docs/FAMILY_WATCH_TEST.md` sections 7 to 10 are Jon's test. The glance has no portal listing or App ID
+yet, so it is not part of this upload (CI packages it as a dry run).
+
+**The store kit for 1.1.0 (17 November, while Jon tests):** nine 480 x 480 previews in `Resources/previews/` (the three new
+ones are the Changes menu, a missed long run offered back, and Today on a treadmill with its belt-speed target, plus a 400 m rep at
+15.1 km/h; the treadmill captures are `docs/screens/tm-*.png`, from `TREADMILL=1 sim_plan.sh`), a banner and seven squares in
+`docs/store/` (new cards "The plan learns" and "Treadmill, too"; the old "See the weeks ahead" card is now "See the week
+ahead"), and the paste-ready listing, release notes and upload order in `docs/store/LISTING.md` (the source is
+`hybridx-link/docs/STORE_RELEASE.md`). The packager passes with them (`--expect-version 1.1.0`). They must be in the commit the
+tag `training-v1.1.0` points at, because the CI zip is built from the tag: tag the newest commit.

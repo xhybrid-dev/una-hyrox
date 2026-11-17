@@ -290,6 +290,28 @@ set the belt to the speed shown for each rep. You need the CI build of the last 
 Send: photos of steps 29, 30 and 33 (the Saved screen and the distance screen), what you set the belt to and
 how the lap changes lined up (step 31), and the console's distance against the watch's own.
 
+## 10. The plan's memory (X Training's TP5, in 1.1.0)
+
+The watch now notices what you do and do not do. These need a plan under way and a few days: do the first
+two steps whenever you like, the rest as they come up.
+
+36. **Skip and pause:** in X Training's main menu choose **Changes** (it sits after Plan). **Skip today**: Today's
+    title says CHANGED and the day reads Skipped; This week shows it. **Pause plan**: Today says "Plan paused";
+    **Resume plan** (the same item) starts it again. Nothing is marked missed while it is paused.
+37. **Moving a session:** on a day with a session, **Tomorrow's** (do it today) or **Today's** (do it tomorrow). If
+    that would put two hard days together the watch makes the nearer one easy instead, and says so; a move it
+    will not make reads NOT ALLOWED.
+38. **A day you miss:** leave a planned session undone and open the app the next day. This week shows it in
+    orange. If it was a long run and today is easy or a rest day, Today offers it ("Long run missed, Do it today?");
+    a missed key session is offered when it would otherwise be lost. Say yes or no: it is not offered twice.
+39. **A weak week:** if less than half of a week was done, the next week is the same one again (or, near a race, it
+    takes the next week's place). A week with nothing done makes the next one an easier week.
+40. **A time trial or race:** run the plan's 5K time trial (outdoors). The Saved screen says what the plan did:
+    "5K 21:41, new paces" (faster: used from your next run), "paces kept", or "ask in Today" (slower by more than 2%,
+    or a jump of more than about 6%: Today asks Update or Keep mine).
+
+Send: photos of Today and This week after steps 36 to 38, and what the Saved screen said after step 40.
+
 ## What each result decides
 
 - **Everything as in the tables:** the family's link works on a watch; next are the releases

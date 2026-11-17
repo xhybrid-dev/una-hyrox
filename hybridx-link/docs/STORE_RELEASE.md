@@ -37,7 +37,7 @@ the zips CI builds from the tags go to the portal.**
 | X Trail | `HybridXTrail-<v>.zip` (`trail-store-zip`) | `trail-v1.0.0` | the portal's `1C83FDDE4EA3C880` |
 | X Workout | `HybridXWorkout-<v>.zip` (`workout-store-zip`) | `workout-v1.0.0` | the portal's `B9171EBAF7066A30` |
 | X Ride | `HybridXRide-<v>.zip` (`ride-store-zip`) | `ride-v1.0.0` | the portal's `58F141AE44428F51` |
-| X Training (new) | `HybridXTraining-<v>.zip` (`training-store-zip`) | `training-v1.0.0` | the portal's `C790FB2FDF322688` |
+| X Training (new) | `HybridXTraining-<v>.zip` (`training-store-zip`) | `training-v1.0.0` (published; the update is `training-v1.1.0`) | the portal's `C790FB2FDF322688` |
 | X Training Glance (later, TP6) | `Glance/HXTrainingGlance-<v>.zip` (`training-glance-store-zip`, a dry run for now) | with X Training 1.1.0 | not yet: the development `C4B5BAD6DC827E16` until Jon creates the listing |
 | HybridX Race | `HybridXRace-<v>.zip` (`race-store-zip`) | `v1.1.0` and `apps-v1.1.0` | the portal's `5C4D6F49335E5E17` |
 
@@ -330,16 +330,18 @@ turbo. Counts in X Streak.
 
 **Not claimed:** power, cadence or wheel speed.
 
-### X Training (a new listing, 16 November 2026)
+### X Training (a new listing, 16 November 2026; 1.1.0 text, 17 November 2026)
 
 **App ID:** `C790FB2FDF322688` (the portal's, Jon, 16 November 2026; in the CMake file, the
-manifest and the simulator). **Tag:** `training-v1.0.0`. **Package:** `HybridXTraining-<v>.zip`
-(`training-store-zip`). **Images:** `hybridx-training/docs/store/`, in the **Cadence** colourway.
+manifest and the simulator). **Tags:** `training-v1.0.0` (published), `training-v1.1.0` (the update).
+**Package:** `HybridXTraining-<v>.zip` (`training-store-zip`). **Images:** `hybridx-training/docs/store/`, in the
+**Cadence** colourway; the paste-ready text and the upload order are in `hybridx-training/docs/store/LISTING.md`
+(keep the two in step).
 
 **Short description:** Training plans on your wrist: a 10K, half marathon or VO2max block from
-your 5K time, run step by step. Counts in X Streak.
+your 5K time, outdoors or on a treadmill. Counts in X Streak.
 
-**Longer description:**
+**Longer description (1.1.0):**
 
 > Your plan, on your wrist.
 >
@@ -349,12 +351,22 @@ your 5K time, run step by step. Counts in X Streak.
 > - **Today's session is ready:** its target pace, distance and time, and what it builds. Press
 >   R1 and it runs step by step: a pace gauge, a buzz when you drift out of range, lead-in beeps,
 >   and each short rep judged on the next step's card.
+> - **The plan learns from what you do:** a session you miss is noted. A missed key session takes a
+>   later quality session's place, a week you mostly missed is repeated, and a missed long run is
+>   offered back the next day. **Changes** moves tomorrow's session to today (or today's to
+>   tomorrow), skips a session, pauses the plan, or ends it.
+> - **Time trials and races update your paces:** after a 5K time trial or a race the watch works out
+>   the 5K it means. Faster times are used from your next run; slower ones, or a big jump, ask first.
+> - **On a treadmill too:** with the Treadmill switch on, today's session runs as UNA's treadmill mode
+>   does: no GPS, speed and distance from your cadence, and the console's distance asked for after you
+>   save. Where a step has a set speed the watch assumes the belt is at it, so a 400 m rep ends after the
+>   time that takes; targets show as belt speeds (km/h or mph).
 > - **Paces from your 5K:** easy, threshold, interval and repetition, with predicted 10K and
 >   half times. Worked out with Daniels' running tables, and checked against them.
 > - **This week and the whole plan:** seven days from Monday with their marks, the weeks by
->   phase, and your progress. Plan changes can be made on the watch too.
-> - Records every run as a normal run: GPS, heart rate, laps (one per step), cadence and step
->   length, and the run detail pages. Syncs to the UNA app and Strava.
+>   phase, and your progress.
+> - Records every run as a normal run: GPS (or the treadmill), heart rate, laps (one per step), cadence and
+>   step length, and the run detail pages. Syncs to the UNA app and Strava.
 > - Counts in **X Streak**, with its training load. Shows X Run's VO2max on the plan screen, and
 >   feeds X Run's VO2max with your runs.
 >
@@ -367,12 +379,17 @@ your 5K time, run step by step. Counts in X Streak.
 - **Zone alerts, easy steps "too fast" only, the rep judging, the held R2:** TP3, NOTES.
 - **Streak and X Run:** `act_training.json` and `training_vo2_*.json` (NOTES "TP4"); passed the
   family check on 16 November 2026.
+- **The plan's memory** (missed sessions, the long-run offer, repeated weeks, moves, skip, pause, recalibration):
+  `PlanRules`, its host tests and the 19 `plan_sim` scenarios Jon agreed on 17 November (NOTES "TP5"); the
+  screens in the simulator.
+- **Treadmill sessions:** `PlanBuilder`'s belt speeds (host-tested for every session and level); in the simulator
+  a 5 x 400 m session took 95 s and 400.0 m a rep and 164 s and 400.0 m a jog, ten laps in all, and the `.fit` is a
+  treadmill file with no positions and the entered distance (NOTES "Treadmill sessions").
 
-**Not claimed yet:** missed-session handling, offers, moves, pauses and recalibration after a time
-trial (TP5: built on 16 November 2026 and simulator-checked, to be claimed once Jon has seen them on
-the watch, then added to the description above); **treadmill sessions** (today's session with the Treadmill
-switch on: cadence speed and distance, the belt assumed at each step's designated speed, the console's distance
-after Save; built on 16 November 2026 and simulator-checked, to be claimed once Jon has seen it on the watch). The glance is its own listing (below), built in TP6.
+**Not claimed:** that the cadence-derived speed matches your belt (it is an estimate until you enter the console's
+distance, and learns from runs of 2 km or more), or that a treadmill time trial or race updates your paces (it does
+not). **Not yet seen on a watch** at the time of writing (Jon tests 17 November): the plan's memory and the treadmill;
+change the text above if the watch says otherwise. The glance is its own listing (below), built in TP6.
 
 ### X Training Glance (TP6: built, not yet on the store)
 
@@ -461,3 +478,26 @@ checks only; the zips CI builds from the tags are the ones that go to the portal
 **Tag commands** (on the branch's head after the check below, or on `main` after the merge):
 `streak-v1.1.0`, `run-v1.1.0`, then `trail-v1.0.1`, `workout-v1.0.1`, `ride-v1.0.1`, and
 `training-v1.0.0` once TP5's gate has passed.
+
+**X Training 1.1.0 (17 November 2026).** 1.0.0 was published from the tag `training-v1.0.0`, which is the
+merge of PR #62 on the morning of 16 November: TP4 and before, so without the plan's memory (TP5), the
+glance's file (TP6), the treadmill sessions, and the release set-up (the portal's App ID, the packager).
+`training-v1.1.0` is tagged on the branch's newest commit, which has all of those. Jon agreed TP5's plan and
+rules on 17 November. Its "what's new" for the portal:
+
+> **What's new in 1.1.0**
+> - **The plan learns from what you do.** A session you miss is noted; a missed key session takes a later
+>   quality session's place, a week you mostly missed is repeated, and a missed long run is offered the next
+>   day. A new **Changes** item on the main menu moves tomorrow's session to today (or today's to tomorrow),
+>   skips a session, pauses the plan, or ends it.
+> - **Time trials and races update your paces.** After a 5K time trial or a race the watch works out the 5K it
+>   means: faster times update your paces from your next run; slower ones, or a big jump, ask you first.
+> - **Treadmill sessions.** With the Treadmill switch on, today's session runs on the treadmill as UNA's
+>   treadmill mode does: no GPS, speed and distance from your cadence, and the console's distance asked for
+>   after you save. Where a step has a set speed the watch assumes the belt is at it, so a rep ends after the
+>   time its distance takes; targets show as belt speeds (km/h or mph).
+> - Getting ready for a glance that shows today's session (a separate listing, to follow).
+
+The X Training long description (above, "1.1.0 text") now includes the plan's memory and the treadmill sessions. It
+was written on 17 November before Jon's watch test: check it against what the watch does, and the store images
+(`hybridx-training/docs/store/`, nine previews in `Resources/previews/`) were made on the same day.
