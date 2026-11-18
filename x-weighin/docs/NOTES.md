@@ -24,7 +24,8 @@ Jon accepted the recommendations, with the changes below.
 
 - **Name: X Weigh-in.** Folder `x-weighin/`, `XWeighIn` on the watch, tags
   `weighin-vX.Y.Z`.
-- **kg only.** The watch's imperial setting is ignored.
+- **kg only.** The watch's imperial setting is ignored. *Superseded 18 November 2026:
+  see "Weight units".*
 - **Height comes from the UNA profile, not the phone settings.** So does the
   starting weight. See "Where the request and the SDK disagree".
 - **Phone settings: birth year and month, and sex.**
@@ -1063,3 +1064,36 @@ Jon uploaded both 1.0.0 zips. The portal reported "Valid assets", "Valid
 The SDK released v1.6.0 (structured workouts, GPS speed filter, buzzer pitch, shared `:/Workouts`). Our pin is unchanged (`a7a995a1`); ABI 3 / kernel 1.4.0 at both. What it means for this app, and the plan to move the pin, are in `hybridx-race/docs/NOTES.md`, "Amendment — UNA SDK v1.6.0 reviewed" (5.21-5.24).
 
 **Decision (14 October 2026):** small update to the entry screens (non-circular wheel, hints). See `hybridx-race/docs/NOTES.md` 5.25.
+
+## Weight units (18 November 2026)
+
+Jon asked for imperial units, chosen in the app: metric (kg), imperial (stones
+and pounds) or imperial (pounds).
+
+- **Setting:** the phone config field `units` (int, 0 kg, 1 st and lb, 2 lb;
+  default 0), beside birth year and sex, read at start. There is no on-watch
+  switch; if Jon wants one, it needs a settings screen.
+- **Display only.** The log, trend, messages and SharedData copy stay in 0.01 kg
+  (`WeightUnit.hpp`: conversions in integers, 1 kg = 2.20462262 lb, 14 lb to the
+  stone). Switching loses nothing.
+- **Entry** works in tenths of the unit (`toEntry`/`fromEntry`); one press is
+  0.1 kg or 0.1 lb. Every lb tenth survives the round trip through 0.01 kg
+  (tested for the whole range). `HomeData.entryStart` is now the unrounded
+  start weight, rounded by the screen in its own unit.
+- **Stones and pounds:** "12st 13.6"; a week's change is in pounds. Light 60
+  has digits only, so Home and the entry use semibold 40 for stones; the "Last"
+  lines use 14 point; Recent drops the weekday; the graph's scale reads "13st5".
+  The graph moved 10 px right (kLeft 80, width 130) so the stone labels clear
+  the bezel arc.
+- **Glance:** cannot read the app's settings, so the app leaves the unit in
+  `../SharedData/HybridX/weighin_units.txt` (`LogStore::writeUnit`, only when it
+  changes) and the glance reads it. The glance head is "12st 13" (no "lb": "12st
+  13lb" is 122 px, the column 113) and pounds drop their decimal from 1000 lb.
+  GlanceLayoutTest checks every unit in the real font widths.
+- **Verified:** host tests (130), simulator screens in all three units
+  (`UNITS=0|1|2 PREFIX=... docs/experiments/capture_screens.sh`). Not done: the
+  watch build (no ARM compiler in this container; CI builds it) and the glance
+  on a real watch.
+- **For Jon to test:** set "Weight units" in the phone settings, reopen the app,
+  check Home, Graph, Recent, weigh in and the glance in each unit. Existing
+  weigh-ins should show converted.

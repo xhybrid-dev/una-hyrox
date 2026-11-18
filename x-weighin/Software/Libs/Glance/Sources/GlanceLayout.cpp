@@ -94,19 +94,31 @@ void words(const View& v, Words& w)
         std::snprintf(w.line, sizeof(w.line), "No weigh-ins yet");
         return;
     }
-    char kg[16];
-    formatKg(v.trend, 1, kg, sizeof(kg));
-    std::snprintf(w.head, sizeof(w.head), "%s kg", kg);
+    char weight[24];
+    if (v.unit == WeightUnit::StLb) {
+        // "12st 5": the pounds to the whole, and no "lb", so the head fits
+        // its column (12st 13lb is 122 px in SemiBold 25; the column is 113).
+        int st = 0, lb = 0;
+        splitStoneLb(v.trend, st, lb);
+        std::snprintf(w.head, sizeof(w.head), "%dst %d", st, lb);
+    } else if (v.unit == WeightUnit::Lb && hundredthsToLbTenths(v.trend) >= 10000) {
+        // 1000 lb or more (only a mistyped log could hold one) drops its
+        // decimal, so the head still fits its column.
+        std::snprintf(w.head, sizeof(w.head), "%d lb", (static_cast<int>(hundredthsToLbTenths(v.trend)) + 5) / 10);
+    } else {
+        formatWeight(v.trend, v.unit, weight, sizeof(weight));
+        std::snprintf(w.head, sizeof(w.head), "%s %s", weight, weightUnitName(v.unit));
+    }
     char change[16];
     if (v.hasWeekChange) {
         // A change of 100 kg or more (only a mistyped log could hold one)
         // drops its decimal, so the line still fits its column.
         const bool huge = v.weekChange >= 10000 || v.weekChange <= -10000;
-        formatChange(v.weekChange, huge ? 0 : 1, change, sizeof(change));
+        formatWeightChange(v.weekChange, v.unit, huge ? 0 : 1, change, sizeof(change));
     } else {
         std::snprintf(change, sizeof(change), "--");
     }
-    std::snprintf(w.line, sizeof(w.line), "%s kg/wk", change);
+    std::snprintf(w.line, sizeof(w.line), "%s %s/wk", change, changeUnitName(v.unit));
 }
 
 /// The bars, right of the words: one per day with a weigh-in, scaled to the

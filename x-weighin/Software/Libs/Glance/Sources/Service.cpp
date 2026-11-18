@@ -117,6 +117,7 @@ void Service::build()
                                                   static_cast<uint32_t>(local.tm_mday));
     const bool clockSet = XWeighIn::clockIsSet(utc);
     XWeighIn::Glance::makeView(sTrend, today, clockSet, sView);
+    sView.unit = XWeighIn::LogStore::readUnit(mKernel.fs);
     LOG_INFO("log: %s, %lu weigh-ins, %lu lines rejected; clock %s\n", scan.opened ? "read" : "none yet",
              static_cast<unsigned long>(scan.entries), static_cast<unsigned long>(scan.rejected),
              clockSet ? "set" : "NOT set");

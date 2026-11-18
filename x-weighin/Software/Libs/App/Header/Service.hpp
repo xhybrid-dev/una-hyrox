@@ -13,6 +13,7 @@
 
 #include "AppConfigFields.hpp"
 #include "Commands.hpp"
+#include "WeightUnit.hpp"
 
 #include "SDK/AppConfig/AppConfig.hpp"
 #include "SDK/Kernel/KernelProviderService.hpp"
@@ -69,6 +70,7 @@ private:
     uint16_t mBirthYear;
     uint8_t  mBirthMonth;
     uint8_t  mSex;
+    XWeighIn::WeightUnit mUnit;   ///< How weights are shown; the data stays in kg.
     uint32_t mHeightCm;          ///< The UNA profile's height; 0 = not set.
     int32_t  mProfileHundredths; ///< The UNA profile's weight; 0 = not set.
     uint32_t mRejected;          ///< Log lines that did not parse.

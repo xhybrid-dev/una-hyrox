@@ -33,6 +33,7 @@ constexpr const char *kFileName = "app_config.json";
 constexpr const char *kBirthYear  = "birthYear";
 constexpr const char *kBirthMonth = "birthMonth";
 constexpr const char *kSex        = "sex";
+constexpr const char *kUnits      = "units";
 
 /// The declaration, mirroring app-manifest.json's "configFields".
 extern const SDK::AppConfig::Field kFields[];
