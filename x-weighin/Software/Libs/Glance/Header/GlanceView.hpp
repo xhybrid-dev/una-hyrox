@@ -17,6 +17,8 @@
 
 #include <cstdint>
 
+#include "WeightUnit.hpp"
+
 namespace XWeighIn
 {
 
@@ -30,6 +32,9 @@ constexpr uint8_t kGlanceDays = 14;
 
 struct View {
     bool     hasData       = false;   ///< At least one weigh-in in the log.
+    /// How the words show weights (the data stays 0.01 kg). Set by the caller
+    /// from the unit the app left (LogStore::readUnit); makeView() leaves it.
+    WeightUnit unit        = WeightUnit::Kg;
     int32_t  trend         = 0;       ///< The trend at the last weigh-in, 0.01 kg.
     bool     hasWeekChange = false;   ///< The log spans at least a week.
     int32_t  weekChange    = 0;       ///< As Home's "this week", 0.01 kg.

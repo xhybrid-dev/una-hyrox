@@ -4,30 +4,50 @@
 
 using namespace XWeighIn;
 
-TEST(StartValue, LastLoggedThenProfileThenFallback)
+TEST(StartBase, LastLoggedThenProfileThenFallback)
 {
-    EXPECT_EQ(startValue(8234, 9000), 8230);   // the log wins, rounded to 0.1
-    EXPECT_EQ(startValue(8235, 0), 8240);      // halves up
-    EXPECT_EQ(startValue(0, 8200), 8200);      // no log: the UNA profile
-    EXPECT_EQ(startValue(0, 8234), 8230);
-    EXPECT_EQ(startValue(0, 0), kEntryFallback);
-    EXPECT_EQ(startValue(-5, -5), kEntryFallback);
+    EXPECT_EQ(startBase(8234, 9000), 8234);   // the log wins
+    EXPECT_EQ(startBase(0, 8200), 8200);      // no log: the UNA profile
+    EXPECT_EQ(startBase(0, 0), kEntryFallback);
+    EXPECT_EQ(startBase(-5, -5), kEntryFallback);
+}
+
+TEST(StartValue, KilogramsInTenthsHalvesUp)
+{
+    EXPECT_EQ(startValue(8234, WeightUnit::Kg), 823);
+    EXPECT_EQ(startValue(8235, WeightUnit::Kg), 824);
+    EXPECT_EQ(startValue(kEntryFallback, WeightUnit::Kg), 700);
+}
+
+TEST(StartValue, PoundsInTenthsFromTheUnroundedWeight)
+{
+    // 82.34 kg is 181.52 lb: rounding to 82.3 kg first would give 181.4.
+    EXPECT_EQ(startValue(8234, WeightUnit::Lb), 1815);
+    EXPECT_EQ(startValue(8234, WeightUnit::StLb), 1815);
+    EXPECT_EQ(startValue(kEntryFallback, WeightUnit::Lb), 1543);
 }
 
 TEST(StartValue, ClampedToTheRange)
 {
-    EXPECT_EQ(startValue(60000, 0), kEntryMax);
-    EXPECT_EQ(startValue(50, 0), kEntryMin);
+    for (WeightUnit u : { WeightUnit::Kg, WeightUnit::StLb, WeightUnit::Lb }) {
+        EXPECT_EQ(startValue(60000, u), entryMax(u));
+        EXPECT_EQ(startValue(50, u), entryMin(u));
+    }
+    EXPECT_EQ(entryMin(WeightUnit::Kg), 10);
+    EXPECT_EQ(entryMax(WeightUnit::Kg), 5000);
 }
 
 TEST(StepEntry, TenthsWithinTheRange)
 {
-    EXPECT_EQ(stepEntry(8230, 1), 8240);
-    EXPECT_EQ(stepEntry(8230, -3), 8200);
-    EXPECT_EQ(stepEntry(8230, 0), 8230);
-    EXPECT_EQ(stepEntry(kEntryMin, -1), kEntryMin);
-    EXPECT_EQ(stepEntry(kEntryMax, 1), kEntryMax);
-    EXPECT_EQ(stepEntry(kEntryMax - 5, 1), kEntryMax);
+    EXPECT_EQ(stepEntry(823, 1, WeightUnit::Kg), 824);
+    EXPECT_EQ(stepEntry(823, -3, WeightUnit::Kg), 820);
+    EXPECT_EQ(stepEntry(823, 0, WeightUnit::Kg), 823);
+    EXPECT_EQ(stepEntry(1815, 1, WeightUnit::Lb), 1816);
+    for (WeightUnit u : { WeightUnit::Kg, WeightUnit::StLb, WeightUnit::Lb }) {
+        EXPECT_EQ(stepEntry(entryMin(u), -1, u), entryMin(u));
+        EXPECT_EQ(stepEntry(entryMax(u), 1, u), entryMax(u));
+        EXPECT_EQ(stepEntry(entryMax(u) - 1, 4, u), entryMax(u));
+    }
 }
 
 TEST(HoldRepeat, ATapIsOneClick)

@@ -153,14 +153,41 @@ TEST(GlanceLayout, FitsEveryAreaAndBudget)
     const int16_t  areas[][2] = { { 240, 60 }, { 240, 48 }, { 240, 40 }, { 200, 60 },
                                   { 240, 80 }, { 180, 60 }, { 300, 60 }, { 240, 20 } };
     const uint32_t budgets[]  = { 32, kFullControls, kFullControls - 1, 8, 2, 1 };
-    for (const auto& [name, v] : views()) {
-        for (const auto& a : areas) {
-            for (uint32_t b : budgets) {
-                Layout l;
-                XWeighIn::Glance::layout(v, a[0], a[1], b, l);
-                expectFits(l, a[0], a[1], b,
-                           name + " " + std::to_string(a[0]) + "x" + std::to_string(a[1]) + "/" + std::to_string(b));
+    for (const auto& [name, view] : views()) {
+        for (uint8_t u = 0; u < XWeighIn::kWeightUnitCount; ++u) {
+            View v = view;
+            v.unit = static_cast<XWeighIn::WeightUnit>(u);
+            for (const auto& a : areas) {
+                for (uint32_t b : budgets) {
+                    Layout l;
+                    XWeighIn::Glance::layout(v, a[0], a[1], b, l);
+                    expectFits(l, a[0], a[1], b,
+                               name + " unit " + std::to_string(u) + " " + std::to_string(a[0]) + "x" +
+                                   std::to_string(a[1]) + "/" + std::to_string(b));
+                }
             }
+        }
+    }
+}
+
+TEST(GlanceLayout, ImperialWordsAndTheWorstFit)
+{
+    // The trend 81.9 kg is 180.6 lb, 12 st 12.6 lb; -0.42 kg is -0.9 lb.
+    View v = falling(8240, 14, -42);
+    v.unit = XWeighIn::WeightUnit::Lb;
+    EXPECT_STREQ(full(v).items[0].text, "180.6 lb");   // trend 81.9 kg
+    EXPECT_STREQ(full(v).items[1].text, "-0.9 lb/wk");
+    v.unit = XWeighIn::WeightUnit::StLb;
+    EXPECT_STREQ(full(v).items[0].text, "12st 13");
+    EXPECT_STREQ(full(v).items[1].text, "-0.9 lb/wk");
+
+    // The widest heads: 3-digit pounds, and two-digit stones with two-digit pounds.
+    for (int32_t trend : { 99999 / 2, 50000, 15900, 15880, 7800 }) {
+        for (XWeighIn::WeightUnit unit : { XWeighIn::WeightUnit::Lb, XWeighIn::WeightUnit::StLb }) {
+            View w = falling(trend + 50, 14, -42);
+            w.trend = trend;
+            w.unit  = unit;
+            expectFits(full(w), 240, 60, 32, "trend " + std::to_string(trend));
         }
     }
 }

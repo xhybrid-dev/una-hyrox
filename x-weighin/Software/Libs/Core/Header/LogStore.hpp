@@ -30,6 +30,7 @@
 #include "SDK/Interfaces/IFileSystem.hpp"
 
 #include "WeighLog.hpp"
+#include "WeightUnit.hpp"
 
 namespace XWeighIn::LogStore
 {
@@ -37,6 +38,9 @@ namespace XWeighIn::LogStore
 constexpr const char* kLogFile    = "weighins.csv";
 constexpr const char* kSharedDir  = "../SharedData/HybridX";
 constexpr const char* kSharedFile = "../SharedData/HybridX/weighins.csv";
+/// The weight unit the app shows ("0\n", "1\n" or "2\n"), for the glance, which
+/// cannot read the app's own settings. The app is its only writer.
+constexpr const char* kUnitFile   = "../SharedData/HybridX/weighin_units.txt";
 
 struct ScanResult {
     bool     opened   = false;   ///< The file existed and opened.
@@ -85,6 +89,17 @@ Reconcile reconcile(SDK::Interface::IFileSystem& fs,
                     const char* own       = kLogFile,
                     const char* shared    = kSharedFile,
                     const char* sharedDir = kSharedDir);
+
+/**
+ * @brief   Leave the chosen unit in SharedData for the glance. Writes only if
+ *          the file does not already say it, so a start without a change
+ *          touches nothing. Returns false if the write failed.
+ */
+bool writeUnit(SDK::Interface::IFileSystem& fs, WeightUnit unit,
+               const char* path = kUnitFile, const char* dir = kSharedDir);
+
+/// The unit the app left; kg if there is no file or it does not say.
+WeightUnit readUnit(SDK::Interface::IFileSystem& fs, const char* path = kUnitFile);
 
 }  // namespace XWeighIn::LogStore
 

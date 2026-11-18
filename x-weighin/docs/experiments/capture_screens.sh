@@ -16,8 +16,9 @@
 # The SDK's mock kernel leaves the UNA profile's height and weight at 0, so the
 # Body page shows the height as not set and the empty run starts at 70.0.
 #
-# Usage:  UNA_SDK=/path/to/una-sdk ./capture_screens.sh [out-dir]
-#   out-dir defaults to docs/screens (files w2-*.png).
+# Usage:  UNA_SDK=/path/to/una-sdk [UNITS=0|1|2] [PREFIX=w2] ./capture_screens.sh [out-dir]
+#   out-dir defaults to docs/screens (files w2-*.png). UNITS is the phone setting
+#   "units": 0 kg (the default), 1 stones and pounds, 2 pounds; PREFIX names the files.
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${1:-$REPO/docs/screens}
@@ -59,7 +60,7 @@ snap() { DISPLAY=$DISP timeout 10 import -window "$WID" "$OUT/$1.png" 2>/dev/nul
 fresh_watch() {
     rm -rf "$SOFT/Output" "$SOFT/SharedData"
     mkdir -p "$SOFT/Output"
-    printf '{"schema":1,"values":{"birthYear":1986,"birthMonth":5,"sex":2}}' > "$SOFT/Output/app_config.json"
+    printf '{"schema":1,"values":{"birthYear":1986,"birthMonth":5,"sex":2,"units":%s}}' "${UNITS:-0}" > "$SOFT/Output/app_config.json"
 }
 
 : > "$LOG"
@@ -67,16 +68,16 @@ echo "Run 1: a 40-day log"
 fresh_watch
 "$MAKE_LOG" "$OWN" 40 3 "$(date +%F)" 2>/dev/null
 start_sim
-snap w2-1-home
-key 2; snap w2-2-graph
-key 2; snap w2-3-recent
-key 2; snap w2-4-body
+snap ${PREFIX:-w2}-1-home
+key 2; snap ${PREFIX:-w2}-2-graph
+key 2; snap ${PREFIX:-w2}-3-recent
+key 2; snap ${PREFIX:-w2}-4-body
 key 2                                       # DOWN again: round to Home
-key 3; snap w2-5-weighin                    # SELECT: weigh in
-key 1 0.3; key 1 0.3; key 1 1; snap w2-6-weighin-up
+key 3; snap ${PREFIX:-w2}-5-weighin                    # SELECT: weigh in
+key 1 0.3; key 1 0.3; key 1 1; snap ${PREFIX:-w2}-6-weighin-up
 before=$(tail -n 1 "$OWN")
-key 3 1.5; snap w2-7-saved                  # SELECT: save
-sleep 3.5; snap w2-8-home-after             # Saved returns to Home by itself
+key 3 1.5; snap ${PREFIX:-w2}-7-saved                  # SELECT: save
+sleep 3.5; snap ${PREFIX:-w2}-8-home-after             # Saved returns to Home by itself
 stop_sim
 
 echo "Check: the weigh-in reached both files"
@@ -92,8 +93,8 @@ fi
 echo "Run 2: no log"
 fresh_watch
 start_sim
-snap w2-9-home-empty
-key 3; snap w2-10-weighin-empty
+snap ${PREFIX:-w2}-9-home-empty
+key 3; snap ${PREFIX:-w2}-10-weighin-empty
 key 4; stop_sim
 
 echo "=== service log ==="

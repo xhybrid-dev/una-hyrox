@@ -4,7 +4,7 @@
  * @brief   Weighing in: the entry screen and the saved confirmation.
  *
  * The entry opens on the last logged weight (else the UNA profile's, else
- * 70.0). UP and DOWN move it 0.1 kg a tap; held, they repeat and speed up
+ * 70.0 kg). UP and DOWN move it 0.1 of the unit (kg or lb) a tap; held, they repeat and speed up
  * (XWeighIn::HoldRepeat, after the SDK Timer example's editor). SELECT saves,
  * BACK cancels. The service files the weigh-in under the local date and time
  * and answers with SAVE_RESULT; the Saved screen shows it for three seconds.
@@ -29,6 +29,21 @@ using namespace XWeighIn;
 
 namespace
 {
+/// How weights are shown now (kg until the service has said).
+WeightUnit unitOf(const Model& model)
+{
+    return model.hasHome() ? weightUnitFromConfig(model.home().units) : WeightUnit::Kg;
+}
+
+/// Light 60 holds digits only, so stones and pounds ("12st 5.4") take the
+/// semibold 40 face, which has letters; its row sits lower to stay centred.
+void setBigFace(lv_obj_t* label, WeightUnit unit, int32_t y60)
+{
+    const bool st = unit == WeightUnit::StLb;
+    lv_obj_set_style_text_font(label, st ? &poppins_semibold_40 : &poppins_light_60, LV_PART_MAIN);
+    lv_obj_set_y(label, st ? y60 + 10 : y60);
+}
+
 /// How often a held button is checked, ms.
 constexpr uint32_t kTickMs = 50;
 /// How long the Saved screen stays up, ms.
@@ -52,8 +67,8 @@ void WeighInScreen::build()
     mHint  = Draw::label(mRoot, &poppins_regular_18, "", 20, 160, 200, LV_TEXT_ALIGN_CENTER, Color::GRAY);
 
     mButtons = std::make_unique<SDK::LVGL::Buttons>(mRoot);
-    mButtons->set(SDK::LVGL::Buttons::WHITE,    // UP: +0.1 kg
-                  SDK::LVGL::Buttons::WHITE,    // DOWN: -0.1 kg
+    mButtons->set(SDK::LVGL::Buttons::WHITE,    // UP: +0.1
+                  SDK::LVGL::Buttons::WHITE,    // DOWN: -0.1
                   SDK::LVGL::Buttons::GREEN,    // SELECT: save
                   SDK::LVGL::Buttons::WHITE);   // BACK: cancel
 }
@@ -62,14 +77,17 @@ void WeighInScreen::onShow()
 {
     const bool have = mModel.hasHome();
     const CustomMessage::HomeData& h = mModel.home();
-    mValueH = have ? clampEntry(h.entryStart) : kEntryFallback;
+    mWeightUnit = unitOf(mModel);
+    mEntry      = startValue(have ? h.entryStart : kEntryFallback, mWeightUnit);
+    setBigFace(mValue, mWeightUnit, 64);
+    lv_label_set_text(mUnit, weightUnitName(mWeightUnit));
 
-    char text[48];   // "Last " + 15 + ", " + 23, terminated
+    char text[64];   // "Last " + 23 + ", " + 23, terminated
     switch (have ? static_cast<CustomMessage::EntryFrom>(h.entryFrom) : CustomMessage::EntryFrom::Default) {
         case CustomMessage::EntryFrom::Log: {
-            char kg[16];
+            char kg[24];
             char when[24];
-            formatKg(h.latest, 1, kg, sizeof(kg));
+            formatWeight(h.latest, mWeightUnit, kg, sizeof(kg));
             if (h.today != 0) {
                 agoText(h.today, h.lastDay, when, sizeof(when));
             } else {
@@ -85,6 +103,8 @@ void WeighInScreen::onShow()
             break;
     }
     lv_label_set_text(mHint, text);
+    lv_obj_set_style_text_font(mHint, mWeightUnit == WeightUnit::StLb ? &poppins_regular_14 : &poppins_regular_18,
+                               LV_PART_MAIN);
     show();
 
     mTimer = lv_timer_create(&WeighInScreen::tickCb, kTickMs, this);
@@ -92,16 +112,16 @@ void WeighInScreen::onShow()
 
 void WeighInScreen::show()
 {
-    char text[16];
-    formatKg(mValueH, 1, text, sizeof(text));
+    char text[24];
+    formatWeight(fromEntry(mEntry, mWeightUnit), mWeightUnit, text, sizeof(text));
     lv_label_set_text(mValue, text);
 }
 
 void WeighInScreen::step(int32_t steps)
 {
-    const int32_t next = stepEntry(mValueH, steps);
-    if (next != mValueH) {
-        mValueH = next;
+    const int32_t next = stepEntry(mEntry, steps, mWeightUnit);
+    if (next != mEntry) {
+        mEntry = next;
         show();
     }
 }
@@ -152,7 +172,7 @@ void WeighInScreen::onKey(uint8_t code)
             mSaving = true;
             mHeldDir = 0;
             lv_label_set_text(mTitle, "Saving...");
-            mModel.saveWeighIn(mValueH);
+            mModel.saveWeighIn(fromEntry(mEntry, mWeightUnit));
             break;
         case Btn::R2:
             mModel.setPage(0);
@@ -200,19 +220,22 @@ void SavedScreen::refresh()
         case SaveOutcome::Saved: {
             lv_label_set_text(mHeading, "Saved");
             lv_obj_set_style_text_color(mHeading, Draw::rgb(Color::GREEN), LV_PART_MAIN);
-            char kg[16];
-            formatKg(mModel.lastSaved(), 1, kg, sizeof(kg));
-            std::snprintf(text, sizeof(text), "%s kg", kg);
+            const WeightUnit unit = unitOf(mModel);
+            // "12st 5.4lb" is wider than the 40 point face allows: stones take the 25.
+            lv_obj_set_style_text_font(mValue, unit == WeightUnit::StLb ? &poppins_semibold_25 : &poppins_semibold_40,
+                                       LV_PART_MAIN);
+            formatWeightWithUnit(mModel.lastSaved(), unit, text, sizeof(text));
             lv_label_set_text(mValue, text);
             if (mModel.hasHome() && mModel.home().days > 0) {
                 const CustomMessage::HomeData& h = mModel.home();
-                formatKg(h.trend, 1, kg, sizeof(kg));
-                std::snprintf(text, sizeof(text), "Trend %s kg", kg);
+                char trend[32];
+                formatWeightWithUnit(h.trend, unit, trend, sizeof(trend));
+                std::snprintf(text, sizeof(text), "Trend %s", trend);
                 lv_label_set_text(mLine1, text);
                 char change[16];
                 if (h.hasWeekChange) {
-                    formatChange(h.weekChange, 1, change, sizeof(change));
-                    std::snprintf(text, sizeof(text), "%s kg this week", change);
+                    formatWeightChange(h.weekChange, unit, 1, change, sizeof(change));
+                    std::snprintf(text, sizeof(text), "%s %s this week", change, changeUnitName(unit));
                 } else {
                     text[0] = '\0';
                 }

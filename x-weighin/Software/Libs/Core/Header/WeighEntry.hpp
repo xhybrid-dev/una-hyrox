@@ -16,50 +16,76 @@
 #include <cstdint>
 
 #include "WeighProfile.hpp"
+#include "WeightUnit.hpp"
 
 namespace XWeighIn
 {
 
-/// One press: 0.1 kg, in 0.01 kg.
-constexpr int32_t kEntryStep     = 10;
-/// The entry's range, 1.0-500.0 kg: what the log accepts.
-constexpr int32_t kEntryMin      = 100;
-constexpr int32_t kEntryMax      = kMaxKg * 100;
+/// The entry works in tenths of the display unit: tenths of a kg, or tenths
+/// of a lb (also for stones and pounds, which only differ in how it is shown).
+/// One press is one tenth. The log still holds 0.01 kg: toEntry() and
+/// fromEntry() convert.
+constexpr int32_t kEntryStep = 1;
+/// What the log accepts: 1.0-500.0 kg, in hundredths.
+constexpr int32_t kEntryMinHundredths = 100;
+constexpr int32_t kEntryMaxHundredths = kMaxKg * 100;
 /// Where the entry starts with no log and no profile weight: 70.0 kg.
 constexpr int32_t kEntryFallback = 7000;
 
-/// To the nearest 0.1 kg, halves up (positive values).
-inline int32_t roundToTenth(int32_t hundredths)
+/// Hundredths of a kg to entry units (tenths of the unit), halves up.
+inline int32_t toEntry(int32_t hundredths, WeightUnit unit)
 {
-    return ((hundredths + 5) / 10) * 10;
+    return unit == WeightUnit::Kg ? (hundredths + 5) / 10 : hundredthsToLbTenths(hundredths);
 }
 
-inline int32_t clampEntry(int32_t hundredths)
+/// Entry units back to hundredths of a kg.
+inline int32_t fromEntry(int32_t entry, WeightUnit unit)
 {
-    return hundredths < kEntryMin ? kEntryMin : (hundredths > kEntryMax ? kEntryMax : hundredths);
+    return unit == WeightUnit::Kg ? entry * 10 : lbTenthsToHundredths(entry);
+}
+
+/// The entry's range in @p unit; fromEntry() of either end is a weight the log accepts.
+inline int32_t entryMin(WeightUnit unit)
+{
+    return toEntry(kEntryMinHundredths, unit);
+}
+inline int32_t entryMax(WeightUnit unit)
+{
+    return toEntry(kEntryMaxHundredths, unit);
+}
+
+inline int32_t clampEntry(int32_t entry, WeightUnit unit)
+{
+    const int32_t lo = entryMin(unit);
+    const int32_t hi = entryMax(unit);
+    return entry < lo ? lo : (entry > hi ? hi : entry);
 }
 
 /**
- * @brief   The value the weigh-in screen opens on: the last logged weigh-in,
- *          else the UNA profile's weight (only a starting point: the profile
- *          does not follow changes, NOTES Gate W0), else kEntryFallback.
- *          Rounded to 0.1 kg, the entry's step.
+ * @brief   Where the weigh-in screen starts, in hundredths of a kg, before it
+ *          is rounded to the unit's step: the last logged weigh-in, else the
+ *          UNA profile's weight (only a starting point: the profile does not
+ *          follow changes, NOTES Gate W0), else kEntryFallback.
  */
-inline int32_t startValue(int32_t lastLogged, int32_t profile)
+inline int32_t startBase(int32_t lastLogged, int32_t profile)
 {
     if (lastLogged > 0) {
-        return clampEntry(roundToTenth(lastLogged));
+        return lastLogged;
     }
-    if (profile > 0) {
-        return clampEntry(roundToTenth(profile));
-    }
-    return kEntryFallback;
+    return profile > 0 ? profile : kEntryFallback;
+}
+
+/// The value the weigh-in screen opens on, in entry units of @p unit: @p base
+/// (startBase()) rounded to the unit's step and kept in range.
+inline int32_t startValue(int32_t base, WeightUnit unit)
+{
+    return clampEntry(toEntry(base, unit), unit);
 }
 
 /// @p value moved by @p steps presses (negative is down), within the range.
-inline int32_t stepEntry(int32_t value, int32_t steps)
+inline int32_t stepEntry(int32_t value, int32_t steps, WeightUnit unit)
 {
-    return clampEntry(value + steps * kEntryStep);
+    return clampEntry(value + steps * kEntryStep, unit);
 }
 
 /**

@@ -56,6 +56,7 @@ add_executable(x-weighin-host-tests
     TrendTest.cpp
     BodyMetricsTest.cpp
     WeighEntryTest.cpp
+    WeightUnitTest.cpp
     DateTextTest.cpp
     WindowTest.cpp
     GraphScaleTest.cpp

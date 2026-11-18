@@ -63,6 +63,7 @@ Service::Service(SDK::Kernel &kernel)
     , mBirthYear(0)
     , mBirthMonth(0)
     , mSex(0)
+    , mUnit(XWeighIn::WeightUnit::Kg)
     , mHeightCm(0)
     , mProfileHundredths(0)
     , mRejected(0)
@@ -93,11 +94,17 @@ void Service::loadConfiguration()
     mBirthYear  = static_cast<uint16_t>(mConfig->getInt(WeighInConfig::kBirthYear));
     mBirthMonth = static_cast<uint8_t>(mConfig->getInt(WeighInConfig::kBirthMonth));
     mSex        = static_cast<uint8_t>(mConfig->getInt(WeighInConfig::kSex));
+    mUnit       = XWeighIn::weightUnitFromConfig(mConfig->getInt(WeighInConfig::kUnits));
 
-    LOG_INFO("settings %s: birth %u/%u, sex %u\n",
+    // The glance cannot read this app's settings: leave it the unit.
+    if (!XWeighIn::LogStore::writeUnit(mKernel.fs, mUnit)) {
+        LOG_WARNING("could not leave the unit for the glance\n");
+    }
+
+    LOG_INFO("settings %s: birth %u/%u, sex %u, units %u\n",
              mConfig->isLoaded() ? "loaded" : "not found (defaults)",
              static_cast<unsigned>(mBirthMonth), static_cast<unsigned>(mBirthYear),
-             static_cast<unsigned>(mSex));
+             static_cast<unsigned>(mSex), static_cast<unsigned>(mUnit));
 }
 
 void Service::readProfile()
@@ -253,7 +260,8 @@ void Service::sendHome()
     h.rejected      = static_cast<uint16_t>(mRejected > 0xFFFF ? 0xFFFF : mRejected);
     h.clockSet      = n.clockOk;
     h.today         = n.clockOk ? n.day : 0;
-    h.entryStart    = startValue(s.latest, mProfileHundredths);
+    h.entryStart    = startBase(s.latest, mProfileHundredths);
+    h.units         = static_cast<uint8_t>(mUnit);
     h.entryFrom     = static_cast<uint8_t>(s.latest > 0             ? CustomMessage::EntryFrom::Log
                                            : mProfileHundredths > 0 ? CustomMessage::EntryFrom::Profile
                                                                     : CustomMessage::EntryFrom::Default);

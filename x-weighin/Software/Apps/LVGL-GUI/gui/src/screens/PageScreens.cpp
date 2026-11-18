@@ -26,24 +26,31 @@ using namespace XWeighIn;
 namespace
 {
 
-/// "-0.4 kg this week", or "-- kg this week" until the log spans a week.
-void weekText(const CustomMessage::HomeData& h, char* out, size_t outSize)
+/// How weights are shown now (kg until the service has said).
+WeightUnit unitOf(const Model& model)
+{
+    return model.hasHome() ? weightUnitFromConfig(model.home().units) : WeightUnit::Kg;
+}
+
+/// "-0.4 kg this week", or "-- kg this week" until the log spans a week
+/// (pounds for both imperial units).
+void weekText(const CustomMessage::HomeData& h, WeightUnit unit, char* out, size_t outSize)
 {
     char change[16];
     if (h.hasWeekChange) {
-        formatChange(h.weekChange, 1, change, sizeof(change));
+        formatWeightChange(h.weekChange, unit, 1, change, sizeof(change));
     } else {
         std::snprintf(change, sizeof(change), "--");
     }
-    std::snprintf(out, outSize, "%s kg this week", change);
+    std::snprintf(out, outSize, "%s %s this week", change, changeUnitName(unit));
 }
 
 /// "Last 80.8, today" (or the date when the clock is not set).
-void lastText(const CustomMessage::HomeData& h, char* out, size_t outSize)
+void lastText(const CustomMessage::HomeData& h, WeightUnit unit, char* out, size_t outSize)
 {
-    char kg[16];
+    char kg[24];
     char when[24];
-    formatKg(h.latest, 1, kg, sizeof(kg));
+    formatWeight(h.latest, unit, kg, sizeof(kg));
     if (h.today != 0) {
         agoText(h.today, h.lastDay, when, sizeof(when));
     } else {
@@ -76,19 +83,29 @@ void HomeScreen::refresh()
         return;
     }
     const CustomMessage::HomeData& h = mModel.home();
-    lv_label_set_text(mCaption, "Trend (kg)");
+    const WeightUnit unit = unitOf(mModel);
+    char caption[24];
+    std::snprintf(caption, sizeof(caption), "Trend (%s)", weightUnitName(unit));
+    lv_label_set_text(mCaption, caption);
+    // Light 60 holds digits only: stones and pounds take the semibold 40.
+    lv_obj_set_style_text_font(mTrend, unit == WeightUnit::StLb ? &poppins_semibold_40 : &poppins_light_60,
+                               LV_PART_MAIN);
+    lv_obj_set_y(mTrend, unit == WeightUnit::StLb ? 72 : 62);
     if (h.days == 0) {
         lv_label_set_text(mTrend, "--");
         lv_label_set_text(mChange, "No weigh-ins yet");
         lv_label_set_text(mLast, "SELECT to weigh in");
         return;
     }
-    formatKg(h.trend, 1, text, sizeof(text));
+    formatWeight(h.trend, unit, text, sizeof(text));
     lv_label_set_text(mTrend, text);
-    weekText(h, text, sizeof(text));
+    weekText(h, unit, text, sizeof(text));
     lv_label_set_text(mChange, text);
-    lastText(h, text, sizeof(text));
+    lastText(h, unit, text, sizeof(text));
     lv_label_set_text(mLast, text);
+    // "Last 12st 11.7, 3 days ago" is wider than the face between the arcs allows at 18.
+    lv_obj_set_style_text_font(mLast, unit == WeightUnit::StLb ? &poppins_regular_14 : &poppins_regular_18,
+                               LV_PART_MAIN);
 }
 
 // -- Graph ---------------------------------------------------------------------------
@@ -100,9 +117,9 @@ void GraphScreen::build()
     // Faint guides at the top and bottom of the scale.
     Draw::box(mRoot, kLeft, kTop, kWidth, 1, Color::GRAY_DARK);
     Draw::box(mRoot, kLeft, kTop + kHeight - 1, kWidth, 1, Color::GRAY_DARK);
-    mTopLabel    = Draw::label(mRoot, &poppins_regular_14, "", kLeft - 40, kTop - 9, 36,
+    mTopLabel    = Draw::label(mRoot, &poppins_regular_14, "", kLeft - 46, kTop - 9, 42,
                                LV_TEXT_ALIGN_RIGHT, Color::GRAY);
-    mBottomLabel = Draw::label(mRoot, &poppins_regular_14, "", kLeft - 40, kTop + kHeight - 10, 36,
+    mBottomLabel = Draw::label(mRoot, &poppins_regular_14, "", kLeft - 46, kTop + kHeight - 10, 42,
                                LV_TEXT_ALIGN_RIGHT, Color::GRAY);
 
     // The day's weigh-ins as dots, under the trend line.
@@ -155,9 +172,10 @@ void GraphScreen::refresh()
     lv_line_set_points(mLine, mPoints, count);
 
     char text[32];
-    formatKg(r.hi, 1, text, sizeof(text));
+    const WeightUnit unit = unitOf(mModel);
+    formatWeightShort(r.hi, unit, text, sizeof(text));
     lv_label_set_text(mTopLabel, text);
-    formatKg(r.lo, 1, text, sizeof(text));
+    formatWeightShort(r.lo, unit, text, sizeof(text));
     lv_label_set_text(mBottomLabel, text);
 
     char from[12];
@@ -188,11 +206,22 @@ void RecentScreen::refresh()
     const uint8_t n = recentDays(mModel.window(), rows, kRows);
     Draw::setHidden(mEmpty, n > 0);
     char text[24];
+    // Stones and pounds ("12st 13.6") are too wide beside a weekday and date:
+    // those rows drop the weekday and give the weight the room.
+    const WeightUnit unit = unitOf(mModel);
+    const bool       wide = unit == WeightUnit::StLb;
     for (uint8_t i = 0; i < kRows; ++i) {
+        lv_obj_set_width(mDates[i], wide ? 70 : 104);
+        lv_obj_set_x(mWeights[i], wide ? 100 : 140);
+        lv_obj_set_width(mWeights[i], wide ? 100 : 60);
         if (i < n) {
-            formatShortDate(rows[i].day, text, sizeof(text));
+            if (wide) {
+                formatDayMonth(rows[i].day, text, sizeof(text));
+            } else {
+                formatShortDate(rows[i].day, text, sizeof(text));
+            }
             lv_label_set_text(mDates[i], text);
-            formatKg(rows[i].hundredths, 1, text, sizeof(text));
+            formatWeight(rows[i].hundredths, unit, text, sizeof(text));
             lv_label_set_text(mWeights[i], text);
         } else {
             lv_label_set_text(mDates[i], "");

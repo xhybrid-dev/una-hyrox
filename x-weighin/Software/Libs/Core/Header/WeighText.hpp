@@ -15,6 +15,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#include "WeightUnit.hpp"
+
 namespace XWeighIn
 {
 
@@ -112,6 +114,101 @@ inline size_t formatChange(int32_t hundredths, uint8_t decimals, char* out, size
         n = std::snprintf(out, outSize, "%s%d.%02d", signText, whole, frac);
     }
     return n > 0 ? static_cast<size_t>(n) : 0;
+}
+
+/**
+ * @brief   A weight in the chosen unit, from hundredths of a kg:
+ *          kg "82.3", lb "181.4", stones and pounds "12st 5.4". One decimal
+ *          (the entry's step is 0.1 of the unit). No unit name: callers add
+ *          weightUnitName(), so a screen can place it where it fits.
+ *          Not set (0 or less, or above kMaxFormatHundredths) is "--".
+ * @return  The length of the full text, as formatKg().
+ */
+inline size_t formatWeight(int32_t hundredths, WeightUnit unit, char* out, size_t outSize)
+{
+    constexpr int32_t kMaxFormatHundredths = 9999999;
+
+    if (unit == WeightUnit::Kg || hundredths <= 0 || hundredths > kMaxFormatHundredths) {
+        return formatKg(hundredths, 1, out, outSize);
+    }
+    if (out == nullptr || outSize == 0) {
+        return 0;
+    }
+    const int tenths = static_cast<int>(hundredthsToLbTenths(hundredths));
+    int n = 0;
+    if (unit == WeightUnit::Lb) {
+        n = std::snprintf(out, outSize, "%d.%d", tenths / 10, tenths % 10);
+    } else {
+        const int rest = tenths % (kLbPerStone * 10);
+        n = std::snprintf(out, outSize, "%dst %d.%d", tenths / (kLbPerStone * 10), rest / 10, rest % 10);
+    }
+    return n > 0 ? static_cast<size_t>(n) : 0;
+}
+
+/// formatWeight() with its unit: "82.3 kg", "181.4 lb", "12st 5.4lb".
+inline size_t formatWeightWithUnit(int32_t hundredths, WeightUnit unit, char* out, size_t outSize)
+{
+    char num[24];
+    formatWeight(hundredths, unit, num, sizeof(num));
+    if (out == nullptr || outSize == 0) {
+        return 0;
+    }
+    const int n = unit == WeightUnit::StLb ? std::snprintf(out, outSize, "%slb", num)
+                                           : std::snprintf(out, outSize, "%s %s", num, weightUnitName(unit));
+    return n > 0 ? static_cast<size_t>(n) : 0;
+}
+
+/// A weight as whole stones and whole pounds (0-13), the pounds rounded to
+/// nearest and carrying into the stone. 0 and 0 if not set.
+inline void splitStoneLb(int32_t hundredths, int& stones, int& pounds)
+{
+    const int lb = (hundredths > 0 && hundredths <= 9999999)
+                       ? (static_cast<int>(hundredthsToLbTenths(hundredths)) + 5) / 10
+                       : 0;
+    stones = lb / kLbPerStone;
+    pounds = lb % kLbPerStone;
+}
+
+/**
+ * @brief   A weight for a narrow place (the graph's scale labels), whole
+ *          numbers for pounds: kg "82.5", lb "182", stones and pounds
+ *          "12st5" (pounds rounded to whole, carrying into the stone).
+ */
+inline size_t formatWeightShort(int32_t hundredths, WeightUnit unit, char* out, size_t outSize)
+{
+    constexpr int32_t kMaxFormatHundredths = 9999999;
+
+    if (unit == WeightUnit::Kg || hundredths <= 0 || hundredths > kMaxFormatHundredths) {
+        return formatKg(hundredths, 1, out, outSize);
+    }
+    if (out == nullptr || outSize == 0) {
+        return 0;
+    }
+    int n = 0;
+    if (unit == WeightUnit::Lb) {
+        n = std::snprintf(out, outSize, "%d", (static_cast<int>(hundredthsToLbTenths(hundredths)) + 5) / 10);
+    } else {
+        int st = 0, lb = 0;
+        splitStoneLb(hundredths, st, lb);
+        n = std::snprintf(out, outSize, "%dst%d", st, lb);
+    }
+    return n > 0 ? static_cast<size_t>(n) : 0;
+}
+
+/**
+ * @brief   A change in hundredths of a kg in the chosen unit, as formatChange():
+ *          kg "+0.4", pounds (and stones and pounds, which show a change in
+ *          pounds) "+0.9". Pair it with changeUnitName().
+ */
+inline size_t formatWeightChange(int32_t hundredths, WeightUnit unit, uint8_t decimals, char* out, size_t outSize)
+{
+    constexpr int32_t kMaxFormatHundredths = 9999999;
+
+    if (unit == WeightUnit::Kg || hundredths > kMaxFormatHundredths || hundredths < -kMaxFormatHundredths) {
+        return formatChange(hundredths, decimals, out, outSize);
+    }
+    // Pounds in tenths, shown as formatChange() shows hundredths: x10.
+    return formatChange(changeToLbTenths(hundredths) * 10, decimals, out, outSize);
 }
 
 }  // namespace XWeighIn

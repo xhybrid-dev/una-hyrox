@@ -223,4 +223,38 @@ Reconcile reconcile(IFileSystem& fs, const char* own, const char* shared, const 
     return copyFile(fs, own, shared) ? Reconcile::Refreshed : Reconcile::Failed;
 }
 
+WeightUnit readUnit(IFileSystem& fs, const char* path)
+{
+    auto file = fs.file(path);
+    if (!file || !file->open(false, false)) {
+        return WeightUnit::Kg;
+    }
+    char   c   = '0';
+    size_t got = 0;
+    const bool ok = file->read(&c, 1, got) && got == 1;
+    file->close();
+    return ok && c >= '0' && c <= '9' ? weightUnitFromConfig(c - '0') : WeightUnit::Kg;
+}
+
+bool writeUnit(IFileSystem& fs, WeightUnit unit, const char* path, const char* dir)
+{
+    // Already right: leave the file alone (flash wear, and the glance may be reading).
+    size_t size = 0;
+    if (fileSize(fs, path, size) && size == 2 && readUnit(fs, path) == unit) {
+        return true;
+    }
+    if (!fs.mkdir(dir)) {
+        return false;
+    }
+    auto file = fs.file(path);
+    if (!file || !file->open(true, false)) {
+        return false;
+    }
+    const char text[2] = { static_cast<char>('0' + static_cast<uint8_t>(unit)), '\n' };
+    bool ok = file->seek(0) && writeAll(*file, text, sizeof(text));
+    ok = file->flush() && ok;
+    file->close();
+    return ok;
+}
+
 }  // namespace XWeighIn::LogStore
