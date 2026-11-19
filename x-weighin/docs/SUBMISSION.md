@@ -149,6 +149,7 @@ Your X Weigh-in trend on the glances screen. Needs the X Weigh-in app.
 | Birth year | 0 (unset) or the year | Age, then resting kcal |
 | Birth month | 0-12 | Age to the month |
 | Sex | 0 unset, 1 female, 2 male | Resting kcal |
+| Weight units (1.1.0) | 0 kg, 1 stones and pounds, 2 pounds | How weights are shown; the data stays in kg |
 
 Until the app is on the store these come from `Apps/XWeighIn/app_config.json`
 over USB. The store install is the first time the UNA app's settings screen

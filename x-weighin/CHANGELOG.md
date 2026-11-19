@@ -11,6 +11,8 @@ strips the prefix for the SDK's version script. The steps are in
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-18
+
 ### Added
 
 - **Weight units.** A phone setting, "Weight units": kilograms (default), stones
