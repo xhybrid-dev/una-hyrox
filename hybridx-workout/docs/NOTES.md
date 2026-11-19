@@ -516,3 +516,20 @@ is now in every place that names it: the watch build's `CMakeLists.txt`, `Resour
 and the simulator's `CMakeLists.txt`. X Workout `B9171EBAF7066A30` (was `A294992CFC56DBE9`); `make_fit` writes it too. The packager still names the development ID,
 only to refuse it on a release. The CHANGELOG says 1.0.0. What is left: the tag `workout-v1.0.0`
 (Jon, on GitHub), then the upload.
+
+## Countdown tones (19 November 2026, Jon)
+
+Jon, after an EMOM on the watch: keep the buzz before a minute ends, and add tones for the last
+3 seconds, rising (3, 2, 1), then a longer tone at the end of the minute. It applies to every timed
+step (EMOM, Tabata, custom, circuit runs and stations, timed rests).
+
+- Core: `PlanRunner::countdown(model, nowMs)` (after `tick`, once a second) returns 3, 2 or 1 once
+  each in a timed step's last three seconds (`kCountdownMs`), else 0. Host tests:
+  `CountdownBeatsThreeTwoOneThenTheStepEnds` (three clock starts, three tick phases) and
+  `CountdownIsSilentForOpenStepsAndShortSteps`.
+- Service: `playCountdown` and `playTone`. Beats are 150 ms at 880, 1100 and 1320 Hz; the end tone is
+  700 ms at 1760 Hz, played with the step-change cue (Work, Rest, Run, Station, Done). The ticks fall
+  on UTC seconds, so 3-2-1-end are a second apart. The vibration pattern is unchanged.
+- The pitch needs firmware that plays it (SDK v1.6.0); older firmware plays one pitch, so the
+  rhythm (three short, one long) carries the meaning. The simulator has no sound. Not yet heard on a
+  watch: pitches, lengths and volume are Jon's ears to judge.
