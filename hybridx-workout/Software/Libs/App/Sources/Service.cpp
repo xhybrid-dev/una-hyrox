@@ -324,8 +324,45 @@ void Service::sendLapEvent(uint8_t index, Workout::Cue cue)
     SDK::send_msg<CustomMessage::SessionLapEvent>(mKernel, ev);
 }
 
+void Service::playTone(uint32_t ms, uint16_t hz)
+{
+    auto buzzer = SDK::make_msg<SDK::Message::RequestBuzzerPlay>(mKernel);
+    if (!buzzer) {
+        return;
+    }
+    buzzer->notes[0].time      = ms;
+    buzzer->notes[0].volume    = 100;
+    buzzer->notes[0].frequency = hz;   // SDK v1.6.0; older firmware plays its default pitch
+    buzzer->notesCount = 1;
+    buzzer.send();
+}
+
+void Service::playCountdown(uint8_t beat)
+{
+    // 3, 2, 1: short tones, each higher than the last. Rhythm alone still
+    // reads on firmware that ignores the pitch.
+    switch (beat) {
+    case 3: playTone(kBeatMs, kBeatHz3); break;
+    case 2: playTone(kBeatMs, kBeatHz2); break;
+    case 1: playTone(kBeatMs, kBeatHz1); break;
+    default: break;
+    }
+}
+
 void Service::buzzCue(Workout::Cue cue)
 {
+    // A timed step ended (or the plan did): the long, highest tone after the countdown.
+    switch (cue) {
+    case Workout::Cue::Work:
+    case Workout::Cue::Rest:
+    case Workout::Cue::Run:
+    case Workout::Cue::Station:
+    case Workout::Cue::Done:
+        playTone(kEndBeatMs, kEndBeatHz);
+        break;
+    default:
+        break;
+    }
     using V = SDK::Message::RequestVibroPlay;
     auto vibro = SDK::make_msg<V>(mKernel);
     if (!vibro) {
@@ -494,6 +531,8 @@ void Service::tick()
         }
         // A plan's timed steps end here (a plain workout has none).
         onCue(sRunner.tick(sModel, nowMs), nowMs);
+        // The tones for the last 3, 2 and 1 seconds (the vibration is the warning).
+        playCountdown(sRunner.countdown(sModel, nowMs));
     }
 
     if (mGuiStarted) {

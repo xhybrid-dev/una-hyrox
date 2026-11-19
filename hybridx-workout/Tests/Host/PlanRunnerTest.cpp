@@ -375,3 +375,51 @@ TEST(PlanRunner, StartingAgainBeginsAFreshPlan)
     EXPECT_EQ(f.m.lapCount(), 1);
     EXPECT_EQ(f.r.view(f.m, 310000).stepMs, 10000u);
 }
+
+TEST(PlanRunner, CountdownBeatsThreeTwoOneThenTheStepEnds)
+{
+    for (uint32_t s0 : kStarts) {
+        for (uint32_t jitter : {0u, 300u, 900u}) {   // where the 1 Hz tick falls in the second
+            Fixture f;
+            f.start(of(SessionType::Emom), s0);
+            std::vector<std::pair<uint32_t, int>> beats;   // (ms, beat)
+            for (uint32_t off = jitter; off <= 125000u + jitter; off += 1000) {
+                const uint32_t now = s0 + off;
+                f.m.addSample(now, 120);
+                const Cue c = f.r.tick(f.m, now);
+                if (c != Cue::None) {
+                    f.cues.emplace_back(off, c);
+                }
+                const uint8_t b = f.r.countdown(f.m, now);
+                if (b) {
+                    beats.emplace_back(off, b);
+                }
+            }
+            // Minute 1 ends at 60 s: 3, 2, 1 on the last three ticks, one second apart.
+            ASSERT_GE(beats.size(), 6u);
+            for (size_t i = 0; i < 3; ++i) {
+                EXPECT_EQ(beats[i].second, int(3 - i));
+                EXPECT_LE(beats[i].first, 60000u);
+                EXPECT_GT(beats[i].first + 3000u + 1u, 60000u - 0u);
+            }
+            EXPECT_EQ(beats[1].first - beats[0].first, 1000u);
+            EXPECT_EQ(beats[2].first - beats[1].first, 1000u);
+            // The same for minute 2, and no beat twice.
+            EXPECT_EQ(beats[3].second, 3);
+            EXPECT_EQ(beats[4].second, 2);
+            EXPECT_EQ(beats[5].second, 1);
+            EXPECT_GT(beats[3].first, 60000u);
+        }
+    }
+}
+
+TEST(PlanRunner, CountdownIsSilentForOpenStepsAndShortSteps)
+{
+    Fixture f;
+    f.start(of(SessionType::Strength));   // an open set first: no timer
+    for (uint32_t off = 0; off <= 20000; off += 1000) {
+        f.m.addSample(f.t0 + off, 120);
+        f.r.tick(f.m, f.t0 + off);
+        EXPECT_EQ(f.r.countdown(f.m, f.t0 + off), 0);
+    }
+}

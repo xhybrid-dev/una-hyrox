@@ -1016,3 +1016,14 @@ ones are the Changes menu, a missed long run offered back, and Today on a treadm
 ahead"), and the paste-ready listing, release notes and upload order in `docs/store/LISTING.md` (the source is
 `hybridx-link/docs/STORE_RELEASE.md`). The packager passes with them (`--expect-version 1.1.0`). They must be in the commit the
 tag `training-v1.1.0` points at, because the CI zip is built from the tag: tag the newest commit.
+
+## Steadier pace alerts (19 November 2026, Jon)
+
+Jon: running on the edge of the pace band beeped "too slow", "back in", "too slow" again. The SDK's
+`ZoneAlerts` alerts the moment the gauge's zone changes, and it is read-only, so `ZoneDebounce`
+(`Core/Header/ZoneDebounce.hpp`, pure) sits in front of it: a change of zone reaches the alerts only
+after it has held `kDelaySec` (5) seconds in a row. That delays "too fast / too slow" by 5 s and also
+"back in" by 5 s, so a dip or a brief return makes no sound. Unknown and NoSignal pass at once, and the
+first reading after them is taken at once (the SDK's own 20 s quiet start still applies). The screen's
+gauge keeps the live zone. Applies to every step, planned or UNA's. Host tests `ZoneDebounce.*`
+(through the real `ZoneAlerts`). The delay is a constant (3 s is `kDelaySec = 3`): Jon to judge on a run.

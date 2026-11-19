@@ -83,6 +83,9 @@ constexpr uint16_t kTabataRestSec = 10;
 /// The warning before a timed step ends.
 constexpr uint32_t kWarnMs = 3000;
 
+/// The audible countdown before a timed step ends: a tone for each of the last 3 s.
+constexpr uint32_t kCountdownMs = 3000;
+
 // --- The circuit's stations ----------------------------------------------------
 
 /// One circuit station: a copy of HybridX Race's table (RaceData.hpp, kStations),
