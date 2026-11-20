@@ -178,6 +178,12 @@ for sc in $SCENARIOS; do
         key 3 3; snap newplan-today                               # R1: started; Today
         echo "  app_config.json: $(tr -d ' \n' < "$SOFT/Output/app_config.json" | grep -oE '"(plan|fiveK|level|raceDate)":"?[^,"]*"?' | tr '\n' ' ')"
         echo "  plan.json: $(grep -oE '"(s|c)":\[[0-9,]+\]' "$SOFT/Output/plan.json" | tr '\n' ' ')" ;;
+    plans)    # New plan: the three plans on offer (R1 on the Plan row cycles them)
+        config 1 22:00 "$DAYS_TODAY" "$LONG_TODAY"
+        planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)"
+        start_sim
+        key 2; key 2; key 2; key 2; key 3 2; key 3 2; snap plans-10k   # Plan; New plan: 10K
+        key 3; snap plans-half; key 3; snap plans-vo2 ;;               # R1: the half; R1: the VO2max block
     phoneask) # the phone asks for the half while the 10K is under way: start it
         config 2 22:00 "$DAYS_TODAY" "$LONG_TODAY"
         planfile "$DAYS_TODAY" "$LONG_TODAY" "$(monday_weeks -4)"
