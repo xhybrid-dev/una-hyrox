@@ -150,6 +150,8 @@ LISTINGS = {
              "previews/10-how-it-went.png", False),
             (["HOW DID", "IT FEEL?"], "Fresh to spent, one press. Your feel sits beside your pace, session by session.",
              "previews/11-feel.png", True),
+            (["CHOOSE", "YOUR PLAN"], "10K, half marathon or VO2max block, at three levels, on the days you run. Paces come from your 5K.",
+             "previews/13-plans.png", True),
             (["YOUR", "FORM"], "The last eight sessions at a glance. Three slow ones in a row and it offers to hold the plan.",
              "previews/12-form.png", False),
         ],
