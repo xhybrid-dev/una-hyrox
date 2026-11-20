@@ -10,6 +10,7 @@
 #include "Date.hpp"
 #include "TimeText.hpp"
 #include "PlanText.hpp"   // X Training: header-only
+#include "ReviewText.hpp"   // X Training (TP8): header-only
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 #include "gui/Audit.hpp"
@@ -23,6 +24,7 @@ constexpr uint32_t kStreakLineMs = 3500;   ///< with the Streak line, time to re
 constexpr uint32_t kPlanLinesMs  = 3500;   ///< X Training: with the plan's lines
 constexpr int32_t  kTextY        = 156;    ///< the confirmation's text (and the Streak line)
 constexpr int32_t  kPlanTextY    = 140;    ///< X Training: the plan's two lines
+constexpr int32_t  kPlanTextY3   = 134;    ///< X Training (TP8): with a third line, how it went
 } // namespace
 
 TrackResultScreen::TrackResultScreen(Model& model, Result result)
@@ -89,7 +91,12 @@ void TrackResultScreen::dismissCb(lv_timer_t* t)
         return;
     }
     if (self->mResult == Result::Saved) {
-        // HybridX Run: a treadmill run asks for the console's distance first.
+        // X Training (TP8): a planned session that counted asks how the runner felt, once. Then what the save
+        // flow had next: HybridX Run's treadmill asks for the console's distance, else the summary.
+        if (self->mModel.getPlanSaved().askFeel != 0) {
+            ScreenManager::instance().goTo(ScreenId::Feel);
+            return;
+        }
         ScreenManager::instance().goTo(self->mModel.getTrackData().treadmill ? ScreenId::TreadmillDistance
                                                                             : ScreenId::TrackSummary);
     } else {
@@ -129,19 +136,36 @@ void TrackResultScreen::onPlanSaved()
         snprintf(week, sizeof(week), "5K %u:%02u, %s", static_cast<unsigned>(s.trialSec / 60),
                  static_cast<unsigned>(s.trialSec % 60), kDid[s.trial < 5 ? s.trial : 0]);
     }
+    // TP8: how it kept to its paces (time in band, and which side it missed on), when it was judged.
+    char review[40] = "";
+    if (s.reviewJudged != 0) {
+        const int slow = 100 - s.inPct - s.fastPct;
+        const XTraining::Review::Dir dir = s.fastPct > slow ? XTraining::Review::Dir::Fast
+                                         : slow > 0 ? XTraining::Review::Dir::Slow : XTraining::Review::Dir::None;
+        XTraining::ReviewText::savedLine(s.inPct, dir, review, sizeof(review));
+    }
     char next[40] = "";
-    if (s.nextDate != 0) {
+    if (s.asks != 0) {
+        snprintf(next, sizeof(next), "Today has a question");   // three sessions too slow: hold the plan?
+    } else if (s.nextDate != 0) {
         snprintf(next, sizeof(next), "Next: %s, %s",
                  XTraining::TimeText::weekdayName(static_cast<unsigned>(XTraining::Date::weekday(s.nextDate))),
                  XTraining::PlanText::shortName(static_cast<XTraining::Kind>(s.nextKind)));
     }
     // Clear of the arcs at the second line's foot (y 184: 174 px), as the audit measures.
-    WorkoutUi::fitWidth(week, sizeof(week), Theme::font(Theme::Font::Regular16), 172);
-    WorkoutUi::fitWidth(next, sizeof(next), Theme::font(Theme::Font::Regular16), 172);
-    snprintf(mPlanText, sizeof(mPlanText), "%.31s%s%.30s", week, next[0] ? "\n" : "", next);
+    // Two lines in the 16 point face; three (with how it went) in the 14 point, which keeps the block's foot
+    // clear of the arcs (the audit measures the corners of the widest line).
+    const bool three = review[0] != '\0' && next[0] != '\0';
+    const lv_font_t* planFont = Theme::font(three ? Theme::Font::Regular14 : Theme::Font::Regular16);
+    WorkoutUi::fitWidth(week, sizeof(week), planFont, 172);
+    WorkoutUi::fitWidth(review, sizeof(review), planFont, 172);
+    WorkoutUi::fitWidth(next, sizeof(next), planFont, 172);
+    snprintf(mPlanText, sizeof(mPlanText), "%.31s%s%.39s%s%.39s", week, review[0] ? "\n" : "", review,
+             next[0] ? "\n" : "", next);
     lv_label_set_text(mText, mPlanText);
-    lv_obj_set_style_text_font(mText, Theme::font(Theme::Font::Regular16), 0);
-    lv_obj_set_y(mText, kPlanTextY);   // higher than the confirmation's: two lines, clear of the foot
+    lv_obj_set_style_text_font(mText, planFont, 0);
+    // Higher than the confirmation's: two or three lines, clear of the foot
+    lv_obj_set_y(mText, three ? kPlanTextY3 : kPlanTextY);
     lv_obj_set_x(mText, 33);
     lv_obj_set_width(mText, 174);
     mPlanShown = true;

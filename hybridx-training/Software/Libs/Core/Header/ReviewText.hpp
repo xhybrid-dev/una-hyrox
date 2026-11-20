@@ -102,35 +102,22 @@ inline void insightLine(Review::Line line, uint8_t n, char* buf, size_t cap)
     switch (line) {
     case Review::Line::OnTrack:   std::snprintf(buf, cap, "On pace. Keep it steady."); break;
     case Review::Line::OnTired:   std::snprintf(buf, cap, "Held the pace while tired."); break;
-    case Review::Line::SlowTired: std::snprintf(buf, cap, "%u sessions slow, and tired. Rest is part of the plan.", static_cast<unsigned>(n)); break;
-    case Review::Line::SlowFresh: std::snprintf(buf, cap, "%u sessions slow, yet fresh. The paces may be set too hard.", static_cast<unsigned>(n)); break;
-    case Review::Line::SlowMixed: std::snprintf(buf, cap, "%u sessions in a row too slow.", static_cast<unsigned>(n)); break;
-    case Review::Line::Fast:      std::snprintf(buf, cap, "%u sessions too fast. Hold to the pace.", static_cast<unsigned>(n)); break;
+    case Review::Line::SlowTired: std::snprintf(buf, cap, "%u slow and tired. Rest up.", static_cast<unsigned>(n)); break;
+    case Review::Line::SlowFresh: std::snprintf(buf, cap, "Slow yet fresh: paces too hard?"); break;
+    case Review::Line::SlowMixed: std::snprintf(buf, cap, "%u in a row too slow.", static_cast<unsigned>(n)); break;
+    case Review::Line::Fast:      std::snprintf(buf, cap, "%u too fast. Hold the pace.", static_cast<unsigned>(n)); break;
     case Review::Line::None:      break;
     }
 }
 
-/// Today's offer after a run of slow sessions: the question under the title.
-inline void easeQuestion(Review::Line line, char* buf, size_t cap)
-{
-    if (buf == nullptr || cap == 0) {
-        return;
-    }
-    switch (line) {
-    case Review::Line::SlowTired: std::snprintf(buf, cap, "Slow and tired, three times. Run this week again next week?"); break;
-    case Review::Line::SlowFresh: std::snprintf(buf, cap, "Slow though fresh: the paces may be too hard. Run this week again next week?"); break;
-    default:                      std::snprintf(buf, cap, "Three sessions too slow. Run this week again next week?"); break;
-    }
-}
-
-/// Why the repeat was not made (PlanRules::Settled::Denied as a number, 1 on).
+/// Why the repeat was not made (PlanRules::Settled::Denied as a number, 1 on), in few words for Today's italic line.
 inline const char* easeDenied(uint8_t denied)
 {
     switch (denied) {
-    case 1:  return "Not in the last weeks before the race";
-    case 2:  return "The plan has grown as far as it can";
-    case 3:  return "This is the plan's last week";
-    default: return "That week is already repeated";
+    case 1:  return "too near the race";
+    case 2:  return "plan is long enough";
+    case 3:  return "last week of plan";
+    default: return "already repeated";
     }
 }
 

@@ -4,7 +4,7 @@
  * @brief   X Training: Plan (brief 8.1). The plan's name in the title; the
  *          week and its phase; a bar of the weeks, coloured by phase, this
  *          week marked; this week's sessions done, the plan's so far; the race
- *          or the last day. R2 goes back. (New plan, R1, is step 3's.)
+ *          or the last day. R2 goes back. R1 is New plan; L2 is Form (TP8).
  ******************************************************************************
  */
 

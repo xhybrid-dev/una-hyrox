@@ -279,15 +279,11 @@ TEST(ReviewText, EveryLineAndQuestionIsBritishEnglishAndBounded)
     for (Line line : lines) {
         ReviewText::insightLine(line, 3, b, sizeof(b));
         EXPECT_GT(std::strlen(b), 0u);
-        EXPECT_LT(std::strlen(b), 64u);
+        EXPECT_LT(std::strlen(b), 40u);   // two lines of the Form page's face
         EXPECT_EQ(std::strstr(b, "color"), nullptr);
     }
     ReviewText::insightLine(Line::None, 3, b, sizeof(b));
     EXPECT_STREQ(b, "");
-    for (Line line : {Line::SlowTired, Line::SlowFresh, Line::SlowMixed}) {
-        ReviewText::easeQuestion(line, b, sizeof(b));
-        EXPECT_LT(std::strlen(b), 90u);
-    }
     // A tiny buffer is cut, never overrun.
     char tiny[8];
     ReviewText::insightLine(Line::SlowFresh, 3, tiny, sizeof(tiny));

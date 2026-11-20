@@ -149,6 +149,13 @@ void PlanOfferScreen::onShow()
                       static_cast<unsigned>(t.plannedSec % 60));
         std::snprintf(mTip[ID_NO], sizeof(mTip[0]), "5K %u:%02u", static_cast<unsigned>(t.plannedM / 60),
                       static_cast<unsigned>(t.plannedM % 60));
+    } else if (t.detail >= Info::EaseTired) {
+        // TP8: three sessions too slow in a row: hold the plan (next week runs this week's plan week again).
+        std::snprintf(mTitleText, sizeof(mTitleText), "HOLD THE PLAN?");
+        std::snprintf(mText[ID_YES], sizeof(mText[0]), "Yes, hold it");
+        std::snprintf(mText[ID_NO], sizeof(mText[0]), "Not now");
+        std::snprintf(mTip[ID_YES], sizeof(mTip[0]), "this week runs again");
+        std::snprintf(mTip[ID_NO], sizeof(mTip[0]), "ask after 3 more");
     } else {
         std::snprintf(mTitleText, sizeof(mTitleText), t.detail == Info::LongRun ? "DO IT TODAY?" : "DO IT INSTEAD?");
         std::snprintf(mText[ID_YES], sizeof(mText[0]), "Yes, today");

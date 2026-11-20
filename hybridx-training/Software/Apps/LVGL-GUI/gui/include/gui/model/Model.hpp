@@ -154,7 +154,7 @@ public:
     void requestPlan(uint8_t what, uint32_t date = 0);
     /// TP5: an offer answered, a day moved or skipped, the plan paused, resumed or ended
     /// (CustomMessage::PlanAction::What). The service answers with Today.
-    void planAction(uint8_t what);
+    void planAction(uint8_t what, uint8_t arg = 0);   ///< (TP8: arg is the feel for PlanAction::Feel)
     const CustomMessage::PlanTodayInfo&    getPlanDay() const { return mPlanDay; }
     const CustomMessage::PlanWeekInfo&     getPlanWeek() const { return mPlanWeek; }
     const CustomMessage::PlanOverviewInfo& getPlanOverview() const { return mPlanOverview; }
@@ -169,6 +169,7 @@ public:
     const CustomMessage::PlanPreviewInfo& getPlanPreview() const { return mPlanPreview; }
     /// After a save: how the planned session counts (outcome None if it was not one).
     const CustomMessage::PlanSavedInfo&   getPlanSaved() const { return mPlanSaved; }
+    const CustomMessage::PlanFormInfo&    getPlanForm() const { return mPlanForm; }   ///< TP8: the Form page
     CustomMessage::PlanSetupInfo&          draft() { return mDraft; }
     bool  draftReady() const { return mDraftReady; }
     void  setDraftReady(bool ready) { mDraftReady = ready; }
@@ -183,6 +184,7 @@ public:
     void injectPlanPaces(const CustomMessage::PlanPacesInfo& i);
     void injectPlanPreview(const CustomMessage::PlanPreviewInfo& i);
     void injectPlanSaved(const CustomMessage::PlanSavedInfo& i);
+    void injectPlanForm(const CustomMessage::PlanFormInfo& i);
     struct WorkoutStepInfo;   // below
     void injectWorkoutStep(const WorkoutStepInfo& i);
 #endif
@@ -333,6 +335,7 @@ private:
     CustomMessage::PlanSetupInfo     mDraft {};
     CustomMessage::PlanPreviewInfo   mPlanPreview {};
     CustomMessage::PlanSavedInfo     mPlanSaved {};
+    CustomMessage::PlanFormInfo      mPlanForm {};
     bool                             mPhoneAsks  = false;
     bool                             mDraftReady = false;
     bool            mStepCard       = false;

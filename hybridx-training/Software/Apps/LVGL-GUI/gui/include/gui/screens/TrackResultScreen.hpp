@@ -43,7 +43,7 @@ private:
     lv_obj_t*   mText    = nullptr;   ///< the confirmation's text; the Streak line replaces it
     bool        mPlanShown     = false;   ///< X Training: the plan's lines are on show
     bool        mStreakPending = false;   ///< a Streak line came while they were: it follows
-    char        mPlanText[64]  = "";
+    char        mPlanText[112] = "";   ///< up to three lines (the week, how it went, what is next)
     std::unique_ptr<Widgets::Title> mTitle;
 };
 

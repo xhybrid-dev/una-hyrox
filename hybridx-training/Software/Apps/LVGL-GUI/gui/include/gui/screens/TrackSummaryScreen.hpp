@@ -38,8 +38,10 @@ private:
     // step length).
     // Then the run detail: FACE_ZONES (time in heart-rate zones), FACE_SPLITS (best splits and the
     // halves) and FACE_PACING (grade-adjusted pace and drift).
+    // X Training (TP8): FACE_REVIEW, how the session kept to its paces, only after a planned session
+    // that was judged (hasReview()); it is skipped, and its dot left out, otherwise.
     enum Face : uint8_t { FACE_MAP = 0, FACE_OVERVIEW, FACE_HEARTRATE, FACE_FORM, FACE_ZONES,
-                          FACE_SPLITS, FACE_PACING, FACE_LAPS, FACE_COUNT };
+                          FACE_SPLITS, FACE_PACING, FACE_REVIEW, FACE_LAPS, FACE_COUNT };
 
     static constexpr uint8_t kLapPageSize = 3;   ///< rows advanced per L1/L2 press
     static constexpr uint8_t kLapVisible  = 5;   ///< rows on screen at once
@@ -59,6 +61,13 @@ private:
     void buildFaceZones();
     void buildFaceSplits();
     void buildFacePacing();
+    void buildFaceReview();
+    void fillReview();
+    bool hasReview() const;                 ///< TP8: a planned session that was judged, after a save
+    uint8_t faceCount() const;              ///< the faces before the lap pages that are shown
+    uint8_t slotOf(uint8_t face) const;     ///< a face's dot, with an unshown review face left out
+    uint8_t nextFace(uint8_t face) const;   ///< the face after @p face, skipping the review face when unshown
+    uint8_t prevFace(uint8_t face) const;
     void buildFaceLaps();
 
     void setSummary(const ActivitySummary& s);
@@ -99,6 +108,13 @@ private:
     lv_obj_t* mGapPace             = nullptr;
     lv_obj_t* mDrift               = nullptr;
     lv_obj_t* mDriftNote           = nullptr;
+
+    // How it went (X Training, TP8)
+    lv_obj_t* mRevPct   = nullptr;
+    lv_obj_t* mRevReps  = nullptr;
+    lv_obj_t* mRevMiss  = nullptr;
+    lv_obj_t* mRevFade  = nullptr;
+    lv_obj_t* mRevFeel  = nullptr;
 
     // Laps
     lv_obj_t* mLapsCount = nullptr;

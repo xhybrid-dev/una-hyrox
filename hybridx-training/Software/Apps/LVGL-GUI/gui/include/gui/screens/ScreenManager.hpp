@@ -35,6 +35,8 @@ enum class ScreenId : uint8_t {
     PlanAsk,        // X Training: the phone's new plan, start it or keep yours
     PlanChanges,    // X Training (TP5): move, skip, pause or end the plan
     PlanOffer,      // X Training (TP5): an offer, or a trial's question, answered
+    PlanForm,       // X Training (TP8): Form, the last reviewed sessions
+    Feel,           // X Training (TP8): how the runner felt, after a planned session is saved
     // Structured workouts
     WorkoutToday,
     WorkoutList,

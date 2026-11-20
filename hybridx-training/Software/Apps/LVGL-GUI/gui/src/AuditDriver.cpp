@@ -28,6 +28,8 @@
 // The simulator links the core (the service's), so the audit can ask it for the plans' words.
 #include "PlanBuilder.hpp"
 #include "PlanText.hpp"
+#include "ReviewInsight.hpp"
+#include "ReviewText.hpp"
 #include "data/PlanData.hpp"
 
 namespace AuditDriver
@@ -228,6 +230,31 @@ Info paceAsk(uint32_t newSec, uint32_t oldSec, uint8_t detail)
     return t;
 }
 
+/// TP8: the offer to hold the plan (detail EaseTired, EaseFresh or EaseMixed).
+Info easeOf(uint8_t detail)
+{
+    Info t = notToday(Info::Offer, "Hold the plan?", "12 sessions too slow");
+    t.detail = detail;
+    return t;
+}
+
+/// TP8: Form's data, @p n sessions and the one line @p line speaks of @p lineN of them.
+CustomMessage::PlanFormInfo formOf(uint8_t n, XTraining::Review::Line line, uint8_t lineN)
+{
+    CustomMessage::PlanFormInfo f;
+    f.count = n;
+    f.line  = static_cast<uint8_t>(line);
+    f.lineN = lineN;
+    for (uint8_t i = 0; i < n && i < CustomMessage::PlanFormInfo::kMax; ++i) {
+        f.row[i].date   = 20260930 + i;
+        f.row[i].judged = i == 2 ? 0 : 1;
+        f.row[i].inPct  = static_cast<uint8_t>(100 - i * 12);
+        f.row[i].dir    = i % 2 == 0 ? 1 : 2;
+        f.row[i].feel   = static_cast<uint8_t>(i % 6);
+    }
+    return f;
+}
+
 #define OFFER_KIND(K, D)                                                                      \
     { nullptr, [] { sModel->injectPlanToday(offerOf(Kind::K, Info::D)); } },                  \
     { "today: offer, " #K, nullptr }
@@ -423,6 +450,133 @@ const Step kSteps[] = {
           sModel->injectPlanSaved(s);
       } },
     { "saved: a trial, a big jump", nullptr },
+    // TP8: how it went on the Saved screen (three lines), the widest of each
+    { nullptr, [] {
+          CustomMessage::PlanSavedInfo s;
+          s.outcome = CustomMessage::PlanSavedInfo::Done;
+          s.runWeek = 23; s.weekDone = 6; s.weekSessions = 6;
+          s.reviewJudged = 1; s.inPct = 40; s.fastPct = 60; s.gapSecKm = -9; s.units = 6; s.unitsIn = 2;
+          s.nextDate = 20260930; s.nextKind = static_cast<uint8_t>(Kind::LongFinish);
+          sModel->injectPlanSaved(s);
+      } },
+    { "saved: too fast, 40% on pace, next a long fast finish", nullptr },
+    { nullptr, [] {
+          CustomMessage::PlanSavedInfo s;
+          s.outcome = CustomMessage::PlanSavedInfo::PartDone;
+          s.runWeek = 23; s.weekDone = 6; s.weekSessions = 6;
+          s.reviewJudged = 1; s.inPct = 5; s.fastPct = 0; s.gapSecKm = 40;
+          s.offRun = 3; s.asks = 1;
+          s.nextDate = 20260930; s.nextKind = static_cast<uint8_t>(Kind::LongFinish);
+          sModel->injectPlanSaved(s);
+      } },
+    { "saved: too slow, 5% on pace, Today has a question", nullptr },
+    { nullptr, [] {
+          CustomMessage::PlanSavedInfo s;
+          s.outcome = CustomMessage::PlanSavedInfo::Done;
+          s.trial = CustomMessage::PlanSavedInfo::AsksJump; s.trialSec = 3599;
+          s.runWeek = 23; s.weekDone = 6; s.weekSessions = 6;
+          s.reviewJudged = 1; s.inPct = 100;
+          s.nextDate = 20260930; s.nextKind = static_cast<uint8_t>(Kind::TimeTrial10k);
+          sModel->injectPlanSaved(s);
+      } },
+    { "saved: a trial, 100% on pace", nullptr },
+
+    // TP8: the Feel screen, each choice selected
+    { nullptr, [] { go(ScreenId::Feel); } },
+    { nullptr, [] {} },
+    { "feel: Steady", nullptr },
+    { nullptr, [] { key(Btn::L1); } },
+    { "feel: Good", nullptr },
+    { nullptr, [] { key(Btn::L1); } },
+    { "feel: Fresh", nullptr },
+    { nullptr, [] { key(Btn::L2); key(Btn::L2); key(Btn::L2); } },
+    { "feel: Tired", nullptr },
+    { nullptr, [] { key(Btn::L2); } },
+    { "feel: Spent", nullptr },
+    { nullptr, [] { key(Btn::L2); } },
+    { "feel: Skip", nullptr },
+
+    // TP8: the summary's How it went face, worst numbers, in miles
+    { nullptr, [] {
+          CustomMessage::PlanSavedInfo s;
+          s.outcome = CustomMessage::PlanSavedInfo::Done;
+          s.reviewJudged = 1; s.inPct = 100; s.fastPct = 0; s.gapSecKm = -600; s.fadeSecKm = -100; s.units = 32; s.unitsIn = 32;
+          sModel->injectPlanSaved(s);
+          go(ScreenId::TrackSummary);
+      } },
+    { nullptr, [] { for (int i = 0; i < 7; ++i) { key(Btn::L2); } } },
+    { "summary: how it went, worst numbers", nullptr },
+    { nullptr, [] {
+          CustomMessage::PlanSavedInfo s;
+          s.outcome = CustomMessage::PlanSavedInfo::Done;
+          s.reviewJudged = 1; s.inPct = 0; s.fastPct = 0; s.gapSecKm = 600; s.fadeSecKm = 99; s.units = 2; s.unitsIn = 0;
+          sModel->injectPlanSaved(s);
+          go(ScreenId::TrackSummary);
+      } },
+    { nullptr, [] { for (int i = 0; i < 7; ++i) { key(Btn::L2); } } },
+    { "summary: how it went, slow, 0%", nullptr },
+
+    // TP8: Form, with every line the pattern can say
+    { nullptr, [] { go(ScreenId::PlanForm); } },
+    { nullptr, [] {} },
+    { nullptr, [] { sModel->injectPlanForm(CustomMessage::PlanFormInfo{}); } },
+    { "form: no sessions yet", nullptr },
+    { nullptr, [] { sModel->injectPlanForm(formOf(8, XTraining::Review::Line::None, 0)); } },
+    { "form: eight sessions, nothing to flag", nullptr },
+    { nullptr, [] { sModel->injectPlanForm(formOf(8, XTraining::Review::Line::SlowFresh, 12)); } },
+    { "form: slow, yet fresh", nullptr },
+    { nullptr, [] { sModel->injectPlanForm(formOf(8, XTraining::Review::Line::SlowTired, 12)); } },
+    { "form: slow, and tired", nullptr },
+    { nullptr, [] { sModel->injectPlanForm(formOf(8, XTraining::Review::Line::SlowMixed, 12)); } },
+    { "form: slow, mixed", nullptr },
+    { nullptr, [] { sModel->injectPlanForm(formOf(8, XTraining::Review::Line::Fast, 12)); } },
+    { "form: too fast", nullptr },
+    { nullptr, [] { sModel->injectPlanForm(formOf(3, XTraining::Review::Line::OnTired, 0)); } },
+    { "form: three sessions, held the pace while tired", nullptr },
+    { nullptr, [] { sModel->injectPlanForm(formOf(1, XTraining::Review::Line::OnTrack, 0)); } },
+    { "form: one session, on pace", nullptr },
+
+    // TP8: the offer to hold the plan, on Today and its two choices
+    { nullptr, [] { sModel->injectPlanToday(easeOf(Info::EaseTired)); go(ScreenId::PlanToday); } },
+    { nullptr, [] {} },
+    { "today: hold the plan, tired", nullptr },
+    { nullptr, [] { sModel->injectPlanToday(easeOf(Info::EaseFresh)); } },
+    { "today: hold the plan, fresh", nullptr },
+    { nullptr, [] { sModel->injectPlanToday(easeOf(Info::EaseMixed)); } },
+    { "today: hold the plan, mixed", nullptr },
+    { nullptr, [] { go(ScreenId::PlanOffer); } },
+    { nullptr, [] {} },
+    { "offer: hold the plan", nullptr },
+    { nullptr, [] { key(Btn::L2); } },
+    { "offer: hold the plan, not now", nullptr },
+
+    // TP8: why holding the plan was not allowed, in Today's italic line
+    { nullptr, [] {
+          Info t = session(Kind::LongFinish);
+          t.notice = Info::NotAllowed; t.why = 1;
+          go(ScreenId::PlanToday);
+          sModel->injectPlanToday(t);
+      } },
+    { nullptr, [] {} },
+    { "today: not allowed, too near the race", nullptr },
+    { nullptr, [] {
+          Info t = session(Kind::LongFinish);
+          t.notice = Info::NotAllowed; t.why = 2;
+          sModel->injectPlanToday(t);
+      } },
+    { "today: not allowed, plan is long enough", nullptr },
+    { nullptr, [] {
+          Info t = session(Kind::LongFinish);
+          t.notice = Info::NotAllowed; t.why = 3;
+          sModel->injectPlanToday(t);
+      } },
+    { "today: not allowed, last week of plan", nullptr },
+    { nullptr, [] {
+          Info t = session(Kind::LongFinish);
+          t.notice = Info::NotAllowed; t.why = 4;
+          sModel->injectPlanToday(t);
+      } },
+    { "today: not allowed, already repeated", nullptr },
 };
 constexpr int kStepCount = static_cast<int>(sizeof(kSteps) / sizeof(kSteps[0]));
 
