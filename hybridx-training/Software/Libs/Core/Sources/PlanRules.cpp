@@ -275,6 +275,37 @@ Settled settle(PlanState& st, const PlanDef& def, const Paces& paces, Ymd today)
     return r;
 }
 
+bool easeNextWeek(PlanState& st, const PlanDef& def, Ymd today, Settled::Denied* why)
+{
+    Settled::Denied none = Settled::Denied::None;
+    Settled::Denied& deny = why != nullptr ? *why : none;
+    deny = Settled::Denied::None;
+    if (!st.active() || !Date::valid(today)) {
+        deny = Settled::Denied::NoRoom;
+        return false;
+    }
+    const DayPlace p = PlanCalendar::locate(st.calendar, today);
+    if (p.where != DayPlace::Where::In) {
+        deny = Settled::Denied::NoRoom;
+        return false;
+    }
+    // Once is enough: if the next week already runs this plan week (or an earlier one), holding the plan
+    // again would repeat it a second time (repeatWeek is not idempotent).
+    if (p.runWeek + 1 < st.calendar.weeks
+        && PlanCalendar::planWeekOf(st.calendar, static_cast<uint8_t>(p.runWeek + 1))
+               <= PlanCalendar::planWeekOf(st.calendar, p.runWeek)) {
+        deny = Settled::Denied::NoRoom;
+        return false;
+    }
+    if (repeatWeek(st, def, p.runWeek, false, &deny)) {
+        return true;
+    }
+    if (deny == Settled::Denied::None) {
+        deny = Settled::Denied::NoRoom;   // the next week already runs this plan week, or no adjustment is left
+    }
+    return false;
+}
+
 Offer offer(const PlanState& st, const PlanDef& def, const Paces& paces, Ymd today)
 {
     Offer o;

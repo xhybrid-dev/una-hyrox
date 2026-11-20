@@ -125,6 +125,50 @@ TEST(PlanRules, PausingAfterTodaysRunKeepsTodaysSession)
     EXPECT_EQ(g.on(g.at(0, 1)).asRun.kind, Kind::Rest);
 }
 
+TEST(PlanRules, EasingHoldsThePlanBySendingNextWeekBackToThisWeeksPlanWeek)
+{
+    Fixture f;   // no race: the plan grows by a week
+    f.doneBefore(2);
+    const DayPlace here = PlanCalendar::locate(f.st.calendar, f.at(2, 2));
+    ASSERT_EQ(here.runWeek, 2);
+    const uint8_t weeksBefore = f.st.calendar.weeks;
+    Settled::Denied why = Settled::Denied::None;
+    EXPECT_TRUE(easeNextWeek(f.st, f.def, f.at(2, 2), &why));
+    EXPECT_EQ(why, Settled::Denied::None);
+    EXPECT_EQ(f.st.calendar.weeks, weeksBefore + 1);
+    // Run week 3 now runs the plan week that run week 2 runs.
+    EXPECT_EQ(PlanCalendar::locate(f.st.calendar, f.at(3, 2)).planWeek, here.planWeek);
+    // Doing it twice for the same week has no more to give.
+    EXPECT_FALSE(easeNextWeek(f.st, f.def, f.at(2, 3), &why));
+    EXPECT_EQ(why, Settled::Denied::NoRoom);
+}
+
+TEST(PlanRules, EasingIsRefusedInTheLastWeeksBeforeARaceAndAtThePlansEnd)
+{
+    Fixture race(20270314u);   // a Sunday 10 weeks on
+    ASSERT_TRUE(race.st.calendar.usable());
+    race.doneBefore(race.st.calendar.weeks - 2);
+    Settled::Denied why = Settled::Denied::None;
+    EXPECT_FALSE(easeNextWeek(race.st, race.def, race.at(race.st.calendar.weeks - 2, 2), &why));
+    EXPECT_NE(why, Settled::Denied::None);
+    // On the last week there is no next week to hold.
+    Settled::Denied last = Settled::Denied::None;
+    EXPECT_FALSE(easeNextWeek(race.st, race.def, race.at(race.st.calendar.weeks - 1, 2), &last));
+    EXPECT_NE(last, Settled::Denied::None);
+}
+
+TEST(PlanRules, EasingNeedsAPlanUnderWayAndATodayInIt)
+{
+    Fixture f;
+    Settled::Denied why = Settled::Denied::None;
+    EXPECT_FALSE(easeNextWeek(f.st, f.def, 20261201u, &why));     // before the plan
+    EXPECT_EQ(why, Settled::Denied::NoRoom);
+    EXPECT_FALSE(easeNextWeek(f.st, f.def, 0, &why));              // no date
+    PlanState none;
+    EXPECT_FALSE(easeNextWeek(none, f.def, f.at(1, 1), &why));    // no plan
+    EXPECT_FALSE(easeNextWeek(none, f.def, f.at(1, 1)));            // and no reason wanted
+}
+
 TEST(PlanRules, AMissedKeySessionTakesALaterQualitysPlace)
 {
     Fixture f;

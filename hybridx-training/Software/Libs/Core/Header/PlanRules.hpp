@@ -71,12 +71,18 @@ struct Settled {
     bool    nothingDone = false;  ///< ... because nothing was done, so the last cut-back week.
     uint8_t weekRepeated = 0;     ///< The run week that was repeated (0-based).
     /// A week less than half done that could not be repeated, and why.
-    enum class Denied : uint8_t { None, LastWeeks, GrowthLimit, PlanEnd } denied = Denied::None;
+    enum class Denied : uint8_t { None, LastWeeks, GrowthLimit, PlanEnd, NoRoom } denied = Denied::None;
     uint8_t weekDenied = 0;       ///< Its run week (0-based).
 };
 
 /// Settle every day before @p today (and before a pause) not settled yet. Idempotent for a day.
 Settled settle(PlanState& st, const PlanDef& def, const Paces& paces, Ymd today);
+
+/// TP8: "hold the plan". After sessions off pace the runner may choose to run this week's plan week
+/// again next week, as a repeated week would (the same limits: not in the last weeks before a race,
+/// the growth limit, the plan's end). False, with the reason in @p why, when it is not allowed;
+/// NoRoom when the next week already repeats it (or the plan's adjustments are used up).
+bool easeNextWeek(PlanState& st, const PlanDef& def, Ymd today, Settled::Denied* why = nullptr);
 
 // ---- Offers --------------------------------------------------------------------------
 
