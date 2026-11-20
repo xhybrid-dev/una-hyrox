@@ -11,7 +11,7 @@ prefix for the SDK's version script. The store release of the Streak family:
 
 ## [Unreleased]
 
-## [1.0.1] - 2026-11-16
+## [1.0.2] - 2026-11-20
 
 ### Added
 
@@ -23,6 +23,8 @@ prefix for the SDK's version script. The store release of the Streak family:
 
 - The activity link has a sixth slot, X Training's (`act_training.json`): the Streak line after a
   save also counts X Training's runs. Nothing else changes.
+## [1.0.1] - 2026-11-15
+
 ### Added
 
 - **Open sets**, an eighth kind (Type on the main menu, next to Strength), from a user's request:
