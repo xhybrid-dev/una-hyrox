@@ -52,6 +52,9 @@
 #include "PlanProgress.hpp"
 #include "PlanRules.hpp"
 #include "PlanState.hpp"
+#include "ReviewInsight.hpp"
+#include "ReviewLog.hpp"
+#include "SessionReview.hpp"
 
 class Service : public WristTiltDetector::IListener
 {
@@ -314,6 +317,10 @@ private:
     char                   mRepResult[24] = {};
     char                   mRepAim[24]    = {};
     uint8_t                mRepVerdict    = 0;
+    // X Training (TP8): how the session kept to its paces, and the runner's feel (NOTES "TP8").
+    XTraining::Review::Accumulator mReviewAcc;     ///< the session being run, fed once a second
+    XTraining::ReviewLog           mReviews;       ///< reviews.json: the last 24 reviews and the feel
+    XTraining::Ymd                 mReviewDate = 0; ///< the session the Feel screen is about (just saved); 0 = none
     /// Race alerts "First 2 km": how far into the race step "too fast" may sound.
     static constexpr uint32_t kRaceAlertCm = 200000;
 
@@ -353,6 +360,12 @@ private:
     void loadConfig();           ///< app_config.json, once at start; then the plan
     void loadPlan();             ///< plan.json, reconciled with the phone's settings
     void savePlan();
+    void loadReviews();          ///< TP8: reviews.json
+    void saveReviews();
+    void reviewSecond(const SDK::Workout::Engine::Status& st);   ///< TP8: one judged second of a planned run
+    void sendPlanForm();         ///< TP8: the Form page
+    /// TP8: the offer to hold the plan, made of the reviews; false (and @p detail 0) when there is none.
+    bool easeOffer(uint8_t& detail, uint8_t& line, uint8_t& n);
     /// Today's session from the plan and the watch's date. @p writeFile false leaves training_today.json alone
     /// (a session is starting: its writer needs about 15 KB the run's own buffers should have).
     void updateToday(bool writeFile = true);

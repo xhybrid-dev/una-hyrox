@@ -143,6 +143,26 @@ TEST(PlanRules, EasingHoldsThePlanBySendingNextWeekBackToThisWeeksPlanWeek)
     EXPECT_EQ(why, Settled::Denied::NoRoom);
 }
 
+TEST(PlanRules, CanEaseSaysWhatEasingWouldDoWithoutDoingIt)
+{
+    Fixture f;
+    f.doneBefore(2);
+    const PlanState before = f.st;
+    Settled::Denied why = Settled::Denied::PlanEnd;
+    EXPECT_TRUE(canEase(f.st, f.def, f.at(2, 2), &why));
+    EXPECT_EQ(why, Settled::Denied::None);
+    EXPECT_EQ(f.st.calendar.weeks, before.calendar.weeks);   // nothing changed
+    EXPECT_EQ(f.st.calendar.adjCount, before.calendar.adjCount);
+    ASSERT_TRUE(easeNextWeek(f.st, f.def, f.at(2, 2)));
+    EXPECT_FALSE(canEase(f.st, f.def, f.at(2, 3), &why));   // done once: no more for this week
+    EXPECT_EQ(why, Settled::Denied::NoRoom);
+    // With a race, the last weeks before it refuse, as easeNextWeek does.
+    Fixture race(20270314u);
+    race.doneBefore(race.st.calendar.weeks - 2);
+    EXPECT_FALSE(canEase(race.st, race.def, race.at(race.st.calendar.weeks - 2, 2), &why));
+    EXPECT_NE(why, Settled::Denied::None);
+}
+
 TEST(PlanRules, EasingIsRefusedInTheLastWeeksBeforeARaceAndAtThePlansEnd)
 {
     Fixture race(20270314u);   // a Sunday 10 weeks on

@@ -83,6 +83,8 @@ Settled settle(PlanState& st, const PlanDef& def, const Paces& paces, Ymd today)
 /// the growth limit, the plan's end). False, with the reason in @p why, when it is not allowed;
 /// NoRoom when the next week already repeats it (or the plan's adjustments are used up).
 bool easeNextWeek(PlanState& st, const PlanDef& def, Ymd today, Settled::Denied* why = nullptr);
+/// Whether easeNextWeek would be allowed, without doing it (so that it is not offered when it cannot be done).
+bool canEase(const PlanState& st, const PlanDef& def, Ymd today, Settled::Denied* why = nullptr);
 
 // ---- Offers --------------------------------------------------------------------------
 
