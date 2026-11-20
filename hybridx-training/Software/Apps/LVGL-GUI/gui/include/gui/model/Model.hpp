@@ -147,6 +147,8 @@ public:
     static constexpr int16_t kPlanSession = CustomMessage::TrackStart::kPlanSession;
     /// X Training: today's session, as the service last sent it.
     const CustomMessage::PlanTodayInfo& getPlanToday() const { return mPlanToday; }
+    /// The title's "CHANGED" / "NOT ALLOWED" answers one action: forget it once Today is left.
+    void clearPlanNotice() { mPlanToday.notice = 0; }
     // X Training (TP3): the plan's screens. requestPlan() asks the service; the answer comes
     // as onPlanDay(), onPlanWeek(), onPlanOverview() or onPlanPaces().
     void requestPlan(uint8_t what, uint32_t date = 0);

@@ -412,6 +412,7 @@ namespace CustomMessage {
             this->belt    = belt;
         }
     };
+    static_assert(sizeof(WorkoutDetails) <= 256, "WorkoutDetails must fit a message block");
 
     /**
      * The workout face, every second while a structured workout runs. The
@@ -796,6 +797,7 @@ namespace CustomMessage {
         PlanSavedInfo info;
         PlanSaved() : SDK::MessageBase(PLAN_SAVED), info{} {}
     };
+    static_assert(sizeof(PlanSaved) <= kMaxMessageBytes, "PlanSaved exceeds the 256-byte kernel pool block");
 
     /// GUI -> Service (TP5): an offer answered, a day moved or skipped, the plan paused, resumed or
     /// ended, a trial's question answered. The answer is a PlanToday with its notice set.
@@ -808,6 +810,7 @@ namespace CustomMessage {
         PlanAction() : SDK::MessageBase(PLAN_ACTION) {}
         explicit PlanAction(uint8_t w) : PlanAction() { what = w; }
     };
+    static_assert(sizeof(PlanAction) <= kMaxMessageBytes, "PlanAction exceeds the 256-byte kernel pool block");
 
     /// GUI -> Service: a plan screen's data.
     struct PlanRequest : public SDK::MessageBase {

@@ -271,6 +271,7 @@ private:
     float        mHeightM          = 1.70f;   ///< the UNA profile's height, for the stride before any calibration
     bool         mTreadmill        = false;   ///< this track is a treadmill run (latched at start)
     bool         mAwaitingDistance = false;   ///< saved up to its session; waiting for the console's distance
+    bool         mAppStopping = false;        ///< COMMAND_APP_STOP is being handled: save what must be saved, nothing more
     std::time_t  mLastTreadUtc     = 0;
     float        mTreadEstimateM   = 0.0f;    ///< the run's total at the stop: what the counters hold (the belt
                                               ///< speed where one is assumed, the cadence estimate elsewhere)
@@ -352,7 +353,9 @@ private:
     void loadConfig();           ///< app_config.json, once at start; then the plan
     void loadPlan();             ///< plan.json, reconciled with the phone's settings
     void savePlan();
-    void updateToday();          ///< today's session from the plan and the watch's date
+    /// Today's session from the plan and the watch's date. @p writeFile false leaves training_today.json alone
+    /// (a session is starting: its writer needs about 15 KB the run's own buffers should have).
+    void updateToday(bool writeFile = true);
     void writeTodayFile();       ///< TP6: training_today.json for the glance, when it has changed
     void computePaces();         ///< mPaces from the plan's 5K (and a recent half)
     void settleToday();          ///< TP5: log missed days, repeat a week, save the plan if it changed

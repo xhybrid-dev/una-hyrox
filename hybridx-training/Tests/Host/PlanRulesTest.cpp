@@ -96,6 +96,35 @@ TEST(PlanRules, DaysBeforeThePlanStartsAreNotMissed)
     EXPECT_EQ(f.st.logCount(), 0);
 }
 
+TEST(PlanRules, APlanSetUpMidWeekIsSettledFromItsSetUpDayNotFromTheCalendarStart)
+{
+    // Set up on the Wednesday of the first week (the calendar starts on the Monday): the Tuesday
+    // before was never asked of the runner. The service sets settledTo to the set-up day.
+    Fixture f;
+    f.st.settledTo = f.at(0, 2);
+    const Settled s = settle(f.st, f.def, f.paces, f.at(0, 4));   // Friday: Wed (the set-up day) is judged
+    EXPECT_EQ(f.st.find(f.at(0, 1)), nullptr) << "Tuesday, before the set-up";
+    ASSERT_NE(f.st.find(f.at(0, 2)), nullptr);
+    EXPECT_EQ(f.st.find(f.at(0, 2))->status, DayStatus::Missed);
+    EXPECT_EQ(s.missed, 1);
+    // Without it (the old behaviour, a plan with settledTo 0) Tuesday would be logged too.
+    Fixture g;
+    EXPECT_EQ(settle(g.st, g.def, g.paces, g.at(0, 4)).missed, 2);
+}
+
+TEST(PlanRules, PausingAfterTodaysRunKeepsTodaysSession)
+{
+    Fixture f;
+    f.run(f.at(0, 1));                       // Tuesday run
+    pause(f.st, f.at(0, 1));                 // paused the same day, after the run
+    EXPECT_NE(f.on(f.at(0, 1)).asRun.kind, Kind::Rest) << "today's counted session stays";
+    EXPECT_EQ(f.on(f.at(0, 2)).asRun.kind, Kind::Rest);   // tomorrow rests
+    // A day that was not run still rests from the pause.
+    Fixture g;
+    pause(g.st, g.at(0, 1));
+    EXPECT_EQ(g.on(g.at(0, 1)).asRun.kind, Kind::Rest);
+}
+
 TEST(PlanRules, AMissedKeySessionTakesALaterQualitysPlace)
 {
     Fixture f;

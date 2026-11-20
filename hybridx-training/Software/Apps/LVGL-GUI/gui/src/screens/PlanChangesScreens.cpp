@@ -41,7 +41,7 @@ bool PlanChangesScreen::planUnderWay() const
 {
     const uint8_t s = mModel.getPlanToday().status;
     return s == Info::Session || s == Info::RestDay || s == Info::Done || s == Info::Paused
-        || s == Info::Offer || s == Info::PaceAsk;
+        || s == Info::Offer || s == Info::PaceAsk || s == Info::Skipped;
 }
 
 void PlanChangesScreen::onShow()

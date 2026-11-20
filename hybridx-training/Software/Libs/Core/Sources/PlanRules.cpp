@@ -35,7 +35,9 @@ void applyMemory(const PlanState& st, const PlanDef& def, const Paces& paces, Ym
         out.asRun = PlanBuilder::forLevel(w, sc);
         out.key = key;
     };
-    if (st.pausedFrom != 0 && Date::toDayNum(date) >= Date::toDayNum(st.pausedFrom)) {
+    // A paused plan rests from the day it was paused, except a day already run: pausing after today's
+    // session must not take the session away (its week count, the glance's kind).
+    if (st.pausedFrom != 0 && Date::toDayNum(date) >= Date::toDayNum(st.pausedFrom) && !counted(st.find(date))) {
         set(Session{}, false);
         return;
     }

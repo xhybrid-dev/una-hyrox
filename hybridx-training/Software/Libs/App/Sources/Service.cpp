@@ -183,6 +183,7 @@ void Service::run()
                 // Kernel messages
                 case SDK::MessageType::COMMAND_APP_STOP:
                     LOG_INFO("Force exit from the application\n");
+                    mAppStopping = true;
                     disconnect();   // Cleanup resources
                     if (mTrackState != Track::State::INACTIVE) {
                         stopTrack(false);
@@ -1522,13 +1523,6 @@ void Service::stopTrack(bool discard)
 
     SDK::send_msg<CustomMessage::TrackStateUpd>(mKernel, mTrackState);
 
-    // X Training: what Today says changes with a session saved (done, a new 5K to answer): say it
-    // again now, not at the next start of the app.
-    if (mPlan.active()) {
-        updateToday();
-        sendPlanToday();
-    }
-
     // Persist the outdoor stride LUT synchronously before the task tears down
     // (only writes if >= 1 sample was accepted this session). finalise()
     // returns false both when nothing was accepted (nothing to persist) and on
@@ -1537,6 +1531,15 @@ void Service::stopTrack(bool discard)
     const bool hadCalibData = mCalibrator.acceptedThisSession() > 0;
     if (!mCalibrator.finalise() && hadCalibData) {
         LOG_ERROR("Stride calibrator finalise failed; LUT not persisted\n");
+    }
+
+    // X Training: what Today says changes with a session saved (done, a new 5K to answer): say it
+    // again now, not at the next start of the app. After the calibrator is saved (that is what must not
+    // be lost), and not at all when the app is being stopped: the GUI is gone, and the plan itself was
+    // saved when the session was recorded (the glance's file follows at the next open).
+    if (mPlan.active() && !mAppStopping) {
+        updateToday();
+        sendPlanToday();
     }
 
     disconnect();
@@ -1987,11 +1990,16 @@ void Service::notifyStepChange()
 
 SDK::Workout::Ymd Service::localDate()
 {
-    const std::tm t = mTimeTracker.getLocalTime(std::time(nullptr));
-    const int year = t.tm_year + 1900;
-    if (year < 2020) {
-        return 0;  // the clock has not been set
+    // The watch's clock before 2026-01-01 was never set: the same floor as the glance's, so that a
+    // plan is never made on a date the glance would not believe (and then marked wholly missed
+    // when the real date arrives).
+    constexpr int64_t kClockFloorUtc = 1767225600;
+    const std::time_t utc = std::time(nullptr);
+    if (static_cast<int64_t>(utc) < kClockFloorUtc) {
+        return 0;
     }
+    const std::tm t = mTimeTracker.getLocalTime(utc);
+    const int year = t.tm_year + 1900;
     return static_cast<SDK::Workout::Ymd>(year) * 10000u
          + static_cast<SDK::Workout::Ymd>(t.tm_mon + 1) * 100u
          + static_cast<SDK::Workout::Ymd>(t.tm_mday);
@@ -2819,6 +2827,7 @@ void Service::loadPlan()
                 fresh.setup.fiveKDate = today;
                 fresh.setup.halfDate  = want.halfSec != 0 ? today : 0;
                 fresh.calendar = PlanCalendar::make({today, want.raceDate, def->weekCount, def->minWeeks});
+                fresh.settledTo = today;   // days before the set-up were never asked of the runner: not "missed"
                 mPlan = fresh;
                 changed = true;
                 LOG_INFO("New plan: %s, level %u, from %lu, %u weeks from week %u (calendar status %u)\n", def->name,
@@ -2916,6 +2925,14 @@ void Service::settleToday()
     if (def == nullptr || !mPlan.active() || !mPaces.ok || today == 0) {
         return;
     }
+    if (mPlan.settledTo == 0) {
+        // A plan from before the plan's memory (1.0.0's plan.json has no "st"): its past is not judged
+        // now, or every unlogged day since the start would be logged missed at once.
+        mPlan.settledTo = today;
+        savePlan();
+        LOG_INFO("Plan settled from today (%lu): no earlier days are judged\n", static_cast<unsigned long>(today));
+        return;
+    }
     const Ymd before = mPlan.settledTo;
     const PlanRules::Settled s = PlanRules::settle(mPlan, *def, mPaces.paces, today);
     if (s.missed > 0 || s.repeated || mPlan.settledTo != before) {
@@ -2958,7 +2975,7 @@ void Service::savePlan()
     }
 }
 
-void Service::updateToday()
+void Service::updateToday(bool writeFile)
 {
     using namespace XTraining;
     using Info = CustomMessage::PlanTodayInfo;
@@ -3043,7 +3060,9 @@ void Service::updateToday()
         }
     }
     mTodayInfo = info;
-    writeTodayFile();   // the glance's view of the plan, as it stands now
+    if (writeFile) {
+        writeTodayFile();   // the glance's view of the plan, as it stands now
+    }
     LOG_INFO("Today: status %u, %s %s %s (week %u of %u); next %lu %s %s\n", static_cast<unsigned>(info.status),
              info.name, info.what, info.target, static_cast<unsigned>(info.runWeek + 1),
              static_cast<unsigned>(info.weeks), static_cast<unsigned long>(info.nextDate),
@@ -3068,9 +3087,14 @@ void Service::writeTodayFile()
         return;
     }
     {
-        // A spare Program for each session's pace (about 10 KB, for the moment); without it the
-        // file just has no pace.
+        // A spare Program for each session's pace: about 15 KB (the SDK's own figure), held only for
+        // this call. Without it the file would have no paces, so a file already written stands rather
+        // than being replaced by a poorer one.
         std::unique_ptr<SDK::Workout::Program> scratch(new (std::nothrow) SDK::Workout::Program());
+        if (!scratch && mTodayFileHash != 0) {
+            LOG_WARNING("No memory for training_today.json's paces: the last file stands\n");
+            return;
+        }
         TodayBuild::fill(mPlan, mPaces.ok ? &mPaces.paces : nullptr, mIsImperial, today, scratch.get(), *data);
     }
     const size_t len = TodayFile::write(*data, buf.get(), TodayFile::kMaxJsonBytes);
@@ -3592,7 +3616,7 @@ void Service::sendPlanToday()
 bool Service::startPlannedSession()
 {
     using namespace XTraining;
-    updateToday();   // the day may have changed since the GUI started
+    updateToday(false);   // the day may have changed since the GUI started (the glance's file waits for the run's end)
     using Info = CustomMessage::PlanTodayInfo;
     if (mTodayInfo.status != Info::Session && mTodayInfo.status != Info::Done) {
         LOG_WARNING("No planned session today; this is a free run\n");
@@ -3654,7 +3678,7 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
         if (mTrialSec != 0 && !mTreadmill) {   // a treadmill's distance is an estimate: its time says nothing of a 5K
             const PlanDef* td = PlanData::find(mPlan.setup.plan);
             const PlanRules::Recal r = PlanRules::onTrial(mPlan, mSessionMeta.session.kind,
-                                                          td != nullptr ? td->raceCm / 100u : 0u, mTrialSec, localDate());
+                                                          td != nullptr ? td->raceCm / 100u : 0u, mTrialSec, mPlannedDate);
             savePlan();
             mTrialFiveK = static_cast<uint16_t>(r.fiveKSec > 3599u ? 3599u : r.fiveKSec);
             if (r.fiveKSec != 0) {
@@ -3681,7 +3705,9 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
     mTrialOutcome = Saved::NoTrial;
     mTrialFiveK = 0;
     const PlanDef* def = PlanData::find(mPlan.setup.plan);
-    const Ymd today = localDate();
+    // The day the session was for, not the day it was saved: a run that crosses midnight still counts
+    // in its own week and the next session is the one after it.
+    const Ymd today = mPlannedDate != 0 ? mPlannedDate : localDate();
     if (def != nullptr && mPlan.active() && mPaces.ok && today != 0) {
         const PlanProgress::Counts c = PlanProgress::counts(mPlan, *def, mPaces.paces, today);
         s.runWeek      = PlanProgress::weekToShow(mPlan.calendar, today);

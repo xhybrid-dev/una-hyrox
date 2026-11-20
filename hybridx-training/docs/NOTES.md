@@ -1016,3 +1016,33 @@ ones are the Changes menu, a missed long run offered back, and Today on a treadm
 ahead"), and the paste-ready listing, release notes and upload order in `docs/store/LISTING.md` (the source is
 `hybridx-link/docs/STORE_RELEASE.md`). The packager passes with them (`--expect-version 1.1.0`). They must be in the commit the
 tag `training-v1.1.0` points at, because the CI zip is built from the tag: tag the newest commit.
+
+### Pre-release review (20 November 2026): fixes made before `training-v1.1.0` is tagged
+
+Jon asked for a thorough check of the app. Two read-only reviews (the service, core and GUI since `training-v1.0.0`; the
+product, UX, tests and release) found these defects, each confirmed by reading the code and fixed before the tag, because
+the first two change what an upgrade from 1.0.0 does:
+
+1. **A plan was settled retroactively.** `PlanRules::settle` starts at `settledTo`, else the calendar's start. A plan made
+   on the Wednesday of its first week (the calendar starts that Monday) had Tuesday logged Missed on the first open, and a
+   1.0.0 `plan.json` (no `"st"`) had every unlogged day since the start logged Missed at once, with weeks repeated. Now a new
+   plan is made with `settledTo` = the set-up day, and `settleToday` gives a plan that has none today's date and judges nothing
+   before it. Host tests: a plan set up mid-week.
+2. **One clock floor.** The app took any year from 2020 as a set clock, the glance only 2026-01-01; a 2021 RTC could make a
+   plan that the real date then marked wholly Missed. The app now has the glance's floor (1767225600).
+3. The Changes menu was locked after "Skip today" (`Info::Skipped` missing from `planUnderWay`); "CHANGED" / "NOT ALLOWED"
+   stayed in Today's title until the next PLAN_TODAY (the Model now forgets it when Today is left).
+4. `writeTodayFile` builds a 15 KB Program (the SDK's figure; the comment said 10): no longer from `startPlannedSession`
+   (`updateToday(false)`), and a file already written stands when that block cannot be had.
+5. `stopTrack` rewrote Today's file before the stride calibrator was saved, and also on APP_STOP, where the GUI is gone: the
+   calibrator is saved first and `mAppStopping` skips it. (After an APP_STOP the glance's file follows at the next open.)
+6. A run saved after midnight used the new day for the Saved lines and a trial's date: now the session's own (`mPlannedDate`).
+7. Pausing the plan after today's run took today's session away (`applyMemory`): a counted day keeps its session. Host test.
+8. `static_assert` on `PlanSaved`, `PlanAction` and `WorkoutDetails`.
+
+Left as it is, on purpose: a treadmill session is recorded Done at the stop, before its `.fit` closes (so that the Saved lines
+come before the distance screen); if that file then fails to close, the plan has a Done with no file. The risk is a failed
+flash write on a run that was otherwise saved; accepted.
+
+Checked after the fixes: 171 host tests (169 and two new), the simulator and the watch compile check build, `sim_plan.sh`
+passes (the glance's file, the `.fit`, the activity link).

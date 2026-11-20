@@ -381,6 +381,7 @@ void WorkoutDetailsScreen::onKey(uint8_t code)
             break;
         case Btn::R2:
             if (mSource == Source::Today) {
+                mModel.clearPlanNotice();
                 ScreenManager::instance().goTo(ScreenId::Main);
             } else if (mSource == Source::Day) {
                 ScreenManager::instance().goTo(ScreenId::PlanWeek);
