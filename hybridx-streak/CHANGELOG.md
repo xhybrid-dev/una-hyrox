@@ -10,7 +10,9 @@ strips the prefix for the SDK's version script.
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-11-16
+## [1.1.1] - 2026-11-20
+
+(1.1.0 was tagged but never published; this is its first release.)
 
 ### Added
 
