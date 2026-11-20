@@ -26,6 +26,9 @@ prefix for the SDK's version script. The store release of the family:
   paces may be set too hard). Three too fast only says so. A refusal (the last weeks before a race, the plan's
   growth limit) says why. Not asked again until three more sessions.
 
+- Today's title says **REPEAT WEEK** when the week runs the plan week the week before ran (a missed week repeated, or
+  the plan held), where it said nothing.
+
 ### Fixed
 
 - A plan set up in the middle of its first week no longer logs the days before it as missed, and a plan from

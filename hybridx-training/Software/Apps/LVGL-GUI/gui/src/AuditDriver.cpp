@@ -537,14 +537,15 @@ const Step kSteps[] = {
     { "form: one session, on pace", nullptr },
 
     // TP8: the offer to hold the plan, on Today and its two choices
-    // TP8: the titles (the SDK Title keeps a fixed width): none wider than the widest already shipped (a plan has 12 weeks at most)
+    // TP8: the titles (the SDK Title keeps a fixed width): none wider than the widest already shipped
     { nullptr, [] {
           const lv_font_t* font = Theme::font(Theme::Font::Italic18);
           const int32_t limit = WorkoutUi::textWidth("DO IT INSTEAD?", font);   // 1.0.0's widest offer title
-          const char* const titles[] = { "HOW IT FELT", "HOW IT WENT", "FORM", "HOLD PLAN?", "WEEK 12 AGAIN" };
+          const char* const titles[] = { "HOW IT FELT", "HOW IT WENT", "FORM", "HOLD PLAN?", "REPEAT WEEK" };
           int bad = 0;
           for (const char* t : titles) {
               const int32_t w = WorkoutUi::textWidth(t, font);
+              std::printf("AUDIT: title '%s' is %d px (limit %d)\n", t, static_cast<int>(w), static_cast<int>(limit));
               if (w > limit) {
                   std::printf("AUDIT: title '%s' is %d px, wider than the %d px of DO IT INSTEAD?\n", t,
                               static_cast<int>(w), static_cast<int>(limit));

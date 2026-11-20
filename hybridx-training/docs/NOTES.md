@@ -1113,14 +1113,24 @@ with the plan)**. His answers to my three design questions:
   three slow and tired: Today asks, **Yes** makes the plan 11 weeks and the answer is remembered and not asked again; **Not now**
   leaves it at 10 weeks, remembered; eight sessions: Plan, then L2, Form. `build-tests/review_print` reads `reviews.json` with the
   core's reader and checks it (and `--make` writes seeded ones).
-- The watch compile check of the whole app (compile only).
+- **A whole session through the real engine** (`REVIEW=1 FEEL=tired sim_plan.sh`, 18 minutes: an easy run, week 1): the plan recorded it
+  Done, `reviews.json` has it judged (1063 s, **0% in band, 100% too fast, gap -135 s/km**: the simulator's GPS runs about 5 m/s, far
+  quicker than the easy band's 5:26 /km), the Saved screen said "Too fast, 0% on pace", the Feel screen took "Tired" (L2, R1) and the file
+  has it, the summary's How it went face showed 0% and "Misses 135 s/km fast", the glance's file said Done, and **the `.fit` and
+  `act_training.json` are as before** (the checks of `fit_plan_report.py` and the link all pass). Captures: `docs/screens/tp8-*.png`.
+- The watch compile check of the whole app (compile only). The new members add about 640 bytes to the service (the accumulator 240,
+  the log 392), on the heap on a watch.
+- A week that runs a plan week again (a missed week repeated, or the plan held) says **REPEAT WEEK** in Today's title (derived, not stored:
+  it runs the plan week the week before ran), where it said nothing; this answers the review's "the plan changes silently" for repeats.
+  The other silent changes (a moved key session, a refusal by the missed-week rule) are still the backlog's item 3.
 
 ### Not verified
 
 - **Anything on a watch.** In particular how fair the percentages are on a real run (GPS speed is noisy on hills, in heat and under
   trees: that is why a suggestion needs three sessions, and why a treadmill is not judged), and how the zone's hold-off treats a
   short rep.
-- The live accumulation through the real engine on a long run: see "A whole session in the simulator" below.
+- The accumulation over a session with quality steps and reps (the long run used an easy run, which only tests the per-second path);
+  the reps' path and the fade are host-tested.
 - The `reviews.json` write on APP_STOP (the plan record is written first, at the stop; the review follows it).
 
 ### The backlog from the review (not built; Jon picks)

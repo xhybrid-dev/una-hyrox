@@ -654,8 +654,8 @@ void WorkoutDetailsScreen::setPlanPage()
         snprintf(mTodayTitle, sizeof(mTodayTitle), "%s", t.notice == Info::Moved ? "CHANGED"
                                                          : t.notice == Info::NotAllowed ? "NOT ALLOWED" : "NO SESSION");
     } else if (t.weeks != 0 && t.repeatOf != 0 && (t.status == Info::Session || t.status == Info::Done)) {
-        // TP8: this week runs a plan week again (a missed week repeated, or the plan held)
-        snprintf(mTodayTitle, sizeof(mTodayTitle), "WEEK %u AGAIN", static_cast<unsigned>(t.repeatOf));
+        // TP8: this week runs a plan week again (a missed week repeated, or the plan held); Plan says which week it is
+        snprintf(mTodayTitle, sizeof(mTodayTitle), "REPEAT WEEK");
     } else if (t.weeks != 0 && (t.status == Info::Session || t.status == Info::Done)) {
         snprintf(mTodayTitle, sizeof(mTodayTitle), "WEEK %u OF %u", static_cast<unsigned>(t.runWeek + 1),
                  static_cast<unsigned>(t.weeks));
