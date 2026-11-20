@@ -146,6 +146,12 @@ LISTINGS = {
              "previews/8-treadmill.png", False),
             (["SEE THE", "WEEK AHEAD"], "This week from Monday, each day marked as the week goes.",
              "previews/4-week.png", True),
+            (["HOW IT", "WENT"], "After every session: how much of it was on pace, and which side you missed on.",
+             "previews/10-how-it-went.png", False),
+            (["HOW DID", "IT FEEL?"], "Fresh to spent, one press. Your feel sits beside your pace, session by session.",
+             "previews/11-feel.png", True),
+            (["YOUR", "FORM"], "The last eight sessions at a glance. Three slow ones in a row and it offers to hold the plan.",
+             "previews/12-form.png", False),
         ],
     },
     "streak": {
