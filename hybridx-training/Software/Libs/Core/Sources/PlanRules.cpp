@@ -35,7 +35,9 @@ void applyMemory(const PlanState& st, const PlanDef& def, const Paces& paces, Ym
         out.asRun = PlanBuilder::forLevel(w, sc);
         out.key = key;
     };
-    if (st.pausedFrom != 0 && Date::toDayNum(date) >= Date::toDayNum(st.pausedFrom)) {
+    // A paused plan rests from the day it was paused, except a day already run: pausing after today's
+    // session must not take the session away (its week count, the glance's kind).
+    if (st.pausedFrom != 0 && Date::toDayNum(date) >= Date::toDayNum(st.pausedFrom) && !counted(st.find(date))) {
         set(Session{}, false);
         return;
     }
@@ -107,20 +109,18 @@ uint8_t lastCutBack(const PlanDef& def, uint8_t upTo)
 
 /// Repeat run week @p rw in the week after it (or its cut-back, if @p nothingDone). False when
 /// the rules do not allow it, and then @p why says which.
-bool repeatWeek(PlanState& st, const PlanDef& def, uint8_t rw, bool nothingDone,
-                Settled::Denied* why = nullptr)
+/// The limits on repeating run week @p rw (the week after it runs a plan week again): nothing past the plan's
+/// end, nothing in the last weeks before a race, and a plan with no race grows by two weeks at most. Pure.
+bool repeatAllowed(const PlanState& st, const PlanDef& def, uint8_t rw, Settled::Denied& deny)
 {
-    Calendar& cal = st.calendar;
+    const Calendar& cal = st.calendar;
     const uint8_t next = static_cast<uint8_t>(rw + 1);
-    Settled::Denied none = Settled::Denied::None;
-    Settled::Denied& deny = why != nullptr ? *why : none;
     if (next >= cal.weeks) {
         deny = Settled::Denied::PlanEnd;
         return false;
     }
     const bool race = st.setup.raceDate != 0;
     const int pn = PlanCalendar::planWeekOf(cal, next);       // the plan week next would have run
-    const int pn1 = PlanCalendar::planWeekOf(cal, static_cast<uint8_t>(next + 1));
     if (pn >= def.weekCount) {
         deny = Settled::Denied::PlanEnd;
         return false;
@@ -137,6 +137,22 @@ bool repeatWeek(PlanState& st, const PlanDef& def, uint8_t rw, bool nothingDone,
             return false;
         }
     }
+    return true;
+}
+
+bool repeatWeek(PlanState& st, const PlanDef& def, uint8_t rw, bool nothingDone,
+                Settled::Denied* why = nullptr)
+{
+    Calendar& cal = st.calendar;
+    const uint8_t next = static_cast<uint8_t>(rw + 1);
+    Settled::Denied none = Settled::Denied::None;
+    Settled::Denied& deny = why != nullptr ? *why : none;
+    if (!repeatAllowed(st, def, rw, deny)) {
+        return false;
+    }
+    const bool race = st.setup.raceDate != 0;
+    const int pn = PlanCalendar::planWeekOf(cal, next);       // the plan week next would have run
+    const int pn1 = PlanCalendar::planWeekOf(cal, static_cast<uint8_t>(next + 1));
     const uint8_t p = PlanCalendar::planWeekOf(cal, rw);
     const int x = nothingDone ? lastCutBack(def, p > def.weekCount - 1 ? static_cast<uint8_t>(def.weekCount - 1) : p)
                               : (p > def.weekCount - 1 ? def.weekCount - 1 : p);
@@ -271,6 +287,64 @@ Settled settle(PlanState& st, const PlanDef& def, const Paces& paces, Ymd today)
     st.settledTo = Date::fromDayNum(n);   // n is at least where it began, and at least the limit
     st.pruneOverrides(Date::addDays(today, -7));
     return r;
+}
+
+bool canEase(const PlanState& st, const PlanDef& def, Ymd today, Settled::Denied* why)
+{
+    Settled::Denied none = Settled::Denied::None;
+    Settled::Denied& deny = why != nullptr ? *why : none;
+    deny = Settled::Denied::None;
+    if (!st.active() || !Date::valid(today)) {
+        deny = Settled::Denied::NoRoom;
+        return false;
+    }
+    const DayPlace p = PlanCalendar::locate(st.calendar, today);
+    if (p.where != DayPlace::Where::In) {
+        deny = Settled::Denied::NoRoom;
+        return false;
+    }
+    if (p.runWeek + 1 < st.calendar.weeks
+        && PlanCalendar::planWeekOf(st.calendar, static_cast<uint8_t>(p.runWeek + 1))
+               <= PlanCalendar::planWeekOf(st.calendar, p.runWeek)) {
+        deny = Settled::Denied::NoRoom;   // the next week already runs this plan week
+        return false;
+    }
+    if (st.calendar.adjCount + 2 > kMaxAdjust) {
+        deny = Settled::Denied::NoRoom;   // a repeat takes up to two adjustments (one may do: not offered then)
+        return false;
+    }
+    return repeatAllowed(st, def, p.runWeek, deny);
+}
+
+bool easeNextWeek(PlanState& st, const PlanDef& def, Ymd today, Settled::Denied* why)
+{
+    Settled::Denied none = Settled::Denied::None;
+    Settled::Denied& deny = why != nullptr ? *why : none;
+    deny = Settled::Denied::None;
+    if (!st.active() || !Date::valid(today)) {
+        deny = Settled::Denied::NoRoom;
+        return false;
+    }
+    const DayPlace p = PlanCalendar::locate(st.calendar, today);
+    if (p.where != DayPlace::Where::In) {
+        deny = Settled::Denied::NoRoom;
+        return false;
+    }
+    // Once is enough: if the next week already runs this plan week (or an earlier one), holding the plan
+    // again would repeat it a second time (repeatWeek is not idempotent).
+    if (p.runWeek + 1 < st.calendar.weeks
+        && PlanCalendar::planWeekOf(st.calendar, static_cast<uint8_t>(p.runWeek + 1))
+               <= PlanCalendar::planWeekOf(st.calendar, p.runWeek)) {
+        deny = Settled::Denied::NoRoom;
+        return false;
+    }
+    if (repeatWeek(st, def, p.runWeek, false, &deny)) {
+        return true;
+    }
+    if (deny == Settled::Denied::None) {
+        deny = Settled::Denied::NoRoom;   // the next week already runs this plan week, or no adjustment is left
+    }
+    return false;
 }
 
 Offer offer(const PlanState& st, const PlanDef& def, const Paces& paces, Ymd today)

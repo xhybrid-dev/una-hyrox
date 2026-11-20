@@ -351,9 +351,9 @@ void Model::newPlan(uint8_t action, const CustomMessage::PlanSetupInfo& info)
     SDK::send_msg<CustomMessage::NewPlan>(mKernel, action, info);
 }
 
-void Model::planAction(uint8_t what)
+void Model::planAction(uint8_t what, uint8_t arg)
 {
-    SDK::send_msg<CustomMessage::PlanAction>(mKernel, what);
+    SDK::send_msg<CustomMessage::PlanAction>(mKernel, what, arg);
 }
 
 void Model::requestPlan(uint8_t what, uint32_t date)
@@ -606,6 +606,11 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             modelListener->onPlanSetup();
         } break;
 
+        case CustomMessage::PLAN_FORM: {   // X Training (TP8): the Form page
+            mPlanForm = static_cast<CustomMessage::PlanForm*>(message)->info;
+            modelListener->onPlanForm();
+        } break;
+
         case CustomMessage::PLAN_SAVED: {
             mPlanSaved = static_cast<CustomMessage::PlanSaved*>(message)->info;
             modelListener->onPlanSaved();
@@ -751,6 +756,14 @@ void Model::injectPlanPreview(const CustomMessage::PlanPreviewInfo& i)
     mPlanPreview = i;
     if (modelListener) {
         modelListener->onPlanPreview();
+    }
+}
+
+void Model::injectPlanForm(const CustomMessage::PlanFormInfo& i)
+{
+    mPlanForm = i;
+    if (modelListener) {
+        modelListener->onPlanForm();
     }
 }
 

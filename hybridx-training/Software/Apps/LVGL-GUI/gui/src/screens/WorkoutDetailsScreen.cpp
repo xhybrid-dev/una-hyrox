@@ -12,6 +12,7 @@
 
 #include "SDK/Workout/StepLabel.hpp"
 #include "PlanText.hpp"   // X Training: header-only
+#include "ReviewText.hpp"   // X Training (TP8): header-only
 #include "TimeText.hpp"
 
 #include "Commands.hpp"
@@ -381,6 +382,7 @@ void WorkoutDetailsScreen::onKey(uint8_t code)
             break;
         case Btn::R2:
             if (mSource == Source::Today) {
+                mModel.clearPlanNotice();
                 ScreenManager::instance().goTo(ScreenId::Main);
             } else if (mSource == Source::Day) {
                 ScreenManager::instance().goTo(ScreenId::PlanWeek);
@@ -516,7 +518,11 @@ void WorkoutDetailsScreen::setPlanPage()
             }
             const char* purpose = t.status == Info::Done ? (mSource == Source::Day ? "Done" : "Done today")
                                                          : PlanText::purpose(kind);
-            const uint32_t purposeColor = t.status == Info::Done ? Color::GREEN : Color::GRAY;
+            uint32_t purposeColor = t.status == Info::Done ? Color::GREEN : Color::GRAY;
+            if (mSource == Source::Today && t.notice == Info::NotAllowed && t.why != 0) {
+                purpose = ReviewText::easeDenied(t.why);   // TP8: why holding the plan was not allowed
+                purposeColor = Color::YELLOW;
+            }
             const lv_font_t* nameFont = Theme::font(F::SemiBold20);
             const lv_font_t* whatFont = Theme::font(F::Medium18);
             const bool splitName = WorkoutUi::textWidth(t.name, nameFont) > 170 && splitAtComma(t.name, 1, 2);
@@ -583,6 +589,18 @@ void WorkoutDetailsScreen::setPlanPage()
             add("R1: resume it", F::Medium18, F::Regular16, Color::WHITE);
             break;
         case Info::Offer:    // TP5: a missed session offered in place of today's
+            if (t.detail >= Info::EaseTired) {
+                // TP8: three sessions in a row too slow: hold the plan, by how the runner felt on them
+                add("Hold the plan?", F::SemiBold25, F::SemiBold20, Color::WHITE);
+                add(t.what, F::Medium18, F::Regular16, Color::TEAL);        // "3 sessions too slow"
+                if (t.detail != Info::EaseMixed) {
+                    add(t.detail == Info::EaseTired ? "and you were tired" : "though you felt fresh",
+                        F::Italic18, F::Italic18, Color::GRAY);
+                }
+                add("Run this week again?", F::Medium18, F::Regular16, Color::WHITE);
+                add("R1 to answer", F::Italic18, F::Italic18, Color::GRAY);
+                break;
+            }
             if (WorkoutUi::textWidth(t.name, Theme::font(F::SemiBold20)) > 170 && splitAtComma(t.name, 1, 2)) {
                 add(txt[1], F::SemiBold25, F::SemiBold20, Color::WHITE);   // "Long run" / "fast finish"
                 add(txt[2], F::SemiBold25, F::SemiBold20, Color::WHITE);
@@ -635,6 +653,9 @@ void WorkoutDetailsScreen::setPlanPage()
         // TP5: how the last change went, in the title (it is the answer to the action)
         snprintf(mTodayTitle, sizeof(mTodayTitle), "%s", t.notice == Info::Moved ? "CHANGED"
                                                          : t.notice == Info::NotAllowed ? "NOT ALLOWED" : "NO SESSION");
+    } else if (t.weeks != 0 && t.repeatOf != 0 && (t.status == Info::Session || t.status == Info::Done)) {
+        // TP8: this week runs a plan week again (a missed week repeated, or the plan held); Plan says which week it is
+        snprintf(mTodayTitle, sizeof(mTodayTitle), "REPEAT WEEK");
     } else if (t.weeks != 0 && (t.status == Info::Session || t.status == Info::Done)) {
         snprintf(mTodayTitle, sizeof(mTodayTitle), "WEEK %u OF %u", static_cast<unsigned>(t.runWeek + 1),
                  static_cast<unsigned>(t.weeks));

@@ -63,7 +63,7 @@ void PlanScreen::build()
 {
     mButtons = std::make_unique<Widgets::Buttons>(mRoot);
     // R1: New plan (brief 5.2), whatever the plan's state.
-    mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,
+    mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::WHITE,   // L2: Form (TP8)
                   Widgets::Buttons::AMBER, Widgets::Buttons::WHITE);
     mTitle = std::make_unique<Widgets::Title>(mRoot, mTitleText);
     mTop.init(mRoot);
@@ -198,6 +198,8 @@ void PlanScreen::onKey(uint8_t code)
     namespace Btn = SDK::GUI::Button;
     if (code == Btn::R2) {
         ScreenManager::instance().goTo(ScreenId::Main);
+    } else if (code == Btn::L2) {
+        ScreenManager::instance().goTo(ScreenId::PlanForm);   // TP8: how the sessions went
     } else if (code == Btn::R1) {
         mModel.setDraftReady(false);   // a fresh draft, from the phone's set-up
         ScreenManager::instance().goTo(ScreenId::NewPlan);

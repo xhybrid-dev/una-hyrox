@@ -222,8 +222,9 @@ X Run's (RunLVGL's) workout mode:
 
 ### 8.3 After the run
 
-The summary, then Saved with: "Session done" or "Part done"; "Week 6: 1 of 4 done";
-"Next: Wed, Easy run 45 min"; the Streak line and "Load 64". After a time trial: "5K 21:41.
+The summary, then Saved with: "Session done" or "Part done"; "Week 6: 1 of 4 done"; (from
+1.2.0) "On pace 82%" or "Too fast, 40% on pace"; "Next: Wed, Easy run 45 min"; the Streak line and
+"Load 64". Then, for a session that counted, how the runner felt (Fresh, Good, Steady, Tired, Spent, or skip). After a time trial: "5K 21:41.
 New paces from your next run", or, if slower, the question in `PLANS.md` §2.6.
 
 ## 9. The plan's memory
@@ -235,7 +236,11 @@ New paces from your next run", or, if slower, the question in `PLANS.md` §2.6.
 - **Rules** for missed sessions and weeks, moves and pauses: `PLANS.md` §4.3.
 - **Where:** `plan.json` in the app's folder (the family's `SafeFile`): the set-up, the
   fitness with its source and date, and a log of at most 84 days. About 2 KB, integers only.
-- **Not judged in v1:** whether the paces were hit. Lap averages are in the FIT file.
+- **Judged from 1.2.0 (TP8, Jon, 20 November 2026):** whether the paces were hit. The share of the judged time in the target
+  band, which side the misses were on, the average gap and the fade in the later reps are worked out as the session runs,
+  kept with how the runner felt afterwards (asked once on the Saved flow) in `reviews.json`, and shown on Saved, in the
+  summary and on the Form page. After three judged sessions in a row off pace the app speaks: too slow offers to hold the
+  plan, too fast only says so. NOTES "TP8" has the rules. (Until then: lap averages in the FIT file.)
 
 ## 10. The family
 
@@ -372,6 +377,7 @@ Each phase starts in plan mode and stops at its gate.
 | **TP5** | The plan's memory and recalibration; `plan_sim` | **Built** (16 November 2026; NOTES "TP5"). Jon agreed the plan and the rules on 17 November; it ships in 1.1.0, and the watch test is to come |
 | **TP6** | The glance and `training_today.json` | **Built** (16 November 2026; NOTES "TP6"). Jon looks at the previews, then the glance on the watch |
 | **TP7** | Field test (Jon, and ideally a level 1 and a level 3 runner, three weeks each), then the store release as the family's phase P | Jon's go |
+| **TP8** | Added by Jon, 20 November 2026: how well a session kept to its paces and how the runner felt, side by side (Feel after Saved, How it went, Form, the suggestion after three off-pace sessions) | **Built** (NOTES "TP8"); ships in 1.2.0. Simulator-checked; Jon's watch test is `hybridx-link/docs/FAMILY_WATCH_TEST.md` section 11 |
 
 ## 14. Decisions
 

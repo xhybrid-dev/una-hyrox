@@ -42,6 +42,7 @@
 #include "data/PlanData.hpp"
 #include "TodayBuild.hpp"
 #include "TodayFile.hpp"
+#include "ReviewText.hpp"
 #include "RunVo2Max.hpp"
 #include "SafeFile.hpp"
 #include "ActivityLink.hpp"
@@ -183,6 +184,7 @@ void Service::run()
                 // Kernel messages
                 case SDK::MessageType::COMMAND_APP_STOP:
                     LOG_INFO("Force exit from the application\n");
+                    mAppStopping = true;
                     disconnect();   // Cleanup resources
                     if (mTrackState != Track::State::INACTIVE) {
                         stopTrack(false);
@@ -1522,13 +1524,6 @@ void Service::stopTrack(bool discard)
 
     SDK::send_msg<CustomMessage::TrackStateUpd>(mKernel, mTrackState);
 
-    // X Training: what Today says changes with a session saved (done, a new 5K to answer): say it
-    // again now, not at the next start of the app.
-    if (mPlan.active()) {
-        updateToday();
-        sendPlanToday();
-    }
-
     // Persist the outdoor stride LUT synchronously before the task tears down
     // (only writes if >= 1 sample was accepted this session). finalise()
     // returns false both when nothing was accepted (nothing to persist) and on
@@ -1537,6 +1532,15 @@ void Service::stopTrack(bool discard)
     const bool hadCalibData = mCalibrator.acceptedThisSession() > 0;
     if (!mCalibrator.finalise() && hadCalibData) {
         LOG_ERROR("Stride calibrator finalise failed; LUT not persisted\n");
+    }
+
+    // X Training: what Today says changes with a session saved (done, a new 5K to answer): say it
+    // again now, not at the next start of the app. After the calibrator is saved (that is what must not
+    // be lost), and not at all when the app is being stopped: the GUI is gone, and the plan itself was
+    // saved when the session was recorded (the glance's file follows at the next open).
+    if (mPlan.active() && !mAppStopping) {
+        updateToday();
+        sendPlanToday();
     }
 
     disconnect();
@@ -1987,11 +1991,16 @@ void Service::notifyStepChange()
 
 SDK::Workout::Ymd Service::localDate()
 {
-    const std::tm t = mTimeTracker.getLocalTime(std::time(nullptr));
-    const int year = t.tm_year + 1900;
-    if (year < 2020) {
-        return 0;  // the clock has not been set
+    // The watch's clock before 2026-01-01 was never set: the same floor as the glance's, so that a
+    // plan is never made on a date the glance would not believe (and then marked wholly missed
+    // when the real date arrives).
+    constexpr int64_t kClockFloorUtc = 1767225600;
+    const std::time_t utc = std::time(nullptr);
+    if (static_cast<int64_t>(utc) < kClockFloorUtc) {
+        return 0;
     }
+    const std::tm t = mTimeTracker.getLocalTime(utc);
+    const int year = t.tm_year + 1900;
     return static_cast<SDK::Workout::Ymd>(year) * 10000u
          + static_cast<SDK::Workout::Ymd>(t.tm_mon + 1) * 100u
          + static_cast<SDK::Workout::Ymd>(t.tm_mday);
@@ -2189,6 +2198,9 @@ void Service::processWorkout()
     mSpeedGauge.tick(speedMs, mTreadmill ? mTreadSpeedValid : (mSpeedFilter.isValid() && mGpsCatchUp.caughtUp()),
                      st.stepDistanceCm);
     mHrGauge.tick(mHrCounter.getCurrent(), hasTrustedHr());
+    if (mPlannedRun && !mTreadmill) {
+        reviewSecond(st);   // TP8: how this second sat against the step's band
+    }
 
     const auto alert = mZoneAlerts.tick(mZoneDebounce.tick(targetZone()));   // held 5 s: no beep for each flip on the band's edge
     const bool beep  = mLeadIn.tick(st);
@@ -2204,9 +2216,51 @@ void Service::processWorkout()
     sendWorkoutData();
 }
 
+void Service::reviewSecond(const SDK::Workout::Engine::Status& st)
+{
+    // TP8 (NOTES "TP8"): a second of a planned run, judged by the zone the runner's own gauge shows. Only a
+    // step with a speed target counts, and, by what the plan says of it: a quality step (alerts both ways)
+    // always; an easy step (alerts only "too fast") only in a session with no quality, so that a warm-up and
+    // a cool-down do not dilute "the interval paces". Short reps (AtEnd) are judged once, in judgeRep.
+    using namespace XTraining;
+    if (st.step >= SDK::Workout::kMaxSteps || st.leadIn) {
+        return;
+    }
+    const SDK::Workout::Step& step = mProgram.steps[st.step];
+    if (step.target != SDK::Workout::Target::Speed || mBandHigh <= 0.0f || mBandLow <= 0.0f) {
+        return;
+    }
+    const AlertMode mode = mSessionMeta.alert[st.step];
+    const bool fastOnly  = mode == AlertMode::FastOnly;
+    if (!(mode == AlertMode::Both || (fastOnly && mSessionMeta.qualitySec == 0))) {
+        return;
+    }
+    Review::Cls cls = Review::Cls::None;
+    int32_t gap = 0;
+    const float speed = mSpeedGauge.valueMps();
+    const auto pace = [](float mps) { return mps > 0.05f ? 1000.0f / mps : 1.0e4f; };
+    switch (targetZone()) {
+    case SDK::Workout::Zone::In:
+        cls = Review::Cls::In;
+        break;
+    case SDK::Workout::Zone::Above:   // faster than the band
+        cls = Review::Cls::Fast;
+        gap = static_cast<int32_t>(pace(speed) - pace(mBandHigh) - 0.5f);   // negative: s/km under the fast end
+        break;
+    case SDK::Workout::Zone::Below:   // slower than the band
+        cls = Review::Cls::Slow;
+        gap = static_cast<int32_t>(pace(speed) - pace(mBandLow) + 0.5f);    // positive: s/km over the slow end
+        break;
+    default:
+        break;   // too early to tell, or no signal: not judged
+    }
+    mReviewAcc.addSecond(cls, gap, fastOnly);
+}
+
 void Service::onWorkoutStepEnded(SDK::Workout::Engine::Change how)
 {
     mLeadIn.stepStarted();
+    mReviewAcc.endUnit();   // TP8: the step's seconds are one rep, for the fade
 
     // The step that ended is recorded as its own lap, before the next begins.
     const uint16_t ended = mEngine.ended().step;
@@ -2690,6 +2744,7 @@ namespace
 {
 
 constexpr const char* kPlanFile = "plan.json";
+constexpr const char* kReviewFile = "reviews.json";   // TP8: the last reviews and the runner's feel
 /// A half entered longer ago than this is not used for paces (PLANS.md 2.4).
 constexpr int32_t kHalfMaxAgeDays = 183;
 
@@ -2787,6 +2842,7 @@ void Service::loadPlan()
     }
     buf.reset();
     mPlan = have ? stored : PlanState{};
+    loadReviews();   // TP8: the reviews that go with it
 
     const Ymd today = localDate();
     const PlanSetup& want = mPhoneSetup;
@@ -2795,6 +2851,8 @@ void Service::loadPlan()
         if (mPlan.setup.plan != PlanId::None) {
             LOG_INFO("Plan ended: none chosen in the settings\n");
             mPlan.clear();
+            mReviews.clear();   // TP8: the reviews were of that plan
+            saveReviews();
             changed = true;
         }
     } else if (mSetupProblem == nullptr) {
@@ -2820,7 +2878,10 @@ void Service::loadPlan()
                 fresh.setup.fiveKDate = today;
                 fresh.setup.halfDate  = want.halfSec != 0 ? today : 0;
                 fresh.calendar = PlanCalendar::make({today, want.raceDate, def->weekCount, def->minWeeks});
+                fresh.settledTo = today;   // days before the set-up were never asked of the runner: not "missed"
                 mPlan = fresh;
+                mReviews.clear();   // TP8: the reviews were of the plan before
+                saveReviews();
                 changed = true;
                 LOG_INFO("New plan: %s, level %u, from %lu, %u weeks from week %u (calendar status %u)\n", def->name,
                          static_cast<unsigned>(want.level), static_cast<unsigned long>(mPlan.calendar.start),
@@ -2917,6 +2978,14 @@ void Service::settleToday()
     if (def == nullptr || !mPlan.active() || !mPaces.ok || today == 0) {
         return;
     }
+    if (mPlan.settledTo == 0) {
+        // A plan from before the plan's memory (1.0.0's plan.json has no "st"): its past is not judged
+        // now, or every unlogged day since the start would be logged missed at once.
+        mPlan.settledTo = today;
+        savePlan();
+        LOG_INFO("Plan settled from today (%lu): no earlier days are judged\n", static_cast<unsigned long>(today));
+        return;
+    }
     const Ymd before = mPlan.settledTo;
     const PlanRules::Settled s = PlanRules::settle(mPlan, *def, mPaces.paces, today);
     if (s.missed > 0 || s.repeated || mPlan.settledTo != before) {
@@ -2959,7 +3028,56 @@ void Service::savePlan()
     }
 }
 
-void Service::updateToday()
+bool Service::easeOffer(uint8_t& detail, uint8_t& line, uint8_t& n)
+{
+    // TP8: three judged sessions in a row too slow (ReviewInsight.hpp) offer to hold the plan, if holding it is
+    // allowed now (not in the last weeks before a race, not past the plan's growth). Too fast only says so.
+    using namespace XTraining;
+    detail = line = n = 0;
+    const PlanDef* def = PlanData::find(mPlan.setup.plan);
+    const Review::Insight in = Review::analyse(mReviews);
+    if (def == nullptr || !in.offerEase() || !PlanRules::canEase(mPlan, *def, localDate())) {
+        return false;
+    }
+    const Review::Line l = Review::lineFor(in);
+    line   = static_cast<uint8_t>(l);
+    n      = in.offRun;
+    detail = line;   // EaseTired, EaseFresh and EaseMixed are Line's SlowTired, SlowFresh and SlowMixed
+    return true;
+}
+
+void Service::loadReviews()
+{
+    // reviews.json (TP8; ReviewLog.hpp): the last reviews. None, or an unreadable file, is an empty log.
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[XTraining::ReviewLog::kMaxJsonBytes]);
+    mReviews.clear();
+    for (int backup = 0; buf && backup < 2; ++backup) {
+        const size_t len = RunVo2::SafeFile::read(mKernel.fs, kReviewFile, backup != 0, buf.get(),
+                                                  XTraining::ReviewLog::kMaxJsonBytes);
+        if (len > 0 && mReviews.fromJson(buf.get(), len)) {
+            if (backup != 0) {
+                LOG_WARNING("reviews.json unreadable: using the backup\n");
+            }
+            return;
+        }
+    }
+    mReviews.clear();
+}
+
+void Service::saveReviews()
+{
+    std::unique_ptr<char[]> buf(new (std::nothrow) char[XTraining::ReviewLog::kMaxJsonBytes]);
+    if (!buf) {
+        LOG_WARNING("No memory to save reviews.json\n");
+        return;
+    }
+    const size_t len = mReviews.toJson(buf.get(), XTraining::ReviewLog::kMaxJsonBytes);
+    if (len == 0 || !RunVo2::SafeFile::write(mKernel.fs, kReviewFile, buf.get(), len)) {
+        LOG_ERROR("Could not save reviews.json\n");
+    }
+}
+
+void Service::updateToday(bool writeFile)
 {
     using namespace XTraining;
     using Info = CustomMessage::PlanTodayInfo;
@@ -3003,8 +3121,23 @@ void Service::updateToday()
             std::snprintf(info.what, sizeof(info.what), "your paces: %u:%02u", static_cast<unsigned>(mPlan.setup.fiveKSec / 60),
                           static_cast<unsigned>(mPlan.setup.fiveKSec % 60));
             mToday = DaySession{};
-        } else if (info.status == Info::Session || info.status == Info::RestDay) {
-            const PlanRules::Offer o = PlanRules::offer(mPlan, *pdef, mPaces.paces, today);
+        } else if (info.status == Info::Session || info.status == Info::RestDay || info.status == Info::Done) {
+            // A missed session offered back (not on a day already run), else TP8's offer to hold the plan.
+            const PlanRules::Offer o = info.status == Info::Done ? PlanRules::Offer{}
+                                                                 : PlanRules::offer(mPlan, *pdef, mPaces.paces, today);
+            uint8_t easeDetail = 0, easeLine = 0, easeN = 0;
+            if (o.kind == PlanRules::Offer::Kind::None && easeOffer(easeDetail, easeLine, easeN)) {
+                const Info keep = info;
+                info = Info{};
+                info.date    = today;
+                info.weeks   = keep.weeks;
+                info.runWeek = keep.runWeek;
+                info.status  = Info::Offer;
+                info.detail  = easeDetail;
+                copyText(info.name, sizeof(info.name), "Hold the plan?");
+                std::snprintf(info.what, sizeof(info.what), "%u sessions too slow", static_cast<unsigned>(easeN));
+                // today's own session stays in mToday: it can be started once the offer is answered
+            }
             if (o.kind != PlanRules::Offer::Kind::None) {
                 const Info keep = info;
                 info = Info{};
@@ -3044,7 +3177,9 @@ void Service::updateToday()
         }
     }
     mTodayInfo = info;
-    writeTodayFile();   // the glance's view of the plan, as it stands now
+    if (writeFile) {
+        writeTodayFile();   // the glance's view of the plan, as it stands now
+    }
     LOG_INFO("Today: status %u, %s %s %s (week %u of %u); next %lu %s %s\n", static_cast<unsigned>(info.status),
              info.name, info.what, info.target, static_cast<unsigned>(info.runWeek + 1),
              static_cast<unsigned>(info.weeks), static_cast<unsigned long>(info.nextDate),
@@ -3069,9 +3204,14 @@ void Service::writeTodayFile()
         return;
     }
     {
-        // A spare Program for each session's pace (about 10 KB, for the moment); without it the
-        // file just has no pace.
+        // A spare Program for each session's pace: about 15 KB (the SDK's own figure), held only for
+        // this call. Without it the file would have no paces, so a file already written stands rather
+        // than being replaced by a poorer one.
         std::unique_ptr<SDK::Workout::Program> scratch(new (std::nothrow) SDK::Workout::Program());
+        if (!scratch && mTodayFileHash != 0) {
+            LOG_WARNING("No memory for training_today.json's paces: the last file stands\n");
+            return;
+        }
         TodayBuild::fill(mPlan, mPaces.ok ? &mPaces.paces : nullptr, mIsImperial, today, scratch.get(), *data);
     }
     const size_t len = TodayFile::write(*data, buf.get(), TodayFile::kMaxJsonBytes);
@@ -3140,6 +3280,13 @@ void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMes
             copyText(info.name, sizeof(info.name), "Plan complete");
         } else {
             info.runWeek = day.runWeek;
+            // TP8: a week that runs the plan week the week before ran (a missed week repeated, or the plan held):
+            // Today's title says so ("REPEAT WEEK"), where it used to say nothing.
+            if (where.runWeek > 0 && where.planWeek < 255
+                && PlanCalendar::planWeekOf(mPlan.calendar, where.runWeek)
+                       <= PlanCalendar::planWeekOf(mPlan.calendar, static_cast<uint8_t>(where.runWeek - 1))) {
+                info.repeatOf = static_cast<uint8_t>(where.planWeek + 1);
+            }
             info.kind    = static_cast<uint8_t>(day.asRun.kind);
             info.key     = day.key;
             copyText(info.name, sizeof(info.name), PlanText::name(day.asRun.kind));
@@ -3229,6 +3376,9 @@ void Service::handleEvent(const CustomMessage::PlanRequest& event)
         break;
     case Req::Paces:
         sendPlanPaces();
+        break;
+    case Req::Form:
+        sendPlanForm();
         break;
     case Req::Setup: {
         auto msg = SDK::make_msg<CustomMessage::PlanSetupUpd>(mKernel);
@@ -3364,6 +3514,7 @@ void Service::handleEvent(const CustomMessage::PlanAction& event)
         return;
     }
     uint8_t notice = Info::Moved;
+    uint8_t whyNot = 0;   // TP8: with NotAllowed after holding the plan, PlanRules::Settled::Denied
     bool save = true;
     const auto result = [&](PlanRules::MoveResult r) {
         notice = r == PlanRules::MoveResult::Ok ? Info::Moved
@@ -3371,12 +3522,57 @@ void Service::handleEvent(const CustomMessage::PlanAction& event)
         save = r == PlanRules::MoveResult::Ok;
     };
     switch (event.what) {
-    case A::AcceptOffer:
-        PlanRules::acceptOffer(mPlan, PlanRules::offer(mPlan, *def, mPaces.paces, today), today);
-        break;
-    case A::DeclineOffer:
-        PlanRules::declineOffer(mPlan, PlanRules::offer(mPlan, *def, mPaces.paces, today));
-        break;
+    case A::AcceptOffer: {
+        const PlanRules::Offer o = PlanRules::offer(mPlan, *def, mPaces.paces, today);
+        if (o.kind != PlanRules::Offer::Kind::None) {
+            PlanRules::acceptOffer(mPlan, o, today);
+            break;
+        }
+        // TP8: the offer to hold the plan. Answered either way (a refusal by the rules is answered too, with
+        // its reason, so that it is not asked again for the same sessions).
+        const Review::Insight in = Review::analyse(mReviews);
+        if (!in.offerEase()) {
+            notice = Info::NothingToMove;
+            save = false;
+            break;
+        }
+        PlanRules::Settled::Denied why = PlanRules::Settled::Denied::None;
+        if (PlanRules::easeNextWeek(mPlan, *def, today, &why)) {
+            notice = Info::Moved;
+            LOG_INFO("The plan is held: next week runs this week's plan week again\n");
+        } else {
+            notice = Info::NotAllowed;
+            whyNot = static_cast<uint8_t>(why);
+            save = false;
+        }
+        mReviews.handled = in.newest;
+        saveReviews();
+    } break;
+    case A::DeclineOffer: {
+        const PlanRules::Offer o = PlanRules::offer(mPlan, *def, mPaces.paces, today);
+        if (o.kind != PlanRules::Offer::Kind::None) {
+            PlanRules::declineOffer(mPlan, o);
+            break;
+        }
+        const Review::Insight in = Review::analyse(mReviews);   // TP8: not now; not asked again for these sessions
+        if (in.offerEase()) {
+            mReviews.handled = in.newest;
+            saveReviews();
+        }
+        notice = Info::NoNotice;
+        save = false;
+    } break;
+    case A::Feel:
+        // TP8: how the runner felt, asked after the session just saved. Skipped (0) leaves it blank.
+        if (mReviewDate != 0 && event.arg != 0 && mReviews.setFeel(mReviewDate, event.arg)) {
+            saveReviews();
+            LOG_INFO("Felt %s after the session of %lu\n", ReviewText::feelName(event.arg),
+                     static_cast<unsigned long>(mReviewDate));
+        }
+        mReviewDate = 0;
+        updateToday(false);   // the offer's words depend on it
+        sendPlanToday();
+        return;
     case A::DoTomorrow:   result(PlanRules::doTomorrowToday(mPlan, *def, mPaces.paces, today)); break;
     case A::MoveTomorrow: result(PlanRules::moveTodayTomorrow(mPlan, *def, mPaces.paces, today)); break;
     case A::Skip:         result(PlanRules::skipToday(mPlan, *def, mPaces.paces, today)); break;
@@ -3411,8 +3607,10 @@ void Service::handleEvent(const CustomMessage::PlanAction& event)
     LOG_INFO("Plan action %u: notice %u\n", static_cast<unsigned>(event.what), static_cast<unsigned>(notice));
     updateToday();
     mTodayInfo.notice = notice;
+    mTodayInfo.why    = whyNot;
     sendPlanToday();
     mTodayInfo.notice = 0;
+    mTodayInfo.why    = 0;
 }
 
 void Service::writeConfig(const CustomMessage::PlanSetupInfo& i)
@@ -3509,6 +3707,33 @@ void Service::sendPlanOverview(SDK::Workout::Ymd today)
     msg.send();
 }
 
+void Service::sendPlanForm()
+{
+    // TP8: the Form page: the newest reviewed sessions (oldest first) and the one line about them.
+    using namespace XTraining;
+    auto msg = SDK::make_msg<CustomMessage::PlanForm>(mKernel);
+    if (!msg) {
+        return;
+    }
+    CustomMessage::PlanFormInfo& f = msg->info;
+    f = CustomMessage::PlanFormInfo{};
+    const uint8_t n = mReviews.count();
+    const uint8_t from = n > CustomMessage::PlanFormInfo::kMax ? static_cast<uint8_t>(n - CustomMessage::PlanFormInfo::kMax) : 0;
+    for (uint8_t i = from; i < n; ++i) {
+        const ReviewEntry& e = mReviews.at(i);
+        CustomMessage::PlanFormInfo::Row& r = f.row[f.count++];
+        r.date   = e.date;
+        r.judged = e.judged() ? 1 : 0;
+        r.inPct  = e.inPct;
+        r.dir    = static_cast<uint8_t>(e.dir());
+        r.feel   = e.feel;
+    }
+    const Review::Insight in = Review::analyse(mReviews);
+    f.line  = static_cast<uint8_t>(Review::lineFor(in));
+    f.lineN = in.offRun;
+    msg.send();
+}
+
 void Service::sendPlanPaces()
 {
     using namespace XTraining;
@@ -3593,7 +3818,7 @@ void Service::sendPlanToday()
 bool Service::startPlannedSession()
 {
     using namespace XTraining;
-    updateToday();   // the day may have changed since the GUI started
+    updateToday(false);   // the day may have changed since the GUI started (the glance's file waits for the run's end)
     using Info = CustomMessage::PlanTodayInfo;
     if (mTodayInfo.status != Info::Session && mTodayInfo.status != Info::Done) {
         LOG_WARNING("No planned session today; this is a free run\n");
@@ -3614,6 +3839,8 @@ bool Service::startPlannedSession()
     mRepResult[0] = '\0';
     mRepAim[0]    = '\0';
     mRepVerdict   = 0;
+    mReviewAcc.reset();   // TP8
+    mReviewDate   = 0;
     mPlannedRun  = true;
     mPlannedDate = mToday.date;
     mTrialSec    = 0;   // a trial's time is set when its effort runs out (onWorkoutStepEnded)
@@ -3635,6 +3862,7 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
     // TP5: a time trial or race whose effort ran its whole distance counts, however short its warm-up
     // and cool-down (the estimate takes typical ones): the effort is the session.
     const bool effortRan = mTrialSec != 0;
+    Review::Result review;   // TP8: how it kept to its paces; not judged unless it counted
     const bool counted = judgeSession(mWorkoutReachedEnd, static_cast<uint32_t>(track.duration),
                                       mSessionMeta.plannedSec, status);
     if (!counted && effortRan) {
@@ -3649,13 +3877,24 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
         outcome = status == DayStatus::Done ? Saved::Done : Saved::PartDone;
         LOG_INFO("Planned session %s: %lu, %s\n", status == DayStatus::Done ? "done" : "part done",
                  static_cast<unsigned long>(mPlannedDate), PlanText::name(mSessionMeta.session.kind));
+        // TP8: the review of how it went, kept with the runner's feel (asked next, on the Feel screen).
+        // A treadmill's speed is assumed, so it is not judged; its feel is still asked.
+        review = mTreadmill ? Review::Result{} : mReviewAcc.finish();
+        mReviews.record(ReviewEntry::from(mPlannedDate, mSessionMeta.session.kind, review));
+        saveReviews();
+        mReviewDate = mPlannedDate;
+        LOG_INFO("Review: %s, %u s judged, %u%% in band, %u%% fast, gap %d s/km, fade %d, %u of %u reps in band\n",
+                 review.judged ? "judged" : "not judged", static_cast<unsigned>(review.judgedSec),
+                 static_cast<unsigned>(review.inPct), static_cast<unsigned>(review.fastPct),
+                 static_cast<int>(review.gapSecKm), static_cast<int>(review.fadeSecKm),
+                 static_cast<unsigned>(review.unitsIn), static_cast<unsigned>(review.units));
         // TP5: a time trial or race recalibrates the paces: faster applies, slower or a big jump asks.
         mTrialOutcome = Saved::NoTrial;
         mTrialFiveK = 0;
         if (mTrialSec != 0 && !mTreadmill) {   // a treadmill's distance is an estimate: its time says nothing of a 5K
             const PlanDef* td = PlanData::find(mPlan.setup.plan);
             const PlanRules::Recal r = PlanRules::onTrial(mPlan, mSessionMeta.session.kind,
-                                                          td != nullptr ? td->raceCm / 100u : 0u, mTrialSec, localDate());
+                                                          td != nullptr ? td->raceCm / 100u : 0u, mTrialSec, mPlannedDate);
             savePlan();
             mTrialFiveK = static_cast<uint16_t>(r.fiveKSec > 3599u ? 3599u : r.fiveKSec);
             if (r.fiveKSec != 0) {
@@ -3679,10 +3918,27 @@ void Service::recordPlannedRun(const ActivityWriter::TrackData& track)
     s.outcome = outcome;
     s.trial = mTrialOutcome;
     s.trialSec = mTrialFiveK;
+    if (outcome == Saved::Done || outcome == Saved::PartDone) {
+        s.askFeel = 1;
+        if (review.judged) {
+            s.reviewJudged = 1;
+            s.inPct        = review.inPct;
+            s.fastPct      = review.fastPct;
+            s.gapSecKm     = review.gapSecKm;
+            s.fadeSecKm    = review.fadeSecKm;
+            s.units        = review.units;
+            s.unitsIn      = review.unitsIn;
+        }
+        const Review::Insight in = Review::analyse(mReviews);
+        s.offRun = in.offRun;
+        s.asks   = in.offerEase() ? 1 : 0;
+    }
     mTrialOutcome = Saved::NoTrial;
     mTrialFiveK = 0;
     const PlanDef* def = PlanData::find(mPlan.setup.plan);
-    const Ymd today = localDate();
+    // The day the session was for, not the day it was saved: a run that crosses midnight still counts
+    // in its own week and the next session is the one after it.
+    const Ymd today = mPlannedDate != 0 ? mPlannedDate : localDate();
     if (def != nullptr && mPlan.active() && mPaces.ok && today != 0) {
         const PlanProgress::Counts c = PlanProgress::counts(mPlan, *def, mPaces.paces, today);
         s.runWeek      = PlanProgress::weekToShow(mPlan.calendar, today);
@@ -3739,6 +3995,9 @@ void Service::judgeRep(uint16_t endedStep, bool lapSaved, bool ranOut)
         copyText(mRepAim, sizeof(mRepAim), text);
     }
     mRepVerdict = static_cast<uint8_t>(r.verdict);
+    if (!mTreadmill) {   // TP8: the rep counts in the session's review, by its time
+        mReviewAcc.addRep(Review::repCls(r.verdict), Review::repGapSecKm(s, r), static_cast<uint32_t>(lap.duration));
+    }
     LOG_INFO("Rep judged: %s %s (verdict %u)\n", mRepResult, mRepAim, static_cast<unsigned>(mRepVerdict));
 }
 

@@ -60,6 +60,7 @@ namespace CustomMessage {
     constexpr SDK::MessageType::Type PLAN_PREVIEW              = 0x00000027;   // X Training: a new plan's calendar
     constexpr SDK::MessageType::Type PLAN_SAVED                = 0x00000029;   // X Training: the Saved screen's lines
     constexpr SDK::MessageType::Type PLAN_ACTION               = 0x0000002A;   // X Training: an offer answered, a move, a pause
+    constexpr SDK::MessageType::Type PLAN_FORM                 = 0x0000002B;   // X Training (TP8): the Form page
 
     // GUI --> Service
     constexpr SDK::MessageType::Type SETTINGS_SAVE         = 0x0000000A;
@@ -412,6 +413,7 @@ namespace CustomMessage {
             this->belt    = belt;
         }
     };
+    static_assert(sizeof(WorkoutDetails) <= 256, "WorkoutDetails must fit a message block");
 
     /**
      * The workout face, every second while a structured workout runs. The
@@ -616,7 +618,10 @@ namespace CustomMessage {
             Skipped,         ///< Today's session was skipped (TP5).
         };
         /// Offer: what is offered. PaceAsk: why it asks.
-        enum Detail : uint8_t { None = 0, LongRun = 1, KeySession = 2, Slower = 1, Jump = 2 };
+        /// (TP8) An Offer may also be to hold the plan after sessions too slow, by how the runner felt:
+        /// EaseTired, EaseFresh or EaseMixed (ReviewInsight's Line, 3 to 5, as the words).
+        enum Detail : uint8_t { None = 0, LongRun = 1, KeySession = 2, Slower = 1, Jump = 2,
+                                EaseTired = 3, EaseFresh = 4, EaseMixed = 5 };
         /// An action's result, set in the answer to a PlanAction.
         enum Notice : uint8_t { NoNotice = 0, Moved, NotAllowed, NothingToMove };
         static constexpr size_t kText = 36;
@@ -627,6 +632,8 @@ namespace CustomMessage {
         bool     key        = false;
         uint8_t  detail     = 0;      ///< Detail: for Offer and PaceAsk
         uint8_t  notice     = 0;      ///< Notice: after an action
+        uint8_t  why        = 0;      ///< (TP8) with NotAllowed after holding the plan: PlanRules::Settled::Denied
+        uint8_t  repeatOf   = 0;      ///< (TP8) this week runs plan week N again (1-based); 0 = it does not
         uint32_t date       = 0;      ///< today, YYYYMMDD; 0 if the watch's date is not set
         uint32_t plannedSec = 0;
         uint32_t plannedM   = 0;
@@ -791,11 +798,24 @@ namespace CustomMessage {
         enum Trial : uint8_t { NoTrial = 0, Applied, Kept, Asks, AsksJump };
         uint8_t  trial        = NoTrial;
         uint16_t trialSec     = 0;      ///< The result's 5K equivalent, seconds (under 1 hour)
+        /// (TP8) How well it kept to the paces: reviewJudged 0 for not judged; the shares add to 100
+        /// (slow is what is left); the gap is the average miss s/km in the dominant direction (< 0 fast).
+        uint8_t  reviewJudged = 0;
+        uint8_t  inPct        = 0;
+        uint8_t  fastPct      = 0;
+        int16_t  gapSecKm     = 0;
+        int8_t   fadeSecKm    = 0;
+        uint8_t  units        = 0;      ///< Reps judged
+        uint8_t  unitsIn      = 0;      ///< ... in band
+        uint8_t  askFeel      = 0;      ///< 1: the Feel screen follows (the session counted)
+        uint8_t  offRun       = 0;      ///< Judged sessions in a row off pace, now
+        uint8_t  asks         = 0;      ///< 1: Today has a question about it
     };
     struct PlanSaved : public SDK::MessageBase {
         PlanSavedInfo info;
         PlanSaved() : SDK::MessageBase(PLAN_SAVED), info{} {}
     };
+    static_assert(sizeof(PlanSaved) <= kMaxMessageBytes, "PlanSaved exceeds the 256-byte kernel pool block");
 
     /// GUI -> Service (TP5): an offer answered, a day moved or skipped, the plan paused, resumed or
     /// ended, a trial's question answered. The answer is a PlanToday with its notice set.
@@ -803,20 +823,44 @@ namespace CustomMessage {
         enum What : uint8_t {
             AcceptOffer = 1, DeclineOffer, DoTomorrow, MoveTomorrow, Skip, Pause, Resume, EndPlan,
             AnswerKeep, AnswerUpdate,
+            Feel,   ///< (TP8) how the runner felt after the session just saved: arg is Review::Feel, 0 to skip
         };
         uint8_t what = 0;
+        uint8_t arg  = 0;
         PlanAction() : SDK::MessageBase(PLAN_ACTION) {}
-        explicit PlanAction(uint8_t w) : PlanAction() { what = w; }
+        explicit PlanAction(uint8_t w, uint8_t a = 0) : PlanAction() { what = w; arg = a; }
     };
+    static_assert(sizeof(PlanAction) <= kMaxMessageBytes, "PlanAction exceeds the 256-byte kernel pool block");
 
     /// GUI -> Service: a plan screen's data.
     struct PlanRequest : public SDK::MessageBase {
-        enum What : uint8_t { Day = 0, Week, Overview, Paces, Setup };
+        enum What : uint8_t { Day = 0, Week, Overview, Paces, Setup, Form };
         uint8_t  what = Week;
         uint32_t date = 0;          ///< for Day; 0 is today
         PlanRequest() : SDK::MessageBase(PLAN_REQUEST) {}
         PlanRequest(uint8_t w, uint32_t d) : PlanRequest() { what = w; date = d; }
     };
+
+    /// (TP8) The Form page: the newest reviewed sessions, oldest first, and the one line.
+    struct PlanFormInfo {
+        static constexpr uint8_t kMax = 8;
+        struct Row {
+            uint32_t date   = 0;
+            uint8_t  inPct  = 0;     ///< share in band; meaningful when judged
+            uint8_t  dir    = 0;     ///< Review::Dir: which way the misses went
+            uint8_t  feel   = 0;     ///< Review::Feel; 0 = not asked
+            uint8_t  judged = 0;
+        };
+        uint8_t count = 0;
+        uint8_t line  = 0;           ///< Review::Line, for ReviewText::insightLine
+        uint8_t lineN = 0;           ///< sessions in the run the line speaks of
+        Row     row[kMax];
+    };
+    struct PlanForm : public SDK::MessageBase {
+        PlanFormInfo info;
+        PlanForm() : SDK::MessageBase(PLAN_FORM), info{} {}
+    };
+    static_assert(sizeof(PlanForm) <= kMaxMessageBytes, "PlanForm exceeds the 256-byte kernel pool block");
 
 } // namespace CustomMessage
 

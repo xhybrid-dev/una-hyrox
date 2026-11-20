@@ -43,6 +43,9 @@ set(CORE_SOURCES
     "${CORE_LIBS}/Sources/PlanRules.cpp"
     "${CORE_LIBS}/Sources/TodayFile.cpp"
     "${CORE_LIBS}/Sources/TodayBuild.cpp"
+    "${CORE_LIBS}/Sources/SessionReview.cpp"
+    "${CORE_LIBS}/Sources/ReviewLog.cpp"
+    "${CORE_LIBS}/Sources/ReviewInsight.cpp"
 )
 # The glance's pure parts (its service needs the kernel and is not here). GlanceLayout uses the
 # SDK's GlanceControl.h constants, a plain C header, which CORE_INCLUDES reach.
@@ -94,6 +97,9 @@ add_executable(hybridx-training-host-tests
     TodayFileTest.cpp
     GlanceViewTest.cpp
     GlanceLayoutTest.cpp
+    SessionReviewTest.cpp
+    ReviewLogTest.cpp
+    ReviewInsightTest.cpp
     GoldenTest.cpp
     "${TOOLS_DIR}/plan_print/PlanPrint.cpp"
     "${TOOLS_DIR}/plan_sim/PlanSim.cpp"
@@ -156,6 +162,17 @@ add_executable(today_print
     ${SDK_JSON_SOURCES}
 )
 target_include_directories(today_print PRIVATE ${CORE_INCLUDES})
+
+# review_print: a reviews.json read with the core's reader and the insight's reading of it; --make writes seeded ones
+# for the simulator (TP8).
+add_executable(review_print
+    "${TOOLS_DIR}/review_print/review_print.cpp"
+    "${CORE_LIBS}/Sources/ReviewLog.cpp"
+    "${CORE_LIBS}/Sources/ReviewInsight.cpp"
+    "${CORE_LIBS}/Sources/SessionReview.cpp"
+    ${SDK_JSON_SOURCES}
+)
+target_include_directories(review_print PRIVATE ${CORE_INCLUDES})
 
 enable_testing()
 add_test(NAME hybridx-training-host-tests COMMAND hybridx-training-host-tests)

@@ -14,6 +14,7 @@
 
 #include "FormText.hpp"   // HybridX Run
 #include "RunStatsText.hpp"   // HybridX Run
+#include "ReviewText.hpp"      // X Training (TP8): header-only
 
 using namespace SDK::GUI;
 using F = Theme::Font;
@@ -29,7 +30,7 @@ void TrackSummaryScreen::build()
     mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,
                   Widgets::Buttons::NONE, Widgets::Buttons::NONE);
     mIndicator = std::make_unique<Widgets::ScrollIndicator>(mRoot, Widgets::ScrollIndicator::kSmall);
-    mIndicator->setCount(FACE_LAPS);
+    mIndicator->setCount(FACE_LAPS - 1);   // (the review face is counted once it is known to be shown)
 }
 
 // -- One face at a time (HybridX Run) ------------------------------------------
@@ -57,6 +58,7 @@ void TrackSummaryScreen::destroyFace()
     mBestTime[0] = mBestTime[1] = mBestTime[2] = nullptr;
     mHalfPace[0] = mHalfPace[1] = nullptr;
     mGapPace = mDrift = mDriftNote = nullptr;
+    mRevPct = mRevReps = mRevMiss = mRevFade = mRevFeel = nullptr;
     mLapsCount = mLapsTotal = nullptr;
     for (auto& row : mLapRows) {
         for (auto& cell : row) {
@@ -76,6 +78,7 @@ void TrackSummaryScreen::buildFace(uint8_t face)
         case FACE_ZONES:     buildFaceZones(); break;
         case FACE_SPLITS:    buildFaceSplits(); break;
         case FACE_PACING:    buildFacePacing(); break;
+        case FACE_REVIEW:    buildFaceReview(); break;
         case FACE_LAPS:      buildFaceLaps(); break;
         default:             return;
     }
@@ -204,6 +207,66 @@ void TrackSummaryScreen::buildFacePacing()
     mTitle = std::make_unique<Widgets::Title>(f, "PACING");
 }
 
+void TrackSummaryScreen::buildFaceReview()
+{
+    // X Training (TP8): the share of the judged time in the target band, big; under it how many reps were in
+    // band, which way the misses went and by how much, the fade in the later reps, and how the runner felt.
+    lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
+    Theme::label(f, F::Regular14, "ON PACE", 20, 44, 200, LV_TEXT_ALIGN_CENTER, Color::GRAY);
+    mRevPct  = Theme::label(f, F::SemiBold40, Strings::kNoValue, 20, 60, 200);
+    Theme::hline(f, 35, 112, 170);
+    mRevReps = Theme::label(f, F::Regular16, "", 20, 118, 200, LV_TEXT_ALIGN_CENTER, Color::WHITE);
+    mRevMiss = Theme::label(f, F::Regular16, "", 20, 138, 200, LV_TEXT_ALIGN_CENTER, Color::YELLOW);
+    mRevFade = Theme::label(f, F::Regular16, "", 20, 158, 200, LV_TEXT_ALIGN_CENTER, Color::CYAN);
+    mRevFeel = Theme::label(f, F::Italic18, "", 40, 180, 160, LV_TEXT_ALIGN_CENTER, Color::TEAL);
+    mTitle = std::make_unique<Widgets::Title>(f, "HOW IT WENT");
+}
+
+void TrackSummaryScreen::fillReview()
+{
+    if (mRevPct == nullptr) {
+        return;
+    }
+    const CustomMessage::PlanSavedInfo& s = mModel.getPlanSaved();
+    char buf[40];
+    snprintf(buf, sizeof(buf), "%u%%", static_cast<unsigned>(s.inPct));
+    lv_label_set_text(mRevPct, buf);
+    XTraining::ReviewText::repsLine(s.unitsIn, s.units, buf, sizeof(buf));
+    lv_label_set_text(mRevReps, buf);
+    XTraining::ReviewText::missLine(s.gapSecKm, mIsImperial, buf, sizeof(buf));
+    lv_label_set_text(mRevMiss, buf);
+    XTraining::ReviewText::fadeLine(s.fadeSecKm, mIsImperial, buf, sizeof(buf));
+    lv_label_set_text(mRevFade, buf);
+    lv_label_set_text(mRevFeel, "");   // the feel is asked on its own screen; the Form page keeps it
+}
+
+bool TrackSummaryScreen::hasReview() const
+{
+    return !mPaused && mModel.getPlanSaved().reviewJudged != 0;
+}
+
+uint8_t TrackSummaryScreen::faceCount() const
+{
+    return static_cast<uint8_t>(FACE_LAPS - (hasReview() ? 0 : 1));
+}
+
+uint8_t TrackSummaryScreen::slotOf(uint8_t face) const
+{
+    return (!hasReview() && face > FACE_REVIEW) ? static_cast<uint8_t>(face - 1) : face;
+}
+
+uint8_t TrackSummaryScreen::nextFace(uint8_t face) const
+{
+    const uint8_t n = static_cast<uint8_t>(face + 1);
+    return (n == FACE_REVIEW && !hasReview()) ? static_cast<uint8_t>(n + 1) : n;
+}
+
+uint8_t TrackSummaryScreen::prevFace(uint8_t face) const
+{
+    const uint8_t p = static_cast<uint8_t>(face - 1);
+    return (p == FACE_REVIEW && !hasReview()) ? static_cast<uint8_t>(p - 1) : p;
+}
+
 void TrackSummaryScreen::buildFaceLaps()
 {
     lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
@@ -277,7 +340,7 @@ void TrackSummaryScreen::setSummary(const ActivitySummary& s)
     mLaps     = &s.laps;
     mLapPage  = 0;
     mLapPages = s.laps.empty() ? 0 : static_cast<uint8_t>((s.laps.size() + kLapPageSize - 1) / kLapPageSize);
-    mIndicator->setCount(static_cast<uint16_t>(FACE_LAPS + mLapPages));
+    mIndicator->setCount(static_cast<uint16_t>(faceCount() + mLapPages));
 }
 
 void TrackSummaryScreen::fillFace()
@@ -290,6 +353,10 @@ void TrackSummaryScreen::fillFace()
 
     if (mFaceId == FACE_ZONES || mFaceId == FACE_SPLITS || mFaceId == FACE_PACING) {   // HybridX Run
         fillDetail();
+        return;
+    }
+    if (mFaceId == FACE_REVIEW) {   // X Training (TP8)
+        fillReview();
         return;
     }
 
@@ -462,7 +529,7 @@ void TrackSummaryScreen::showFace(uint8_t face)
 
 void TrackSummaryScreen::updateIndicator()
 {
-    const uint8_t id = mFaceId < FACE_LAPS ? mFaceId : static_cast<uint8_t>(FACE_LAPS + mLapPage);
+    const uint8_t id = mFaceId < FACE_LAPS ? slotOf(mFaceId) : static_cast<uint8_t>(faceCount() + mLapPage);
     mIndicator->setActive(id);
 }
 
@@ -477,8 +544,8 @@ void TrackSummaryScreen::onKey(uint8_t code)
                     fillLapRows();
                     updateIndicator();
                 }
-            } else if (mFaceId < FACE_PACING || mLapPages > 0) {
-                showFace(mFaceId + 1);
+            } else if (mFaceId < FACE_REVIEW || mLapPages > 0) {
+                showFace(nextFace(mFaceId));
             }
             break;
 
@@ -489,10 +556,10 @@ void TrackSummaryScreen::onKey(uint8_t code)
                     fillLapRows();
                     updateIndicator();
                 } else {
-                    showFace(mFaceId - 1);
+                    showFace(prevFace(mFaceId));
                 }
             } else if (mFaceId > FACE_MAP) {
-                showFace(mFaceId - 1);
+                showFace(prevFace(mFaceId));
             }
             break;
 

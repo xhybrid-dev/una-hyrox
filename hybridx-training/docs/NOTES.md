@@ -1017,6 +1017,133 @@ ahead"), and the paste-ready listing, release notes and upload order in `docs/st
 `hybridx-link/docs/STORE_RELEASE.md`). The packager passes with them (`--expect-version 1.1.0`). They must be in the commit the
 tag `training-v1.1.0` points at, because the CI zip is built from the tag: tag the newest commit.
 
+### Pre-release review (20 November 2026): fixes made before `training-v1.1.0` is tagged
+
+Jon asked for a thorough check of the app. Two read-only reviews (the service, core and GUI since `training-v1.0.0`; the
+product, UX, tests and release) found these defects, each confirmed by reading the code and fixed before the tag, because
+the first two change what an upgrade from 1.0.0 does:
+
+1. **A plan was settled retroactively.** `PlanRules::settle` starts at `settledTo`, else the calendar's start. A plan made
+   on the Wednesday of its first week (the calendar starts that Monday) had Tuesday logged Missed on the first open, and a
+   1.0.0 `plan.json` (no `"st"`) had every unlogged day since the start logged Missed at once, with weeks repeated. Now a new
+   plan is made with `settledTo` = the set-up day, and `settleToday` gives a plan that has none today's date and judges nothing
+   before it. Host tests: a plan set up mid-week.
+2. **One clock floor.** The app took any year from 2020 as a set clock, the glance only 2026-01-01; a 2021 RTC could make a
+   plan that the real date then marked wholly Missed. The app now has the glance's floor (1767225600).
+3. The Changes menu was locked after "Skip today" (`Info::Skipped` missing from `planUnderWay`); "CHANGED" / "NOT ALLOWED"
+   stayed in Today's title until the next PLAN_TODAY (the Model now forgets it when Today is left).
+4. `writeTodayFile` builds a 15 KB Program (the SDK's figure; the comment said 10): no longer from `startPlannedSession`
+   (`updateToday(false)`), and a file already written stands when that block cannot be had.
+5. `stopTrack` rewrote Today's file before the stride calibrator was saved, and also on APP_STOP, where the GUI is gone: the
+   calibrator is saved first and `mAppStopping` skips it. (After an APP_STOP the glance's file follows at the next open.)
+6. A run saved after midnight used the new day for the Saved lines and a trial's date: now the session's own (`mPlannedDate`).
+7. Pausing the plan after today's run took today's session away (`applyMemory`): a counted day keeps its session. Host test.
+8. `static_assert` on `PlanSaved`, `PlanAction` and `WorkoutDetails`.
+
+Left as it is, on purpose: a treadmill session is recorded Done at the stop, before its `.fit` closes (so that the Saved lines
+come before the distance screen); if that file then fails to close, the plan has a Done with no file. The risk is a failed
+flash write on a run that was otherwise saved; accepted.
+
+Checked after the fixes: 171 host tests (169 and two new), the simulator and the watch compile check build, `sim_plan.sh`
+passes (the glance's file, the `.fit`, the activity link).
+
+## TP8: how it went, and how you felt (20 November 2026, Jon's request; built, simulator-checked, not yet on a watch)
+
+Jon asked for a thorough check of the app (the findings: "Pre-release review" above and the ranked backlog below) and for one
+idea in particular: **a metric of how well a session went** (were the interval paces on track, or under or over), **and a
+question of how the runner feels, fresh to fatigued**, so that the **input (feel) can be compared with the output (keeping up
+with the plan)**. His answers to my three design questions:
+
+1. When to ask: **after the session only** (on the Saved flow).
+2. What it does: **"Show it and suggest, but only after 3 runs that were off pace, not only after one bad run."**
+3. The metric: **time in band plus direction**: the share of time on target, whether the misses were too fast or too slow, the
+   average gap in s/km, and the fade in later reps. Short reps use the rep's average, as the step cards do.
+
+### What it is
+
+- **`Core/SessionReview`** (pure, no heap): an accumulator the service feeds once a second. A step with a speed target counts
+  each second as In, Fast or Slow by **the zone the runner's own gauge shows** (`targetZone()`, so the watch and the review never
+  disagree), with how far outside the band the pace was. A short rep (the `AtEnd` steps: strides, repetitions, 30-30s) is judged
+  once, by `RepJudge`'s verdict, weighted by its time. Which steps count (Jon's "the interval paces"): **a session with quality
+  steps is judged on those only** (the warm-up and cool-down would dilute it); **an easy session is judged on its easy steps,
+  where only "too fast" is a miss** (a slower jog is not). Not judged: heart-rate targets, a treadmill (its speed is assumed),
+  seconds with no signal or inside the gauge's hold-off, steps with no target. Judged means at least 180 s, or two reps and 60 s.
+  Result: `inPct`, `fastPct`, `slowPct` (add to 100), `gapSecKm` (the average miss in the dominant direction; negative is
+  fast), `fadeSecKm` (the last third of the reps against the first third, from four reps), reps in band of reps.
+- **`Core/ReviewLog`** and the file **`reviews.json`** (the app's own folder; its own file because `plan.json` is full to its
+  cap): the last 24 sessions, `[date, kind, in, fast, gap+600, fade+100, seconds, feel]`, and `"eh"`, the day the last suggestion was
+  answered. **Gap and fade are stored with a bias so that the file has no negative number: the SDK's JSON writer prints a negative
+  32-bit integer wrongly on a host build** (`%ld` with an `int`; right on the watch, where `int32_t` is `long`), which the host
+  round-trip test found. An unjudged session is still an entry, to keep its feel. The log is cleared when the plan ends or is replaced.
+- **`Core/ReviewInsight`**: **three judged sessions in a row below 60% in band** (`kOffPacePct`, `kOffPaceRun`, one header). A
+  session not judged neither breaks nor extends a run; one on pace ends it. The direction is whichever miss was more. **Too slow
+  offers to hold the plan; too fast only says so** (running reps too fast is discipline, not fitness: nothing in the plan changes
+  for it). Both are my decisions, cheap to change. An answered suggestion (taken or declined) needs **three new sessions** before
+  the next, so the same three never ask twice.
+- **Holding the plan** is `PlanRules::easeNextWeek`: next week runs this week's plan week again, as a repeated week does, with the same
+  limits (not in the last weeks before a race, the growth limit, the plan's end; `repeatWeek`'s checks became `repeatAllowed`, behaviour
+  unchanged, the goldens untouched) and **once per week** (`repeatWeek` itself is not idempotent: asked twice it would repeat twice).
+  `canEase` says whether it would be allowed without doing it, so Today does not offer what cannot be done. A refusal says why on Today.
+- **The screens:** Saved gets the review line (three lines now: the 14 point face keeps the block's foot clear of the arcs); the
+  **Feel** screen after Saved; the summary's **How it went** face (only after a judged session; its dot is left out otherwise); **Form**
+  (Plan, L2): the last eight sessions as bars with a dot for how the runner felt, and one line on the pattern; Today's offer and
+  its two-choice screen. The words are `Core/ReviewText.hpp` (header-only, integers only, British English).
+- **Not in the activity file or the activity link** (the feel is asked after the file has closed), so nothing in `hybridx-link`,
+  Streak or the family changes.
+
+### Decisions made while building (each cheap to change)
+
+- **Feel comes right after Saved, before a treadmill's distance screen** (the plan said after it): the order does not matter to either
+  and it needs no change to that screen.
+- **R2 on the Feel screen skips**, as does the sixth row; the middle choice (Steady) is where it starts.
+- **Today's offer is an `Offer` status like the missed-session ones** (`detail` 3 to 5), so it uses their screens and one more press than
+  starting: the question is answered first, as the others are. It is also raised on a day already run (Done).
+- **Only Speed targets are judged.** An easy run by heart rate has no review in this version (its "too high" zone is a different
+  quantity); the feel is still asked.
+- **The gauge's own zone, not a recomputation:** the review inherits its hold-off and its signal handling.
+- Easy sessions (no quality) are judged on "too fast" only, so a long run of easy running kept easy reads 100%.
+
+### Verified
+
+- 225 host tests (the 169 before, 2 for the pre-release fixes, and 54 new: the accumulator, the log, the insight, the words, the
+  ease and its limits). The goldens are unchanged.
+- `docs/experiments/audit.sh`: 0 problems, with every new screen at its worst (three-line Saved, each Feel choice, How it went with
+  the widest numbers, Form with every line, the offer in its three variants and its refusals).
+- `docs/experiments/sim_review.sh` (seeded `reviews.json`, four runs of the app, about 3 minutes): two slow sessions ask nothing;
+  three slow and tired: Today asks, **Yes** makes the plan 11 weeks and the answer is remembered and not asked again; **Not now**
+  leaves it at 10 weeks, remembered; eight sessions: Plan, then L2, Form. `build-tests/review_print` reads `reviews.json` with the
+  core's reader and checks it (and `--make` writes seeded ones).
+- **A whole session through the real engine** (`REVIEW=1 FEEL=tired sim_plan.sh`, 18 minutes: an easy run, week 1): the plan recorded it
+  Done, `reviews.json` has it judged (1063 s, **0% in band, 100% too fast, gap -135 s/km**: the simulator's GPS runs about 5 m/s, far
+  quicker than the easy band's 5:26 /km), the Saved screen said "Too fast, 0% on pace", the Feel screen took "Tired" (L2, R1) and the file
+  has it, the summary's How it went face showed 0% and "Misses 135 s/km fast", the glance's file said Done, and **the `.fit` and
+  `act_training.json` are as before** (the checks of `fit_plan_report.py` and the link all pass). Captures: `docs/screens/tp8-*.png`.
+- The watch compile check of the whole app (compile only). The new members add about 640 bytes to the service (the accumulator 240,
+  the log 392), on the heap on a watch.
+- A week that runs a plan week again (a missed week repeated, or the plan held) says **REPEAT WEEK** in Today's title (derived, not stored:
+  it runs the plan week the week before ran), where it said nothing; this answers the review's "the plan changes silently" for repeats.
+  The other silent changes (a moved key session, a refusal by the missed-week rule) are still the backlog's item 3.
+
+### Not verified
+
+- **Anything on a watch.** In particular how fair the percentages are on a real run (GPS speed is noisy on hills, in heat and under
+  trees: that is why a suggestion needs three sessions, and why a treadmill is not judged), and how the zone's hold-off treats a
+  short rep.
+- The accumulation over a session with quality steps and reps (the long run used an easy run, which only tests the per-second path);
+  the reps' path and the fade are host-tested.
+- The `reviews.json` write on APP_STOP (the plan record is written first, at the stop; the review follows it).
+
+### The backlog from the review (not built; Jon picks)
+
+The product review's ranked findings, for the record. **1.** a run not started from Today (a parkrun, a free run, a run in X Run)
+leaves the day Missed, which can swap a key session or repeat a week: offer "Count it as Tuesday's Easy run?" on Saved (the brief
+promised it: §9); **3.** the plan changes silently (a repeated week, a refusal, a moved key session have no reason on screen);
+**4.** a stale 5K is guarded only by a phone switch (`fiveKDate` is read only by Paces); **5.** a missed time trial is never offered
+again; **6.** the illness and injury path is nine presses deep, takes no reason, has no graded return, and "not medical advice" is
+only in the listing; **7.** the end of a plan is a dead end (no recap, no recovery week, no next plan); **8.** the pace gauge uses raw
+GPS speed (hills and heat); **9.** no pre-session check of battery or GPS; plus the set-up press counts, unused data (drift,
+efficiency, load), the missing host tests of about 1,000 lines of plan glue in `Service.cpp`, CI that does not run the audit or the
+simulator scripts, X Run copies with no drift check, and docs drift. The full table is in the plan file of 20 November.
 ## Steadier pace alerts (19 November 2026, Jon)
 
 Jon: running on the edge of the pace band beeped "too slow", "back in", "too slow" again. The SDK's
