@@ -11,6 +11,26 @@ prefix for the SDK's version script. The store release of the family:
 
 ## [Unreleased]
 
+### Added
+
+- **How it went, and how you felt** (TP8): after a planned session that counts, Saved says how well it kept to
+  its paces ("On pace 82%", or "Too fast, 40% on pace"), then asks how you felt (**Fresh, Good, Steady, Tired,
+  Spent**, or skip). The summary has a **How it went** face: the share of the time in the target band, how many
+  reps were in band, which side the misses were on and by how much (s/km or s/mi), and any fade in the later
+  reps. **Plan, then L2: Form** shows the last eight sessions as bars with a dot for how you felt, and one line
+  on the pattern. Paces are judged by the same zone your watch shows, quality steps only in a session that has
+  them (a short rep by its average, as the step card says); a treadmill session is not judged, as its speed is
+  assumed. Kept in `reviews.json`, not in the activity file.
+- **A suggestion, never after one bad run:** after three sessions in a row too slow, Today offers to **hold the
+  plan** (next week runs this week's plan again), with the reason it can give (tired, or fresh yet slow: the
+  paces may be set too hard). Three too fast only says so. A refusal (the last weeks before a race, the plan's
+  growth limit) says why. Not asked again until three more sessions.
+
+### Fixed
+
+- A plan set up in the middle of its first week no longer logs the days before it as missed, and a plan from
+  1.0.0 is judged from the day it is first opened (these two went into 1.1.0 before its tag).
+
 ## [1.1.0] - 2026-11-17
 
 The plan learns from what you do, a planned session can run on a treadmill, and a glance is ready for

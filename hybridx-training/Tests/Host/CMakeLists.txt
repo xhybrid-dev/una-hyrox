@@ -161,6 +161,17 @@ add_executable(today_print
 )
 target_include_directories(today_print PRIVATE ${CORE_INCLUDES})
 
+# review_print: a reviews.json read with the core's reader and the insight's reading of it; --make writes seeded ones
+# for the simulator (TP8).
+add_executable(review_print
+    "${TOOLS_DIR}/review_print/review_print.cpp"
+    "${CORE_LIBS}/Sources/ReviewLog.cpp"
+    "${CORE_LIBS}/Sources/ReviewInsight.cpp"
+    "${CORE_LIBS}/Sources/SessionReview.cpp"
+    ${SDK_JSON_SOURCES}
+)
+target_include_directories(review_print PRIVATE ${CORE_INCLUDES})
+
 enable_testing()
 add_test(NAME hybridx-training-host-tests COMMAND hybridx-training-host-tests)
 # The generated plan header must match the plan files.

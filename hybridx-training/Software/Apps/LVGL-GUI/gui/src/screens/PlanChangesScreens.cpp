@@ -151,7 +151,7 @@ void PlanOfferScreen::onShow()
                       static_cast<unsigned>(t.plannedM % 60));
     } else if (t.detail >= Info::EaseTired) {
         // TP8: three sessions too slow in a row: hold the plan (next week runs this week's plan week again).
-        std::snprintf(mTitleText, sizeof(mTitleText), "HOLD THE PLAN?");
+        std::snprintf(mTitleText, sizeof(mTitleText), "HOLD PLAN?");
         std::snprintf(mText[ID_YES], sizeof(mText[0]), "Yes, hold it");
         std::snprintf(mText[ID_NO], sizeof(mText[0]), "Not now");
         std::snprintf(mTip[ID_YES], sizeof(mTip[0]), "this week runs again");

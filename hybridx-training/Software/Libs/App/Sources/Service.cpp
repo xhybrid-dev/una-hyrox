@@ -3279,6 +3279,13 @@ void Service::dayInfo(SDK::Workout::Ymd date, SDK::Workout::Ymd today, CustomMes
             copyText(info.name, sizeof(info.name), "Plan complete");
         } else {
             info.runWeek = day.runWeek;
+            // TP8: a week that runs the plan week the week before ran (a missed week repeated, or the plan held):
+            // Today's title says so ("WEEK 5 AGAIN"), where it used to say nothing.
+            if (where.runWeek > 0 && where.planWeek < 255
+                && PlanCalendar::planWeekOf(mPlan.calendar, where.runWeek)
+                       <= PlanCalendar::planWeekOf(mPlan.calendar, static_cast<uint8_t>(where.runWeek - 1))) {
+                info.repeatOf = static_cast<uint8_t>(where.planWeek + 1);
+            }
             info.kind    = static_cast<uint8_t>(day.asRun.kind);
             info.key     = day.key;
             copyText(info.name, sizeof(info.name), PlanText::name(day.asRun.kind));

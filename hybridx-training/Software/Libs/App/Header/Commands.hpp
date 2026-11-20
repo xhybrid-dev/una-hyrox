@@ -633,6 +633,7 @@ namespace CustomMessage {
         uint8_t  detail     = 0;      ///< Detail: for Offer and PaceAsk
         uint8_t  notice     = 0;      ///< Notice: after an action
         uint8_t  why        = 0;      ///< (TP8) with NotAllowed after holding the plan: PlanRules::Settled::Denied
+        uint8_t  repeatOf   = 0;      ///< (TP8) this week runs plan week N again (1-based); 0 = it does not
         uint32_t date       = 0;      ///< today, YYYYMMDD; 0 if the watch's date is not set
         uint32_t plannedSec = 0;
         uint32_t plannedM   = 0;

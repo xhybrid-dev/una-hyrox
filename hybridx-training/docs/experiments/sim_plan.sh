@@ -31,14 +31,21 @@
 #              checked by fit_treadmill_plan_report.py: sub_sport treadmill, no positions, and each
 #              designated step's lap = its assumed belt speed x its time.
 #   REPS_BY_DISTANCE=1  the watch setting "Reps by distance" on, so the reps are distance steps.
+#   REVIEW=1   (TP8) how it went and the runner's feel: today is an easy run (week 1, Wednesday), run for STEP_SECS
+#              (default 1070 s, just over half of its 35 minutes, so that it counts), then the Feel screen is answered with FEEL
+#              (fresh, good, steady, tired, spent or skip; default tired) and the summary's How it went face is
+#              captured. reviews.json is then read back by build-tests/review_print: the session judged, too fast
+#              (the simulator's GPS runs about 5 m/s, quicker than any easy pace), and the feel kept. About 20 minutes.
 #   AUTO=1     (with TREADMILL=1) let each distance-ended step end by itself, as a runner's would, and skip
 #              the others with the lap button after AUTO_SKIP_SECS (default 5): with WEEK=2 (the 400 m
 #              repetitions) the 400 m reps and jogs take about 22 minutes, a little under half the session
 #              (it counts from half its planned time: AUTO_SKIP_SECS=120 does, in about 26 minutes). The rule is that each ends when speed x time reaches its distance.
 set -u
 SHOTS=${1:-}
-WEEK=${WEEK:-4}
-STEP_SECS=${STEP_SECS:-12}
+REVIEW=${REVIEW:-0}
+WEEK=${WEEK:-$([ "$REVIEW" = 1 ] && echo 0 || echo 4)}
+STEP_SECS=${STEP_SECS:-$([ "$REVIEW" = 1 ] && echo 1070 || echo 12)}
+FEEL=${FEEL:-tired}
 PLAN=${PLAN:-1}
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 SOFT="$REPO/Software"
@@ -52,6 +59,7 @@ LOG=${SIM_LOG:-/tmp/x-training-sim.log}
 TODAY=$(date +%Y%m%d)
 DOW=$(( $(date +%u) - 1 ))            # 0 Monday .. 6 Sunday
 LONG=$(( (DOW + 5) % 7 ))             # today is two days after the long run: the first quality day
+[ "$REVIEW" = 1 ] && LONG=$(( (DOW + 4) % 7 ))   # REVIEW=1: three days after it, the easy run
 DAYS=0
 for k in 0 2 3 5; do DAYS=$(( DAYS | (1 << ((LONG + k) % 7)) )); done
 START=$(date -d "$(date +%F) -$DOW days -$(( WEEK * 7 )) days" +%Y%m%d)
@@ -170,6 +178,22 @@ hold 3 3                                  # hold R1: save
 if [ "${TREADMILL:-0}" = 1 ]; then
     snap 07-saved                         # the Saved screen with the plan's lines (recorded as the run stopped)
     sleep 6                               # then the distance screen
+elif [ "$REVIEW" = 1 ]; then
+    sleep 3
+    snap 07-saved                         # Saved, with how it went (three lines)
+    sleep 4                               # then the Feel screen
+    snap 07d-feel
+    case "$FEEL" in
+        fresh) key 1 0.5; key 1 0.5; key 3 2 ;;     # Steady is selected: L1 twice, R1
+        good)  key 1 0.5; key 3 2 ;;
+        steady) key 3 2 ;;
+        tired) key 2 0.5; key 3 2 ;;
+        spent) key 2 0.5; key 2 0.5; key 3 2 ;;
+        *)     key 4 2 ;;                           # skip: R2
+    esac
+    snap 07e-summary
+    for _ in 1 2 3 4 5 6 7; do key 2 0.4; done      # the summary's faces: the seventh is How it went
+    snap 08-how-it-went
 else
     sleep 3
     snap 07-saved
@@ -199,6 +223,13 @@ echo "--- training_today.json after the save: the glance should show $WANT"
 today_check $WANT
 echo "--- plan.json"
 cat "$SOFT/Output/plan.json"; echo
+if [ "$REVIEW" = 1 ]; then
+    echo "--- reviews.json (TP8)"
+    cat "$SOFT/Output/reviews.json"; echo
+    case "$FEEL" in fresh) FN=Fresh;; good) FN=Good;; steady) FN=Steady;; tired) FN=Tired;; spent) FN=Spent;; *) FN=none;; esac
+    "$REPO/build-tests/review_print" "$SOFT/Output/reviews.json" --expect-count 1 --expect-newest judged \
+        --expect-dir fast --expect-feel "$FN" --expect-off-run 1 || TODAY_FAILED=1
+fi
 echo "--- shared files"
 find "$SOFT/SharedData" -type f 2>/dev/null | sort
 echo "--- the FIT file"

@@ -563,7 +563,15 @@ TP6, the glance, is built and at its gate (NOTES "TP6"): the app leaves `../Shar
 (`Software/Libs/Glance`, `Apps/HXTrainingGlance-CMake`; its own listing, "X Training Glance", development App ID
 `C4B5BAD6DC827E16` until the portal issues one) reads it: two lines and a strip of seven pips, not the brief's three
 lines (60 px; Streak NOTES S4.2). Text and filled rectangles only; letters only in the 18 and 20 point faces.
-- **Docs:** brief, architecture, phases (TP0-TP7): `hybridx-training/docs/HYBRIDX_TRAINING_BRIEF.md`;
+TP8 (20 November 2026, Jon's request after a thorough check of the app; built, simulator-checked, ships in 1.2.0): how a
+session kept to its paces and how the runner felt (NOTES "TP8"). `Core/SessionReview` works out time in band plus direction (the
+gauge's own zone, a second at a time; a short rep by its average), the **Feel** screen follows Saved for a planned session that
+counted (Fresh, Good, Steady, Tired, Spent, or skip), `Core/ReviewLog` keeps the last 24 with the feel in `reviews.json`, Saved and
+the summary's **How it went** face show it, **Plan, L2: Form** shows the last eight, and after **three judged sessions in a row
+below 60% in band** Today speaks (`Core/ReviewInsight`): too slow offers to hold the plan (`PlanRules::easeNextWeek`, once a week,
+with the repeat limits), too fast only says so; an answer needs three new sessions before the next. Not in the FIT file or the
+link. The pre-release review's fixes (a plan was settled retroactively; the clock floor; the Changes menu after a skip) are in NOTES.
+- **Docs:** brief, architecture, phases (TP0-TP8): `hybridx-training/docs/HYBRIDX_TRAINING_BRIEF.md`;
   the pace model, sessions and the three plans: `PLANS.md`; the independent engineering and
   coaching review: `REVIEW.md`; decisions, verified SDK facts and the TP1 plan: `NOTES.md`.
   Read the brief, `PLANS.md` and `NOTES.md` at the start of each Training phase, and work only
@@ -622,6 +630,11 @@ lines (60 px; Streak NOTES S4.2). Text and filled rectangles only; letters only 
   - the plan's memory as scenarios (TP5): `hybridx-training/build-tests/plan_sim [n]` (the golden
     `Tests/Host/golden/plan_sim.md`: `XTRAINING_UPDATE_GOLDEN=1 ... --gtest_filter='PlanRules.Golden*'`
     after a rule changes, then read the diff);
+  - the session review and the suggestion (TP8) on pretend watches with a seeded `reviews.json`, by key presses:
+    `docs/experiments/sim_review.sh [shots-dir]` (about 3 minutes: two slow sessions ask nothing; three slow and tired: Today asks,
+    Yes holds the plan, Not now does not; Form); a whole session through the real engine with the Feel screen answered:
+    `REVIEW=1 FEEL=tired docs/experiments/sim_plan.sh [shots-dir]` (an easy run for just over half its time, about 20 minutes);
+    `hybridx-training/build-tests/review_print <reviews.json> [--expect-...]` reads and checks the file, `--make <out> <date:in:fast:feel>...` seeds one;
   - the text-fit audit (the plan's screens with their widest text, measured with LVGL, clear of
     the bezel arcs and never cut): `docs/experiments/audit.sh` (about 30 seconds; after any change
     to a screen's text or layout, or to the plans' words).

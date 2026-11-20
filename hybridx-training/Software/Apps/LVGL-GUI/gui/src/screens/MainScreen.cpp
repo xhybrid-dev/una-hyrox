@@ -170,6 +170,10 @@ void MainScreen::setTodayTip()
             std::snprintf(mTodayTip, sizeof(mTodayTip), "Plan paused");
             break;
         case Info::Offer:
+            if (t.detail >= Info::EaseTired) {   // TP8: three sessions too slow: hold the plan?
+                std::snprintf(mTodayTip, sizeof(mTodayTip), "Hold the plan?");
+                break;
+            }
             std::snprintf(mTodayTip, sizeof(mTodayTip), "Missed: %s",
                           XTraining::PlanText::shortName(static_cast<XTraining::Kind>(t.kind)));
             break;

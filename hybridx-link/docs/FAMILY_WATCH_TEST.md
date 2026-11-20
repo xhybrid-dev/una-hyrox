@@ -312,6 +312,33 @@ two steps whenever you like, the rest as they come up.
 
 Send: photos of Today and This week after steps 36 to 38, and what the Saved screen said after step 40.
 
+## 11. How it went, and how you felt (X Training's TP8, in 1.2.0)
+
+New in 1.2.0, not yet on a watch. It needs a planned session that counts (half its planned time, or more),
+outdoors with a GPS fix: an easy run is enough for steps 41 to 43. Steps 44 and 45 need three sessions, so they
+come up over the days.
+
+41. **After a planned session that counts:** Saved shows the plan's lines as before, with one more: "On pace 82%",
+    or "Too fast, 40% on pace" / "Too slow, 40% on pace". An easy run is judged only on "too fast" (a slower jog
+    is not a miss), so an easy run kept easy reads "On pace 100%". Then the **Feel** screen: Fresh, Good, Steady,
+    Tired, Spent, or Skip (L1/L2 move, R1 chooses, R2 skips). Choose one.
+42. **The summary:** L2 through its faces: after Pacing comes **How it went** (only after a judged session): the
+    share of the time in the target band in big figures, "5 of 6 reps in band", "Misses 6 s/km fast", and, after
+    four or more reps, "Later reps 7 s/km slower". Check that the figures match how the run went: an interval
+    session run too fast should say fast.
+43. **Form:** Plan (main menu), then **L2**. The last eight reviewed sessions as bars (green on pace, yellow too
+    fast, cyan too slow, grey not judged), a dot under each for how you felt (teal fresh or good, white steady,
+    orange tired or spent), and a line on the pattern once there are three off pace.
+44. **Three sessions too slow in a row** (a hill or heat can do it: the watch judges by GPS speed): Today asks
+    "Hold the plan?" with how you felt ("and you were tired" or "though you felt fresh"). **Yes** makes next week
+    run this week's plan again; **Not now** changes nothing and does not ask again until three more sessions. Near
+    a race, or when the plan has grown as far as it can, it says why it cannot (Today's title NOT ALLOWED, and the
+    reason under it). Three sessions **too fast** are only mentioned on Form: the plan is never changed for them.
+45. **A treadmill session** is not judged (no How it went face, no review line), but still asks how you felt.
+
+Send: photos of Saved, the Feel screen, How it went and Form after steps 41 to 43; and, if you see it, Today's
+question and what it said about how you felt (step 44). Say whether the percentages seem fair for the run you did.
+
 ## What each result decides
 
 - **Everything as in the tables:** the family's link works on a watch; next are the releases
