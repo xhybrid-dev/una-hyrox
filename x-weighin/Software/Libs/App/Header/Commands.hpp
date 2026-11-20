@@ -47,7 +47,7 @@ struct HomeData {
     int32_t  weekChange;     ///< Trend change over 7 days, 0.01 kg (if hasWeekChange).
     int32_t  lastDay;        ///< Local day of the last weigh-in.
     int32_t  today;          ///< Local day now; 0 if the clock is not set.
-    int32_t  entryStart;     ///< Where the weigh-in screen opens, 0.01 kg.
+    int32_t  entryStart;     ///< Where the weigh-in screen opens, 0.01 kg (XWeighIn::startBase; not rounded).
     int32_t  bmiTenths;      ///< From the trend and the profile height; 0 = unknown.
     int32_t  bmrKcal;        ///< Mifflin-St Jeor from the trend; 0 = unknown.
     uint32_t heightCm;       ///< The UNA profile's height; 0 = not set.
@@ -56,6 +56,7 @@ struct HomeData {
     uint8_t  ageYears;       ///< From the phone settings; 0 = unknown.
     uint8_t  sex;            ///< Config field: 0 not set, 1 female, 2 male.
     uint8_t  entryFrom;      ///< EntryFrom: what entryStart came from.
+    uint8_t  units;          ///< XWeighIn::WeightUnit: how weights are shown (the data stays in kg).
     bool     hasWeekChange;
     bool     clockSet;
 };

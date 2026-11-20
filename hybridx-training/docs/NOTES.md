@@ -1144,3 +1144,13 @@ only in the listing; **7.** the end of a plan is a dead end (no recap, no recove
 GPS speed (hills and heat); **9.** no pre-session check of battery or GPS; plus the set-up press counts, unused data (drift,
 efficiency, load), the missing host tests of about 1,000 lines of plan glue in `Service.cpp`, CI that does not run the audit or the
 simulator scripts, X Run copies with no drift check, and docs drift. The full table is in the plan file of 20 November.
+## Steadier pace alerts (19 November 2026, Jon)
+
+Jon: running on the edge of the pace band beeped "too slow", "back in", "too slow" again. The SDK's
+`ZoneAlerts` alerts the moment the gauge's zone changes, and it is read-only, so `ZoneDebounce`
+(`Core/Header/ZoneDebounce.hpp`, pure) sits in front of it: a change of zone reaches the alerts only
+after it has held `kDelaySec` (5) seconds in a row. That delays "too fast / too slow" by 5 s and also
+"back in" by 5 s, so a dip or a brief return makes no sound. Unknown and NoSignal pass at once, and the
+first reading after them is taken at once (the SDK's own 20 s quiet start still applies). The screen's
+gauge keeps the live zone. Applies to every step, planned or UNA's. Host tests `ZoneDebounce.*`
+(through the real `ZoneAlerts`). The delay is a constant (3 s is `kDelaySec = 3`): Jon to judge on a run.

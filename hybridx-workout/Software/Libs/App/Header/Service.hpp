@@ -95,6 +95,17 @@ private:
     void sendLapEvent(uint8_t index, Workout::Cue cue);
     /// The vibration pattern for each cue (a countdown of three ticks for Warning).
     void buzzCue(Workout::Cue cue);
+    /// The buzzer's tone for the last 3, 2 and 1 seconds of a timed step (@p beat 3, 2, 1; 0 none).
+    void playCountdown(uint8_t beat);
+    void playTone(uint32_t ms, uint16_t hz);
+
+    // The countdown's tones: three short, rising, then a long one at the end.
+    static constexpr uint32_t kBeatMs    = 150;
+    static constexpr uint32_t kEndBeatMs = 700;
+    static constexpr uint16_t kBeatHz3   = 880;
+    static constexpr uint16_t kBeatHz2   = 1100;
+    static constexpr uint16_t kBeatHz1   = 1320;
+    static constexpr uint16_t kEndBeatHz = 1760;
 
     uint16_t currentHr(uint32_t nowMs) const;
 

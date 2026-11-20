@@ -9,7 +9,7 @@
   "appVersion": "0.1.0",
   "minKernelVersion": "1.4.0",
   "requiredHardware": [],
-  "description": "Weigh in on your watch in seconds, in kg. A smoothed trend shows where your weight is heading beneath the day-to-day swings, with the change over the last week, a 30-day graph, your BMI and the calories you burn at rest. Your weigh-ins stay on the watch.",
+  "description": "Weigh in on your watch in seconds, in kg, stones and pounds, or pounds. A smoothed trend shows where your weight is heading beneath the day-to-day swings, with the change over the last week, a 30-day graph, your BMI and the calories you burn at rest. Your weigh-ins stay on the watch.",
   "supportsLaps": false,
   "supportsDistance": false,
   "supportsTrack": false,
@@ -45,6 +45,15 @@
       "type": "int",
       "label": "Sex",
       "description": "1 for female, 2 for male. Used only to estimate the calories you burn at rest. 0 leaves it unset.",
+      "default": 0,
+      "min": 0,
+      "max": 2
+    },
+    {
+      "id": "units",
+      "type": "int",
+      "label": "Weight units",
+      "description": "0 for kilograms (kg), 1 for stones and pounds (st, lb), 2 for pounds (lb). Your weigh-ins are kept in kg whichever you choose, so you can switch at any time.",
       "default": 0,
       "min": 0,
       "max": 2

@@ -151,9 +151,9 @@ private:
 
     // Clear of the UP and DOWN marks at the left edge, which the scale labels
     // sit just right of, and of SELECT and BACK at the right.
-    static constexpr int32_t kLeft   = 70;
+    static constexpr int32_t kLeft   = 80;
     static constexpr int32_t kTop    = 60;
-    static constexpr int32_t kWidth  = 140;
+    static constexpr int32_t kWidth  = 130;
     static constexpr int32_t kHeight = 100;
 
     lv_obj_t*          mLine = nullptr;
@@ -229,7 +229,8 @@ private:
     lv_timer_t*          mTimer = nullptr;
     XWeighIn::HoldRepeat mHold;
     int32_t              mHeldDir = 0;   ///< +1 UP, -1 DOWN, 0 none
-    int32_t              mValueH  = 0;   ///< 0.01 kg
+    int32_t              mEntry   = 0;   ///< Tenths of the unit (kg or lb), XWeighIn::toEntry
+    XWeighIn::WeightUnit mWeightUnit = XWeighIn::WeightUnit::Kg;
     bool                 mSaving  = false;
 };
 

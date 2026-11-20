@@ -2122,6 +2122,7 @@ void Service::startWorkoutStep()
 {
     const SDK::Workout::Step& s = mProgram.steps[mEngine.status().step];
     mZoneAlerts.stepStarted();
+    mZoneDebounce.reset();
     mOutAlerted = false;   // X Training: see zoneAlertAllowed()
     mAlertRepeat = nullptr;   // the last step's alert does not repeat into this one
     mBandLow  = 0.0f;
@@ -2201,7 +2202,7 @@ void Service::processWorkout()
         reviewSecond(st);   // TP8: how this second sat against the step's band
     }
 
-    const auto alert = mZoneAlerts.tick(targetZone());
+    const auto alert = mZoneAlerts.tick(mZoneDebounce.tick(targetZone()));   // held 5 s: no beep for each flip on the band's edge
     const bool beep  = mLeadIn.tick(st);
     // X Training: a planned session's easy steps say only "too fast" (PLANS.md 2.5). On a treadmill
     // the speed targets do not alert at all: a designated step's speed is the assumed belt speed, always

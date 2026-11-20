@@ -82,6 +82,7 @@ public:
         mStep        = 0;
         mStepStartMs = 0;
         mWarned      = false;
+        mBeatBand    = 0;
         mDone        = false;
         mRounds      = 0;
         label(m);
@@ -144,6 +145,35 @@ public:
             }
         }
         return Cue::None;
+    }
+
+    /// The countdown beat: call after tick(), once a second. Returns 3, 2 or 1
+    /// on the tick that falls in the last 3, 2 and 1 seconds of a timed step
+    /// (each at most once), else 0. The step's own end is the cue that follows
+    /// a second later, so 3-2-1-end are evenly spaced.
+    uint8_t countdown(const WorkoutModel &m, uint32_t nowMs)
+    {
+        if (mCount == 0 || mDone || m.state() != RunState::Running) {
+            return 0;
+        }
+        const Step s = stepAt(mCfg, mStep);
+        if (!s.timed()) {
+            return 0;
+        }
+        const uint32_t into = m.activeMs(nowMs) - mStepStartMs;
+        if (into >= s.durationMs) {
+            return 0;
+        }
+        const uint32_t left = s.durationMs - into;
+        if (left > kCountdownMs) {
+            return 0;
+        }
+        const uint8_t band = static_cast<uint8_t>((left + 999u) / 1000u);   // 3, 2 or 1
+        if (band == mBeatBand) {
+            return 0;
+        }
+        mBeatBand = band;
+        return band;
     }
 
     bool done() const { return mDone; }
@@ -209,6 +239,7 @@ private:
         ++mStep;
         mStepStartMs = nextStartMs;
         mWarned      = false;
+        mBeatBand    = 0;
         label(m);
         switch (stepAt(mCfg, mStep).kind) {
         case StepKind::Rest:    return Cue::Rest;
@@ -224,6 +255,7 @@ private:
     uint8_t    mStep = 0;
     uint32_t   mStepStartMs = 0;   ///< In the model's active time
     bool       mWarned = false;
+    uint8_t    mBeatBand = 0;      ///< The last countdown beat given (3, 2, 1; 0 none)
     bool       mDone = false;
     uint16_t   mRounds = 0;        ///< AMRAP rounds counted
 };

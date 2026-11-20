@@ -77,7 +77,7 @@ Everything that can be done without the portal is done. What is left:
 **Name:** X Weigh-in
 
 **Short description (portal):**
-A weight tracker on your watch. Weigh in, in kg, and see the smoothed trend
+A weight tracker on your watch. Weigh in, in kg, stones and pounds, or pounds, and see the smoothed trend
 beneath the day-to-day swings.
 
 **Longer description:**
@@ -85,7 +85,7 @@ beneath the day-to-day swings.
 > Weigh in on your watch in seconds, and see where your weight is really
 > heading.
 >
-> - Enter your weight in kg, in 0.1 kg steps. It starts from your last
+> - Enter your weight in kg, stones and pounds, or pounds (a phone setting), in 0.1 steps. It starts from your last
 >   weigh-in; hold UP or DOWN to move quickly.
 > - A smoothed trend rides over the day-to-day swings of water, salt and late
 >   meals, with the change over the last week.
@@ -149,6 +149,7 @@ Your X Weigh-in trend on the glances screen. Needs the X Weigh-in app.
 | Birth year | 0 (unset) or the year | Age, then resting kcal |
 | Birth month | 0-12 | Age to the month |
 | Sex | 0 unset, 1 female, 2 male | Resting kcal |
+| Weight units (1.1.0) | 0 kg, 1 stones and pounds, 2 pounds | How weights are shown; the data stays in kg |
 
 Until the app is on the store these come from `Apps/XWeighIn/app_config.json`
 over USB. The store install is the first time the UNA app's settings screen

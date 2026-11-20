@@ -48,6 +48,7 @@
 // X Training: the plan core (Software/Libs/Core).
 #include "PaceModel.hpp"
 #include "PlanBuilder.hpp"
+#include "ZoneDebounce.hpp"
 #include "PlanSchedule.hpp"
 #include "PlanProgress.hpp"
 #include "PlanRules.hpp"
@@ -343,6 +344,7 @@ private:
     SDK::Workout::GpsCatchUp     mGpsCatchUp;  ///< Holds the speed gauge off until the distance catches up.
     SDK::Workout::HeartRateGauge mHrGauge;
     SDK::Workout::ZoneAlerts     mZoneAlerts;
+    XTraining::ZoneDebounce      mZoneDebounce;   ///< steadies the zone the alerts see
     /// A zone alert's second playing, until it is sent; see playAlertTwice().
     const SDK::Message::RequestBuzzerPlay::Note* mAlertRepeat        = nullptr;
     uint8_t                                      mAlertRepeatCount   = 0;

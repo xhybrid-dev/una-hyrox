@@ -219,3 +219,29 @@ TEST(LogStore, CopyReplacesAnExistingFile)
     EXPECT_TRUE(LogStore::copyFile(fs, "a.csv", "b.csv"));
     EXPECT_EQ(fs.content("/Apps/XWeighIn/b.csv"), "new content");
 }
+
+TEST(LogStoreUnit, NoFileMeansKilograms)
+{
+    TreeFileSystem fs;
+    EXPECT_EQ(LogStore::readUnit(fs), WeightUnit::Kg);
+}
+
+TEST(LogStoreUnit, WrittenForTheGlanceAndReadBack)
+{
+    const std::string unitPath = "/Apps/SharedData/HybridX/weighin_units.txt";
+    TreeFileSystem fs;
+    for (WeightUnit u : { WeightUnit::StLb, WeightUnit::Lb, WeightUnit::Kg }) {
+        ASSERT_TRUE(LogStore::writeUnit(fs, u));
+        EXPECT_EQ(fs.content(unitPath), std::string(1, static_cast<char>('0' + static_cast<int>(u))) + "\n");
+        EXPECT_EQ(LogStore::readUnit(fs), u);
+    }
+}
+
+TEST(LogStoreUnit, AnUnreadableFileMeansKilograms)
+{
+    TreeFileSystem fs;
+    fs.addFile("/Apps/SharedData/HybridX/weighin_units.txt", "x\n");
+    EXPECT_EQ(LogStore::readUnit(fs), WeightUnit::Kg);
+    fs.addFile("/Apps/SharedData/HybridX/weighin_units.txt", "7\n");
+    EXPECT_EQ(LogStore::readUnit(fs), WeightUnit::Kg);
+}

@@ -60,6 +60,7 @@ set(SDK_JSON_SOURCES
     "${UNA_SDK_ROOT}/ThirdParty/coreJSON/source/core_json.c"
 )
 set(SDK_WORKOUT_SOURCES
+    "${UNA_SDK_ROOT}/Libs/Source/Workout/WorkoutAlerts.cpp"
     "${UNA_SDK_ROOT}/Libs/Source/Workout/WorkoutEngine.cpp"
     "${UNA_SDK_ROOT}/Libs/Source/Workout/StepLabel.cpp"
 )
@@ -83,6 +84,7 @@ add_executable(hybridx-training-host-tests
     WeekLayoutTest.cpp
     PlanCalendarTest.cpp
     PlanBuilderTest.cpp
+    ZoneDebounceTest.cpp
     PlanStateTest.cpp
     PlanTextTest.cpp
     PlanScheduleTest.cpp

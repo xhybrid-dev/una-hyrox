@@ -11,6 +11,15 @@ strips the prefix for the SDK's version script. The steps are in
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-18
+
+### Added
+
+- **Weight units.** A phone setting, "Weight units": kilograms (default), stones
+  and pounds, or pounds. Every screen and the glance follow it. The log, the
+  trend and the SharedData copy stay in kg, so switching never changes your
+  data. Entry steps are 0.1 of the unit. The setting is read when the app opens.
+
 ## [1.0.1] - 2026-10-13
 
 The store packages only; the app and the glance are unchanged from 1.0.0.
