@@ -11,6 +11,10 @@ prefix for the SDK's version script. The store release of the family:
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-20
+
+How a session went and how you felt, plus fixes to 1.1.0 (1.1.0 was tagged before them).
+
 ### Added
 
 - **How it went, and how you felt** (TP8): after a planned session that counts, Saved says how well it kept to
