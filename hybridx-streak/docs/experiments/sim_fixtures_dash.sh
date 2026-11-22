@@ -17,7 +17,8 @@
 #
 # Times are this machine's local time. TODAY_STATE (session, done, rest) picks what
 # X Training says of today; UNITS (0, 1, 2) X Weigh-in's unit; NO_FAMILY=1 leaves
-# out everything but the activity link.
+# out everything but the activity link; BANKED=1 leaves this week exactly 3 sessions
+# (the default target, no bonus), for Home's banked line.
 # Usage:  sim_fixtures_dash.sh <root>
 set -eu
 
@@ -55,9 +56,13 @@ d() { local x=$1; [ "$x" -gt "$TODAY_OFF" ] && x=$TODAY_OFF; echo "$x"; }
 # Last week: a run, a ride, a strength session. This week: two runs (one X Training's),
 # a ride, a strength session and a race-format session.
 file run HybridXRun "$(entry -6 07:10 2400 6800 148 168 1 38)" "$(entry 0 07:10 2100 6000 148 168 1 35)"
-file training HybridXTraining "$(entry "$(d 2)" 06:00 1860 5200 150 170 1 41)"
 file ride HybridXRide "$(entry -4 17:30 3600 27500 132 158 2 52)" "$(entry "$(d 1)" 06:30 3840 24000 130 155 2 49)"
-file workout HybridXWorkout "$(entry -2 12:00 2700 0 120 150 4 22)" "$(entry "$(d 3)" 12:10 2520 0 122 152 4 24)"
+if [ "${BANKED:-0}" = 1 ]; then
+    file workout HybridXWorkout "$(entry -2 12:00 2700 0 120 150 4 22)"
+else
+    file training HybridXTraining "$(entry "$(d 2)" 06:00 1860 5200 150 170 1 41)"
+    file workout HybridXWorkout "$(entry -2 12:00 2700 0 120 150 4 22)" "$(entry "$(d 3)" 12:10 2520 0 122 152 4 24)"
+fi
 file race HybridXRace "$(entry "$TODAY_OFF" 18:00 4260 9000 160 182 6 95)"
 
 if [ "${NO_FAMILY:-0}" != 1 ]; then

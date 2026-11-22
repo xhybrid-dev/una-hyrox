@@ -7,7 +7,8 @@
 #   A  the whole family: a week of five apps' sessions, X Training's session today,
 #      X Run's VO2max, three weeks of X Weigh-in; the menu, By sport and Your numbers;
 #   B  the same with today's session done, in stones and pounds: "Done", "Next";
-#   C  only the activity link: Your numbers names the app each row needs.
+#   C  only the activity link: Your numbers names the app each row needs;
+#   D  a banked week with X Training's session to do: Home's coach line names it.
 # Each run's log is checked for the service's "Family:" line.
 #
 # Build first: the real simulator (Software/Apps/LVGL-GUI/simulator/build).
@@ -97,6 +98,15 @@ key 2;      snap s7-33-numbers-needs-weighin
 key 4; key 4
 stop
 expect "$C/sim.log" "Family: plan no (state 0), VO2max 0" "C: no family files, nothing read"
+
+# -- D: a banked week (3 of 3) with X Training's session still to do: Home names it ----------
+D="$WORK/d"
+BANKED=1 bash "$APP/docs/experiments/sim_fixtures_dash.sh" "$D" >/dev/null
+run "$D"
+sleep 14
+snap s7-40-home-banked-plan
+stop
+expect "$D/sim.log" "Streak line: 3 of 3 this week" "D: the week is banked at exactly its target"
 
 kill $XPID 2>/dev/null
 echo "Screens in $OUT (s7-*.png); logs in $WORK"

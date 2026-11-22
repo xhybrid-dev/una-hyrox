@@ -22,6 +22,8 @@ strips the prefix for the SDK's version script.
   - **weight** from X Weigh-in: its trend and the week's change, in its own unit.
 
   Each row says which app fills it ("Needs X Run") until that app has left its file.
+- **Home** names X Training's session on a banked week ("Banked. Tempo today") rather than saying
+  "Rest up." on a day the plan has a session to do.
 - The store listing gains two previews: By sport, and Your numbers.
 
 ## [1.1.1] - 2026-11-20

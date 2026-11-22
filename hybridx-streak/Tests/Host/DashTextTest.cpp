@@ -10,6 +10,7 @@
 
 #include "TodayFile.hpp"
 #include "WeightUnit.hpp"
+#include "gui/copy/Coach.hpp"
 #include "gui/copy/DashWords.hpp"
 
 using DashWords::kMaxLabelPx;
@@ -391,4 +392,29 @@ TEST(DashText, NumbersRowsInOrder)
     EXPECT_STREQ(rows[2].label, "Weight");
     DashWords::numbersMenuTip(v, tip, sizeof(tip));
     EXPECT_STREQ(tip, "78.4 kg");
+}
+
+TEST(DashText, HomeNamesTodaysSessionOnABankedWeek)
+{
+    FamilyView v;
+    char       b[48];
+    EXPECT_FALSE(DashWords::bankedPlanLine(v, b, sizeof(b)));   // no X Training
+    v.flags = FamilyView::kPlan;
+    v.plan  = planToday(State::Session, PlanKind::Tempo, "30 min");
+    ASSERT_TRUE(DashWords::bankedPlanLine(v, b, sizeof(b)));
+    EXPECT_STREQ(b, "Banked. Tempo today");
+    // Too long for the coach's line: the name alone.
+    v.plan = planToday(State::Session, PlanKind::Intervals, "5 x 3 min");
+    ASSERT_TRUE(DashWords::bankedPlanLine(v, b, sizeof(b)));
+    EXPECT_STREQ(b, "Intervals today");
+    for (uint8_t k = 1; k < XTraining::kKindCount; ++k) {
+        v.plan = planToday(State::Session, static_cast<PlanKind>(k), "");
+        ASSERT_TRUE(DashWords::bankedPlanLine(v, b, sizeof(b)));
+        EXPECT_LE(std::strlen(b), Coach::kMaxCoachChars) << b;
+    }
+    // Done, skipped or a rest day: "Rest up." stands.
+    for (State st : {State::Done, State::Skipped, State::Rest, State::Paused, State::Stale}) {
+        v.plan = planToday(st, PlanKind::Tempo, "30 min");
+        EXPECT_FALSE(DashWords::bankedPlanLine(v, b, sizeof(b)));
+    }
 }

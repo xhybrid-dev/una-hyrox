@@ -1141,7 +1141,7 @@ rather than agreed in plan mode first; the gate is at the end (below, "S7 gate")
      beside X Training's paces (X Training's rule).
    - **Weight** from X Weigh-in's shared `weighins.csv` and `weighin_units.txt`, through X Weigh-in's
      own `Trend`, so Streak shows the same trend and weekly change as X Weigh-in's Home does.
-3. If there is room, **Home's coach line** names today's planned session (not built: below).
+3. **Home's coach line** names today's planned session where it would otherwise contradict it.
 
 ### How
 
@@ -1181,6 +1181,10 @@ rather than agreed in plan mode first; the gate is at the end (below, "S7 gate")
   row below sits lower on the disc, where Training load's "Learning: day 1 of 14" (189 px,
   shipped since 2 November) loses its first letter. That last is an existing clip, not S7's, and
   is left for Jon to decide. Labels are held to 182 px and titles to 120.
+- **Home**: on a week banked at exactly its target the coach said "Week banked. Rest up."; on a
+  day X Training still has a session to do it now says "Banked. Tempo today" (or "Intervals
+  today", when the longer form passes the coach's 21 characters). A bonus week, any other week,
+  and a plan day done, skipped or at rest are unchanged (`DashWords::bankedPlanLine`).
 - **Sizes.** `DASH_VIEW` is under the 256-byte block (a static assert). Statics: `WeekTotals` 128
   entries of 16 bytes, `FamilyReader` about 3.6 KB (a 1.5 KB buffer, one plan window, a 90-day
   trend). The service reads the three files in 2 ms in the simulator.
@@ -1191,7 +1195,7 @@ rather than agreed in plan mode first; the gate is at the end (below, "S7 gate")
 
 ### Verified (22 November 2026)
 
-- **Host tests: 189**, 29 new:
+- **Host tests: 190**, 30 new:
   - `WeekTotalsTest` (7): sums by kind and in all; seconds summed before minutes; only the days
     asked for; a full list; a kind out of range; sums at their limits; and through `LinkReader`,
     every entry heard, counted or not, in the window or not.
@@ -1199,11 +1203,13 @@ rather than agreed in plan mode first; the gate is at the end (below, "S7 gate")
     and no clock, as X Training's glance picks them; nothing there; all three files; a week of
     weigh-ins equal to X Weigh-in's own trend; a broken file falling back to its `.bak`; figures
     out of range left out.
-  - `DashTextTest` (13): every wording, and every label, tip and title within its width, with
-    the longest names, the largest sums and all three weight units.
+  - `DashTextTest` (14): every wording, and every label, tip and title within its width, with
+    the longest names, the largest sums and all three weight units; Home's banked line for every
+    kind of session, and only on a day with one to do.
 - **The simulator** (`docs/experiments/capture_dash.sh`, into `docs/screens/real/s7-*.png`; its
   pretend watches from `sim_fixtures_dash.sh`, every file written by hand from its documented
-  format): the whole family, a day done in stones and pounds, and the link alone. The service's
+  format): the whole family, a day done in stones and pounds, the link alone, and a banked week
+  with a session to do (Home: "Banked. Tempo today", `s7-40`). The service's
   log reads `Summaries: 5 files, 8 entries, 5 new` and `Family: plan yes (state 7), VO2max 523
   (x10), weight 7986 (x100)`. Every figure on By sport was checked by hand against the files
   (two runs, 35 + 31 min, 6.0 + 5.2 km: "2 · 1 h 06 · 11.2 km"). The LVGL pool peak is still
@@ -1211,7 +1217,7 @@ rather than agreed in plan mode first; the gate is at the end (below, "S7 gate")
 - `capture_real.sh` and `walkthrough_real.sh` walk the longer menu; `capture_real.sh` was re-run
   and every screen checked by eye. Only `04-menu.png` changed (it shows By sport under This
   week). The store previews gain `7-by-sport` and `8-your-numbers`; the packager accepts them.
-- **Watch builds compile** (Trail Quest's recipe; compile checks only): the app 299,560 bytes,
+- **Watch builds compile** (Trail Quest's recipe; compile checks only): the app 299,712 bytes,
   the glance 43,140.
 
 ### Not checked, and open
@@ -1222,8 +1228,6 @@ rather than agreed in plan mode first; the gate is at the end (below, "S7 gate")
   yet" beside "3 of 3 counted"; a watch never shows that).
 - **Distance is in kilometres.** No app in the family has a units setting Streak can read. Miles
   would need one (Jon's call).
-- **Home's coach line** still says "Week banked. Rest up." on a day X Training has a session:
-  naming today's session there is a small change to the Coach, left for Jon to choose.
 - The **family check** (`hybridx-link/docs/experiments/family_check.sh`) was not re-run: the link
   and its reader's counting are unchanged; the sink only listens.
 
@@ -1233,5 +1237,5 @@ rather than agreed in plan mode first; the gate is at the end (below, "S7 gate")
 2. On a watch, with X Run, X Training and X Weigh-in installed and used at least once: open X
    Streak, then the menu's By sport and Your numbers. Each figure should match what its own app
    shows (X Run's VO2max glance, X Training's Today, X Weigh-in's Home).
-3. Decide: the names ("By sport", "Your numbers"), kilometres, and whether Home's coach line
-   should name today's planned session.
+3. Decide: the names ("By sport", "Your numbers"), kilometres, and Home's banked line ("Banked.
+   Tempo today").

@@ -90,6 +90,12 @@ bool weightChangeRow(const Streak::FamilyView& v, Row& out);
 /// The menu row's tip: today's plan, else the VO2max, else the weight, else "From the X apps".
 void numbersMenuTip(const Streak::FamilyView& v, char* out, size_t size);
 
+/// Home's coach line when the week is banked and X Training still has a session for today,
+/// in place of "Week banked. Rest up.", which would contradict the plan: "Banked. Tempo today",
+/// or "Intervals today" when that is too long for the coach's line (Coach::kMaxCoachChars).
+/// False with no session to do today.
+bool bankedPlanLine(const Streak::FamilyView& v, char* out, size_t size);
+
 /// Every row Your numbers shows, in order, into @p rows (room for kMaxRows): X Training's,
 /// X Run's and X Weigh-in's, each with at least one row ("Needs X Run" when its app has left
 /// nothing). Returns how many, 3 to 5 (pace and next never show together).

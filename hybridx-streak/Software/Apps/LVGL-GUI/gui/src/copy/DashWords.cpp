@@ -15,6 +15,7 @@
 #include "TodayFile.hpp"
 #include "WeighText.hpp"
 #include "WeightUnit.hpp"
+#include "gui/copy/Coach.hpp"
 #include "gui/copy/WheelFontWidths.hpp"
 
 namespace DashWords
@@ -342,6 +343,21 @@ void numbersMenuTip(const Streak::FamilyView& v, char* out, size_t size)
     } else {
         snprintf(out, size, "From the X apps");
     }
+}
+
+bool bankedPlanLine(const Streak::FamilyView& v, char* out, size_t size)
+{
+    if ((v.flags & Streak::FamilyView::kPlan) == 0 || static_cast<State>(v.plan.state) != State::Session) {
+        return false;
+    }
+    const char* name = planName(v.plan.kind);
+    char        a[48];
+    snprintf(a, sizeof(a), "Banked. %s today", name);
+    if (std::strlen(a) > Coach::kMaxCoachChars) {   // the coach's line is held to characters
+        snprintf(a, sizeof(a), "%s today", name);
+    }
+    snprintf(out, size, "%s", a);
+    return true;
 }
 
 uint8_t numbersRows(const Streak::FamilyView& v, Row* rows)
