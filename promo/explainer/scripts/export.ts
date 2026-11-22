@@ -32,10 +32,14 @@ for (const ratio of ratios) {
   const out = path.resolve(root, arg('out') ?? path.join('..', 'videos', 'explainer', `hybridx-explainer-${ratio}.mp4`));
   fs.mkdirSync(path.dirname(out), { recursive: true });
   const frames = Math.round((to - from) * fps);
+  // ffmpeg writes into the git-ignored out/ first; the film is moved into place only once it is
+  // whole, so a stopped export never leaves half a video beside the finished ones.
+  const part = path.join(root, 'out', `${path.basename(out, '.mp4')}.part.mp4`);
+  fs.mkdirSync(path.dirname(part), { recursive: true });
   const enc = spawn(ffmpeg, [
     '-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-i', '-',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', crf, '-pix_fmt', 'yuv420p', '-profile:v', 'high',
-    '-movflags', '+faststart', out,
+    '-movflags', '+faststart', part,
   ], { stdio: ['pipe', 'inherit', 'inherit'] });
   const done = new Promise<void>((ok, fail) => enc.on('close', (c) => (c === 0 ? ok() : fail(new Error(`ffmpeg exited ${c}`)))));
   const t0 = Date.now();
@@ -55,5 +59,7 @@ for (const ratio of ratios) {
     await film.close();
   }
   await done;
+  fs.copyFileSync(part, out);
+  fs.unlinkSync(part);
   console.log(`\n${out}`);
 }
