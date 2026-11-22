@@ -1,10 +1,10 @@
 # UNA × HybridX explainer: plan
 
-A browser-based 3D explainer of HybridX Race and X Streak on the UNA Watch, for hybridx.club, promo
+A browser-based 3D explainer of the HybridX family of apps on the UNA Watch, led by HybridX Race and X Streak,, for hybridx.club, promo
 material, and Reels and YouTube video. Built with three.js, driven by one GSAP timeline, exported frame
 by frame.
 
-**Status:** plan only, waiting for Jon's OK. Nothing is built yet.
+**Status:** agreed with Jon on 22 November 2026 (section 7); being built.
 
 The rule: **the screen stays honest; the world around it explains.** Everything on the watch's screen is
 drawn from the apps' own code: the same layout, strings, fonts and colours. Everything off the screen is
@@ -140,38 +140,61 @@ strap 1.41 wide with oval vent holes; USB-C port at 3 o'clock.
 
 ---
 
-## 3. The film (16:9, about 60 s)
+## 3. The film (16:9, about 62 s)
 
-Every caption is 8 words or fewer, with no em dashes. All copy, timings and numbers live in
-`src/config.ts`.
+**Jon, 22 November 2026:** keep the example race (1:15:28, "nice and average"); leave HYROX out and say
+HybridX; the UNA × HybridX lockup is fine (Jon is working with UNA on this); and **don't dwell on small
+features: show the general capabilities, the athlete's benefits and, above all, the family of apps
+working together on UNA.**
 
-**The example race** is the one the promo films already use (`promo/lib/ui-race.mjs`): 1:15:28; runs
-4:40 to 5:30, 41:47 in all; stations 33:41. It was invented for illustration. The standing rules say not
-to invent pacing data, so it needs your OK, or your real splits (decision 5).
+So the film is about **one week, seven apps, one watch.** Each app is shown by what it does for the
+athlete, and the thread through the film is the real link between them:
+- every app's saved session counts in X Streak;
+- every app's Saved screen shows your week ("3 of 4 this week / 11-week streak");
+- every session's heart rate becomes one training load (fitness, fatigue and form);
+- X Trail's and X Training's runs feed X Run's VO2max.
 
-**The Streak story** (consistent with the rules above). Before the race the athlete has an 11-week
-streak, has climbed 11 weeks (Snowdon, 1 week to go) and holds 2 shields. This week is 2 of 3. The race
-is the third session, so it meets the week, makes the streak 12, and **summits Snowdon**. The Saved
-screen's Streak line reads "3 of 3 this week / 12-week streak".
+All of it happens on the watch itself (`hybridx-link/docs/ACTIVITY_LINK.md`), and every claim comes from
+the checked store text in `hybridx-link/docs/STORE_RELEASE.md`. HYROX is never named.
+
+**The family** (the names on the watch): HybridX Race, X Run, X Trail, X Ride, X Workout, X Training and
+X Streak. X Weigh-in, X Sauna and the rest stay out.
+
+**The week** (one story, consistent with the apps' rules):
+- the athlete's target is 4 sessions a week;
+- before Monday: an 11-week streak, 11 weeks climbed (Snowdon, 1 week to go), 2 shields;
+- Monday, X Run: "1 of 4 this week / 11-week streak";
+- Wednesday, X Ride: "2 of 4";
+- Thursday, X Workout: "3 of 4";
+- Saturday, HybridX Race, 1:15:28: "4 of 4 this week / 12-week streak";
+- X Streak then opens on "+1 Hybrid · 75 min", "Week complete!" and **Summit! Snowdon · 12 weeks**.
+
+Each "Load N" is worked out by the family's own formula (Edwards, `TrainingLoad.hpp`) from the example
+sessions' heart rates.
 
 | # | Scene | Time | On the watch (real) | Around it (the world) | Caption |
 |---|---|---|---|---|---|
-| 0 | **Intro** | 0.0-5.0 | screen dark | Black. A rim light sweeps across and reveals the graphite watch above a fading grid. The UNA × HybridX lockup resolves, then lifts away. | (lockup only) |
-| 1 | **Race: set up** | 5.0-12.0 | Main menu → L2 to Format → R1 cycles Full, Half: 1 to 4, Half: 5 to 8, Full → L1 → R1 "On your marks" → R1 starts the clock | The camera pushes in (power3). A ring pulse at each press. A panel lifts out with the three formats. Callouts: "R1 · SELECT", "16 SEGMENTS". | "Pick your race. Press go." |
-| 2 | **Race in progress** | 12.0-30.0 | Race face, run (cyan) and station (lemon). Each R2 press: the 2 s "Split" toast, then the next segment. "Last segment" on Wall Balls | A ring of 16 arcs forms round the watch, runs white and stations yellow. Each split's time lifts off the screen as a panel and fills its arc. One shake for a run, two for a station. Splits 1-3 run at their real rhythm (about 2.6 s each). Splits 4-13 run as a time-lapse (0.55 s each, clock spinning). Lunges, Run 8 and Wall Balls slow down again. Callouts: "R2 · SPLIT", "3 S SPLIT LOCK". | "One button. Every split." then "Runs buzz once. Stations buzz twice." |
-| 2a | *Optional: undo* | +3.0 s | R1 → action menu → "Undo last split" → back, the segment restored | The last arc empties and refills. | "Pressed too soon? Take it back." |
-| 3 | **Results** | 30.0-38.0 | Last R2 → Finished "1:15:28" (1 s buzz) → R1 → Saved, tick, then the Streak line → Summary totals → L2, "Splits 1-5 of 16" | The split table bursts out of the screen into a floating stack of 16 panels in race order. The fastest and slowest runs are lit (4:40, 5:30). | "Your whole race, split by split." |
-| 4 | **X Streak** | 38.0-52.0 | Home, Snowdon, "11 week streak", ●●○ → "+1 Hybrid · 75 min", pip pops → "Week complete!", the climber glides to the top, burst → **Summit!** "Snowdon · 12 weeks", "Next: Ben Nevis" → *weeks later* → "Life happens." shield offer → R1 → "Streak saved.", "1 shield left" | The Streak line lifts off the Saved screen as a chip. The watch turns (power3) and the screen comes round as X Streak. 12 week tiles (each carrying its 3 pips) stack as steps up a wireframe Snowdon, a big counter ticks 11 → 12, and the ladder of five summits rises on a rail beside it. The Snowdon badge unlocks with a burst. A missed week drops in grey and cracked, and a shield token flies into the gap and seals it. Callouts: "1 SHIELD EVERY 4 WEEKS · HOLD 2", "MISS A WEEK, KEEP YOUR MOUNTAIN". | "Every race counts towards your streak." then "Hit your week. Climb a mountain." then "Life happens. A shield saves your streak." |
-| 5 | **Outro** | 52.0-60.0 | Streak Home, now Ben Nevis | The watch settles at the hero angle. The two app icons float up either side, labelled HYBRIDX RACE and X STREAK. The lockup, then the CTA. | "Race it. Then keep climbing." · HYBRIDX.CLUB |
+| 0 | **Intro** | 0-5 | dark | Black. A rim light sweeps on and reveals the graphite watch over a fading grid. The UNA × HybridX lockup resolves above it. | (lockup) |
+| 1 | **The family** | 5-15 | Each app's real screen in turn, about 1.2 s each: X Run's VO2max, X Trail's map, X Ride riding, X Workout's circuit, X Training's today, HybridX Race racing, X Streak's mountain | The seven app icons lift out of the screen one by one and settle into an orbit round the watch, each with its benefit in a few words. | "One watch. A whole family of training apps." |
+| 2 | **One week, in sync** | 15-27 | X Run Saved "1 of 4 this week", X Ride Saved "2 of 4", X Workout Saved "3 of 4", each with its Load | A week strip (MON to SUN) floats beside the watch. Each session leaves its app's icon as a tile, runs along a line and lands on its day. Four pips fill, three of four. A callout: "SHARED ON THE WATCH". | "Every session counts, whichever app." then "Every app knows your week." |
+| 3 | **Race day** | 27-43 | HybridX Race: "On your marks" → R1 → the race face, run and station; R2 at each split, the "Split" toast → finish "1:15:28" → Saved "4 of 4 this week / 12-week streak" | A ring of 16 segments round the watch, filling split by split (the middle as a time-lapse). At the finish the ring folds into one tile, "1:15:28", which flies to Saturday. The fourth pip lights. | "Race day. One button, every split." then "Week done the moment you save." |
+| 4 | **X Streak** | 43-55 | The watch turns to X Streak: "+1 Hybrid · 75 min", "Week complete!", the climber steps up → "Summit! Snowdon · 12 weeks" → the Training load screen: Form and Fitness | The week's tiles fuse into one week block, which joins a staircase of 12 weeks climbing a wireframe Snowdon. The counter goes 11 → 12, and the five summits mark the ladder. Then lines from all seven icons feed one fitness curve. A callout: "MISS A WEEK? A SHIELD SAVES IT". | "Hit your week. Climb a mountain." then "One training load, from every app." |
+| 5 | **Outro** | 55-62 | X Streak's mountain, now Ben Nevis | The watch settles. The seven icons close into a ring, the lockup returns, then the address. | "Seven apps. One watch. All in sync." · HYBRIDX.CLUB |
 
-**Press feedback.** A ring pulse at the pressed button every time. The 2-3 px haptic shake only where the
-watch really buzzes, with the same count (recommended; decision 7).
+**On the screen, what's live and what's captured.** Race's and X Streak's screens are redrawn live from
+their code: menus, race face, toasts, Saved, the mountain, the moments. In scene 1 the other apps' screens
+are their **real simulator previews** (`*/Resources/previews/`, the store's), drawn into the same 240 px
+canvas and quantised the same way. The Saved screens in scene 2 are redrawn from each app's own
+`ResultScreen` with the week's numbers.
 
-**Other ratios.** Each shot has camera keyframes per ratio in `config.ts`. **9:16** (1080 × 1920, the
-priority) puts the watch in the upper half, stacks panels vertically, and keeps all text inside Instagram's
-safe area: below y 250, above y 1540, and clear of the right-hand button column in the lower half (the
-numbers in `promo/lib/reel.mjs`). **1:1** (1080 × 1080) centres the watch a little smaller. Captions can
-have per-ratio line breaks.
+**Press feedback.** A ring pulse at the pressed button every time. A 2-3 px shake only where the watch
+really buzzes: a split, the finish, X Streak's moments.
+
+**Other ratios.** Each shot has camera keyframes per ratio in `config.ts`.
+- **9:16** (1080 × 1920, the priority) puts the watch in the upper half and stacks the week strip and
+  panels below it. All text stays in Instagram's safe area: below y 250, above y 1540, and clear of the
+  right-hand button column in the lower half (the numbers in `promo/lib/reel.mjs`).
+- **1:1** (1080 × 1080) centres the watch, a little smaller.
 
 ---
 
@@ -280,22 +303,19 @@ with the overlay's FPS readout.
 
 ---
 
-## 7. Decisions for you (my recommendation first)
+## 7. Decisions (Jon, 22 November 2026)
 
-1. **Assets:** use UNA's art from the SDK's Figma pack, extracted at build and not committed (as the films
-   do), and the brand folder's X mark and fonts. Or send me an SVG of the X mark and the HybridX wordmark,
-   or any side photo or CAD of the watch. *Also:* a "UNA × HybridX" lockup implies a partnership. Worth
-   confirming UNA's permission covers that, not only showing the watch.
+1. **Assets:** UNA's art from the SDK's Figma pack, extracted at build and not committed. The X mark is
+   traced from `x-mark.png`. The UNA × HybridX lockup is fine (working with UNA).
 2. **Yellow:** `#FADB5C`, from the brand files.
-3. **"No orange"** applies off the screen only. The screen keeps its real amber, orange and red.
-4. **Streak:** the weekly story in scene 4 (summit and shield), in place of daily tiles.
-5. **The race's numbers:** reuse the films' example race (1:15:28), or give me real splits.
-6. **HYROX by name:** keep it out of the film, as the earlier films do (trademark). Captions say "race",
-   "8 runs, 8 stations".
-7. **Shake:** a ring pulse on every press, a shake only where the watch really buzzes.
-8. **Undo beat (2a):** include it, about 63 s in all. It's the app's defining feature.
-9. **Fastest and slowest:** runs only, since only the runs compare like for like.
-10. **Outro icons:** the real store icons as they are. Streak's is navy and teal, its Glacier colourway,
-    outside yellow, black and white.
-11. **Launch:** open on Race's main menu, since we don't have UNA's app list.
-12. **Where it lives:** `promo/explainer/`, beside the films.
+3. **"No orange"** applies off the screen only; the screen keeps its real colours.
+4. **Story:** the family and its sync, one week across four apps, then X Streak (section 3).
+5. **The race:** the films' example race, 1:15:28.
+6. **HYROX:** never named; HybridX throughout.
+7. **Shake:** only where the watch buzzes; a ring pulse on every press.
+8. **Small features** (undo, split lock, buzz counts, shields in detail, the pace plan) stay out, or
+   are at most a callout.
+9. **Outro icons:** the real store icons (Race yellow, Streak navy and teal, and the rest in their
+   colourways).
+10. **Launch:** no UNA app list; the film shows each app's own screens.
+11. **Where it lives:** `promo/explainer/`.
