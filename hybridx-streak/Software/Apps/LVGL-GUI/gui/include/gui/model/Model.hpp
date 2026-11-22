@@ -56,6 +56,7 @@ public:
     const CustomMessage::AppNamesData& apps() const { return mApps; }
     const CustomMessage::TrophyData&   trophies() const { return mTrophies; }
     const CustomMessage::LoadData&     load() const { return mLoad; }
+    const CustomMessage::DashData&     dash() const { return mDash; }
     const CustomMessage::GoalData&     goal() const { return mGoal; }
     bool clockUnset() const { return (mHome.flags & Streak::HomeView::kClockUnset) != 0; }
 
@@ -97,6 +98,8 @@ public:
     uint16_t settingsAt = 0;
     uint16_t trophyAt   = 0;
     uint16_t loadAt     = 0;
+    uint16_t sportAt    = 0;
+    uint16_t numbersAt  = 0;
 
     /// The week item a confirm screen acts on, and the setting a value
     /// screen edits.
@@ -141,6 +144,7 @@ private:
     CustomMessage::AppNamesData mApps {};
     CustomMessage::TrophyData   mTrophies {};
     CustomMessage::LoadData     mLoad {};
+    CustomMessage::DashData     mDash {};
     CustomMessage::GoalData     mGoal {};
     Streak::Events           mMoments {};
     uint8_t                  mMomentAt   = 0;

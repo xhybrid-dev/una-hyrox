@@ -20,6 +20,12 @@ HybridX Race, which lives alongside it in this same repository.
   miss rather than resetting the streak outright.
 - **A glance**, so the week is visible without opening the app.
 - **Manual logging** for anything the watch never recorded.
+- **The family in one place** (S7): **By sport** shows this week's time,
+  sessions and distance from every X app, kind by kind, beside last week's;
+  **Your numbers** shows X Training's plan for today, X Run's VO2max and
+  X Weigh-in's weight trend, read from the files those apps leave in the
+  shared folder (`docs/NOTES.md`, "S7").
+- **Training load**: fitness, fatigue and form from the family's heart-rate scores.
 
 Status: **v0.1.0, unreleased.** Phases S0–S4 of the build plan are complete.
 Nothing has yet run on a watch — see `docs/PROBE.md` (Gate 0) and
@@ -48,11 +54,15 @@ hybridx-streak/
       Core/                     StreakModel, ActivityScanner, FitSessionReader (pure C++)
       App/                      Service, Commands, AppConfig
       Glance/                   the glance's projection + layout
+      Dash/                     the family dashboard: WeekTotals, FamilyReader (pure C++)
+      Family/                   copies of X Training's and X Weigh-in's readers (checked)
+      Link/                     copy of hybridx-link's activity link (checked)
     Apps/HybridXStreak-CMake/     the main watch build
     Apps/HybridXStreakGlance-CMake/  the glance's watch build
     Apps/LVGL-GUI/               the GUI process, and its PC simulator
   Tests/Host/                   host tests, no watch needed
   Utilities/pack-store-zip.sh   builds the portal upload package (main app only)
+  Utilities/check-family-copies.sh  Family/ matches its originals (CI runs it)
   Tools/Probe/                  the Gate 0 go/no-go probe
   docs/                         brief, PLAN, DESIGN, NOTES, screenshots
 ```

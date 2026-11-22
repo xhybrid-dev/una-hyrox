@@ -18,6 +18,10 @@
  * simulator, and the app's summary has it too): both are added with the same
  * key, and StreakModel::update counts the first and skips the second.
  *
+ * An optional ActivitySink also hears every valid entry of every file, inside the
+ * window or not and counted or not: the app's week-by-sport totals (Dash/WeekTotals,
+ * NOTES "S7") are built from it without reading the files a second time.
+ *
  * Holds a 1 KB buffer and one decoded file, so place it at start-up like the
  * scanner (it is far larger than the service stack).
  ******************************************************************************
@@ -48,6 +52,17 @@ struct LinkStats {
     uint16_t deferred  = 0;   ///< no room: left for the next open
 };
 
+/// Hears every valid entry LinkReader reads (see the file comment).
+class ActivitySink
+{
+public:
+    /// One activity: its local day, kind, timer seconds, metres (0 none) and load (0 none).
+    virtual void onActivity(int32_t localDay, Kind kind, uint32_t seconds, uint32_t metres, uint16_t load) = 0;
+
+protected:
+    ~ActivitySink() = default;
+};
+
 class LinkReader
 {
 public:
@@ -55,8 +70,9 @@ public:
     /// holds @p count entries oldest first and has room for @p cap. The list stays
     /// oldest first. If it is full, the newest entries are dropped (they are not
     /// remembered as counted, so the next open sees them). Returns the new count.
+    /// @p sink, if given, hears every valid entry of every file.
     size_t addTo(SDK::Interface::IFileSystem& fs, int32_t fromDay, int32_t toDay, const SeenSet& seen, Found* found,
-                 size_t count, size_t cap);
+                 size_t count, size_t cap, ActivitySink* sink = nullptr);
 
     const LinkStats& stats() const { return mStats; }
 

@@ -31,6 +31,9 @@ set(STREAK_PROBE    "${CMAKE_CURRENT_LIST_DIR}/../../Tools/Probe/Software/Libs")
 file(GLOB STREAK_CORE_TEST_SOURCES CONFIGURE_DEPENDS "${STREAK_SOFTWARE}/Libs/Core/Sources/*.cpp")
 # Streak's copy of the activity link (the summaries the HybridX apps leave; LinkReader reads them).
 set(STREAK_LINK "${STREAK_SOFTWARE}/Libs/Link")
+# The family dashboard (NOTES "S7"): Dash, and Family's copies of X Training's and X Weigh-in's readers.
+file(GLOB STREAK_DASH_TEST_SOURCES CONFIGURE_DEPENDS
+    "${STREAK_SOFTWARE}/Libs/Dash/Sources/*.cpp" "${STREAK_SOFTWARE}/Libs/Family/Sources/*.cpp")
 # The SDK's FIT encoder and CRC: the reader checks CRCs with the SDK's own
 # function, and the fixtures are written by the SDK's own writer.
 set(SDK_FIT_SOURCES
@@ -59,6 +62,10 @@ add_executable(hybridx-streak-host-tests
     StreakModelTest.cpp
     StateCodecTest.cpp
     GlanceLayoutTest.cpp
+    WeekTotalsTest.cpp
+    FamilyReaderTest.cpp
+    DashTextTest.cpp
+    ${STREAK_DASH_TEST_SOURCES}
     "${STREAK_SOFTWARE}/Libs/Glance/Sources/GlanceLayout.cpp"
     support/TreeFileSystem.cpp
     support/FitFixture.cpp
@@ -68,11 +75,14 @@ add_executable(hybridx-streak-host-tests
     ${SDK_JSON_SOURCES}
     "${STREAK_GUI}/src/summit/SummitGeometry.cpp"
     "${STREAK_GUI}/src/copy/Coach.cpp"
+    "${STREAK_GUI}/src/copy/DashWords.cpp"
     "${STREAK_PROBE}/Sources/ProbeRunner.cpp"
 )
 target_include_directories(hybridx-streak-host-tests PRIVATE
     "${STREAK_SOFTWARE}/Libs/Core/Header"
     "${STREAK_LINK}/Header"
+    "${STREAK_SOFTWARE}/Libs/Dash/Header"
+    "${STREAK_SOFTWARE}/Libs/Family/Header"
     "${STREAK_GUI}/include"
     "${STREAK_PROBE}/Header"
     "${STREAK_SOFTWARE}/Libs/Glance/Header"

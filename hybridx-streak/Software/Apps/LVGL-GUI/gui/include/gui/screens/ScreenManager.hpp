@@ -24,7 +24,7 @@ enum class ScreenId : uint8_t {
     Summit,       ///< a summit reached
     Shield,       ///< a week missed: spend a shield?
     FreshStart,   ///< the streak reset; the climb is kept
-    Menu,         ///< This week, Log a session, Trophy case, Load, Settings
+    Menu,         ///< This week, By sport, Your numbers, Log a session, Trophy case, Load, Settings
     Week,         ///< this week's sessions, and why each counts or not
     Confirm,      ///< undo / exclude / include one of them?
     Log,          ///< log a session the watch did not record
@@ -33,6 +33,8 @@ enum class ScreenId : uint8_t {
     Settings,     ///< the goal
     Value,        ///< one setting's choices
     Clock,        ///< the watch has lost the time
+    Sport,        ///< this week by sport, and last week (NOTES "S7")
+    Numbers,      ///< the family's other figures: plan, VO2max, weight (NOTES "S7")
 };
 
 class ScreenManager

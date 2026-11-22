@@ -38,6 +38,7 @@ public:
     void onKey(uint8_t code) override;
     void onHomeView() override;
     void onMoments() override;
+    void onDash() override;   ///< X Training's plan for today can change the coach's line
 
 protected:
     void build() override;

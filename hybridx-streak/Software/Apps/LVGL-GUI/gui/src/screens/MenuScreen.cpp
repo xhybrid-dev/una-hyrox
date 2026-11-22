@@ -13,12 +13,19 @@
 #include "gui/theme/Theme.hpp"
 
 #include "FormText.hpp"
+#include "gui/copy/DashWords.hpp"
 
 using Style = Widgets::Wheel::Item::Style;
 
 void MenuScreen::build()
 {
     mItems[kWeek]     = { Style::Tip, "This week" };
+    mItems[kSport]    = { Style::Tip, "By sport" };
+    mItems[kSport].tip      = mSportTip;
+    mItems[kSport].tipColor = Palette::kTextSoft;
+    mItems[kNumbers]  = { Style::Tip, "Your numbers" };
+    mItems[kNumbers].tip      = mNumbersTip;
+    mItems[kNumbers].tipColor = Palette::kTextSoft;
     mItems[kLog]      = { Style::Simple, "Log a session" };
     mItems[kTrophy]   = { Style::Simple, "Trophy case" };
     mItems[kLoad]     = { Style::Tip, "Training load" };
@@ -28,6 +35,7 @@ void MenuScreen::build()
     mItems[kWeek].tip      = mWeekTip;
     mItems[kWeek].tipColor = Palette::kWin;
     onHomeView();
+    onDash();
 
     mTitle   = std::make_unique<Widgets::Title>(mRoot, "Streak");
     mMenu    = std::make_unique<Widgets::Wheel>(mRoot, mItems, kCount);
@@ -63,6 +71,16 @@ void MenuScreen::onHomeView()
     }
 }
 
+void MenuScreen::onDash()
+{
+    const CustomMessage::DashData& d = mModel.dash();
+    DashWords::menuTip(d.week, d.manual, mSportTip, sizeof(mSportTip));
+    DashWords::numbersMenuTip(d.family, mNumbersTip, sizeof(mNumbersTip));
+    if (mMenu) {
+        mMenu->refresh();
+    }
+}
+
 void MenuScreen::onKey(uint8_t code)
 {
     namespace Btn = SDK::GUI::Button;
@@ -74,6 +92,14 @@ void MenuScreen::onKey(uint8_t code)
                 case kWeek:
                     mModel.weekAt = 0;
                     ScreenManager::instance().goTo(ScreenId::Week);
+                    break;
+                case kSport:
+                    mModel.sportAt = 0;
+                    ScreenManager::instance().goTo(ScreenId::Sport);
+                    break;
+                case kNumbers:
+                    mModel.numbersAt = 0;
+                    ScreenManager::instance().goTo(ScreenId::Numbers);
                     break;
                 case kLog:
                     mModel.logWhen = false;

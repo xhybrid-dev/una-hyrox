@@ -48,6 +48,13 @@ cannot read other apps' activity folders there. It is independent of HybridX Rac
 It also brings the family's **training load** together: fitness, fatigue and form
 (`Core/Header/LoadHistory.hpp`, the state's optional `"L"`, the Training load screen and
 the glance's form line; NOTES "Training load"; the apps' scores: `hybridx-link` "Training load").
+And the **family dashboard** (S7, 22 November 2026; NOTES "S7"): **By sport** (this week's time,
+sessions and distance from every X app, by kind, and last week's; `Libs/Dash/WeekTotals`, fed by
+`LinkReader`) and **Your numbers** (X Training's plan today, X Run's VO2max, X Weigh-in's weight;
+`Libs/Dash/FamilyReader`). `Libs/Family` holds **copies** of X Training's and X Weigh-in's readers:
+edit the originals, then `hybridx-streak/Utilities/check-family-copies.sh --sync` (CI checks). The
+GUI's words are `gui/copy/DashWords`, each measured in pixels (`WheelFontWidths.hpp`, from
+`Tools/Fonts/wheel_font_widths.py`).
 - **Docs:**
   - brief: `hybridx-streak/docs/UNA_STREAK_TRACKER_BRIEF.md`;
   - plan and phases: `PLAN.md`, §11 (S0-S6);
@@ -81,6 +88,8 @@ the glance's form line; NOTES "Training load"; the apps' scores: `hybridx-link` 
     `hybridx-link/docs/ACTIVITY_LINK.md`; `LinkReader` reads them on open);
   - captures:
     - real app: `docs/experiments/capture_real.sh`, `walkthrough_real.sh`;
+    - the family dashboard (S7): `docs/experiments/capture_dash.sh` (its pretend watches from
+      `sim_fixtures_dash.sh`: every family file written by hand; into `docs/screens/real/s7-*.png`);
     - demo: `RECORD=1 capture_screens.sh`, `walkthrough.sh`;
     - glance mock-up: `glance_preview.py build-tests/glance_preview <out.png>`.
 

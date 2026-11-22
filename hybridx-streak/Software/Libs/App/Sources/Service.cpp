@@ -15,6 +15,7 @@
 
 #include "ActivityScanner.hpp"
 #include "AppConfigFields.hpp"
+#include "FamilyReader.hpp"
 #include "LinkReader.hpp"
 #include "LoadHistory.hpp"
 #include "StateCodec.hpp"
@@ -22,6 +23,7 @@
 #include "StreakNow.hpp"   // the Streak line the HybridX apps show (hybridx-link)
 #include "SafeFile.hpp"
 #include "WeekMath.hpp"
+#include "WeekTotals.hpp"
 
 #define LOG_MODULE_PRX   "Service"
 #define LOG_MODULE_LEVEL LOG_LEVEL_INFO
@@ -40,9 +42,14 @@ constexpr size_t      kMaxFound   = Streak::ActivityScanner::kMaxNew;
 alignas(Streak::StreakModel) uint8_t     sModelStorage[sizeof(Streak::StreakModel)];
 alignas(Streak::ActivityScanner) uint8_t sScannerStorage[sizeof(Streak::ActivityScanner)];
 alignas(Streak::LinkReader) uint8_t      sLinkStorage[sizeof(Streak::LinkReader)];
+alignas(Streak::WeekTotals) uint8_t      sTotalsStorage[sizeof(Streak::WeekTotals)];
+alignas(Streak::FamilyReader) uint8_t    sFamilyStorage[sizeof(Streak::FamilyReader)];
 Streak::StreakModel*     sModel   = nullptr;
 Streak::ActivityScanner* sScanner = nullptr;
 Streak::LinkReader*      sLink    = nullptr;
+Streak::WeekTotals*      sTotals  = nullptr;   // the week by sport (NOTES "S7")
+Streak::FamilyReader*    sFamily  = nullptr;   // the family's other figures (NOTES "S7")
+Streak::FamilyView       sFamilyView {};       // read once, on open
 Streak::Found            sFound[kMaxFound];
 char                     sScratch[Streak::StateCodec::kMaxBytes];
 } // namespace
@@ -53,6 +60,8 @@ Service::Service(SDK::Kernel& kernel)
     sModel   = new (sModelStorage) Streak::StreakModel();
     sScanner = new (sScannerStorage) Streak::ActivityScanner();
     sLink    = new (sLinkStorage) Streak::LinkReader();
+    sTotals  = new (sTotalsStorage) Streak::WeekTotals();
+    sFamily  = new (sFamilyStorage) Streak::FamilyReader();
 }
 
 // -- The clock --------------------------------------------------------------------------
@@ -137,13 +146,23 @@ void Service::open()
              st.deferred, static_cast<unsigned long>(mKernel.sys.getTimeMs() - startMs),
              st.listed ? "" : " (cannot list ..)");
 
-    // What the HybridX apps left in the shared folder (the only route on a watch).
-    found = sLink->addTo(mKernel.fs, from, to, *sModel, sFound, found, kMaxFound);
+    // What the HybridX apps left in the shared folder (the only route on a watch). The week
+    // by sport hears every entry as it is read, counted or not (NOTES "S7").
+    sTotals->clear();
+    found = sLink->addTo(mKernel.fs, from, to, *sModel, sFound, found, kMaxFound, sTotals);
     const auto& ls = sLink->stats();
     LOG_INFO("Summaries: %u files, %u entries, %u new, %u counted, %u outside, %u invalid, %u deferred\n", ls.files,
              ls.entries, ls.added, ls.counted, ls.outside, ls.invalid, ls.deferred);
 
     sModel->update(n.day, sFound, found, mMoments);
+
+    // The family's other figures: X Training's plan, X Run's VO2max, X Weigh-in's weight.
+    const uint32_t familyMs = mKernel.sys.getTimeMs();
+    sFamily->read(mKernel.fs, n.day, n.clockOk, sFamilyView);
+    LOG_INFO("Family: plan %s (state %u), VO2max %u (x10), weight %ld (x100), %lu ms; totals %u read, %u dropped\n",
+             (sFamilyView.flags & Streak::FamilyView::kPlan) ? "yes" : "no", sFamilyView.plan.state,
+             sFamilyView.vo2.x10, static_cast<long>(sFamilyView.weight.trend),
+             static_cast<unsigned long>(mKernel.sys.getTimeMs() - familyMs), sTotals->count(), sTotals->dropped());
 
     // A goal changed on the phone applies like one changed on the watch.
     const auto&        s       = sModel->state();
@@ -292,6 +311,20 @@ void Service::sendViews()
         d.weekLoad    = h.sum(s.weekStartDay, n.day);
         d.todayLoad   = h.dayLoad(n.day);
         lv.send();
+    }
+
+    if (auto dv = SDK::make_msg<CustomMessage::DashView>(mKernel)) {
+        // The week by sport, over the model's own week (it may have changed with the goal).
+        CustomMessage::DashData& d = dv->data;
+        d.week = sTotals->sum(s.weekStartDay, s.weekStartDay + 6);
+        d.last = sTotals->sum(s.weekStartDay - 7, s.weekStartDay - 1).all;
+        for (uint8_t i = 0; i < s.sessionCount; ++i) {
+            if ((s.sessions[i].flags & Streak::Session::kManual) != 0 && d.manual < 0xFF) {
+                ++d.manual;
+            }
+        }
+        d.family = sFamilyView;
+        dv.send();
     }
 
     if (auto g = SDK::make_msg<CustomMessage::GoalView>(mKernel)) {

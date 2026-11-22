@@ -9,8 +9,9 @@
  * watch while working in the simulator (hybridx-race NOTES 0.9).
  *
  * The service sends a view whenever it changes, and the moments to play once.
- * The GUI queue is 10 deep and drops the oldest, so an update is at most seven
- * messages (PLAN S2; the seventh, LOAD_VIEW, since 2 November 2026), plus the moments.
+ * The GUI queue is 10 deep and drops the oldest, so an update is at most eight
+ * messages (PLAN S2; the seventh, LOAD_VIEW, since 2 November 2026; the eighth,
+ * DASH_VIEW, since 22 November 2026, NOTES "S7"), plus the moments.
  ******************************************************************************
  */
 
@@ -23,6 +24,7 @@
 #include "SDK/Messages/MessageBase.hpp"
 #include "SDK/Messages/MessageTypes.hpp"
 
+#include "DashView.hpp"
 #include "Goal.hpp"
 #include "StreakEvents.hpp"
 #include "StreakTypes.hpp"
@@ -41,6 +43,7 @@ constexpr SDK::MessageType::Type APP_NAMES = 0x00000004;
 constexpr SDK::MessageType::Type TROPHIES  = 0x00000005;
 constexpr SDK::MessageType::Type GOAL_VIEW = 0x00000006;
 constexpr SDK::MessageType::Type LOAD_VIEW = 0x00000007;
+constexpr SDK::MessageType::Type DASH_VIEW = 0x00000008;
 
 // -- GUI -> Service ------------------------------------------------------------
 constexpr SDK::MessageType::Type CELEBRATE       = 0x00000080;
@@ -132,6 +135,20 @@ struct LoadView : public SDK::MessageBase {
     LoadView() : SDK::MessageBase(LOAD_VIEW) {}
 };
 
+/// The family dashboard (NOTES "S7"): the week by sport, and the family's other figures.
+struct DashData {
+    Streak::WeekSum    week {};       ///< this week, every X app's sessions, by kind
+    Streak::SportSum   last {};       ///< last week, all kinds
+    uint8_t            manual = 0;    ///< this week's manual logs (no time or distance)
+    uint8_t            pad[3] = {};
+    Streak::FamilyView family {};     ///< X Training's plan, X Run's VO2max, X Weigh-in's weight
+};
+
+struct DashView : public SDK::MessageBase {
+    DashData data {};
+    DashView() : SDK::MessageBase(DASH_VIEW) {}
+};
+
 /// The goal, and one waiting for next week.
 struct GoalData {
     Streak::Goal goal {};
@@ -199,6 +216,7 @@ STREAK_ASSERT_FITS_POOL(WeekList);
 STREAK_ASSERT_FITS_POOL(AppNames);
 STREAK_ASSERT_FITS_POOL(Trophies);
 STREAK_ASSERT_FITS_POOL(LoadView);
+STREAK_ASSERT_FITS_POOL(DashView);
 STREAK_ASSERT_FITS_POOL(GoalView);
 STREAK_ASSERT_FITS_POOL(Celebrate);
 STREAK_ASSERT_FITS_POOL(LogManual);

@@ -7,6 +7,8 @@
 
 #include "gui/screens/HomeScreen.hpp"
 
+#include "gui/copy/DashWords.hpp"
+
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
@@ -141,6 +143,13 @@ void HomeScreen::onHomeView()
     }
 }
 
+void HomeScreen::onDash()
+{
+    if (mStage == Stage::Idle && !mModel.hasMoment()) {
+        setCoach(mModel.home());
+    }
+}
+
 void HomeScreen::onMoments()
 {
     if (mStage == Stage::Idle) {
@@ -222,6 +231,11 @@ void HomeScreen::setCoach(const Streak::HomeView& v)
 {
     char buf[48];
     Coach::coachLine(v, buf, sizeof(buf));
+    // A banked week says "Rest up."; on a day X Training has a session to do, it names that
+    // instead (NOTES "S7"). Only the plain banked line: a bonus, or any other week, is unchanged.
+    if (v.sessions == v.target && v.sessions > 0) {
+        DashWords::bankedPlanLine(mModel.dash().family, buf, sizeof(buf));
+    }
     lv_label_set_text(mCoach, buf);
     Theme::setColor(mCoach, coachColour(v.mood));
 }
