@@ -35,6 +35,7 @@ enum class ScreenId : uint8_t {
     Clock,        ///< the watch has lost the time
     Sport,        ///< this week by sport, and last week (NOTES "S7")
     Numbers,      ///< the family's other figures: plan, VO2max, weight (NOTES "S7")
+    Graph,        ///< the training load graphs: fitness and fatigue, form, daily load (NOTES "S8")
 };
 
 class ScreenManager

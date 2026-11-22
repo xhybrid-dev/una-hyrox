@@ -50,6 +50,7 @@ Streak::LinkReader*      sLink    = nullptr;
 Streak::WeekTotals*      sTotals  = nullptr;   // the week by sport (NOTES "S7")
 Streak::FamilyReader*    sFamily  = nullptr;   // the family's other figures (NOTES "S7")
 Streak::FamilyView       sFamilyView {};       // read once, on open
+Streak::LoadSeries       sSeries {};           // the graphs' days (NOTES "S8"), made when asked
 Streak::Found            sFound[kMaxFound];
 char                     sScratch[Streak::StateCodec::kMaxBytes];
 } // namespace
@@ -335,6 +336,37 @@ void Service::sendViews()
     }
 }
 
+void Service::sendSeries()
+{
+    const Streak::State& s = sModel->state();
+    const Now            n = now();
+    // A copy of the window, moved to today: the model's own is there already (open() moved it),
+    // unless the GUI has stayed open past midnight, when the graphs start from the window.
+    Streak::LoadState   copy = s.load;
+    Streak::LoadHistory h(copy);
+    if (copy.started && mClockOk) {
+        h.advanceTo(n.day);
+        h.series(s.trend, n.day, sSeries);
+    } else {
+        sSeries = Streak::LoadSeries {};
+    }
+    const uint16_t* const values[CustomMessage::SeriesData::kCount] = {sSeries.fitnessX10, sSeries.fatigueX10,
+                                                                       sSeries.load};
+    for (uint8_t which = 0; which < CustomMessage::SeriesData::kCount; ++which) {
+        if (auto msg = SDK::make_msg<CustomMessage::SeriesView>(mKernel)) {
+            CustomMessage::SeriesData& d = msg->data;
+            d.which       = which;
+            d.count       = sSeries.count;
+            d.historyDays = sSeries.historyDays;
+            d.lastDay     = sSeries.lastDay;
+            std::memcpy(d.v, values[which], sizeof(d.v));
+            msg.send();
+        }
+    }
+    LOG_INFO("Series: %u days to %ld (history %u days, %u kept)\n", sSeries.count,
+             static_cast<long>(sSeries.lastDay), sSeries.historyDays, s.trend.count);
+}
+
 void Service::sendMoments()
 {
     if (mMoments.count == 0) {
@@ -392,6 +424,10 @@ void Service::handle(SDK::MessageBase* msg)
 
         case SDK::MessageType::COMMAND_APP_NOTIF_GUI_STOP:
             mGuiStarted = false;
+            return;
+
+        case CustomMessage::SERIES_REQUEST:
+            sendSeries();
             return;
 
         case CustomMessage::CELEBRATE:

@@ -240,7 +240,7 @@ void StreakModel::update(int32_t nowDay, const Found* found, size_t count, Event
     // Never roll back: a clock set backwards leaves the weeks where they are.
     const int32_t effNow = maxOf(nowDay, mState.lastDay);
     mState.lastDay       = effNow;
-    LoadHistory loads(mState.load);
+    LoadHistory loads(mState.load, &mState.trend);   // the model's own state: days are recorded
     loads.advanceTo(effNow);
 
     Events  pastEvents;   // toasts for weeks that close now are not played

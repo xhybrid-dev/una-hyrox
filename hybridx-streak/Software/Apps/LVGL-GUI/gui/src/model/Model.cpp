@@ -68,6 +68,12 @@ void Model::logManual(Streak::Kind kind, bool yesterday)
     SDK::send_msg<CustomMessage::LogManual>(mKernel, static_cast<uint8_t>(kind), yesterday);
 }
 
+void Model::requestSeries()
+{
+    mSeriesMask = 0;
+    SDK::send_msg<CustomMessage::SeriesRequest>(mKernel);
+}
+
 void Model::weekAction(uint8_t action, uint8_t index)
 {
     SDK::send_msg<CustomMessage::WeekAction>(mKernel, action, index);
@@ -214,6 +220,18 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
                 mListener->onDash();
             }
             break;
+
+        case CustomMessage::SERIES_VIEW: {
+            const CustomMessage::SeriesData& d = static_cast<CustomMessage::SeriesView*>(message)->data;
+            if (d.which < CustomMessage::SeriesData::kCount) {
+                mSeries[d.which] = d;
+                mSeriesMask = static_cast<uint8_t>(mSeriesMask | (1u << d.which));
+                if (mSeriesMask == kAllSeries && mListener) {
+                    mListener->onSeries();
+                }
+            }
+            break;
+        }
 
         case CustomMessage::GOAL_VIEW:
             mGoal = static_cast<CustomMessage::GoalView*>(message)->data;

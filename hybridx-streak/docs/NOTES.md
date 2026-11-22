@@ -1239,3 +1239,102 @@ rather than agreed in plan mode first; the gate is at the end (below, "S7 gate")
    shows (X Run's VO2max glance, X Training's Today, X Weigh-in's Home).
 3. Decide: the names ("By sport", "Your numbers"), kilometres, and Home's banked line ("Banked.
    Tempo today").
+
+## S8: training load graphs (22 November 2026)
+
+Jon's request: from the Training load screen, press through to graphs of how the figures change,
+with **fitness and fatigue on one graph**, drawn as X Weigh-in draws its trend, and the two lines
+clearly different on the watch. Agreed in chat; the plan is recorded here and the gate is below.
+
+### What it adds
+
+- **R1 on the Training load screen** opens a graph of the selected row (it did nothing before):
+  Fitness or Fatigue opens **Fitness and fatigue**, Form opens **Form**, This week or Today opens
+  **Daily load**. L1 and L2 step between the three, R2 goes back.
+- **Fitness and fatigue**: the last 12 weeks, a point a day, both lines on one scale from 0.
+  - **Fitness: cyan, 3 px, drawn on top. Fatigue: orange, 2 px, underneath.** Blue against
+    orange is the pair that stays apart in the common kinds of colour blindness; the two also
+    differ in brightness (cyan is about twice as bright on the display) and in thickness, so they
+    can be told apart even without colour. The legend under the graph is set in the same colours.
+  - Orange is the SDK's `ORANGE_DARK` (C0 40 00), not Streak's amber `YELLOW_DARK`, which means
+    "at risk" (DESIGN 2).
+- **Form**: the same 12 weeks, one white line about a zero line.
+- **Daily load**: the last 4 weeks, a bar a day.
+- During the first two weeks the line graphs say "Learning", as the Form row does; the bars show.
+
+### How
+
+- **A daily history** (`LoadTrend`, in the state under a new optional key `"H"`, no version change,
+  as `"L"` was): 84 days of fitness and fatigue (tenths) and the day's load, recorded as each day
+  leaves the 14-day open window. The open days are replayed when asked. An older file reads with an
+  empty history, so for anyone updating the graphs start with the two weeks in the window and fill
+  from there.
+- **On demand**: the GUI asks when a graph opens (`LOAD_SERIES_REQUEST`) and the service answers
+  with three `LOAD_SERIES` messages (fitness, fatigue, load; 84 values each, under the 256-byte
+  block). The update on open stays at eight messages.
+- **Drawn as X Weigh-in's graph**: LVGL lines (`LV_USE_LINE` is on in the SDK's build; the chart
+  widget is off), its plot geometry (x 80 to 209, y 60 to 159, clear of the bezel arcs), grey guides
+  at the top and bottom of the scale, the scale's ends on the left, the dates underneath. The
+  glance's line control, which does not draw on a watch (S4.3), is not involved.
+- `GraphMath.hpp` (Core, header-only): the scales and the pixel mapping, host-tested.
+
+### As built
+
+- **The screens.** The Training load screen shows R1 (amber) now; R1 on a row opens its graph
+  (`GraphScreen`). Titles: **Training load** (fitness and fatigue: "Fitness, fatigue" is 134 px
+  and the title box 120), **Form**, **Daily load**. Under the plot: the dates ("31 Aug - 22
+  Nov"), then the legend in the lines' own colours, its numbers the Training load screen's own
+  (so the two screens agree): "Fitness 30" in cyan over "Fatigue 34" in orange; "Form -4,
+  Building" (amber when overreaching; the number alone if the word does not fit); "This week 244"
+  over "Today 95". Three dots at the foot mark the page, as X Weigh-in's do.
+- **The plot** is X Weigh-in's (x 80 to 209), 2 px higher and 8 px shorter (y 58 to 149) to leave
+  room for two legend lines low on the disc. Its scale labels are in a box 4 px wider than X
+  Weigh-in's (46 px: the daily load's largest possible scale, "80000", is 44 px).
+- **The scales** (`GraphMath`): fitness and fatigue share one from 0 to a round number above the
+  higher of the two (at least 10); form is the same distance each way from 0 (at least 5), with a
+  grey zero line a shade lighter than the guides; the daily load runs from 0 (at least 50). The
+  round numbers are 1, 1.5, 2, 3, 4, 5, 6 and 8 times a power of ten, so a peak of 61 tops out
+  at 80, not 100.
+- **The history**: 84 days of three numbers, 504 bytes in the state (and so in the glance's copy
+  of it, which ignores it). The worst-case state file, a year of everything with a full history
+  of the largest numbers, is **3,819 bytes**: inside PLAN 6.5's 4 KB, and kMaxBytes is 6,144.
+- **An updating athlete** gets the two open weeks at once, plus each day that leaves the window
+  from then on; the months before cannot be rebuilt (the averages were kept, not the days).
+- `make_state ... block` writes a training block (three weeks building, an easy week, four
+  harder with a fourth session, an easy week, a taper) for the captures.
+- Not in the glance: it has no room, and the glance's line control does not draw (S4.3).
+
+### Verified (22 November 2026)
+
+- **Host tests: 207**, 17 new:
+  - `LoadTrendTest` (16): nothing recorded until a day leaves the window, and never a filler
+    day before the first; each settled day equal to the model replayed from scratch to it; 12
+    weeks kept; a gap starting again and a years-long one clearing; tenths rounding and holding;
+    the series ending today with today's figures and each day's load; a new athlete's days only;
+    an updated athlete's two weeks; the model recording and the file keeping it and carrying on;
+    an older file, a broken history and one ending on the wrong day all read with the streak
+    kept; the worst-case file in bounds; and `GraphMath`'s round numbers, scales and pixels.
+  - `DashTextTest` (1 more): every title, legend, date span and scale label within its width,
+    measured with the fonts' own advances (`WheelFontWidths.hpp` now also has Regular 16 and 14).
+- **The simulator** (`docs/experiments/capture_graph.sh`, into `docs/screens/real/s8-*.png`; all
+  three checks pass): sixteen weeks of a block (the service sends "84 days", the history keeps
+  84), a first week ("Learning", one day of bars), and a file from before S8 (the lines start at
+  the open weeks plus the days since the save). Every page by key presses, L2 round all three and
+  back to the first, R2 back to Training load. The LVGL pool peak is still 62 %.
+- `capture_real.sh` re-run; `11b` and `27` show the R1 mark. The store previews gain
+  `9-load-graph`; `4-training-load` is refreshed.
+- **Watch builds compile** (compile checks only): the app 306,304 bytes, the glance 43,772.
+
+### Not checked, and open
+
+- **Anything on a watch**, the lines above all. X Weigh-in's graph, drawn the same way, has been
+  on Jon's watch since October, but no note records that its Graph page was looked at there.
+- Whether the colours read apart on the watch's own display in daylight (the simulator shows the
+  same 64 colours, but not the panel).
+
+### S8 gate (Jon)
+
+1. Look at `docs/screens/real/s8-*.png`.
+2. On the watch: open X Streak, Menu, Training load, then R1 on Fitness. Check that the cyan and
+   orange lines are easy to tell apart, outdoors as well as in. L2 to Form and Daily load, R2 back.
+3. Say whether the 12 weeks, the titles and the legends are right.

@@ -143,6 +143,16 @@ watch and no ARM toolchain.
   are the GUI's `DashWords` (host-tested, each wording measured in pixels
   with the wheel's fonts, `WheelFontWidths.hpp`).
 
+### The training load graphs (S8)
+
+`LoadHistory.hpp` also keeps **`LoadTrend`**: 84 days of fitness and fatigue (tenths) and the
+day's load, recorded as each day leaves the 14-day open window (only by the model's own state; a
+copy used to read today's figures records nothing), saved under the state's optional `"H"`.
+`LoadHistory::series` joins it to the open days, replayed, for the graphs. The GUI asks for the
+three series when a graph opens (`SERIES_REQUEST`, answered by three `SERIES_VIEW` messages), so
+the update on open is unchanged. `GraphMath.hpp` (header-only) chooses the scales and maps values
+and days to pixels; `GraphScreen` draws with LVGL lines, as X Weigh-in's graph does.
+
 ### Settings
 
 `Resources/app-manifest.json` declares five `configFields` — weekly target,
@@ -158,9 +168,9 @@ Summit look (DESIGN.md).
 
 Home plays the service's `Moments` on open — session toasts, then a step
 up, then a summit/shield/fresh-start switch if one applies — before
-settling on the live view. Seventeen screens
+settling on the live view. Eighteen screens
 (`gui/src/screens/`): Home, Menu, This week, By sport, Numbers (the menu's
-Your numbers), Log a session, Trophy case, Training load,
+Your numbers), Log a session, Trophy case, Training load and its graphs,
 Settings, a value picker, Clock (the clock-not-set case), plus the Summit,
 Shield and Fresh-start moment screens, a confirm (tick/cross) screen and the
 shared `ScreenManager`/`Screen` base.

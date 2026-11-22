@@ -58,6 +58,7 @@ private:
     void         goalToConfig(const Streak::Goal& goal);
     void         sendViews();
     void         sendMoments();
+    void         sendSeries();      ///< the training load graphs' three series (NOTES "S8")
     void         handle(SDK::MessageBase* msg);
 
     void celebrate(CustomMessage::Moment moment);

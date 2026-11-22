@@ -12,7 +12,9 @@
 
 #include "PlanText.hpp"
 #include "PlanTypes.hpp"
+#include "FormText.hpp"
 #include "TodayFile.hpp"
+#include "WeekMath.hpp"
 #include "WeighText.hpp"
 #include "WeightUnit.hpp"
 #include "gui/copy/Coach.hpp"
@@ -105,6 +107,78 @@ uint16_t tipPx(const char* s)
 uint16_t labelPx(const char* s)
 {
     return widthPx(s, WheelFontWidths::kSemiBold25);
+}
+
+uint16_t legendPx(const char* s)
+{
+    return widthPx(s, WheelFontWidths::kRegular16);
+}
+
+uint16_t smallPx(const char* s)
+{
+    return widthPx(s, WheelFontWidths::kRegular14);
+}
+
+// -- The training load graphs --------------------------------------------------------------
+
+void dayMonth(int32_t day, char* out, size_t size)
+{
+    const Streak::WeekMath::Civil c = Streak::WeekMath::civilFromDays(day);
+    snprintf(out, size, "%u %s", u(c.day), monthShort(static_cast<int>(c.month)));
+}
+
+void graphSpan(int32_t first, int32_t last, char* out, size_t size)
+{
+    char a[12], b[12];
+    dayMonth(first, a, sizeof(a));
+    dayMonth(last, b, sizeof(b));
+    snprintf(out, size, "%s - %s", a, b);
+}
+
+void scaleLabel(int32_t value, int32_t unit, bool sign, char* out, size_t size)
+{
+    const int32_t un    = unit < 1 ? 1 : unit;
+    const int32_t whole = value >= 0 ? (value + un / 2) / un : -((-value + un / 2) / un);
+    if (sign && whole > 0) {
+        snprintf(out, size, "+%ld", static_cast<long>(whole));
+    } else {
+        snprintf(out, size, "%ld", static_cast<long>(whole));
+    }
+}
+
+void fitnessLegend(uint16_t fitness, char* out, size_t size)
+{
+    snprintf(out, size, "Fitness %u", u(fitness));
+}
+
+void fatigueLegend(uint16_t fatigue, char* out, size_t size)
+{
+    snprintf(out, size, "Fatigue %u", u(fatigue));
+}
+
+void formLegend(int16_t form, uint8_t formWord, char* out, size_t size)
+{
+    char n[8];
+    Streak::formatFormNumber(n, sizeof(n), form);
+    const auto word  = static_cast<Streak::FormWord>(formWord);
+    const bool known = word != Streak::FormWord::Learning && word != Streak::FormWord::NoLoad;
+    char full[48];
+    snprintf(full, sizeof(full), "Form %s, %s", n, Streak::formWordName(word));
+    if (known && legendPx(full) <= kMaxLegendPx) {
+        snprintf(out, size, "%s", full);
+    } else {
+        snprintf(out, size, "Form %s", n);
+    }
+}
+
+void weekLoadLegend(uint32_t weekLoad, char* out, size_t size)
+{
+    snprintf(out, size, "This week %lu", static_cast<unsigned long>(weekLoad > 99999u ? 99999u : weekLoad));
+}
+
+void todayLoadLegend(uint16_t todayLoad, char* out, size_t size)
+{
+    snprintf(out, size, "Today %u", u(todayLoad));
 }
 
 void duration(uint32_t minutes, char* out, size_t size)

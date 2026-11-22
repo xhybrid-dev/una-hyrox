@@ -150,6 +150,8 @@ struct State {
     // weeks: it spans them, and the streak's rules (scope, minimum, exclusion) do not
     // apply to it, because the body did the work either way.
     LoadState load {};
+    // The graphs' daily history (NOTES "S8"), recorded as days leave the load's open window.
+    LoadTrend trend {};
 };
 
 

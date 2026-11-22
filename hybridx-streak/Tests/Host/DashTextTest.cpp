@@ -8,8 +8,11 @@
 #include <cstring>
 #include <string>
 
+#include "FormText.hpp"
 #include "TodayFile.hpp"
+#include "WeekMath.hpp"
 #include "WeightUnit.hpp"
+#include "GraphMath.hpp"
 #include "gui/copy/Coach.hpp"
 #include "gui/copy/DashWords.hpp"
 
@@ -417,4 +420,77 @@ TEST(DashText, HomeNamesTodaysSessionOnABankedWeek)
         v.plan = planToday(st, PlanKind::Tempo, "30 min");
         EXPECT_FALSE(DashWords::bankedPlanLine(v, b, sizeof(b)));
     }
+}
+
+// -- The training load graphs' words (NOTES "S8") ---------------------------------------------
+
+TEST(DashText, GraphTitlesLegendsAndDatesFit)
+{
+    for (const char* t : DashWords::kGraphTitles) {
+        EXPECT_LE(tipPx(t), DashWords::kMaxTitlePx) << t;   // titles are Italic 18, the tips' face
+    }
+    EXPECT_GT(tipPx("Fitness, fatigue"), DashWords::kMaxTitlePx);   // why page one is "Training load"
+
+    char b[48];
+    DashWords::fitnessLegend(9999, b, sizeof(b));
+    EXPECT_STREQ(b, "Fitness 9999");
+    EXPECT_LE(DashWords::legendPx(b), DashWords::kMaxLegendPx);
+    DashWords::fatigueLegend(65535, b, sizeof(b));
+    EXPECT_LE(DashWords::legendPx(b), DashWords::kMaxLegendPx) << b;
+    DashWords::weekLoadLegend(0xFFFFFFFFu, b, sizeof(b));
+    EXPECT_STREQ(b, "This week 99999");
+    EXPECT_LE(DashWords::legendPx(b), DashWords::kMaxLegendPx);
+    DashWords::todayLoadLegend(65535, b, sizeof(b));
+    EXPECT_LE(DashWords::legendPx(b), DashWords::kMaxLegendPx);
+
+    DashWords::formLegend(14, static_cast<uint8_t>(Streak::FormWord::Fresh), b, sizeof(b));
+    EXPECT_STREQ(b, "Form +14, Fresh");
+    // Too wide with the word: the number alone.
+    DashWords::formLegend(-9999, static_cast<uint8_t>(Streak::FormWord::Overreaching), b, sizeof(b));
+    EXPECT_STREQ(b, "Form -9999");
+    for (int16_t form : {-9999, -300, -12, 0, 7, 120, 9999}) {
+        for (uint8_t w = 0; w <= static_cast<uint8_t>(Streak::FormWord::Overreaching); ++w) {
+            DashWords::formLegend(form, w, b, sizeof(b));
+            EXPECT_LE(DashWords::legendPx(b), DashWords::kMaxLegendPx) << b;
+        }
+    }
+    DashWords::formLegend(3, static_cast<uint8_t>(Streak::FormWord::Learning), b, sizeof(b));
+    EXPECT_STREQ(b, "Form +3");   // no word while learning
+
+    // The dates under the plot: the widest months.
+    const int32_t sep30 = Streak::WeekMath::daysFromCivil(2026, 9, 30);
+    DashWords::dayMonth(sep30, b, sizeof(b));
+    EXPECT_STREQ(b, "30 Sep");
+    DashWords::graphSpan(sep30 - 83, sep30, b, sizeof(b));
+    EXPECT_STREQ(b, "9 Jul - 30 Sep");
+    for (int32_t d = sep30; d < sep30 + 366; d += 7) {
+        DashWords::graphSpan(d - 83, d, b, sizeof(b));
+        EXPECT_LE(DashWords::smallPx(b), DashWords::kMaxSpanPx) << b;
+    }
+
+    // The scale's labels: whole points, a sign above zero on the form page.
+    DashWords::scaleLabel(800, 10, false, b, sizeof(b));
+    EXPECT_STREQ(b, "80");
+    DashWords::scaleLabel(150, 10, true, b, sizeof(b));
+    EXPECT_STREQ(b, "+15");
+    DashWords::scaleLabel(-150, 10, true, b, sizeof(b));
+    EXPECT_STREQ(b, "-15");
+    DashWords::scaleLabel(0, 10, true, b, sizeof(b));
+    EXPECT_STREQ(b, "0");
+    // The widest each scale can reach: tenths up to 65535 give 0 to 8000 (or -8000 to +8000); a
+    // daily load up to 65535 gives 80000.
+    const uint16_t top[] = {65535};
+    const uint16_t none[] = {0};
+    const auto     fit   = Streak::GraphMath::fromZero(top, top, 1, 10, 100);
+    const auto     form  = Streak::GraphMath::aroundZero(top, none, 1, 10, 50);
+    const auto     load  = Streak::GraphMath::fromZero(top, nullptr, 1, 1, 50);
+    DashWords::scaleLabel(fit.hi, 10, false, b, sizeof(b));
+    EXPECT_STREQ(b, "8000");
+    EXPECT_LE(DashWords::smallPx(b), DashWords::kMaxScalePx) << b;
+    DashWords::scaleLabel(form.lo, 10, true, b, sizeof(b));
+    EXPECT_STREQ(b, "-8000");
+    EXPECT_LE(DashWords::smallPx(b), DashWords::kMaxScalePx) << b;
+    DashWords::scaleLabel(load.hi, 1, false, b, sizeof(b));
+    EXPECT_STREQ(b, "80000");
+    EXPECT_LE(DashWords::smallPx(b), DashWords::kMaxScalePx) << b;
 }

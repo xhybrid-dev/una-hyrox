@@ -4,7 +4,8 @@
  * @brief   Training load: form and its word, fitness, fatigue, this week's and
  *          today's load, from every HybridX app's sessions (LoadHistory.hpp).
  *
- * A wheel, as the trophy case: L1 and L2 move, R2 back to the menu. Form is
+ * A wheel, as the trophy case: L1 and L2 move, R1 opens the row's graph
+ * (GraphScreen, NOTES "S8"), R2 back to the menu. Form is
  * amber when it says to ease off, white otherwise (lime is for what is earned,
  * DESIGN 2). For the first two weeks it says it is learning.
  ******************************************************************************

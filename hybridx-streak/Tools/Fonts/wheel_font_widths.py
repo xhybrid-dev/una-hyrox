@@ -5,7 +5,8 @@ fonts, from the committed LVGL font files (assets/fonts/poppins_*.c).
 The wheel (the SDK's WheelMenu) sets a row in SemiBold 25 and its tip in
 Italic 18, each on a 240 px label that wraps a long line. The family
 dashboard's words (DashWords) pick a wording that fits by these widths
-(NOTES "S7"). The fonts have no kerning, so a sum of advances is exact.
+(NOTES "S7"), and the training load graphs' legends and dates are held to
+theirs (NOTES "S8"). The fonts have no kerning, so a sum of advances is exact.
 
 Run it after the fonts change:
     python3 hybridx-streak/Tools/Fonts/wheel_font_widths.py
@@ -16,8 +17,10 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 FONTS = ROOT / "Software/Apps/LVGL-GUI/assets/fonts"
 OUT = ROOT / "Software/Apps/LVGL-GUI/gui/include/gui/copy/WheelFontWidths.hpp"
-FACES = [("kItalic18", "poppins_italic_18.c", "Poppins Italic 18 (a row's tip)"),
-         ("kSemiBold25", "poppins_semibold_25.c", "Poppins SemiBold 25 (a row's label)")]
+FACES = [("kItalic18", "poppins_italic_18.c", "Poppins Italic 18 (a row's tip, and screen titles)"),
+         ("kSemiBold25", "poppins_semibold_25.c", "Poppins SemiBold 25 (a row's label)"),
+         ("kRegular16", "poppins_regular_16.c", "Poppins Regular 16 (the graphs' legends, NOTES \"S8\")"),
+         ("kRegular14", "poppins_regular_14.c", "Poppins Regular 14 (the graphs' scale and dates)")]
 
 
 def widths(path):

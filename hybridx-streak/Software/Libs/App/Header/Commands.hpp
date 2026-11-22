@@ -26,6 +26,7 @@
 
 #include "DashView.hpp"
 #include "Goal.hpp"
+#include "LoadHistory.hpp"
 #include "StreakEvents.hpp"
 #include "StreakTypes.hpp"
 #include "StreakView.hpp"
@@ -44,6 +45,7 @@ constexpr SDK::MessageType::Type TROPHIES  = 0x00000005;
 constexpr SDK::MessageType::Type GOAL_VIEW = 0x00000006;
 constexpr SDK::MessageType::Type LOAD_VIEW = 0x00000007;
 constexpr SDK::MessageType::Type DASH_VIEW = 0x00000008;
+constexpr SDK::MessageType::Type SERIES_VIEW = 0x00000009;   ///< on request only (NOTES "S8")
 
 // -- GUI -> Service ------------------------------------------------------------
 constexpr SDK::MessageType::Type CELEBRATE       = 0x00000080;
@@ -51,6 +53,7 @@ constexpr SDK::MessageType::Type LOG_MANUAL      = 0x00000081;
 constexpr SDK::MessageType::Type WEEK_ACTION     = 0x00000082;
 constexpr SDK::MessageType::Type SHIELD_DECISION = 0x00000083;
 constexpr SDK::MessageType::Type SET_GOAL        = 0x00000084;
+constexpr SDK::MessageType::Type SERIES_REQUEST  = 0x00000085;
 
 /// Everything the home screen shows.
 struct HomeView : public SDK::MessageBase {
@@ -149,6 +152,28 @@ struct DashView : public SDK::MessageBase {
     DashView() : SDK::MessageBase(DASH_VIEW) {}
 };
 
+/// One of the training load graphs' series (NOTES "S8"): the days up to today, oldest first.
+/// Sent only when the GUI asks (a graph opens), three at a time, so the update on open stays at
+/// eight messages.
+struct SeriesData {
+    enum : uint8_t { Fitness, Fatigue, Load, kCount };
+    uint8_t  which       = Fitness;
+    uint8_t  count       = 0;    ///< days, ending at lastDay
+    uint16_t historyDays = 0;    ///< under Streak::kWarmUpDays the lines are still learning
+    int32_t  lastDay     = 0;    ///< today
+    uint16_t v[Streak::kTrendDays] {};   ///< fitness and fatigue in tenths; load in whole points
+};
+
+struct SeriesView : public SDK::MessageBase {
+    SeriesData data {};
+    SeriesView() : SDK::MessageBase(SERIES_VIEW) {}
+};
+
+/// Ask for the three series.
+struct SeriesRequest : public SDK::MessageBase {
+    SeriesRequest() : SDK::MessageBase(SERIES_REQUEST) {}
+};
+
 /// The goal, and one waiting for next week.
 struct GoalData {
     Streak::Goal goal {};
@@ -217,6 +242,8 @@ STREAK_ASSERT_FITS_POOL(AppNames);
 STREAK_ASSERT_FITS_POOL(Trophies);
 STREAK_ASSERT_FITS_POOL(LoadView);
 STREAK_ASSERT_FITS_POOL(DashView);
+STREAK_ASSERT_FITS_POOL(SeriesView);
+STREAK_ASSERT_FITS_POOL(SeriesRequest);
 STREAK_ASSERT_FITS_POOL(GoalView);
 STREAK_ASSERT_FITS_POOL(Celebrate);
 STREAK_ASSERT_FITS_POOL(LogManual);

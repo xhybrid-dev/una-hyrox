@@ -63,6 +63,7 @@ add_executable(hybridx-streak-host-tests
     StateCodecTest.cpp
     GlanceLayoutTest.cpp
     WeekTotalsTest.cpp
+    LoadTrendTest.cpp
     FamilyReaderTest.cpp
     DashTextTest.cpp
     ${STREAK_DASH_TEST_SOURCES}

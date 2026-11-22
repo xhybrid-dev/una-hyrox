@@ -75,6 +75,69 @@ struct LoadState {
 
 static_assert(kOpenDays == kWarmUpDays, "the seed is the mean of the warm-up, which must all be in the window");
 
+/// The days the graphs show (Streak NOTES "S8"): 12 weeks.
+constexpr uint8_t kTrendDays = 84;
+
+/// The settled days, a point a day, for the graphs (NOTES "S8"). Each day is recorded as it
+/// leaves the open window, with the figures at the end of that day; the open days are replayed
+/// when the graphs ask (LoadHistory::series). Saved in the state file under "H". Oldest first,
+/// the days one after another, ending at lastDay.
+struct LoadTrend {
+    int32_t  lastDay = 0;                 ///< the newest point's day (when count > 0)
+    uint8_t  count   = 0;
+    uint16_t fitnessX10[kTrendDays] = {};
+    uint16_t fatigueX10[kTrendDays] = {};
+    uint16_t load[kTrendDays]       = {};
+
+    void clear()
+    {
+        *this = LoadTrend();
+    }
+
+    /// Add @p day's figures. A day that does not follow the last one starts the history again
+    /// (it cannot be filled in); one at or before it is ignored (it is there already).
+    void record(int32_t day, uint32_t fitnessX100, uint32_t fatigueX100, uint16_t dayLoad)
+    {
+        if (count > 0 && day <= lastDay) {
+            return;
+        }
+        if (count > 0 && day != lastDay + 1) {
+            clear();
+        }
+        if (count == kTrendDays) {
+            for (uint8_t i = 0; i + 1 < kTrendDays; ++i) {
+                fitnessX10[i] = fitnessX10[i + 1];
+                fatigueX10[i] = fatigueX10[i + 1];
+                load[i]       = load[i + 1];
+            }
+            --count;
+        }
+        fitnessX10[count] = tenths(fitnessX100);
+        fatigueX10[count] = tenths(fatigueX100);
+        load[count]       = dayLoad;
+        ++count;
+        lastDay = day;
+    }
+
+    /// Hundredths to tenths, rounded, held to 16 bits.
+    static constexpr uint16_t tenths(uint32_t x100)
+    {
+        const uint64_t t = (static_cast<uint64_t>(x100) + 5u) / 10u;   // no wrap at the top
+        return static_cast<uint16_t>(t > 0xFFFFu ? 0xFFFFu : t);
+    }
+};
+
+/// What the graphs draw: the days up to today, oldest first, ending at lastDay. A day before the
+/// history began, or older than the history keeps, is simply not there (count is smaller).
+struct LoadSeries {
+    int32_t  lastDay     = 0;     ///< today
+    uint8_t  count       = 0;     ///< days, one after another, ending at lastDay
+    uint16_t historyDays = 0;     ///< as LoadFigures: under kWarmUpDays the lines are still learning
+    uint16_t fitnessX10[kTrendDays] = {};
+    uint16_t fatigueX10[kTrendDays] = {};
+    uint16_t load[kTrendDays]       = {};
+};
+
 namespace LoadMath
 {
 
@@ -121,7 +184,9 @@ public:
     /// decayed to nothing (0.976^1000), so they are simply set to 0.
     static constexpr int32_t kMaxFold = 1000;
 
-    explicit LoadHistory(LoadState& s) : mS(s) {}
+    /// @p trend, if given, records each day as it leaves the window (the model's own state does;
+    /// a copy used only to read the figures for today does not).
+    explicit LoadHistory(LoadState& s, LoadTrend* trend = nullptr) : mS(s), mTrend(trend) {}
 
     /// Move the window so @p today is its last day, folding the days that leave it.
     void advanceTo(int32_t today)
@@ -131,6 +196,9 @@ public:
             mS.started   = true;
             mS.firstDay  = today;
             mS.openStart = today - (kOpenDays - 1);
+            if (mTrend != nullptr) {
+                mTrend->clear();
+            }
             return;
         }
         const int32_t lastOpen = mS.openStart + (kOpenDays - 1);
@@ -146,11 +214,21 @@ public:
                 mS.daily[i] = 0;
             }
             mS.openStart = today - (kOpenDays - 1);
+            if (mTrend != nullptr) {
+                mTrend->clear();   // years away: nothing to draw a line from
+            }
             return;
         }
         for (; shift > 0; --shift) {
             maybeSeed();   // before the first warm-up day leaves the window
-            fold(mS.daily[0]);
+            const int32_t  day  = mS.openStart;
+            const uint16_t load = mS.daily[0];
+            fold(load);
+            // The graphs' history: a settled day of the athlete's own (not a day before the
+            // first, whose zeros only fill the window, nor one before the seed).
+            if (mTrend != nullptr && mS.seeded && day >= mS.firstDay) {
+                mTrend->record(day, mS.fitnessX100, mS.fatigueX100, load);
+            }
             for (uint8_t i = 0; i + 1 < kOpenDays; ++i) {
                 mS.daily[i] = mS.daily[i + 1];
             }
@@ -209,6 +287,65 @@ public:
         return mS.daily[day - mS.openStart];
     }
 
+    /// The graphs' days up to @p today (call advanceTo(today) first): the settled days from
+    /// @p trend, then the open days replayed. The settled part is used only when it runs up to the
+    /// window (a history that ends elsewhere cannot be joined to it). Days before the first are
+    /// left out.
+    void series(const LoadTrend& trend, int32_t today, LoadSeries& out) const
+    {
+        out = LoadSeries();
+        if (!mS.started || today < mS.openStart) {
+            return;
+        }
+        const int32_t lastOpen = mS.openStart + (kOpenDays - 1);
+        const int32_t end      = today < lastOpen ? today : lastOpen;
+        const int32_t from     = maxOf(end - (kTrendDays - 1), mS.firstDay);   // the oldest day shown
+        if (end < from) {
+            return;
+        }
+        uint8_t n = 0;
+        // The settled days, from the history, if it reaches the window.
+        if (trend.count > 0 && trend.lastDay == mS.openStart - 1) {
+            const int32_t first = trend.lastDay - (trend.count - 1);
+            for (int32_t d = maxOf(first, from); d <= trend.lastDay && n < kTrendDays; ++d) {
+                const uint8_t i  = static_cast<uint8_t>(d - first);
+                out.fitnessX10[n] = trend.fitnessX10[i];
+                out.fatigueX10[n] = trend.fatigueX10[i];
+                out.load[n]       = trend.load[i];
+                ++n;
+            }
+        } else {
+            n = 0;   // no settled part: the line starts in the window
+        }
+        // The open days, replayed from the settled figures.
+        uint32_t fit = mS.fitnessX100;
+        uint32_t fat = mS.fatigueX100;
+        for (int32_t d = mS.openStart; d <= end; ++d) {
+            const uint16_t load = mS.daily[d - mS.openStart];
+            fit = LoadMath::step(fit, load, kFitnessDays);
+            fat = LoadMath::step(fat, load, kFatigueDays);
+            if (d < from) {
+                continue;
+            }
+            if (n == kTrendDays) {   // only when the settled part was a full 84 days: keep the newest
+                for (uint8_t i = 0; i + 1 < kTrendDays; ++i) {
+                    out.fitnessX10[i] = out.fitnessX10[i + 1];
+                    out.fatigueX10[i] = out.fatigueX10[i + 1];
+                    out.load[i]       = out.load[i + 1];
+                }
+                --n;
+            }
+            out.fitnessX10[n] = LoadTrend::tenths(fit);
+            out.fatigueX10[n] = LoadTrend::tenths(fat);
+            out.load[n]       = load;
+            ++n;
+        }
+        out.count   = n;
+        out.lastDay = end;
+        const int32_t days = end - mS.firstDay + 1;
+        out.historyDays = static_cast<uint16_t>(days < 0 ? 0 : (days > 0xFFFF ? 0xFFFF : days));
+    }
+
     /// The loads of the days [from, to], summed (those still in the window).
     uint32_t sum(int32_t from, int32_t to) const
     {
@@ -242,7 +379,10 @@ private:
         mS.fatigueX100 = LoadMath::step(mS.fatigueX100, load, kFatigueDays);
     }
 
+    static constexpr int32_t maxOf(int32_t a, int32_t b) { return a > b ? a : b; }
+
     LoadState& mS;
+    LoadTrend* mTrend = nullptr;
 };
 
 } // namespace Streak

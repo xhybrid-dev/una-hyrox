@@ -10,6 +10,7 @@
 #include <cstdio>
 
 #include "FormText.hpp"
+#include "gui/screens/GraphScreen.hpp"
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
@@ -66,7 +67,7 @@ void LoadScreen::build()
     mTitle   = std::make_unique<Widgets::Title>(mRoot, "Training load");
     mMenu    = std::make_unique<Widgets::Wheel>(mRoot, mItems, kItems);
     mButtons = std::make_unique<Widgets::Buttons>(mRoot);
-    mButtons->set(Widgets::Buttons::WHITE, Widgets::Buttons::WHITE, Widgets::Buttons::NONE, Widgets::Buttons::WHITE);
+    mButtons->set(Widgets::Buttons::WHITE, Widgets::Buttons::WHITE, Widgets::Buttons::AMBER, Widgets::Buttons::WHITE);
 }
 
 void LoadScreen::onShow()
@@ -92,6 +93,17 @@ void LoadScreen::onKey(uint8_t code)
     switch (code) {
         case Btn::L1: mMenu->prev(); break;
         case Btn::L2: mMenu->next(); break;
+        case Btn::R1: {
+            // The row's graph (NOTES "S8"): fitness and fatigue together, form, or the daily load.
+            static constexpr uint8_t kPageOf[kItems] = {GraphScreen::Form, GraphScreen::FitnessFatigue,
+                                                        GraphScreen::FitnessFatigue, GraphScreen::DailyLoad,
+                                                        GraphScreen::DailyLoad};
+            const uint16_t at = mMenu->selected();
+            mModel.graphPage  = kPageOf[at < kItems ? at : 0];
+            mModel.requestSeries();
+            ScreenManager::instance().goTo(ScreenId::Graph);
+            break;
+        }
         case Btn::R2: ScreenManager::instance().goTo(ScreenId::Menu); break;
         default: break;
     }

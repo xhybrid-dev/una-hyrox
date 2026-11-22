@@ -25,7 +25,8 @@ HybridX Race, which lives alongside it in this same repository.
   **Your numbers** shows X Training's plan for today, X Run's VO2max and
   X Weigh-in's weight trend, read from the files those apps leave in the
   shared folder (`docs/NOTES.md`, "S7").
-- **Training load**: fitness, fatigue and form from the family's heart-rate scores.
+- **Training load**: fitness, fatigue and form from the family's heart-rate scores, with graphs
+  over 12 weeks (R1 on the Training load screen; `docs/NOTES.md`, "S8").
 
 Status: **v0.1.0, unreleased.** Phases S0–S4 of the build plan are complete.
 Nothing has yet run on a watch — see `docs/PROBE.md` (Gate 0) and

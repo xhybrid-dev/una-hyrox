@@ -24,7 +24,12 @@ strips the prefix for the SDK's version script.
   Each row says which app fills it ("Needs X Run") until that app has left its file.
 - **Home** names X Training's session on a banked week ("Banked. Tempo today") rather than saying
   "Rest up." on a day the plan has a session to do.
-- The store listing gains two previews: By sport, and Your numbers.
+- **Training load graphs**: R1 on the Training load screen opens a graph of the row: **fitness
+  and fatigue** together over 12 weeks (fitness in cyan, fatigue in orange), **form** about a zero
+  line, and the **daily load** over 4 weeks as bars. L1 and L2 move between them. Streak now keeps
+  a daily history for them (a new optional part of the saved state); after updating, the graphs
+  start with the last two weeks and fill in from there.
+- The store listing gains three previews: By sport, Your numbers, and the training load graph.
 
 ## [1.1.1] - 2026-11-20
 

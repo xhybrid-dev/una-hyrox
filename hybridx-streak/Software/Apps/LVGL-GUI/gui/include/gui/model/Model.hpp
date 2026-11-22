@@ -57,6 +57,9 @@ public:
     const CustomMessage::TrophyData&   trophies() const { return mTrophies; }
     const CustomMessage::LoadData&     load() const { return mLoad; }
     const CustomMessage::DashData&     dash() const { return mDash; }
+    /// The training load graphs' series (NOTES "S8"), once all three have come.
+    const CustomMessage::SeriesData& series(uint8_t which) const { return mSeries[which % CustomMessage::SeriesData::kCount]; }
+    bool hasSeries() const { return mSeriesMask == kAllSeries; }
     const CustomMessage::GoalData&     goal() const { return mGoal; }
     bool clockUnset() const { return (mHome.flags & Streak::HomeView::kClockUnset) != 0; }
 
@@ -86,6 +89,8 @@ public:
     void weekAction(uint8_t action, uint8_t index);
     void decideShields(bool use);
     void setGoal(const Streak::Goal& goal);
+    /// Ask for the graphs' series; onSeries() follows once all three have come.
+    void requestSeries();
 
     // -- Navigation memory ----------------------------------------------------------------
     /// The climb just summited, for the summit screen.
@@ -100,6 +105,7 @@ public:
     uint16_t loadAt     = 0;
     uint16_t sportAt    = 0;
     uint16_t numbersAt  = 0;
+    uint8_t  graphPage  = 0;   ///< GraphScreen::Page
 
     /// The week item a confirm screen acts on, and the setting a value
     /// screen edits.
@@ -145,6 +151,9 @@ private:
     CustomMessage::TrophyData   mTrophies {};
     CustomMessage::LoadData     mLoad {};
     CustomMessage::DashData     mDash {};
+    static constexpr uint8_t    kAllSeries = (1u << CustomMessage::SeriesData::kCount) - 1u;
+    CustomMessage::SeriesData   mSeries[CustomMessage::SeriesData::kCount] {};
+    uint8_t                     mSeriesMask = 0;
     CustomMessage::GoalData     mGoal {};
     Streak::Events           mMoments {};
     uint8_t                  mMomentAt   = 0;

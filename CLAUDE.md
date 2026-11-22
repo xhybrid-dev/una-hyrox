@@ -55,6 +55,9 @@ sessions and distance from every X app, by kind, and last week's; `Libs/Dash/Wee
 edit the originals, then `hybridx-streak/Utilities/check-family-copies.sh --sync` (CI checks). The
 GUI's words are `gui/copy/DashWords`, each measured in pixels (`WheelFontWidths.hpp`, from
 `Tools/Fonts/wheel_font_widths.py`).
+And the **training load graphs** (S8, 22 November 2026; NOTES "S8"): R1 on Training load opens
+fitness and fatigue together (cyan and orange), form, and daily load (`GraphScreen`, `GraphMath.hpp`),
+from a daily history (`LoadTrend` in `LoadHistory.hpp`, the state's optional `"H"`) sent on request.
 - **Docs:**
   - brief: `hybridx-streak/docs/UNA_STREAK_TRACKER_BRIEF.md`;
   - plan and phases: `PLAN.md`, §11 (S0-S6);
@@ -90,6 +93,8 @@ GUI's words are `gui/copy/DashWords`, each measured in pixels (`WheelFontWidths.
     - real app: `docs/experiments/capture_real.sh`, `walkthrough_real.sh`;
     - the family dashboard (S7): `docs/experiments/capture_dash.sh` (its pretend watches from
       `sim_fixtures_dash.sh`: every family file written by hand; into `docs/screens/real/s7-*.png`);
+    - the training load graphs (S8): `docs/experiments/capture_graph.sh` (a 16-week block from
+      `build-tests/make_state <out> 16 0 block`, a first week, an older file; into `s8-*.png`);
     - demo: `RECORD=1 capture_screens.sh`, `walkthrough.sh`;
     - glance mock-up: `glance_preview.py build-tests/glance_preview <out.png>`.
 

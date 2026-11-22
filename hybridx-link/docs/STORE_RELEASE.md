@@ -155,6 +155,8 @@ fatigue and form from their heart rate.
 > - Miss a week? Shields, earned every four good weeks, save the streak.
 > - **Training load:** each session's heart-rate score becomes your fitness, fatigue and form,
 >   with a word for where you are (Fresh, Steady, Building or Overreaching) after two weeks.
+> - **Graphs:** your fitness and fatigue over 12 weeks on one graph, your form, and your daily
+>   load.
 > - **Your week, by sport:** time, sessions and distance from every X app, kind by kind, beside
 >   last week's.
 > - **Your numbers:** today's session from X Training, your VO2max from X Run and your weight
@@ -180,6 +182,8 @@ fatigue and form from their heart rate.
   two bullets wait for the release that carries them): `WeekTotals` and `FamilyReader`, the
   screens `SportScreen` and `NumbersScreen`. Each Your numbers row says which app fills it until
   that app has left its file.
+- **Graphs** (Streak NOTES "S8", also unreleased): `GraphScreen`, from R1 on Training load; 12
+  weeks of fitness and fatigue, form, and 4 weeks of daily load.
 
 **Not claimed:**
 - that UNA's own apps count: Streak cannot read their folders on a watch;
