@@ -54,9 +54,12 @@ export class App {
     this.ratio = ratio;
     const R = RATIOS[ratio];
     // Exports render at the delivery size; live playback at the same size, scaled by CSS, unless
-    // the device is weak (then at most 1.5 x its CSS pixels, without grain).
-    this.lite = !exporting && (navigator.hardwareConcurrency ?? 8) <= 4;
-    const scale = exporting ? 1 : Math.min(1, (Math.min(window.devicePixelRatio, this.lite ? 1.5 : 2) * Math.max(window.innerWidth / R.w, window.innerHeight / R.h)));
+    // the device is a phone or weak: then at most 1.5 x its CSS pixels and about a million pixels a
+    // frame, without grain. (Quality only: the timeline is the same.)
+    const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+    this.lite = !exporting && ((navigator.hardwareConcurrency ?? 8) <= 4 || coarse);
+    let scale = exporting ? 1 : Math.min(1, (Math.min(window.devicePixelRatio, this.lite ? 1.5 : 2) * Math.max(window.innerWidth / R.w, window.innerHeight / R.h)));
+    if (this.lite) scale = Math.min(scale, Math.sqrt(1.0e6 / (R.w * R.h)));
     this.W = Math.round(R.w * Math.max(scale, 0.5));
     this.H = Math.round(R.h * Math.max(scale, 0.5));
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: exporting, powerPreference: 'high-performance' });
