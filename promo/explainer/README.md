@@ -47,6 +47,9 @@ Run it again after a change to any of those.
 **The dev overlay:** play and pause (or Space), a scrub bar with the scenes marked, a button per
 scene, the time and frame, the ratio, and the frame rate. Arrow keys step a frame (Shift: a second).
 
+**For hybridx.club:** `npm run build` writes a static site to `dist/` (about 2 MB; relative paths, so
+it can sit in any folder). It leaves out the files that are only for the checks.
+
 ## Editing
 
 Everything a person might change is in [`src/config.ts`](src/config.ts): the captions (and their
