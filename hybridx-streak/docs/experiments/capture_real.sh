@@ -53,7 +53,7 @@ key 3;      snap 05-this-week
 key 2; key 2; key 2; snap 06-this-week-too-short
 key 3;      snap 07-leave-it-out
 key 4; key 4
-key 2; key 3; snap 08-log-what
+key 2; key 2; key 2; key 3; snap 08-log-what   # past By sport and Your numbers (NOTES "S7")
 key 3;      snap 09-log-when
 key 4; key 4
 key 2; key 3; snap 10-trophy-summits
@@ -78,8 +78,9 @@ sleep 2.2;  snap 21-shield-offer
 key 3 0.8;  snap 22-streak-saved
 sleep 11.2; snap 23-summit-snowdon
 sleep 1.3;  snap 24-summit-confetti
-key 3 1.5;  snap 25-next-ben-nevis
-key 2; key 2; key 2                           # the menu (R1 above opened it), down to Training load
+key 3 2.5;  snap 25-next-ben-nevis
+sleep 3; key 3                                # Home is idle: R1 opens the menu (any key would)
+key 2; key 2; key 2; key 2; key 2             # down to Training load, past By sport and Your numbers
 snap 26-menu-training-load                    # the menu's hint: form
 key 3;      snap 27-training-load              # eleven weeks of loads (make_state)
 stop

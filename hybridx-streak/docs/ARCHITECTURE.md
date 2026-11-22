@@ -82,8 +82,11 @@ two views.
 4. scan — at most 32 new files, the previous week plus the current week,
    stretched back to the week of the last open (at most 8 weeks);
    then add what the HybridX apps left in `../SharedData/HybridX/act_*.json`
-   (`LinkReader`, the route that works on a real watch);
+   (`LinkReader`, the route that works on a real watch); as it reads them,
+   `WeekTotals` hears every entry, for the week by sport;
 5. credit each found session into its own week, then evaluate the boundary;
+   then read the family's other files (`FamilyReader`: X Training's
+   `training_today.json`, X Run's `vo2max.json`, X Weigh-in's `weighins.csv`);
 6. save `state.json` and the public copy
    `../SharedData/HybridX/streak.json` — the same codec, so the glance can
    read it without knowing anything about the private file;
@@ -121,6 +124,25 @@ watch and no ARM toolchain.
   through the crash-safe `.tmp` → flush → `.bak` → rename sequence
   (`SafeFile`), loaded with every value clamped and a `.bak` fallback.
 
+### The family dashboard (S7)
+
+`Software/Libs/Dash/` — the app's alone; the glance does not link it.
+
+- **`WeekTotals`** is an `ActivitySink` that `LinkReader` feeds with every
+  valid summary entry; the service asks it for this week's and last week's
+  sums by kind once the model has settled the week. Everything recorded
+  counts, whatever the streak's rules (as the training load). Nothing new is
+  saved.
+- **`FamilyReader`** reads the three shared files with those apps' own code,
+  byte-identical copies in `Software/Libs/Family/`
+  (`Utilities/check-family-copies.sh`, run by CI): X Training's `TodayFile`
+  (and its glance's `pick`), its `RunVo2Max` reader of X Run's file, and
+  X Weigh-in's `LogStore` and `Trend`. A file that is missing or does not
+  read leaves its rows to say which app fills them.
+- **`DashView.hpp`** is what travels to the GUI in `DASH_VIEW`; the words
+  are the GUI's `DashWords` (host-tested, each wording measured in pixels
+  with the wheel's fonts, `WheelFontWidths.hpp`).
+
 ### Settings
 
 `Resources/app-manifest.json` declares five `configFields` — weekly target,
@@ -136,8 +158,9 @@ Summit look (DESIGN.md).
 
 Home plays the service's `Moments` on open — session toasts, then a step
 up, then a summit/shield/fresh-start switch if one applies — before
-settling on the live view. Thirteen screens
-(`gui/src/screens/`): Home, Menu, This week, Log a session, Trophy case,
+settling on the live view. Seventeen screens
+(`gui/src/screens/`): Home, Menu, This week, By sport, Numbers (the menu's
+Your numbers), Log a session, Trophy case, Training load,
 Settings, a value picker, Clock (the clock-not-set case), plus the Summit,
 Shield and Fresh-start moment screens, a confirm (tick/cross) screen and the
 shared `ScreenManager`/`Screen` base.

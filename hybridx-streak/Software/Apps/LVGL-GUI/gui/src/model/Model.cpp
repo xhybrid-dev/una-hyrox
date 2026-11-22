@@ -208,6 +208,13 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             }
             break;
 
+        case CustomMessage::DASH_VIEW:
+            mDash = static_cast<CustomMessage::DashView*>(message)->data;
+            if (mListener) {
+                mListener->onDash();
+            }
+            break;
+
         case CustomMessage::GOAL_VIEW:
             mGoal = static_cast<CustomMessage::GoalView*>(message)->data;
             if (mListener) {

@@ -10,6 +10,20 @@ strips the prefix for the SDK's version script.
 
 ## [Unreleased]
 
+### Added
+
+- **By sport** (menu): this week's time, sessions and distance from every X app, kind by kind
+  ("Run: 2 · 1 h 06 · 11.2 km"), the week in all, and last week's. Everything the apps recorded
+  counts here, as for the training load; manual logs show as "By hand".
+- **Your numbers** (menu): the rest of the X family in one place:
+  - **today's plan** from X Training: today's session and pace, "Done", a rest day with the next
+    session;
+  - **VO2max** from X Run;
+  - **weight** from X Weigh-in: its trend and the week's change, in its own unit.
+
+  Each row says which app fills it ("Needs X Run") until that app has left its file.
+- The store listing gains two previews: By sport, and Your numbers.
+
 ## [1.1.1] - 2026-11-20
 
 (1.1.0 was tagged but never published; this is its first release.)

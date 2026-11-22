@@ -23,6 +23,7 @@ public:
     virtual void onWeek() {}
     virtual void onTrophies() {}
     virtual void onLoad() {}
+    virtual void onDash() {}   ///< the family dashboard (NOTES "S7")
     virtual void onGoal() {}
 
     /// No button for the screen timeout (Model::kScreenTimeoutSteps).

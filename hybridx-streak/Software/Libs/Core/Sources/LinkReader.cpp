@@ -66,7 +66,7 @@ size_t LinkReader::insert(Found* found, size_t count, size_t cap, const Found& f
 }
 
 size_t LinkReader::addTo(SDK::Interface::IFileSystem& fs, int32_t fromDay, int32_t toDay, const SeenSet& seen,
-                         Found* found, size_t count, size_t cap)
+                         Found* found, size_t count, size_t cap, ActivitySink* sink)
 {
     mStats = LinkStats {};
     if (found == nullptr || count > cap) {
@@ -86,6 +86,9 @@ size_t LinkReader::addTo(SDK::Interface::IFileSystem& fs, int32_t fromDay, int32
             f.appKey     = key;
             f.localStart = e.localStart();
             f.localDay   = static_cast<int32_t>(f.localStart / kSecondsDay);
+            if (sink != nullptr) {
+                sink->onActivity(f.localDay, kindOf(e.sport), e.durationSec, e.distanceM, e.load);
+            }
             if (f.localDay < fromDay || f.localDay > toDay) {
                 ++mStats.outside;
                 continue;

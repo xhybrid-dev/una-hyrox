@@ -482,6 +482,11 @@ jobs:
         # written by copies of Run's builder and file codec; they must not drift.
         run: hybridx-training/Utilities/check-vo2-link-copies.sh
 
+      - name: X Streak's copies of the family's readers
+        # Streak's Your numbers screen reads X Training's, X Run's and X Weigh-in's shared
+        # files with copies of those apps' own readers (Streak NOTES "S7"); they must not drift.
+        run: hybridx-streak/Utilities/check-family-copies.sh
+
       - name: HybridX Trail host tests
         # The route core (GPX reader, thinning, off-route distance) and the
         # T0 probe's route check.

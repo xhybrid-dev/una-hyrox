@@ -22,11 +22,23 @@ list(APPEND STREAK_CORE_SOURCES "$ENV{UNA_SDK}/Libs/Source/Fit/FitCrc.cpp"
     ${CMAKE_CURRENT_LIST_DIR}/Link/Sources/ActivityLink.cpp
     ${CMAKE_CURRENT_LIST_DIR}/Link/Sources/StreakNow.cpp)
 
+# The family dashboard (NOTES "S7"), the app's alone (the glance does not show it):
+#   Dash    the week by sport and the reader of the family's other files (pure);
+#   Family  byte-identical copies of X Training's and X Weigh-in's readers, kept so by
+#           Utilities/check-family-copies.sh. The GUI uses only their headers
+#           (DashView.hpp, PlanText.hpp, WeighText.hpp are header-only).
+set(STREAK_DASH_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/Dash/Header ${CMAKE_CURRENT_LIST_DIR}/Family/Header)
+file(GLOB STREAK_DASH_SOURCES CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_LIST_DIR}/Dash/Sources/*.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/Family/Sources/*.cpp)
+
 file(GLOB_RECURSE STREAK_APP_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_LIST_DIR}/App/Sources/*.cpp)
+list(APPEND STREAK_APP_SOURCES ${STREAK_DASH_SOURCES})
 set(STREAK_APP_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/App/Header
-    ${STREAK_CORE_INCLUDE_DIRS})
+    ${STREAK_CORE_INCLUDE_DIRS}
+    ${STREAK_DASH_INCLUDE_DIRS})
 
 file(GLOB_RECURSE STREAK_GLANCE_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_LIST_DIR}/Glance/Sources/*.cpp)
