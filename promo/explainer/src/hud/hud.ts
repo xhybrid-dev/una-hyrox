@@ -16,6 +16,7 @@ type Callout = {
   t0: number; t1: number;
   anchor: (w: World, f: Frame) => THREE.Vector3 | null;
   side: 1 | -1 | 0; // label to the right (1), left (-1), or centred under the leader (0); fixed, as text lays out once
+  fixedY?: number; // no leader: the label centred at this height (px from the top)
   up: 1 | -1; // the leader goes up (1) or down (-1)
   label: Text;
   line: THREE.Mesh[];
@@ -57,7 +58,7 @@ export class Hud {
       this.captions.push({ t0: c.t0, t1: c.t1, text, rule });
     }
 
-    const label = (s: string, side: 1 | -1 | 0, up: 1 | -1 = -1) => makeText({ text: s, size: 22 * k, tracking: 0.12, color: '#ffffff', anchorX: side > 0 ? 'left' : side < 0 ? 'right' : 'center', anchorY: side !== 0 ? 'middle' : up > 0 ? 'bottom' : 'top' });
+    const label = (s: string, side: 1 | -1 | 0, up: 1 | -1 = -1, size = 22 * k) => makeText({ text: s, size, tracking: 0.12, color: '#ffffff', anchorX: side > 0 ? 'left' : side < 0 ? 'right' : 'center', anchorY: side !== 0 ? 'middle' : up > 0 ? 'bottom' : 'top' });
     // On a narrow frame a label beside its anchor would run off the edge: hang it below instead.
     const narrow = this.Rw <= this.Rh;
     const add = (c: Omit<Callout, 'line' | 'dot'>) => {
@@ -68,11 +69,15 @@ export class Hud {
     };
     // Scene 1: what each app does for you, from its icon.
     FAMILY.forEach((f, i) => {
-      const t0 = MONTAGE.start + i * MONTAGE.step + 0.45;
+      // In step with the app's slot on the screen (screen/script.ts montageApp).
+      const slot0 = MONTAGE.start + i * MONTAGE.step;
+      const t0 = slot0 + (narrow ? 0.15 : 0.35);
       // Which side of the watch the icon is on during its callout (Family.slot's angle).
       const a = Math.PI / 2 - (i / FAMILY.length) * Math.PI * 2 - 0.05 * (t0 + 0.5);
-      const side = narrow ? 0 : Math.cos(a) >= 0 ? 1 : -1, up = narrow ? -1 : Math.sin(a) >= 0 ? 1 : -1;
-      add({ t0, t1: t0 + MONTAGE.step - 0.15, anchor: (w) => (narrow ? w.family.belowOf(i) : w.family.edgeOf(i)), side, up, label: label(f.benefit, side) });
+      // On a narrow frame a label by its icon would land on the watch: the benefit takes one line
+      // between the watch and the caption instead, and the icon's halo says whose it is.
+      const side = narrow ? 0 : Math.cos(a) >= 0 ? 1 : -1, up = Math.sin(a) >= 0 ? 1 : -1;
+      add({ t0, t1: slot0 + MONTAGE.step, anchor: (w) => w.family.edgeOf(i), side, up, fixedY: narrow ? this.L.benefitY : undefined, label: label(f.benefit, side, -1, narrow ? 28 * k : 22 * k) });
     });
     add({ t0: WEEK_BEATS.start + 0.6, t1: WEEK_BEATS.start + 3 * WEEK_BEATS.step - 0.4, anchor: (w) => w.week.corner(), side: 1, up: 1, label: label(CALLOUTS.shared, 1) });
     const sp = narrow ? 0 : 1;
@@ -178,6 +183,12 @@ export class Hud {
       (c.dot.material as THREE.MeshBasicMaterial).opacity = fadeOut;
       c.line.forEach((m) => ((m.material as THREE.MeshBasicMaterial).opacity = 0.85 * fadeOut));
       c.label.fillOpacity = span(t, c.t0 + 0.3, c.t0 + 0.6, 'power2.out') * fadeOut;
+      if (c.fixedY !== undefined) {
+        c.line.forEach((m) => (m.visible = false));
+        c.dot.visible = false;
+        c.label.position.set(this.Rw / 2, -c.fixedY + 8 * (1 - span(t, c.t0 + 0.3, c.t0 + 0.6, 'power3.out')), 0);
+        continue;
+      }
       if (side === 0) {
         // Straight down (or up), the label centred on it and kept inside the frame.
         const end = a0.clone().add(new THREE.Vector2(0, up * 40 * k * g1));

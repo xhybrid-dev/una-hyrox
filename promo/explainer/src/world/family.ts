@@ -88,13 +88,6 @@ export class Family {
     return p.add(out.multiplyScalar(this.icons[i].scale.x * 1.25));
   }
 
-  /** A point just under icon i's name: where its callout starts on a narrow frame. */
-  belowOf(i: number): THREE.Vector3 {
-    const g = this.icons[i];
-    const down = new THREE.Vector3(0, -1, 0).applyQuaternion(g.quaternion);
-    return g.position.clone().add(down.multiplyScalar(g.scale.x * 1.75));
-  }
-
   /** World position of an app's icon now. */
   positionOf(id: string): THREE.Vector3 {
     const i = FAMILY.findIndex((f) => f.id === id);

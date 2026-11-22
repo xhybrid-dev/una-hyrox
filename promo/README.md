@@ -86,6 +86,15 @@ same clearance note applies, more so than for the renders. The watch's own
 clock and date (02:02, Thu 30 Mar) had not been set yet. The cover
 (`videos/reels/covers/hybridx-unboxing-reel.jpg`) is the hook at 0.9 s.
 
+## The explainer
+
+[`explainer/`](explainer/README.md): a browser-based three.js explainer of the whole family on the
+UNA Watch, "Seven apps. One watch. All in sync." (Jon, 22 November 2026). The watch is a 3D model;
+its screen is the apps' own UI, redrawn live; the week, the race and the climb are explained round
+it. It plays in a browser (hybridx.club) and exports as 16:9, 9:16 and 1:1 MP4 into
+[`videos/explainer/`](videos/explainer/). Unlike the films above, it is built with Vite, three.js
+and GSAP, and has its own `package.json`.
+
 ## Thumbnails
 
 Six YouTube thumbnails in [`videos/thumbnails/`](videos/thumbnails/), 1280 × 720,

@@ -4,7 +4,7 @@ A browser-based 3D explainer of the HybridX family of apps on the UNA Watch, led
 material, and Reels and YouTube video. Built with three.js, driven by one GSAP timeline, exported frame
 by frame.
 
-**Status:** agreed with Jon on 22 November 2026 (section 7); being built.
+**Status:** agreed with Jon on 22 November 2026 (section 7); built (22 November 2026). How to run, edit and export it: [`README.md`](README.md).
 
 The rule: **the screen stays honest; the world around it explains.** Everything on the watch's screen is
 drawn from the apps' own code: the same layout, strings, fonts and colours. Everything off the screen is
@@ -254,31 +254,10 @@ really buzzes: a split, the finish, X Streak's moments.
 
 ## 5. Files
 
-```
-promo/explainer/
-  PLAN.md  README.md  package.json  tsconfig.json  vite.config.ts  index.html
-  scripts/
-    extract-una.py      UNA's art from the SDK's Figma pack → public/una/ (git-ignored)
-    lvgl-fonts.mjs      the apps' LVGL font .c files → src/screen/fonts/*.json
-    trace-xmark.py      x-mark.png → src/brand/x-mark.svg (unless you have the SVG)
-    export.ts           Playwright frame stepper → ffmpeg MP4
-    shots.ts            screenshots at key times, every ratio (for checking)
-    screen-check.ts     every screen state beside its simulator capture
-  public/  una/ (ignored)  fonts/  icons/
-  src/
-    config.ts           ALL copy, timings, colours, race data, the Streak story, cameras per ratio
-    main.ts  params.ts  timeline.ts  rng.ts
-    render/             renderer, post, environment, floor, contact shadow
-    watch/              model, buttons (press, ring pulse, shake), screen (texture and quantise shader)
-    screen/             the on-watch UI: lvgl.ts, font.ts, fonts/, race.ts, streak.ts,
-                        script.ts (screenAt(t): which screen, in which state, at time t)
-    world/              segmentRing, panels, callouts, weekTiles, badge, shields, particles, lockup
-    scenes/             s0-intro … s5-outro: each adds its tweens to the master timeline
-    hud/                captions and safe areas per ratio
-    dev/                the overlay
-  tests/                config (captions ≤ 8 words, no em dashes, scenes contiguous), race and
-                        Streak numbers consistent, no unseeded randomness, same t → same pixels
-```
+As built (22 November 2026); the layout is in [`README.md`](README.md), "Where things are". It
+differs from the first plan in one way: there is no `src/scenes/` folder. Each scene's
+choreography is the master timeline's tracks (`src/timeline.ts`) plus the world modules'
+time-driven motion (`src/world/`), and the camera's shots per ratio are in `src/layout.ts`.
 
 ---
 

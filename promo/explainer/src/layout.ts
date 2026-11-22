@@ -19,6 +19,8 @@ export type Layout = {
   shots: Record<'introA' | 'introB' | 'family' | 'aux' | 'race' | 'raceWide' | 'streak' | 'outro', Shot>;
   /** Captions: left edge, bottom edge (px from the top), size, max width (px). */
   caption: { x: number; bottom: number; size: number; maxW: number };
+  /** On narrow frames, the family's benefits sit on one line here (px from the top), not by the icon. */
+  benefitY?: number;
   /** The lockup's centre (px from the top) and height. */
   lockup: { y: number; h: number };
 };
@@ -52,6 +54,7 @@ export const LAYOUTS: Record<Ratio, Layout> = {
       outro: { pos: [0, 0.4, 15.4], look: [0, -1.5, 0], fov: 40 },
     },
     caption: { x: 84, bottom: 1520, size: 62, maxW: 820 },
+    benefitY: 1250,
     lockup: { y: 1300, h: 70 },
   },
   '1x1': {
@@ -67,6 +70,7 @@ export const LAYOUTS: Record<Ratio, Layout> = {
       outro: { pos: [0, 0.8, 14.6], look: [0, -0.8, 0], fov: 34 },
     },
     caption: { x: 76, bottom: 1080 - 70, size: 50, maxW: 930 },
+    benefitY: 862,
     lockup: { y: 1080 * 0.8, h: 58 },
   },
 };
