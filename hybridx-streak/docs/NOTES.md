@@ -1476,8 +1476,9 @@ a save, each X app's Saved screen says where form now stands, under the session'
 - **The family check** (`family_check.sh`, quick mode): Streak's first summary given a mature
   window, then each of the eight saves' "Streak form" equal to a separate copy of the model plus
   the sessions saved so far; every earlier check still passes (counts, kinds, loads, fitness,
-  fatigue and form, X Run's VO2max). Passed with every app at 21 characters; the re-run with
-  Workout and Ride at 18 is running as this is committed (its result follows).
+  fatigue and form, X Run's VO2max). Passed with every app at 21 characters, and again (46 of 46)
+  with Workout and Ride at 18: X Training "Form now +3, steady", Run and Race "+2", Trail "+1",
+  Workout's three and Ride "Form +1, steady", each equal to the reference.
 - **The screens**: X Run's Saved screen (`docs/screens/real/s10-run-saved.png`) and X Ride's
   (`s10-ride-saved.png`, from Ride's capture, all its checks passing; `r1-25` and `r1-54` refreshed).
   X Training's, Workout's and Ride's text-fit audits: 0 problems, the widest form included.
