@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include "FormText.hpp"
+#include "LoadFormText.hpp"
 #include "Summits.hpp"
 
 namespace Coach
@@ -155,18 +155,8 @@ void appName(const char* folder, char* out, size_t size)
 
 void formToast(uint8_t formWord, int16_t form, char* out, size_t size)
 {
-    char n[8];
-    Streak::formatFormNumber(n, sizeof(n), form);
-    const char* word = Streak::formWordShort(static_cast<Streak::FormWord>(formWord));
-    char full[48], mid[40], small[24];
-    snprintf(full, sizeof(full), "Form now %s, %s", n, word);
-    snprintf(mid, sizeof(mid), "Form %s, %s", n, word);
-    snprintf(small, sizeof(small), "Form now %s", n);
-    const char* pick = word[0] == '\0' ? small : (std::strlen(full) <= kMaxCoachChars ? full : mid);
-    if (std::strlen(pick) > kMaxCoachChars) {
-        pick = small;
-    }
-    snprintf(out, size, "%s", pick);
+    // The family's words (hybridx-link LoadFormText.hpp): the X apps' Saved screens say the same.
+    Streak::formatFormNow(out, size, form, static_cast<Streak::FormWord>(formWord), kMaxCoachChars);
 }
 
 const char* dayShort(uint8_t weekday)

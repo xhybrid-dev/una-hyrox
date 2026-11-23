@@ -121,10 +121,22 @@ void ResultScreen::showLoad()
 {
     const uint16_t load = mModel.sessionLoad();
     if (mToSummary && mModel.saved().saved && load > 0) {
-        char buf[16];
-        std::snprintf(buf, sizeof(buf), "Load %u", static_cast<unsigned>(load));
+        // With where form now stands under it, when Streak has said (Streak NOTES "S10").
+        // Two lines need room: the Streak line and the load move up 6 and 10 px, so the block's foot
+        // stays inside the arcs' clear radius (the audit measures it).
+        char       buf[48];
+        const bool form = mModel.streakForm()[0] != '\0';
+        if (form) {
+            std::snprintf(buf, sizeof(buf), "Load %u\n%s", static_cast<unsigned>(load), mModel.streakForm());
+        } else {
+            std::snprintf(buf, sizeof(buf), "Load %u", static_cast<unsigned>(load));
+        }
+        lv_obj_set_y(mNote, form ? 112 : 118);
+        lv_obj_set_y(mLoad, form ? 164 : 174);
         Theme::setText(mLoad, buf, Color::WHITE);
     } else {
+        lv_obj_set_y(mNote, 118);
+        lv_obj_set_y(mLoad, 174);
         Theme::assign(mLoad, "");
     }
 }

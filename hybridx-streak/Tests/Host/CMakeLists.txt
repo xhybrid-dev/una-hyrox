@@ -122,5 +122,6 @@ add_executable(glance_preview tools/glance_preview.cpp "${STREAK_SOFTWARE}/Libs/
 target_include_directories(glance_preview PRIVATE
     "${STREAK_SOFTWARE}/Libs/Glance/Header"
     "${STREAK_SOFTWARE}/Libs/Core/Header"
+    "${STREAK_LINK}/Header"
     "${UNA_SDK_ROOT}/Libs/Header"
 )

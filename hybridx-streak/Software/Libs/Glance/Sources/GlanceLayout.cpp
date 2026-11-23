@@ -7,7 +7,7 @@
 
 #include "GlanceLayout.hpp"
 
-#include "FormText.hpp"
+#include "LoadFormText.hpp"
 
 #include <cstdio>
 #include <cstring>

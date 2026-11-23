@@ -46,7 +46,7 @@ A second app in this repo: a weekly-target streak. On a watch it counts the
 HybridX apps' sessions (through the activity link, below) and manual logs; it
 cannot read other apps' activity folders there. It is independent of HybridX Race.
 It also brings the family's **training load** together: fitness, fatigue and form
-(`Core/Header/LoadHistory.hpp`, the state's optional `"L"`, the Training load screen and
+(`LoadHistory.hpp` and `LoadFormText.hpp`, in `hybridx-link`'s library since S10, the state's optional `"L"`, the Training load screen and
 the glance's form line; NOTES "Training load"; the apps' scores: `hybridx-link` "Training load").
 And the **family dashboard** (S7, 22 November 2026; NOTES "S7"): **By sport** (this week's time,
 sessions and distance from every X app, by kind, and last week's; `Libs/Dash/WeekTotals`, fed by
@@ -61,7 +61,9 @@ from a daily history (`LoadTrend` in `LoadHistory.hpp`, the state's optional `"H
 And **form up front** (S9, 23 November 2026; NOTES "S9"): Home's second page, **Form** (`FormHomeScreen`;
 L1/L2 from the mountain), the **Opens on** setting (`opensOnLoad`, AppConfig's sixth field), Training load
 first in the menu, the form toast after an open's sessions (`EventKind::FormNow`), and the glance's form line
-on banked weeks. **S10** (next): form on every X app's Saved screen, through `streak_now.json`.
+on banked weeks. **S10** (23 November 2026; NOTES "S10"): form on every X app's Saved screen. Streak leaves its
+load window in `streak_now.json` (optional `at` and `lw`), and each app projects form with Streak's own model
+(`StreakProjector`, `formatStreakForm`; ACTIVITY_LINK.md "Form after a save").
 - **Docs:**
   - brief: `hybridx-streak/docs/UNA_STREAK_TRACKER_BRIEF.md`;
   - plan and phases: `PLAN.md`, §11 (S0-S6);
@@ -115,7 +117,8 @@ its TP4); the reader is Streak. X Sauna stays out (Jon, 27 October 2026). Each w
 `Service::writeActivityLink` in its own `Service.cpp`, called once the `.fit` has closed.
 The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
 `Service::sendStreakLine()` shows "3 of 4 this week / 8-week streak" on its Saved screen
-(ACTIVITY_LINK.md, "The Streak line").
+(ACTIVITY_LINK.md, "The Streak line"), and since S10 where form now stands ("Form now -18, building";
+"Form after a save"). The library also holds Streak's load model (`LoadHistory.hpp`, `LoadFormText.hpp`).
 - **Docs:** the format, the rules and how to add an app: `hybridx-link/docs/ACTIVITY_LINK.md`.
   Read it at the start of each link phase (phases 1-4 in its table).
 - **Rules:** the same standing rules as Race apply. One writer per file; the reader opens
@@ -129,7 +132,8 @@ The other way: Streak leaves `streak_now.json` (`StreakNow`), and each app's
   - the family check (X Training, Run, Race, Trail, Workout and Ride save into one shared folder,
     Workout three times, as Free, Strength and Circuit, then Streak opens twice and must count each
     of the eight once, as its own kind, and each summary's training load must match its `.fit`'s
-    records and Streak's fitness, fatigue and form a reference; X Run must read X Training's
+    records and Streak's fitness, fatigue and form a reference; each app's form after its save must
+    match a reference of Streak's model; X Run must read X Training's
     minutes for its VO2max once): `hybridx-link/docs/experiments/family_check.sh [out-dir]`
     (about 20 minutes; `LONG=1` for 11-minute sessions and Streak's default minimum;
     `TREADMILL=1` for a treadmill Run; needs the seven simulators built);

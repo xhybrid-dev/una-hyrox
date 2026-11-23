@@ -1433,10 +1433,72 @@ across the family. Agreed in chat; the gate is at the end.
 4. Save a session in any X app, then open Streak: after its toast, "Form now ...".
 5. Look at the glance on a banked week.
 
-### S10: the family's Saved screens (next)
+## S10: form on the family's Saved screens (23 November 2026)
 
-Every X app's Saved screen shows the Streak line ("3 of 4 this week", "8-week streak") worked out
-from `streak_now.json`. S10 adds form: Streak leaves its load window in that file, each app adds
-the session it has just saved, and the Saved screen says where form now stands. It changes the
-shared link library and six apps (Run, Race, Trail, Workout, Ride, X Training), so it is a phase of
-its own, with the family check.
+The sixth of Jon's six options (S9): form and fitness in every activity, not only in Streak. After
+a save, each X app's Saved screen says where form now stands, under the session's load.
+
+### As built
+
+- **Streak's load model moved into the link library**: `LoadHistory.hpp` and `FormText.hpp` (now
+  `LoadFormText.hpp`, because X Run and X Training each have a `FormText.hpp` about running form)
+  are `hybridx-link`'s originals, copied into every app with the rest of the link
+  (`check-link-copies.sh`, CI). Streak reads them from its own `Libs/Link` copy; their namespace
+  stays `Streak`.
+- **Streak leaves its load window** in `streak_now.json` (`saveStreakNow`): the optional `at` (the
+  local second of the save) and `lw` (its `LoadState`). Version 1 still: older readers ignore them.
+  The widest file is 626 bytes; the limit is now 896 (within the apps' 1 KB read buffers).
+- **Each app projects form** (`StreakProjector`): Streak's window, plus the loads Streak has not
+  counted, replayed to today by `LoadHistory`; `formatStreakForm` words it ("Form now -18,
+  building", within 21 characters, as Streak's own toast: `Coach::formToast` now calls the same
+  `formatFormNow`). Nothing while Streak is learning, or with a Streak from before S10.
+- **The six apps**: `StreakLineUpd.form[24]`, filled in `sendStreakLine()` and logged as `Streak
+  form: "..."`; the model keeps it (`streakForm()`); the Saved screen shows it with the load: a
+  Regular 16 line at y 134 between the load and the Streak line (Run, Race, Trail, X Training; in X
+  Training after its plan lines, with the load), or the load's own small label's second line
+  (Workout, Ride). Only with a load, as the load itself.
+- **Workout and Ride word it within 18 characters** ("Form +12, fresh"), not 21: their load label
+  sits at y 174, and two lines of "Form now +100, steady" (163 px in Regular 14) reached 116 px from
+  the centre, past the arcs' clear radius of 109 (their audits caught it). With the form line the
+  Streak line moves up to y 112 and the load to y 164; the widest at 18, "Form +1000, steady", is
+  139 px and its corners about 105 px out.
+- The details, the limits and the dedupe rule are in `hybridx-link/docs/ACTIVITY_LINK.md`, "Form
+  after a save".
+
+### Verified (23 November 2026)
+
+- **Host tests**: `hybridx-link` 58, with the new "StreakNowForm" suite (the window's round trip;
+  an older file; a broken window dropped and the rest kept; the widest file 626 bytes of 896;
+  form equal to Streak's model plus the new sessions; what Streak counted not counted again; a
+  session after `at` counted, one before it not; nothing while learning; the words' length at 21
+  and 18). Streak 214 (its toast now from `formatFormNow`, same words). Run, Race, Trail, Workout
+  (125), Ride (112) and X Training pass.
+- **The family check** (`family_check.sh`, quick mode): Streak's first summary given a mature
+  window, then each of the eight saves' "Streak form" equal to a separate copy of the model plus
+  the sessions saved so far; every earlier check still passes (counts, kinds, loads, fitness,
+  fatigue and form, X Run's VO2max). Passed with every app at 21 characters; the re-run with
+  Workout and Ride at 18 is running as this is committed (its result follows).
+- **The screens**: X Run's Saved screen (`docs/screens/real/s10-run-saved.png`) and X Ride's
+  (`s10-ride-saved.png`, from Ride's capture, all its checks passing; `r1-25` and `r1-54` refreshed).
+  X Training's, Workout's and Ride's text-fit audits: 0 problems, the widest form included.
+- **Watch builds compile** (compile checks only): X Run 523,084 bytes, Race 385,788, Trail 461,112,
+  Workout 333,084, Ride 338,036, X Training 572,136; Streak's app and glance.
+- `check-link-copies.sh`: the seven apps' copies match, `LoadHistory.hpp` and `LoadFormText.hpp`
+  included.
+
+### Not checked
+
+- Anything on a watch. In particular the order on a real save: the line is worked out after the
+  `.fit` closes and the summary is written, as the Streak line always was.
+- Race, Run and Trail have no text-fit audit: their form line is a Regular 16 label across the
+  disc at y 134, near the centre, and the widest (21 characters, about 170 px) was checked by eye.
+
+### S10 gate (Jon)
+
+1. Look at `docs/screens/real/s10-*.png`.
+2. On the watch, after Streak has two weeks of history: open X Streak once (it leaves its window),
+   then save a session in any X app. The Saved screen shows the load and "Form now ..." under it.
+3. Open X Streak: its form toast should give the same figure (it may differ by a point if the save
+   was very short, as Streak rounds the day's load once).
+4. With a Streak from before this update, the apps show the Streak line and the load, and no form,
+   until Streak has been opened once.

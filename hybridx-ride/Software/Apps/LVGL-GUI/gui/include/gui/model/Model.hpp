@@ -109,6 +109,7 @@ public:
     bool streakShow() const { return mStreakShow; }
     const char* streakLine1() const { return mStreakLine1; }
     const char* streakLine2() const { return mStreakLine2; }
+    const char* streakForm() const { return mStreakForm; }   ///< empty: no form to show
     /// The saved session's training load (0: none), sent with the Streak line.
     uint16_t sessionLoad() const { return mSessionLoad; }
 
@@ -126,7 +127,8 @@ public:
     void injectLapEvent(const Ride::LapEventData& e);
     void injectSaved(const Ride::SavedSession& s);
     void injectLapsPage(const Ride::LapsPageData& p);
-    void injectStreakLine(bool show, const char* line1, const char* line2, uint16_t load = 0);
+    void injectStreakLine(bool show, const char* line1, const char* line2, uint16_t load = 0,
+                          const char* form = "");
     void injectStrap(uint8_t state, const char* name);
     void injectGps(uint8_t state);
     void injectSettings(bool outdoor, bool imperial);
@@ -158,6 +160,7 @@ protected:
     uint16_t mSessionLoad = 0;
     char     mStreakLine1[24] = {};
     char     mStreakLine2[20] = {};
+    char     mStreakForm[24]  = {};   ///< "Form now +12, fresh" (Streak NOTES "S10")
     uint16_t mMainPos = 0;
     HoldMode mHoldMode = HoldMode::End;
     uint8_t  mLiveFace = 0;       ///< The face the live screen was on

@@ -78,6 +78,7 @@ void Model::startSession()
     mSessionLoad = 0;
     mStreakLine1[0] = '\0';
     mStreakLine2[0] = '\0';
+    mStreakForm[0] = '\0';
     SDK::send_msg<CustomMessage::SessionStart>(mKernel);
 }
 
@@ -109,6 +110,7 @@ void Model::stop(bool save)
     mSessionLoad = 0;
     mStreakLine1[0] = '\0';
     mStreakLine2[0] = '\0';
+    mStreakForm[0] = '\0';
     SDK::send_msg<CustomMessage::SessionStop>(mKernel, static_cast<uint8_t>(save ? 1u : 0u));
 }
 
@@ -239,6 +241,8 @@ bool Model::customMessageHandler(SDK::MessageBase* msg)
             mStreakLine1[sizeof(mStreakLine1) - 1] = '\0';
             std::memcpy(mStreakLine2, m->line2, sizeof(mStreakLine2));
             mStreakLine2[sizeof(mStreakLine2) - 1] = '\0';
+            std::memcpy(mStreakForm, m->form, sizeof(mStreakForm));
+            mStreakForm[sizeof(mStreakForm) - 1] = '\0';
             if (modelListener) {
                 modelListener->onStreakLine();
             }
@@ -284,12 +288,13 @@ void Model::injectLapsPage(const Workout::LapsPageData& p)
     }
 }
 
-void Model::injectStreakLine(bool show, const char* line1, const char* line2, uint16_t load)
+void Model::injectStreakLine(bool show, const char* line1, const char* line2, uint16_t load, const char* form)
 {
     mSessionLoad = load;
     mStreakShow = show;
     std::strncpy(mStreakLine1, line1, sizeof(mStreakLine1) - 1);
     std::strncpy(mStreakLine2, line2, sizeof(mStreakLine2) - 1);
+    std::strncpy(mStreakForm, form, sizeof(mStreakForm) - 1);
     if (modelListener) {
         modelListener->onStreakLine();
     }

@@ -2,8 +2,13 @@
  ******************************************************************************
  * @file    LoadHistory.hpp
  * @brief   Fitness, fatigue and form from the HybridX apps' training loads
- *          (hybridx-link TrainingLoad.hpp: Edwards' TRIMP per session). Pure
- *          C++, header-only, no heap, integer only.
+ *          (TrainingLoad.hpp: Edwards' TRIMP per session). Pure C++,
+ *          header-only, no heap, integer only.
+ *
+ * HybridX Streak's model. The original is here in hybridx-link (it was Streak's
+ * Core/Header/LoadHistory.hpp until 23 November 2026), so every X app can work out
+ * form after a save exactly as Streak will (StreakNow.hpp, the Streak line; Streak
+ * NOTES "S10"). The namespace stays Streak's.
  *
  * The model is Banister's, as TrainingPeaks' Performance Manager uses it (our
  * own names, not their trademarks):

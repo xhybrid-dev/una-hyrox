@@ -2,9 +2,11 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdio>
 #include <cstring>
 #include <string>
 
+#include "LoadFormText.hpp"
 #include "StreakNow.hpp"
 
 using namespace HybridXLink;
@@ -222,4 +224,200 @@ TEST(StreakNow, TheKeyAndKindsAreStreaks)
     EXPECT_EQ(kindCode(Sport::Run), 0);
     EXPECT_EQ(kindCode(Sport::Hybrid), 5);
     EXPECT_EQ(kindCode(Sport::Other), 7);
+}
+
+// -- Form after a save (Streak NOTES "S10") -----------------------------------------------------
+
+namespace
+{
+
+/// Streak's load window after three weeks of a session a day at 50, saved on Tuesday at 20:00.
+StreakNow tuesdayWithLoad()
+{
+    StreakNow s = tuesday();
+    Streak::LoadState l;
+    Streak::LoadHistory h(l);
+    for (int32_t d = kMon - 20; d <= kMon + 1; ++d) {
+        h.advanceTo(d);
+        h.add(d, 50);
+    }
+    s.load    = l;
+    s.hasLoad = true;
+    s.at      = static_cast<uint32_t>(kMon + 1) * kDay + 20u * 3600u;
+    return s;
+}
+
+Entry loaded(int32_t day, unsigned hour, unsigned minutes, uint16_t load, Sport sport = Sport::Run)
+{
+    Entry e = entry(day, hour, minutes, sport);
+    e.load  = load;
+    return e;
+}
+
+}  // namespace
+
+TEST(StreakNowForm, TheLoadWindowRoundTripsAndIsOptional)
+{
+    const StreakNow s = tuesdayWithLoad();
+    char buf[kStreakNowMaxBytes];
+    const size_t len = encodeStreakNow(s, buf, sizeof(buf));
+    ASSERT_GT(len, 0u);
+    EXPECT_NE(std::string(buf, len).find("\"lw\":["), std::string::npos);
+    StreakNow back;
+    ASSERT_TRUE(decodeStreakNow(buf, len, back));
+    ASSERT_TRUE(back.hasLoad);
+    EXPECT_EQ(back.at, s.at);
+    EXPECT_EQ(back.load.firstDay, s.load.firstDay);
+    EXPECT_EQ(back.load.openStart, s.load.openStart);
+    EXPECT_EQ(back.load.fitnessX100, s.load.fitnessX100);
+    EXPECT_EQ(back.load.fatigueX100, s.load.fatigueX100);
+    EXPECT_EQ(back.load.seeded, s.load.seeded);
+    for (uint8_t i = 0; i < Streak::kOpenDays; ++i) {
+        EXPECT_EQ(back.load.daily[i], s.load.daily[i]);
+    }
+
+    // Without it (a Streak from before S10): the line as before, no form.
+    const size_t old = encodeStreakNow(tuesday(), buf, sizeof(buf));
+    ASSERT_TRUE(decodeStreakNow(buf, old, back));
+    EXPECT_FALSE(back.hasLoad);
+
+    // A broken window: dropped, the rest kept.
+    std::string text(buf, encodeStreakNow(s, buf, sizeof(buf)));
+    const size_t at = text.find("\"lw\":[");
+    text.replace(at, text.find("]]", at) + 2 - at, "\"lw\":[1,2]");
+    ASSERT_TRUE(decodeStreakNow(text.c_str(), text.size(), back));
+    EXPECT_FALSE(back.hasLoad);
+    EXPECT_EQ(back.counted, 2);
+}
+
+TEST(StreakNowForm, TheWidestSummaryFits)
+{
+    StreakNow s = tuesdayWithLoad();
+    s.keyCount  = kMaxKeys;
+    for (uint8_t i = 0; i < kMaxKeys; ++i) {
+        s.keys[i] = {0xFFFFFFFFu, 0xFFFFFFFFu};
+    }
+    s.at                = 0xFFFFFFFFu;
+    s.load.fitnessX100  = 0xFFFFu * 100u;
+    s.load.fatigueX100  = 0xFFFFu * 100u;
+    for (uint8_t i = 0; i < Streak::kOpenDays; ++i) {
+        s.load.daily[i] = 0xFFFF;
+    }
+    s.streak = 65535;
+    char buf[kStreakNowMaxBytes];
+    const size_t len = encodeStreakNow(s, buf, sizeof(buf));
+    EXPECT_GT(len, 0u) << "the widest summary must fit kStreakNowMaxBytes";
+    std::printf("[ widest ] streak_now.json: %zu bytes of %zu\n", len, kStreakNowMaxBytes);
+}
+
+TEST(StreakNowForm, FormIsStreaksModelWithTheNewSessions)
+{
+    // Wednesday: a ride this morning (the session just saved) and a run last night after Streak's
+    // save; the run and race Streak listed are not counted again.
+    const StreakNow now = tuesdayWithLoad();
+    StreakProjector p(now, kMon + 2);
+    p.add(file("HybridXRun", {loaded(kMon, 7, 40, 50), loaded(kMon + 1, 21, 45, 60)}));
+    p.add(file("HybridXRace", {loaded(kMon + 1, 18, 70, 120)}));
+    p.add(file("HybridXRide", {loaded(kMon + 2, 7, 90, 85)}));
+    const StreakLine l = p.result();
+    ASSERT_TRUE(l.hasForm);
+
+    // The same by hand: Streak's window, plus the two new loads, to today.
+    Streak::LoadState   copy = now.load;
+    Streak::LoadHistory h(copy);
+    h.advanceTo(kMon + 2);
+    h.add(kMon + 1, 60);
+    h.add(kMon + 2, 85);
+    const Streak::LoadFigures f = h.figures(kMon + 2);
+    const int32_t form = f.formX100 >= 0 ? (f.formX100 + 50) / 100 : -((-f.formX100 + 50) / 100);
+    EXPECT_EQ(l.form, form);
+    EXPECT_EQ(l.formWord, static_cast<uint8_t>(f.word));
+    EXPECT_LT(l.form, 0);   // two hard days on top of a steady block: fatigue leads
+
+    char text[32];
+    ASSERT_GT(formatStreakForm(l, text, sizeof(text)), 0u);
+    EXPECT_EQ(std::string(text).rfind("Form ", 0), 0u) << text;   // "Form -18, building": the long form passes 21
+}
+
+TEST(StreakNowForm, WhatStreakCountedIsNotCountedAgain)
+{
+    const StreakNow now = tuesdayWithLoad();
+    // Only sessions Streak had: form is Streak's own window moved to today.
+    StreakProjector p(now, kMon + 1);
+    p.add(file("HybridXRun", {loaded(kMon, 7, 40, 50)}));
+    p.add(file("HybridXRace", {loaded(kMon + 1, 18, 70, 120)}));
+    // Last week, before the save: Streak had it (it is not in k, which lists this week only).
+    p.add(file("HybridXTrail", {loaded(kMon - 3, 9, 60, 70)}));
+    // The same new session offered twice (a file and its backup, say): once.
+    p.add(file("HybridXRide", {loaded(kMon + 1, 21, 60, 40)}));
+    p.add(file("HybridXRide", {loaded(kMon + 1, 21, 60, 40)}));
+    const StreakLine l = p.result();
+    ASSERT_TRUE(l.hasForm);
+    Streak::LoadState   copy = now.load;
+    Streak::LoadHistory h(copy);
+    h.advanceTo(kMon + 1);
+    h.add(kMon + 1, 40);
+    const Streak::LoadFigures f = h.figures(kMon + 1);
+    const int32_t form = f.formX100 >= 0 ? (f.formX100 + 50) / 100 : -((-f.formX100 + 50) / 100);
+    EXPECT_EQ(l.form, form);
+}
+
+TEST(StreakNowForm, NoFormWithoutTheWindowOrWhileLearning)
+{
+    StreakProjector none(tuesday(), kMon + 2);
+    none.add(file("HybridXRide", {loaded(kMon + 2, 7, 90, 85)}));
+    EXPECT_FALSE(none.result().hasForm);
+    char text[32] = "x";
+    EXPECT_EQ(formatStreakForm(none.result(), text, sizeof(text)), 0u);
+    EXPECT_STREQ(text, "");
+
+    // A first week: Streak's window holds three days.
+    StreakNow young = tuesday();
+    Streak::LoadHistory h(young.load);
+    for (int32_t d = kMon - 1; d <= kMon + 1; ++d) {
+        h.advanceTo(d);
+        h.add(d, 40);
+    }
+    young.hasLoad = true;
+    young.at      = static_cast<uint32_t>(kMon + 1) * kDay + 20u * 3600u;
+    StreakProjector p(young, kMon + 2);
+    p.add(file("HybridXRide", {loaded(kMon + 2, 7, 90, 85)}));
+    EXPECT_FALSE(p.result().hasForm);
+}
+
+TEST(StreakNowForm, TheWordsFitTheirLine)
+{
+    char b[48];
+    for (uint8_t w = static_cast<uint8_t>(Streak::FormWord::Fresh); w <= static_cast<uint8_t>(Streak::FormWord::Overreaching);
+         ++w) {
+        for (int16_t form : {int16_t(-9999), int16_t(-130), int16_t(0), int16_t(12), int16_t(9999)}) {
+            Streak::formatFormNow(b, sizeof(b), form, static_cast<Streak::FormWord>(w));
+            EXPECT_LE(std::strlen(b), 21u) << b;
+            // Workout and Ride: the load's small label, low on the disc (Streak NOTES "S10").
+            Streak::formatFormNow(b, sizeof(b), form, static_cast<Streak::FormWord>(w), 18);
+            EXPECT_LE(std::strlen(b), 18u) << b;
+        }
+    }
+    Streak::formatFormNow(b, sizeof(b), 12, Streak::FormWord::Fresh);
+    EXPECT_STREQ(b, "Form now +12, fresh");
+    Streak::formatFormNow(b, sizeof(b), -130, Streak::FormWord::Overreaching);
+    EXPECT_STREQ(b, "Form -130, ease off");
+    Streak::formatFormNow(b, sizeof(b), 12, Streak::FormWord::Fresh, 18);
+    EXPECT_STREQ(b, "Form +12, fresh");
+    Streak::formatFormNow(b, sizeof(b), -130, Streak::FormWord::Building, 18);
+    EXPECT_STREQ(b, "Form now -130");   // the word gives way before the number
+
+    // Through the line, as the apps call it.
+    StreakLine l{};
+    l.show     = true;
+    l.hasForm  = true;
+    l.form     = 4;
+    l.formWord = static_cast<uint8_t>(Streak::FormWord::Fresh);
+    EXPECT_GT(formatStreakForm(l, b, sizeof(b)), 0u);
+    EXPECT_STREQ(b, "Form now +4, fresh");
+    EXPECT_GT(formatStreakForm(l, b, sizeof(b), 18), 0u);
+    EXPECT_STREQ(b, "Form now +4, fresh");   // 18 characters: it fits as it is
+    l.form = 14;
+    EXPECT_GT(formatStreakForm(l, b, sizeof(b), 18), 0u);
+    EXPECT_STREQ(b, "Form +14, fresh");
 }

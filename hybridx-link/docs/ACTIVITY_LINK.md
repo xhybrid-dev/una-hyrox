@@ -101,6 +101,10 @@ copy has drifted. Change the original, then run it with `--sync`.
   `valid()`, so it is not written.
 - `calendarSeconds(y, m, d, h, mi, s)` and `tzOffsetMinutes(utc, localSeconds)`: the
   zone offset from the UTC start and the kernel's broken-down local time of it.
+- `LoadHistory.hpp` and `LoadFormText.hpp` (header-only): Streak's training load model and its
+  words, here since Streak's S10 (23 November 2026) so every app works out form as Streak does
+  ("Form after a save", below). They keep Streak's namespace. `LoadFormText.hpp` was Streak's
+  `FormText.hpp`, renamed because X Run and X Training have a `FormText.hpp` of their own.
 - `kSlotPaths`: Run, Race, Trail, Ride, Workout, Training. Ride and Workout were reserved before
   their apps existed, so they work with a Streak that was already released. Training (X
   Training, 15 November 2026) came with a Streak release: an older Streak does not read it.
@@ -170,6 +174,39 @@ Streak only works its numbers out when it is opened. So:
   - screenshots in all three apps, with a summary holding a 7-week streak and 3 of 4 done:
     "4 of 4 this week, 8-week streak".
 
+## Form after a save (23 November 2026; Streak NOTES "S10")
+
+Jon's request: form and fitness in every activity, not only in Streak. After a save, each app's
+Saved screen says where form now stands, under the session's load: "Load 52" then "Form now -18,
+building" (Run, Race, Trail and X Training: a Regular 16 line between the load and the Streak line;
+Workout and Ride: the load's own small label gains a second line, worded within 18 characters,
+because that label sits low on the disc; the Streak line and the load move up 6 and 10 px).
+
+- **Streak leaves its load window** in `streak_now.json`, two optional keys (version 1 still: a
+  reader that predates them ignores them, and a file without them reads as before):
+  - `at`: the local second of the save;
+  - `lw`: `LoadHistory.hpp`'s `LoadState`, `[first day, first open day, fitness x100, fatigue
+    x100, seeded, [14 daily loads]]`.
+- **The app projects form** as it projects the line (`StreakProjector`): Streak's window, plus the
+  load of every session in every summary that Streak has not counted (not in `k`, and either
+  started after `at` or in Streak's week), replayed to today by Streak's own `LoadHistory`. The
+  words are `formatFormNow` ("Form now +12, fresh"; at most 21 characters), via
+  `formatStreakForm` (Workout and Ride pass 18: "Form +12, fresh"). No form while Streak is still
+  learning (two weeks), or from a Streak that predates the window.
+- **Limits**: a session Streak counted in its week beyond the 16 keys in `k`, or one still
+  recording across Streak's save, can be counted twice or missed in the projection. Streak's own
+  figures, on its next open, are always right. The projector keeps at most 32 new loads (a short
+  list on the app's service stack).
+- **In the apps**: `StreakLineUpd` gains `form[24]`; `Service::sendStreakLine()` fills it and logs
+  `Streak form: "..."`; the GUI's model keeps it (`streakForm()`), and the Saved screen shows it
+  with the load (only when there is a load, as the load itself).
+- **Checked**: host tests (`StreakNowTest`, "StreakNowForm": the window round trip, an older file,
+  a broken window, the widest file at 626 bytes of 896, form equal to Streak's model with the new
+  sessions, what Streak counted not counted again, nothing while learning, the words' length); the
+  family check (below) compares every app's form with a separate copy of the model; Workout's and
+  Ride's text-fit audits measure their widest line ("Form +1000, steady"), and fail on the 21-character
+  wording.
+
 ## Family check (the simulator)
 
 `hybridx-link/docs/experiments/family_check.sh [out-dir]` puts the whole family on one
@@ -200,6 +237,11 @@ And the training load (section "Training load", 3 November 2026):
    Passed on 3 November 2026 (quick mode, 32 of 32): Run, Race and Trail 4 each, Ride 3,
    Workout's three 0 (the simulator's heart rate stayed below zone 1 there), each equal to its
    records' load; Streak's day 15, fitness 0.36, fatigue 2.14, form -1.78, as the reference.
+
+And form (section "Form after a save", 23 November 2026): after Streak's first open, the script
+puts a mature load window in its `streak_now.json`; each app's logged `Streak form:` must then be
+what a separate copy of Streak's model makes of it plus the sessions saved so far (in quick mode,
+each app in turn; with `LONG=1` only its shape).
 
 It also reports whether Trail left minutes for Run's VO2max (for information: the
 simulator's heart rate is not steady running, so there are usually none), and checks X

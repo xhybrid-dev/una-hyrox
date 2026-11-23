@@ -772,9 +772,15 @@ void Service::sendStreakLine()
                 }
             }
         }
-        msg->show = formatStreakLine(projector.result(), msg->line1, sizeof(msg->line1), msg->line2,
-                                     sizeof(msg->line2));
+        const StreakLine line = projector.result();
+        msg->show = formatStreakLine(line, msg->line1, sizeof(msg->line1), msg->line2, sizeof(msg->line2));
         LOG_INFO("Streak line: \"%s\" \"%s\"\n", msg->line1, msg->line2);
+        // Where form stands after this session (Streak NOTES "S10"): empty without Streak's load
+        // window (a Streak from before it) or while it is still learning.
+        // At most 18 characters: the Saved screen's load label sits low on the disc, where "Form now
+        // +100, steady" (21) would reach the bezel arcs (the audit's widest is "Form +1000, steady").
+        formatStreakForm(line, msg->form, sizeof(msg->form), 18);
+        LOG_INFO("Streak form: \"%s\"\n", msg->form);
     } else {
         LOG_INFO("Streak line: none (no streak_now.json)\n");
     }

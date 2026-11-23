@@ -49,11 +49,15 @@ void TrackResultScreen::build()
     // The session's training load (hybridx-link TrainingLoad.hpp) replaces the tick when it
     // comes with the Streak line: "Saved" above already says what the tick did.
     mLoad = Theme::label(mRoot, Theme::Font::SemiBold25, "", 0, 104, 240);
+    // Where form now stands after this session (hybridx-link StreakNow, Streak NOTES "S10"), between
+    // the load (to y 135) and the Streak line (from y 156).
+    mForm = Theme::label(mRoot, Theme::Font::Regular16, "", 0, 134, 240);
     mText = Theme::label(mRoot, Theme::Font::Medium18,
                  saved ? "Activity has\nbeen saved" : "Activity has\nbeen deleted", 48, kTextY, 144);
     mTitle = std::make_unique<Widgets::Title>(mRoot, Strings::kAppNameUc);
     Audit::track(mLoad);   // X Training: the plan's lines go in these two
     Audit::track(mText);
+    Audit::track(mForm);
 }
 
 void TrackResultScreen::onShow()
@@ -190,6 +194,9 @@ void TrackResultScreen::showStreakLine()
     // little longer to be read.
     if (mResult == Result::Saved && mLoad != nullptr && mModel.sessionLoad() > 0) {
         lv_label_set_text_fmt(mLoad, "Load %u", static_cast<unsigned>(mModel.sessionLoad()));
+        if (mForm != nullptr && mModel.streakForm()[0] != '\0') {
+            lv_label_set_text(mForm, mModel.streakForm());
+        }
         if (mTick != nullptr) {
             lv_obj_add_flag(mTick, LV_OBJ_FLAG_HIDDEN);
         }

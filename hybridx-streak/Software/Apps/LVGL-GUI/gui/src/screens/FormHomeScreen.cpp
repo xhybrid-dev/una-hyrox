@@ -9,7 +9,7 @@
 
 #include <cstdio>
 
-#include "FormText.hpp"
+#include "LoadFormText.hpp"
 #include "GraphMath.hpp"
 #include "gui/screens/GraphScreen.hpp"
 #include "gui/screens/ScreenManager.hpp"

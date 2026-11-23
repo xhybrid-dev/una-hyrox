@@ -26,6 +26,8 @@ FILES=(
     Header/StreakNow.hpp
     Sources/StreakNow.cpp
     Header/TrainingLoad.hpp
+    Header/LoadHistory.hpp
+    Header/LoadFormText.hpp
 )
 
 bad=0

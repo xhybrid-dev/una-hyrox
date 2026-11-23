@@ -40,6 +40,7 @@ private:
     lv_timer_t* mDismiss = nullptr;
     lv_obj_t*   mTick    = nullptr;   ///< the tick or cross; "Load 39" takes its place
     lv_obj_t*   mLoad    = nullptr;   ///< the session's training load, when saved with one
+    lv_obj_t*   mForm    = nullptr;   ///< where form now stands, under the load (Streak NOTES "S10")
     lv_obj_t*   mText    = nullptr;   ///< the confirmation's text; the Streak line replaces it
     bool        mPlanShown     = false;   ///< X Training: the plan's lines are on show
     bool        mStreakPending = false;   ///< a Streak line came while they were: it follows

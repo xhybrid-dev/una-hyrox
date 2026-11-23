@@ -1,18 +1,24 @@
 /**
  ******************************************************************************
- * @file    FormText.hpp
- * @brief   Training form in words, for the menu, the Load screen and the
- *          glance (LoadHistory.hpp). Pure C++, header-only, plain ASCII (the
- *          glance's fonts have nothing else), integer only. Each writer fills
- *          the caller's buffer, never past it, and returns its length.
+ * @file    LoadFormText.hpp
+ * @brief   Training form in words (LoadHistory.hpp): HybridX Streak's menu, Load
+ *          screen and glance, and since Streak's S10 every X app's Saved screen.
+ *          Pure C++, header-only, plain ASCII (the glance's fonts have nothing
+ *          else), integer only. Each writer fills the caller's buffer, never past
+ *          it, and returns its length.
+ *
+ * The original is here in hybridx-link (it was Streak's Core/Header/FormText.hpp
+ * until 23 November 2026; renamed because X Run and X Training have a FormText.hpp
+ * of their own, about running form). The namespace stays Streak's: it is Streak's
+ * model, shared so the apps show the same words.
  *
  * Voice (DESIGN 7): an encouraging coach, short, saying what to do. So the
  * hardest word on the glance is "ease off", not "overreaching".
  ******************************************************************************
  */
 
-#ifndef STREAK_FORM_TEXT_HPP
-#define STREAK_FORM_TEXT_HPP
+#ifndef HYBRIDX_LINK_LOAD_FORM_TEXT_HPP
+#define HYBRIDX_LINK_LOAD_FORM_TEXT_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -101,6 +107,28 @@ inline size_t formatBankedForm(char* out, size_t cap, int16_t form)
     return detail::put(out, cap, std::snprintf(out, cap, "Banked. Form %s", n));
 }
 
+/// Where form stands after a session (Streak NOTES "S9", "S10"): Streak's toast after an open's
+/// sessions and every X app's Saved screen. "Form now +12, fresh", or "Form +12, fresh" (or
+/// "Form now +12" with no word) when the longer would pass @p maxChars.
+inline size_t formatFormNow(char* out, size_t cap, int16_t form, FormWord word, size_t maxChars = 21)
+{
+    char n[8];
+    formatFormNumber(n, sizeof(n), form);
+    const char* w = formWordShort(word);
+    int len = 0;
+    if (w[0] != '\0') {
+        len = std::snprintf(out, cap, "Form now %s, %s", n, w);
+        if (len > 0 && static_cast<size_t>(len) <= maxChars) {
+            return detail::put(out, cap, len);
+        }
+        len = std::snprintf(out, cap, "Form %s, %s", n, w);
+        if (len > 0 && static_cast<size_t>(len) <= maxChars) {
+            return detail::put(out, cap, len);
+        }
+    }
+    return detail::put(out, cap, std::snprintf(out, cap, "Form now %s", n));
+}
+
 } // namespace Streak
 
-#endif // STREAK_FORM_TEXT_HPP
+#endif // HYBRIDX_LINK_LOAD_FORM_TEXT_HPP

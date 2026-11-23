@@ -208,6 +208,14 @@ void Service::saveStreakNow()
     n.pending    = st.hasPending;
     n.counted    = m.qualifying();
     n.streak     = static_cast<uint16_t>(m.liveStreak() - (m.weekMet() ? 1 : 0));
+    // The load window and the moment of the save, so the apps can say where form stands after
+    // their session (hybridx-link StreakNow, S10).
+    if (st.load.started) {
+        const Now t = now();
+        n.hasLoad   = true;
+        n.load      = st.load;
+        n.at        = static_cast<uint32_t>(t.day) * 86400u + t.secondOfDay;
+    }
     for (uint8_t i = 0; i < st.sessionCount; ++i) {
         const Streak::Session& x = st.sessions[i];
         const int32_t d = static_cast<int32_t>(x.localStart / 86400u) - st.weekStartDay;
@@ -224,8 +232,8 @@ void Service::saveStreakNow()
         LOG_WARNING("Could not save streak_now.json\n");
         return;
     }
-    LOG_INFO("Streak line: %u of %u this week, streak %u before it (%lu bytes)\n", n.counted, n.target,
-             n.streak, static_cast<unsigned long>(len));
+    LOG_INFO("Streak line: %u of %u this week, streak %u before it, load window %s (%lu bytes)\n", n.counted,
+             n.target, n.streak, n.hasLoad ? "yes" : "no", static_cast<unsigned long>(len));
 }
 
 // -- Views ----------------------------------------------------------------------------------

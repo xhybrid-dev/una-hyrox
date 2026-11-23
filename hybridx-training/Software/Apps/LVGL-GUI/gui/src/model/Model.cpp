@@ -167,6 +167,7 @@ void Model::trackStart(bool intervalsMode)
     mPlanSaved      = CustomMessage::PlanSavedInfo{};   // X Training: and the plan's lines
     mStreakLine1[0] = '\0';
     mStreakLine2[0] = '\0';
+    mStreakForm[0] = '\0';
     // An armed workout is followed unless Intervals were chosen; either way
     // it is used up by this run.
     // HybridX Run: a treadmill run follows no workout from UNA's library (NOTES, "Treadmill"); the
@@ -692,6 +693,8 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             std::memcpy(mStreakLine2, msg->line2, sizeof(mStreakLine2));
             mStreakLine1[sizeof(mStreakLine1) - 1] = '\0';
             mStreakLine2[sizeof(mStreakLine2) - 1] = '\0';
+            std::memcpy(mStreakForm, msg->form, sizeof(mStreakForm));
+            mStreakForm[sizeof(mStreakForm) - 1] = '\0';
             modelListener->onStreakLine();
         } break;
 

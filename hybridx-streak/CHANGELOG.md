@@ -40,6 +40,9 @@ strips the prefix for the SDK's version script.
     fresh").
   - **The glance** shows form on banked weeks too ("Banked. Form +14"); only a shield waiting or a
     week at risk comes before it.
+- **The family's Saved screens say where your form stands**: Streak leaves its training load
+  window in `streak_now.json` (two optional keys), and every X app works out form after its save
+  with Streak's own model.
 - The store listing gains three previews (By sport, Your numbers, the training load graph), and
   the menu's gives way to the Form page; the glance's listing gains its form line.
 
