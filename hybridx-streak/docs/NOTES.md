@@ -1476,8 +1476,9 @@ a save, each X app's Saved screen says where form now stands, under the session'
 - **The family check** (`family_check.sh`, quick mode): Streak's first summary given a mature
   window, then each of the eight saves' "Streak form" equal to a separate copy of the model plus
   the sessions saved so far; every earlier check still passes (counts, kinds, loads, fitness,
-  fatigue and form, X Run's VO2max). Passed with every app at 21 characters; the re-run with
-  Workout and Ride at 18 is running as this is committed (its result follows).
+  fatigue and form, X Run's VO2max). Passed with every app at 21 characters, and again (46 of 46)
+  with Workout and Ride at 18: X Training "Form now +3, steady", Run and Race "+2", Trail "+1",
+  Workout's three and Ride "Form +1, steady", each equal to the reference.
 - **The screens**: X Run's Saved screen (`docs/screens/real/s10-run-saved.png`) and X Ride's
   (`s10-ride-saved.png`, from Ride's capture, all its checks passing; `r1-25` and `r1-54` refreshed).
   X Training's, Workout's and Ride's text-fit audits: 0 problems, the widest form included.
@@ -1502,3 +1503,11 @@ a save, each X app's Saved screen says where form now stands, under the session'
    was very short, as Streak rounds the day's load once).
 4. With a Streak from before this update, the apps show the Streak line and the load, and no form,
    until Streak has been opened once.
+
+## Release 1.2.0 (23 November 2026)
+
+X Streak and X Streak Glance 1.2.0 carry S7 to S10 (tag `streak-v1.2.0`; the steps, the checks and
+the portal's release notes: `hybridx-link/docs/STORE_RELEASE.md`, "The Streak 1.2.0 update"). The
+apps on the store need no update for it: their released decoders read the new `streak_now.json`,
+and the released glance the new state, as before (checked by building each from its tag). Form on
+their Saved screens comes with each app's next update.
