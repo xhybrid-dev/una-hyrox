@@ -1503,3 +1503,11 @@ a save, each X app's Saved screen says where form now stands, under the session'
    was very short, as Streak rounds the day's load once).
 4. With a Streak from before this update, the apps show the Streak line and the load, and no form,
    until Streak has been opened once.
+
+## Release 1.2.0 (23 November 2026)
+
+X Streak and X Streak Glance 1.2.0 carry S7 to S10 (tag `streak-v1.2.0`; the steps, the checks and
+the portal's release notes: `hybridx-link/docs/STORE_RELEASE.md`, "The Streak 1.2.0 update"). The
+apps on the store need no update for it: their released decoders read the new `streak_now.json`,
+and the released glance the new state, as before (checked by building each from its tag). Form on
+their Saved screens comes with each app's next update.

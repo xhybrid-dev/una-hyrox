@@ -10,6 +10,11 @@ strips the prefix for the SDK's version script.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-23
+
+The family dashboard, the training load graphs and form up front (Streak NOTES "S7" to "S10").
+X Streak Glance is 1.2.0 too: its banked weeks show your form.
+
 ### Added
 
 - **By sport** (menu): this week's time, sessions and distance from every X app, kind by kind
@@ -40,9 +45,10 @@ strips the prefix for the SDK's version script.
     fresh").
   - **The glance** shows form on banked weeks too ("Banked. Form +14"); only a shield waiting or a
     week at risk comes before it.
-- **The family's Saved screens say where your form stands**: Streak leaves its training load
-  window in `streak_now.json` (two optional keys), and every X app works out form after its save
-  with Streak's own model.
+- **The family's Saved screens can say where your form stands**: Streak leaves its training load
+  window in `streak_now.json` (two optional keys), and an X app works out form after its save with
+  Streak's own model. The apps show it from their next updates; the versions on the store keep
+  their Streak line and ignore the new keys (checked against each one's released code).
 - The store listing gains three previews (By sport, Your numbers, the training load graph), and
   the menu's gives way to the Form page; the glance's listing gains its form line.
 

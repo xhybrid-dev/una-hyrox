@@ -30,7 +30,7 @@ the zips CI builds from the tags go to the portal.**
 
 | Listing | Package (CI artifact) | Tag | App ID |
 |---|---|---|---|
-| X Streak | `HybridXStreak-<v>.zip` (`streak-store-zip`) | `streak-v1.0.0` | the portal's `BF63291BD26E20AC` |
+| X Streak | `HybridXStreak-<v>.zip` (`streak-store-zip`) | `streak-v1.0.0`, ..., `streak-v1.2.0` (23 November) | the portal's `BF63291BD26E20AC` |
 | X Streak Glance | `Glance/HXStreakGlance-<v>.zip` (`streak-store-zip`) | the same tag | the portal's `BC8BFA0808314DB6` |
 | X Run | `HybridXRun-<v>.zip` (`run-store-zip`) | `run-v1.0.0` | the portal's `D0A3ADE4AF694DB2` |
 | VO2max Glance | `Glance/HybridXRunGlance-<v>.zip` (`run-store-zip`) | the same tag | the portal's `A38E5C0975D2394A` |
@@ -180,13 +180,12 @@ fatigue and form from their heart rate.
   history (`kWarmUpDays`); the bands are provisional.
 - **The phone settings** are the five `configFields`, checked against `AppConfigFields` by the
   packager.
-- **By sport and Your numbers** (Streak NOTES "S7", 22 November 2026; not yet released, so these
-  two bullets wait for the release that carries them): `WeekTotals` and `FamilyReader`, the
-  screens `SportScreen` and `NumbersScreen`. Each Your numbers row says which app fills it until
-  that app has left its file.
-- **Graphs** (Streak NOTES "S8", also unreleased): `GraphScreen`, from R1 on Training load; 12
-  weeks of fitness and fatigue, form, and 4 weeks of daily load.
-- **Form up front** (Streak NOTES "S9", also unreleased): `FormHomeScreen`, the "Opens on" setting
+- **By sport and Your numbers** (Streak NOTES "S7", 22 November 2026; in 1.2.0): `WeekTotals` and
+  `FamilyReader`, the screens `SportScreen` and `NumbersScreen`. Each Your numbers row says which
+  app fills it until that app has left its file.
+- **Graphs** (Streak NOTES "S8", in 1.2.0): `GraphScreen`, from R1 on Training load; 12 weeks of
+  fitness and fatigue, form, and 4 weeks of daily load.
+- **Form up front** (Streak NOTES "S9", in 1.2.0): `FormHomeScreen`, the "Opens on" setting
   (`opensOnLoad`, the sixth `configField`), the glance's "Banked. Form +14".
 
 **Not claimed:**
@@ -517,3 +516,59 @@ rules on 17 November. Its "what's new" for the portal:
 The X Training long description (above, "1.1.0 text") now includes the plan's memory and the treadmill sessions. It
 was written on 17 November before Jon's watch test: check it against what the watch does, and the store images
 (`hybridx-training/docs/store/`, nine previews in `Resources/previews/`) were made on the same day.
+
+## The Streak 1.2.0 update (23 November 2026)
+
+Jon asked for the release on 23 November. X Streak and its glance carry Streak NOTES "S7" to "S10":
+the family dashboard (By sport, Your numbers), the training load graphs, the Form page and "Opens
+on", and the training load window that lets the X apps show form after a save. The CHANGELOG has
+its 1.2.0 entry; one tag builds both packages at 1.2.0.
+
+| Listing | New version | Tag | What changes for the athlete |
+|---|---|---|---|
+| X Streak | 1.2.0 | `streak-v1.2.0` | By sport, Your numbers, the graphs, the Form page, Opens on, the form toast |
+| X Streak Glance | 1.2.0 | the same | Banked weeks show your form ("Banked. Form +14") |
+
+**The other apps need no update for this.** Their versions on the store read the new
+`streak_now.json` as before and ignore its two new keys: each released app's decoder (`run-v1.1.0`,
+`race-v1.1.0`, `trail-v1.0.1`, `workout-v1.0.2`, `ride-v1.0.1` and `training-v1.2.0` all carry the same
+`StreakNow.cpp`) was built from its tag and fed the new encoder's files, a typical one and the widest
+(628 bytes, inside their 1,024-byte buffer); each gave the same Streak line as today's code. The
+released glance (`streak-v1.1.1`) reads the new app's state the same way: its codec, built from the
+tag, decoded a year-long state with the graphs' history (3,233 bytes; the worst case is 3,819, inside
+its 6,144). Either listing can be updated first.
+
+**Form on the apps' Saved screens** (S10) comes with each app's next update. Not tagged: the
+versions would be X Run 1.2.0, HybridX Race 1.2.0 (`v1.2.0` and `apps-v1.2.0`), X Trail 1.1.0,
+X Workout 1.1.0, X Ride 1.1.0 and X Training 1.3.0; each CHANGELOG's "Unreleased" has the entry.
+
+### What's new (paste into the portal's release notes)
+
+**X Streak 1.2.0:**
+> - **By sport:** this week's time, sessions and distance from every X app, kind by kind, beside
+>   last week's.
+> - **Your numbers:** today's session from X Training, your VO2max from X Run and your weight
+>   trend from X Weigh-in, in one place.
+> - **Training load graphs:** press R1 on Training load for your fitness and fatigue over 12
+>   weeks, your form, and your daily load. They start with your last two weeks and fill in from
+>   there.
+> - **Form up front:** a second Home page with your form, fitness and fatigue (L1 or L2 from the
+>   mountain), and a setting to open straight onto it. Training load is now first in the menu, and
+>   after your new sessions Streak says where your form now stands.
+> - On a banked week, Home names today's X Training session.
+> - Ready for the X apps' next updates, which show your form on their Saved screens.
+
+**X Streak Glance 1.2.0:**
+> On a banked week the glance now shows your form ("Banked. Form +14").
+
+### Checked on 23 November 2026, before the tag
+
+- Both packages built locally as the tag will build them (`-DBUILD_VERSION=1.2.0`), and both
+  packagers passed with `--expect-version 1.2.0`: the portal form, both SDK validators (six phone
+  settings), and the App IDs `BF63291BD26E20AC` and `BC8BFA0808314DB6` in every place. The app's
+  zip has nine previews (Home, a session found, This week, Training load, the shield, the Form
+  page, By sport, Your numbers, the graph), the glance's four. As before, the local zips are compile checks only:
+  upload the ones CI builds from the tag (artifact `streak-store-zip`).
+- Streak's 214 host tests, `hybridx-link`'s 58, and the family check (46 of 46).
+
+**Tag:** `streak-v1.2.0`, on the branch's head after the merge of PR #75 (S10) into `main`.
