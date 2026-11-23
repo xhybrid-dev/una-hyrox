@@ -1,0 +1,35 @@
+{
+  "name": "hybridx-explainer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "UNA x HybridX: a three.js explainer of the HybridX family of apps on the UNA Watch.",
+  "type": "module",
+  "scripts": {
+    "assets": "python3 scripts/extract-una.py && node scripts/una-cad.mjs && node scripts/lvgl-fonts.mjs && python3 scripts/trace-xmark.py && node scripts/copy-assets.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && rm -rf dist/gen/ref",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "shots": "tsx scripts/shots.ts",
+    "screen-check": "tsx scripts/screen-check.ts",
+    "export": "tsx scripts/export.ts",
+    "check:determinism": "tsx scripts/determinism.ts"
+  },
+  "dependencies": {
+    "@fontsource/space-grotesk": "5.3.0",
+    "gsap": "3.15.1",
+    "three": "0.187.0",
+    "troika-three-text": "0.53.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "@types/three": "0.187.0",
+    "occt-import-js": "0.0.23",
+    "playwright": "1.63.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}

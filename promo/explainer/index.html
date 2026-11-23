@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UNA × HybridX</title>
+  <meta name="description" content="The HybridX family of apps on the UNA Watch: seven apps, one watch, all in sync." />
+  <style>
+    :root { --ar: 16 / 9; color-scheme: dark; }
+    html, body { margin: 0; height: 100%; background: #0a0a0a; color: #ddd; font: 13px/1.3 system-ui, sans-serif; overflow: hidden; }
+    #stage { position: absolute; inset: 0 0 92px 0; display: grid; place-items: center; }
+    body.clean #stage, body.export #stage { inset: 0; }
+    #film { aspect-ratio: var(--ar); max-width: 100%; max-height: 100%; width: auto; height: 100%; display: block; background: #0a0a0a; }
+    body.export #film { width: auto; height: auto; max-width: none; max-height: none; }
+    #dev { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 16px 10px; background: #111; border-top: 1px solid #222; }
+    #dev .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    #dev .sp { flex: 1; }
+    #dev button, #dev a { background: #1d1d1d; color: #ddd; border: 1px solid #2c2c2c; border-radius: 4px; padding: 3px 9px; font: inherit; cursor: pointer; text-decoration: none; }
+    #dev a.on { border-color: #fadb5c; color: #fadb5c; }
+    #dev #time, #dev #fps { font-variant-numeric: tabular-nums; min-width: 9em; }
+    #bar { position: relative; height: 14px; margin: 7px 0; background: #1d1d1d; border-radius: 3px; cursor: pointer; touch-action: none; }
+    #fill { position: absolute; inset: 0 auto 0 0; background: #fadb5c55; border-radius: 3px; }
+    #bar i { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #fadb5c; }
+    .err { position: fixed; inset: 16px; color: #f88; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div id="stage"><canvas id="film"></canvas></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
