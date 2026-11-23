@@ -91,6 +91,16 @@ inline size_t formatFormLine(char* out, size_t cap, int16_t form, FormWord word,
     return detail::put(out, cap, std::snprintf(out, cap, "Form %s %s", n, formWordShort(word)));
 }
 
+/// The glance's line on a banked week once form is known (NOTES "S9"): "Banked. Form +14", the
+/// number held to three digits as formatFormLine's is.
+inline size_t formatBankedForm(char* out, size_t cap, int16_t form)
+{
+    const int16_t shown = form > 999 ? 999 : (form < -999 ? -999 : form);
+    char n[8];
+    formatFormNumber(n, sizeof(n), shown);
+    return detail::put(out, cap, std::snprintf(out, cap, "Banked. Form %s", n));
+}
+
 } // namespace Streak
 
 #endif // STREAK_FORM_TEXT_HPP

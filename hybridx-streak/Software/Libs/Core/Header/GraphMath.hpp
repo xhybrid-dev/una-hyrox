@@ -87,6 +87,38 @@ inline Range aroundZero(const uint16_t* a, const uint16_t* b, uint8_t n, int32_t
     return r;
 }
 
+/// A small graph's range (the Form page's 4 weeks, NOTES "S9"): the lines' own low and high, so
+/// their shape shows, with a tenth of the span as room each way and at least @p minSpan tall
+/// (a flat line sits in the middle, not on an edge). Not from zero, and no labels.
+inline Range ownRange(const uint16_t* a, const uint16_t* b, uint8_t n, int32_t minSpan)
+{
+    int32_t lo = 0, hi = 0;
+    bool    any = false;
+    for (uint8_t i = 0; i < n; ++i) {
+        const int32_t vs[2] = {a != nullptr ? a[i] : -1, b != nullptr ? b[i] : -1};
+        for (int32_t v : vs) {
+            if (v < 0) {
+                continue;
+            }
+            if (!any || v < lo) lo = v;
+            if (!any || v > hi) hi = v;
+            any = true;
+        }
+    }
+    const int32_t span = hi - lo;
+    const int32_t m    = minSpan < 1 ? 1 : minSpan;
+    Range r;
+    if (span < m) {
+        const int32_t mid = (lo + hi) / 2;
+        r.lo = mid - m / 2;
+        r.hi = r.lo + m;
+    } else {
+        r.lo = lo - span / 10;
+        r.hi = hi + span / 10;
+    }
+    return r;
+}
+
 /// The pixel row for @p value: range.hi at @p top, range.lo at top + height - 1. Clamped inside
 /// the plot.
 inline int32_t yFor(int32_t value, const Range& range, int32_t top, int32_t height)

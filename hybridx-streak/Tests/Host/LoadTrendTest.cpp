@@ -367,3 +367,21 @@ TEST(GraphMath, PixelsStayInsideThePlot)
     EXPECT_EQ(GraphMath::xFor(kTrendDays - 1, kTrendDays, 80, 130), 209);
     EXPECT_EQ(GraphMath::xFor(200, kTrendDays, 80, 130), 209);
 }
+
+TEST(GraphMath, ASmallGraphUsesItsOwnRange)
+{
+    // The Form page's 4 weeks: 30.0 to 40.0 fill the height, with a tenth each way.
+    const uint16_t fit[] = {300, 320, 340};
+    const uint16_t fat[] = {350, 400, 310};
+    const GraphMath::Range r = GraphMath::ownRange(fit, fat, 3, 20);
+    EXPECT_EQ(r.lo, 290);
+    EXPECT_EQ(r.hi, 410);
+    EXPECT_EQ(GraphMath::yFor(400, r, 184, 28) > 184, true);
+    EXPECT_EQ(GraphMath::yFor(300, r, 184, 28) < 211, true);
+    // Flat: a line in the middle, not on an edge.
+    const uint16_t flat[] = {500, 500, 500};
+    const GraphMath::Range f = GraphMath::ownRange(flat, flat, 3, 20);
+    EXPECT_EQ(f.lo, 490);
+    EXPECT_EQ(f.hi, 510);
+    EXPECT_EQ(GraphMath::yFor(500, f, 184, 28), 184 + 13);
+}

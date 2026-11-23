@@ -54,6 +54,7 @@ constexpr SDK::MessageType::Type WEEK_ACTION     = 0x00000082;
 constexpr SDK::MessageType::Type SHIELD_DECISION = 0x00000083;
 constexpr SDK::MessageType::Type SET_GOAL        = 0x00000084;
 constexpr SDK::MessageType::Type SERIES_REQUEST  = 0x00000085;
+constexpr SDK::MessageType::Type SET_OPENS_ON    = 0x00000086;
 
 /// Everything the home screen shows.
 struct HomeView : public SDK::MessageBase {
@@ -174,6 +175,13 @@ struct SeriesRequest : public SDK::MessageBase {
     SeriesRequest() : SDK::MessageBase(SERIES_REQUEST) {}
 };
 
+/// The watch's "Opens on" setting (NOTES "S9"): the Form page or the mountain.
+struct SetOpensOn : public SDK::MessageBase {
+    uint8_t onLoad = 0;
+    SetOpensOn() : SDK::MessageBase(SET_OPENS_ON) {}
+    explicit SetOpensOn(bool load) : SetOpensOn() { onLoad = load ? 1 : 0; }
+};
+
 /// The goal, and one waiting for next week.
 struct GoalData {
     Streak::Goal goal {};
@@ -244,6 +252,7 @@ STREAK_ASSERT_FITS_POOL(LoadView);
 STREAK_ASSERT_FITS_POOL(DashView);
 STREAK_ASSERT_FITS_POOL(SeriesView);
 STREAK_ASSERT_FITS_POOL(SeriesRequest);
+STREAK_ASSERT_FITS_POOL(SetOpensOn);
 STREAK_ASSERT_FITS_POOL(GoalView);
 STREAK_ASSERT_FITS_POOL(Celebrate);
 STREAK_ASSERT_FITS_POOL(LogManual);

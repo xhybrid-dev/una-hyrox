@@ -242,6 +242,7 @@ void StreakModel::update(int32_t nowDay, const Found* found, size_t count, Event
     mState.lastDay       = effNow;
     LoadHistory loads(mState.load, &mState.trend);   // the model's own state: days are recorded
     loads.advanceTo(effNow);
+    bool newLoad = false;   // a session found now carried a load: say what it did to form (S9)
 
     Events  pastEvents;   // toasts for weeks that close now are not played
     size_t  i = 0;
@@ -259,6 +260,7 @@ void StreakModel::update(int32_t nowDay, const Found* found, size_t count, Event
                 continue;
             }
             loads.add(f.localDay, f.load);   // each session once: the dedupe above
+            newLoad = newLoad || f.load > 0;
             if (f.localDay < mState.weekStartDay) {
                 // Its week was judged already: it joins the lifetime total only
                 // (PLAN 6.2: committed weeks are final).
@@ -291,6 +293,16 @@ void StreakModel::update(int32_t nowDay, const Found* found, size_t count, Event
     // Anything dated after "now" (a clock set back) is left for a later scan.
 
     afterChange(ev);
+
+    // Form after the sessions just found, with their toasts (NOTES "S9"); not while learning.
+    if (newLoad) {
+        const LoadFigures lf = loads.figures(effNow);
+        if (lf.word != FormWord::Learning && lf.word != FormWord::NoLoad) {
+            const int32_t form = lf.formX100 >= 0 ? (lf.formX100 + 50) / 100 : -((-lf.formX100 + 50) / 100);
+            const int16_t held = static_cast<int16_t>(form < -9999 ? -9999 : (form > 9999 ? 9999 : form));
+            ev.addAfterSessions(EventKind::FormNow, static_cast<uint8_t>(lf.word), static_cast<uint16_t>(held));
+        }
+    }
 }
 
 void StreakModel::resolvePending(Events& ev)

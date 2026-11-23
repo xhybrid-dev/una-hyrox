@@ -155,6 +155,8 @@ fatigue and form from their heart rate.
 > - Miss a week? Shields, earned every four good weeks, save the streak.
 > - **Training load:** each session's heart-rate score becomes your fitness, fatigue and form,
 >   with a word for where you are (Fresh, Steady, Building or Overreaching) after two weeks.
+> - **Form up front:** a second Home page with your form, fitness and fatigue, one press from
+>   the mountain, or open straight onto it.
 > - **Graphs:** your fitness and fatigue over 12 weeks on one graph, your form, and your daily
 >   load.
 > - **Your week, by sport:** time, sessions and distance from every X app, kind by kind, beside
@@ -184,6 +186,8 @@ fatigue and form from their heart rate.
   that app has left its file.
 - **Graphs** (Streak NOTES "S8", also unreleased): `GraphScreen`, from R1 on Training load; 12
   weeks of fitness and fatigue, form, and 4 weeks of daily load.
+- **Form up front** (Streak NOTES "S9", also unreleased): `FormHomeScreen`, the "Opens on" setting
+  (`opensOnLoad`, the sixth `configField`), the glance's "Banked. Form +14".
 
 **Not claimed:**
 - that UNA's own apps count: Streak cannot read their folders on a watch;
@@ -199,7 +203,7 @@ fatigue and form from their heart rate.
 >
 > - Your streak in weeks, this week's sessions against your target, and what is next: the
 >   next summit, "Banked" once the week is done, or how many more you need and the days left.
-> - When the week is on track and Streak has two weeks of history, your form in a word.
+> - Once Streak has two weeks of history, your form, whether the week is on track or banked.
 >
 > **Needs the X Streak app**, which counts your sessions. The glance shows what the app has
 > saved, projected to today.

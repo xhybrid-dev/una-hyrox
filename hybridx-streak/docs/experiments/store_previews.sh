@@ -11,12 +11,13 @@
 #  3-this-week  (real/05-this-week.png)
 #  4-training-load  (real/27-training-load.png)
 #  5-shield  (real/21-shield-offer.png)
-#  6-menu  (real/26-menu-training-load.png)
+#  6-form-page  (real/s9-04-form-page.png: Home's second page, form up front, NOTES "S9")
 #  7-by-sport  (real/s7-03-by-sport-week.png: the week from every X app, NOTES "S7")
 #  8-your-numbers  (real/s7-12-numbers-vo2max.png: X Run's VO2max over X Weigh-in's weight)
 #  9-load-graph  (real/s8-03-graph-fitness-fatigue.png: fitness and fatigue over 12 weeks, NOTES "S8")
 #
-# The S7 screens come from capture_dash.sh and the S8 ones from capture_graph.sh, not capture_real.sh.
+# The S7 screens come from capture_dash.sh, the S8 ones from capture_graph.sh and the S9 ones from
+# capture_form.sh, not capture_real.sh.
 #
 # --recapture first re-runs the walkthrough, capture_real.sh (the real app on a pretend watch with a history; into docs/screens/real/, its window 520 px, so these are scaled), into docs/screens. It needs what that
 # needs (Xvfb, xdotool, ImageMagick, fitdecode; the simulator built). Run it on an idle machine,
@@ -36,6 +37,7 @@ if [ "${1:-}" = "--recapture" ]; then
     "$HERE/capture_real.sh" || rc=1
     "$HERE/capture_dash.sh" || rc=1
     "$HERE/capture_graph.sh" || rc=1
+    "$HERE/capture_form.sh" || rc=1
 fi
 # pick <file pattern under docs/screens> <preview name>: kept at 480x480 (the watch's 240 at 2x).
 pick() {
@@ -59,7 +61,7 @@ pick "real/01-first-run-found.png" 2-session-found
 pick "real/05-this-week.png" 3-this-week
 pick "real/27-training-load.png" 4-training-load
 pick "real/21-shield-offer.png" 5-shield
-pick "real/26-menu-training-load.png" 6-menu
+pick "real/s9-04-form-page.png" 6-form-page
 pick "real/s7-03-by-sport-week.png" 7-by-sport
 pick "real/s7-12-numbers-vo2max.png" 8-your-numbers
 pick "real/s8-03-graph-fitness-fatigue.png" 9-load-graph

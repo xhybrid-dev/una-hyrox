@@ -70,6 +70,7 @@ private:
     Streak::Events                   mMoments {};   ///< waiting for the GUI
     bool                             mGuiStarted = false;
     bool                             mClockOk    = false;
+    bool                             mOpensOnLoad = false;   ///< AppConfig "opensOnLoad" (NOTES "S9")
 
     static constexpr uint32_t skStartupGraceMs = 5000u;
     static constexpr uint32_t skWaitMs         = 1000u;

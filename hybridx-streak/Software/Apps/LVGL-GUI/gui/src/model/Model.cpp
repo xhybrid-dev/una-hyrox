@@ -68,6 +68,22 @@ void Model::logManual(Streak::Kind kind, bool yesterday)
     SDK::send_msg<CustomMessage::LogManual>(mKernel, static_cast<uint8_t>(kind), yesterday);
 }
 
+bool Model::takeOpenOnForm()
+{
+    if (mEntryDone) {
+        return false;
+    }
+    mEntryDone = true;
+    const uint8_t blockers = Streak::HomeView::kMomentsComing | Streak::HomeView::kClockUnset
+                             | Streak::HomeView::kDecisionPending;
+    return opensOnLoad() && (mHome.flags & blockers) == 0 && !hasMoment();
+}
+
+void Model::setOpensOnLoad(bool onLoad)
+{
+    SDK::send_msg<CustomMessage::SetOpensOn>(mKernel, onLoad);
+}
+
 void Model::requestSeries()
 {
     mSeriesMask = 0;

@@ -108,8 +108,8 @@ void HomeScreen::build()
     mButtons->set(Widgets::Buttons::WHITE, Widgets::Buttons::WHITE, Widgets::Buttons::AMBER,
                   Widgets::Buttons::WHITE);
 #else
-    // Any of L1, L2 or R1 opens the menu; R2 leaves.
-    mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE, Widgets::Buttons::AMBER,
+    // L1 and L2 turn to the Form page (NOTES "S9"); R1 opens the menu; R2 leaves.
+    mButtons->set(Widgets::Buttons::WHITE, Widgets::Buttons::WHITE, Widgets::Buttons::AMBER,
                   Widgets::Buttons::WHITE);
 #endif
 
@@ -138,6 +138,10 @@ void HomeScreen::onHomeView()
         return;
     }
 #endif
+    if (mModel.takeOpenOnForm()) {
+        ScreenManager::instance().goTo(ScreenId::FormHome);   // "Opens on: Form", nothing to play first
+        return;
+    }
     if (mStage == Stage::Idle && !mModel.hasMoment()) {
         render();
     }
@@ -264,8 +268,12 @@ void HomeScreen::onKey(uint8_t code)
         return;
     }
 #else
-    if ((code == Btn::R1 || code == Btn::L1 || code == Btn::L2) && mStage == Stage::Idle) {
+    if (code == Btn::R1 && mStage == Stage::Idle) {
         ScreenManager::instance().goTo(ScreenId::Menu);
+        return;
+    }
+    if ((code == Btn::L1 || code == Btn::L2) && mStage == Stage::Idle) {
+        ScreenManager::instance().goTo(ScreenId::FormHome);   // the other page (NOTES "S9")
         return;
     }
 #endif
@@ -385,6 +393,12 @@ void HomeScreen::playNext()
             mPending.shields = e.a;
             mModel.celebrate(CustomMessage::Moment::Shield);
             break;
+        case Streak::EventKind::FormNow:
+            // Where form stands after the sessions just found (NOTES "S9"): no buzz, it is news.
+            Coach::formToast(e.a, static_cast<int16_t>(e.b), buf, sizeof(buf));
+            toast(buf, e.a == static_cast<uint8_t>(Streak::FormWord::Overreaching) ? Palette::kAtRisk : Palette::kText);
+            schedule(Stage::Next, kToastMs);
+            return;
         case Streak::EventKind::WeekResult:
             Coach::lastWeekToast(e.a, static_cast<uint8_t>(e.b & 0xFF), buf, sizeof(buf));
             toast(buf, Palette::kTextSoft);

@@ -29,7 +29,19 @@ strips the prefix for the SDK's version script.
   line, and the **daily load** over 4 weeks as bars. L1 and L2 move between them. Streak now keeps
   a daily history for them (a new optional part of the saved state); after updating, the graphs
   start with the last two weeks and fill in from there.
-- The store listing gains three previews: By sport, Your numbers, and the training load graph.
+- **Form up front**:
+  - Home has a second page, **Form** (L1 or L2 from the mountain): your form, large, with its
+    word; fitness and fatigue in the graphs' colours; the last four weeks of the two lines. R1
+    opens the graphs.
+  - **Opens on** (Settings, and the UNA app): open on the Form page instead of the mountain. News
+    from your sessions still plays on the mountain first.
+  - **Training load** is now the menu's first row.
+  - After the sessions an open finds, Home says where your form now stands ("Form now +12,
+    fresh").
+  - **The glance** shows form on banked weeks too ("Banked. Form +14"); only a shield waiting or a
+    week at risk comes before it.
+- The store listing gains three previews (By sport, Your numbers, the training load graph), and
+  the menu's gives way to the Form page; the glance's listing gains its form line.
 
 ## [1.1.1] - 2026-11-20
 

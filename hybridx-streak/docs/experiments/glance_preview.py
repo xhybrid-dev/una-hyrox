@@ -57,7 +57,8 @@ args = argv[2:5] if len(argv) > 4 else ["240", "60", "32"]
 # Store previews: (file name, panel name from Tests/Host/tools/glance_preview.cpp).
 STORE = [("1-climbing.png", "Climbing"),
          ("2-week-banked.png", "Week banked"),
-         ("3-at-risk.png", "At risk")]
+         ("3-at-risk.png", "At risk"),
+         ("4-form.png", "Week banked, form")]   # S9: form on banked weeks too
 lines = subprocess.run([binary] + args, capture_output=True, text=True, check=True).stdout.splitlines()
 
 panels = []

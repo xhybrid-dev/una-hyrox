@@ -235,7 +235,7 @@ void GraphScreen::onKey(uint8_t code)
             ScreenManager::instance().goTo(ScreenId::Graph);
             break;
         case Btn::R2:
-            ScreenManager::instance().goTo(ScreenId::Load);
+            ScreenManager::instance().goTo(mModel.graphReturn);   // Training load, or Home's Form page
             break;
         default:
             break;

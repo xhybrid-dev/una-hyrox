@@ -99,7 +99,8 @@ void LoadScreen::onKey(uint8_t code)
                                                         GraphScreen::FitnessFatigue, GraphScreen::DailyLoad,
                                                         GraphScreen::DailyLoad};
             const uint16_t at = mMenu->selected();
-            mModel.graphPage  = kPageOf[at < kItems ? at : 0];
+            mModel.graphPage   = kPageOf[at < kItems ? at : 0];
+            mModel.graphReturn = ScreenId::Load;
             mModel.requestSeries();
             ScreenManager::instance().goTo(ScreenId::Graph);
             break;

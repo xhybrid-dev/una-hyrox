@@ -48,8 +48,8 @@ run "$A"
 sleep 0.9;  snap 01-first-run-found
 sleep 4.7;  snap 02-week-complete
 sleep 3.2;  snap 03-home-week-banked
-key 3;      snap 04-menu
-key 3;      snap 05-this-week
+key 3;      snap 04-menu                      # Training load first (NOTES "S9")
+key 2; key 3; snap 05-this-week
 key 2; key 2; key 2; snap 06-this-week-too-short
 key 3;      snap 07-leave-it-out
 key 4; key 4
@@ -59,9 +59,9 @@ key 4; key 4
 key 2; key 3; snap 10-trophy-summits
 key 2; key 2; key 2; key 2; key 2; snap 11-trophy-badges
 key 4
-key 2; key 3; snap 11b-training-load-learning   # a first week: "Learning: day 1 of 14"
+key 1; key 1; key 1; key 1; key 1; key 3; snap 11b-training-load-learning   # up to the top; a first week: "Learning: day 1 of 14"
 key 4
-key 2; key 3; snap 12-settings
+key 1; key 3; snap 12-settings                # round from the top to the last row
 key 3;      snap 13-weekly-target
 key 4
 key 2; key 2; key 2; key 2; snap 14-one-per-day
@@ -79,8 +79,8 @@ key 3 0.8;  snap 22-streak-saved
 sleep 11.2; snap 23-summit-snowdon
 sleep 1.3;  snap 24-summit-confetti
 key 3 2.5;  snap 25-next-ben-nevis
-sleep 3; key 3                                # Home is idle: R1 opens the menu (any key would)
-key 2; key 2; key 2; key 2; key 2             # down to Training load, past By sport and Your numbers
+sleep 3; key 3                                # Home is idle: R1 opens the menu
+                                              # Training load is the first row (NOTES "S9")
 snap 26-menu-training-load                    # the menu's hint: form
 key 3;      snap 27-training-load              # eleven weeks of loads (make_state)
 stop

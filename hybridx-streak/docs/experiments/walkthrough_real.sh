@@ -87,7 +87,7 @@ key 3; wait_s 2
 cap "This week: each session, where
 it came from, and why it counts.
 A 6-minute walk is under 10."
-key 3; wait_s 2; key 2; wait_s 1.2; key 2; wait_s 1.2; key 2; wait_s 2
+key 2; wait_s 1; key 3; wait_s 2; key 2; wait_s 1.2; key 2; wait_s 1.2; key 2; wait_s 2
 key 4; wait_s 1.2; key 2; wait_s 1; key 2; wait_s 1; key 2; wait_s 1; key 2; wait_s 1.2   # past By sport, Your numbers, Log
 cap "The trophy case: the summits,
 badges for 10, 50, 100 and 250

@@ -290,11 +290,55 @@ TEST(GlanceLayout, OnTrackWithTwoWeeksOfLoadTheLineIsForm)
     Glance::layout(v, State::Normal, 240, 60, 32, l);
     EXPECT_EQ(std::string(bottom(l).text).find("Form"), std::string::npos);
 
-    // At risk or banked keeps its own line: form only on track.
+    // At risk keeps its own line: the streak's call to act comes first (NOTES "S9").
     Streak::HomeView risk = view(40, 2, 4, Streak::Mood::AtRisk);
     risk.formWord = static_cast<uint8_t>(Streak::FormWord::Fresh);
     Glance::layout(risk, State::Normal, 240, 60, 32, l);
     EXPECT_STREQ(bottom(l).text, "2 more, 2 days left");
+}
+
+TEST(GlanceLayout, ABankedWeekShowsFormOnceItIsKnown)
+{
+    // S9 (Jon, 23 November 2026): form every day it means something, banked weeks included.
+    Streak::HomeView v = view(5, 3, 3, Streak::Mood::Done);
+    v.loadDays = 30;
+    v.form     = 14;
+    v.formWord = static_cast<uint8_t>(Streak::FormWord::Fresh);
+    Layout l;
+    Glance::layout(v, State::Normal, 240, 60, 32, l);
+    EXPECT_STREQ(bottom(l).text, "Banked. Form +14");
+    EXPECT_EQ(bottom(l).colour, GLANCE_COLOR_GREEN);
+
+    v.form     = -40;
+    v.formWord = static_cast<uint8_t>(Streak::FormWord::Overreaching);
+    Glance::layout(v, State::Normal, 240, 60, 32, l);
+    EXPECT_STREQ(bottom(l).text, "Banked. Form -40");
+    EXPECT_EQ(bottom(l).colour, GLANCE_COLOR_YELLOW_DARK);
+
+    // Learning: banked as before.
+    v.formWord = static_cast<uint8_t>(Streak::FormWord::Learning);
+    v.loadDays = 6;
+    Glance::layout(v, State::Normal, 240, 60, 32, l);
+    EXPECT_STREQ(bottom(l).text, "Banked. Rest up.");
+
+    // A shield waiting still comes first.
+    v.flags    = Streak::HomeView::kDecisionPending;
+    v.formWord = static_cast<uint8_t>(Streak::FormWord::Fresh);
+    Glance::layout(v, State::Normal, 240, 60, 32, l);
+    EXPECT_STREQ(bottom(l).text, "Shield? Open app");
+}
+
+TEST(GlanceLayout, TheWidestBankedFormLineFits)
+{
+    for (const int16_t form : {int16_t(-9999), int16_t(9999), int16_t(-888), int16_t(0)}) {
+        Streak::HomeView v = view(104, 7, 7, Streak::Mood::Done);
+        v.loadDays = 30;
+        v.form     = form;
+        v.formWord = static_cast<uint8_t>(Streak::FormWord::Overreaching);
+        Layout l;
+        Glance::layout(v, State::Normal, 240, 60, 32, l);
+        expectFits(l, 240, 60, 32, "banked form " + std::to_string(form));
+    }
 }
 
 TEST(GlanceLayout, TheWidestFormLineFits)

@@ -45,8 +45,8 @@ snap() {
 expect() {   # expect <log> <pattern> <what>
     if grep -q "$2" "$1"; then echo "PASS  $3"; else echo "FAIL  $3 (no \"$2\" in $1)"; FAIL=1; fi
 }
-# The menu: This week, By sport, Your numbers, Log a session, Trophy case, Training load, Settings.
-to_load() { key 3; key 2; key 2; key 2; key 2; key 2; key 3; }   # Home -> menu -> Training load
+# The menu: Training load, This week, By sport, Your numbers, Log a session, Trophy case, Settings.
+to_load() { key 3; key 3; }   # Home -> menu -> Training load, its first row (NOTES "S9")
 
 # -- A: sixteen weeks of a block ---------------------------------------------------------------
 A="$WORK/a"

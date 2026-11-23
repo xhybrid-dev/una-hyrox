@@ -168,9 +168,10 @@ Summit look (DESIGN.md).
 
 Home plays the service's `Moments` on open — session toasts, then a step
 up, then a summit/shield/fresh-start switch if one applies — before
-settling on the live view. Eighteen screens
-(`gui/src/screens/`): Home, Menu, This week, By sport, Numbers (the menu's
-Your numbers), Log a session, Trophy case, Training load and its graphs,
+settling on the live view. Nineteen screens
+(`gui/src/screens/`): Home and its Form page (L1/L2 between them, S9), Menu,
+Training load and its graphs, This week, By sport, Numbers (the menu's
+Your numbers), Log a session, Trophy case,
 Settings, a value picker, Clock (the clock-not-set case), plus the Summit,
 Shield and Fresh-start moment screens, a confirm (tick/cross) screen and the
 shared `ScreenManager`/`Screen` base.

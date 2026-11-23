@@ -1338,3 +1338,105 @@ clearly different on the watch. Agreed in chat; the plan is recorded here and th
 2. On the watch: open X Streak, Menu, Training load, then R1 on Fitness. Check that the cyan and
    orange lines are easy to tell apart, outdoors as well as in. L2 to Form and Daily load, R2 back.
 3. Say whether the 12 weeks, the titles and the legends are right.
+
+## S9: form and fitness up front (23 November 2026)
+
+Jon's request: make the training load data front and centre, easier to see and reach. Of the six
+options offered he chose all six; this phase does the five inside Streak, and S10 (below) the one
+across the family. Agreed in chat; the gate is at the end.
+
+### What it does
+
+1. **A Training load page on Home.** L1 and L2 on Home (which opened the menu, as R1 does) now
+   turn between two pages: the mountain, and **Form**: form large with its word, fitness and
+   fatigue in the graphs' cyan and orange, and a 4-week graph of the two lines. R1 on it opens the
+   full graphs; R1 on the mountain still opens the menu; R2 on either leaves the app. During the
+   first two weeks it says "Learning: day N of 14".
+2. **Opens on.** A setting, on the watch (Settings) and in the UNA app ("Open on Training load",
+   off by default): open on the Form page instead of the mountain. Anything Home has to play first
+   (a session found, a week banked, a summit, a shield offer) still plays on the mountain, and the
+   app stays there.
+3. **Training load first in the menu**: Training load, This week, By sport, Your numbers, Log a
+   session, Trophy case, Settings.
+4. **Form on the glance every day it means something.** The bottom line's order becomes: a shield
+   waiting; the days left when the week is at risk (the streak's call to act); then form whenever
+   it is known, banked weeks included ("Banked. Form +14"); else the next summit. Until two weeks
+   of history, the summit, as now.
+5. **Home's arrival messages say what the session did to form**: after the "+1 Run · 42 min"
+   toasts, one more, "Form now +12, fresh" (shorter forms when it would not fit), when a session
+   found on this open carried a load and the warm-up is over.
+
+### How
+
+- The page is its own screen (`FormHomeScreen`), so the mountain's LVGL memory is freed before it
+  is built. It asks for the series as the graphs do.
+- The setting is AppConfig's sixth field, `opensOnLoad` (bool), in the manifest and the C++ table
+  (CI checks they agree). The service sends it in `HomeView`'s flags with a second flag, "moments
+  are coming", so the GUI opens on the Form page only when Home has nothing to play.
+- The form toast is a new event, `FormNow` (a: the word, b: form), added by the model after the
+  open's sessions; it is the first to give way when the eight-event list is full.
+
+### As built
+
+- **The Form page** (`FormHomeScreen`; `s9-04`): "Form" small at the top, the number in the
+  60-point face (it has the signs and the digits), the word under it, fitness and fatigue as
+  cyan and orange numbers with grey names, and the last four weeks of the two lines. Amber when
+  overreaching, as everywhere else. The figures are the Training load screen's (`LOAD_VIEW`), so
+  the screens agree. Learning: "Learning" and "Day 1 of 14" in the number's place (`s9-30`).
+- **The small graph** is scaled to its own low and high (`GraphMath::ownRange`), not from zero:
+  from zero, a month between 30 and 40 drew as a flat line. Both lines are 2 px (at 1 px the
+  orange all but vanished, `s9` first capture); the colours carry the difference.
+- **Home's marks** now show L1 and L2 (white), which turn to the Form page; R1 still opens the
+  menu. The graphs' R2 goes back to where they were opened from (`Model::graphReturn`).
+- **Opens on**: Settings' last row, R1 switches "The mountain" and "Form"; the phone's field is
+  "Open on Training load". `HomeView`'s flags carry it (`kOpensOnLoad`) and "moments are coming"
+  (`kMomentsComing`): the GUI goes to the Form page on the first view only when the setting is on
+  and there is nothing to play, no clock problem and no shield decision.
+- **The toast**: "Form now -34, ease off" in amber after the run's "+1 Run · 45 min" (`s9-01`,
+  `s9-02`); "Form now +12, fresh" in white otherwise; shorter forms within the coach's 21
+  characters. No buzz.
+- **The glance**: "Banked. Form +14" in green, amber when overreaching
+  (`docs/screens/glance-preview.png`, and a fourth glance store preview, `4-form.png`).
+- **The store previews**: the menu's (6) gives way to the Form page.
+
+### Verified (23 November 2026)
+
+- **Host tests: 214**, 7 new: the glance's banked form line, its colours and its widest case; the
+  form event after an open's sessions (its place after the last toast, its figure equal to the
+  view's, none while learning or without a load, the first to give way when the list is full);
+  the toast within the coach's line; the small graph's own range.
+- **The simulator** (`docs/experiments/capture_form.sh`, all four checks pass; `docs/screens/real/
+  s9-*.png`): a second open finding one run plays its toast and then the form toast; L1 to the
+  Form page, R1 to the graph, R2 back, L2 to the mountain, R1 to the menu with Training load first;
+  "Opens on" from the phone: the first open has news and stays on the mountain, the second opens on
+  the Form page; Settings switches it and `app_config.json` is written with `"opensOnLoad":true`;
+  a first week's Form page says "Learning".
+- **Every other capture re-run** for the new menu (`capture_real.sh`, `capture_dash.sh`,
+  `capture_graph.sh`): every walk lands on its screen; all their checks pass; the LVGL pool peak is
+  still 62 %. One existing fragility, not S9's: `capture_real.sh`'s scenario B needs three sessions
+  in the week of the run, so on a Monday its summit never comes and its last three screens land
+  one press early (23 November was a Monday). Its committed screens 20 to 27 are from an earlier
+  day and were kept.
+- The SDK's `validate_app_config.py` passes with six fields; both packagers pass.
+- **Watch builds compile** (compile checks only): the app 309,552 bytes, the glance 44,156.
+
+### Not checked
+
+- Anything on a watch: the Form page, the toast, Opens on from the UNA app, the glance's new line.
+
+### S9 gate (Jon)
+
+1. Look at `docs/screens/real/s9-*.png` and the glance mock-up.
+2. On the watch: from the mountain press L1 (the Form page), R1 (the graphs), R2, L2 (back).
+3. In the UNA app, turn on "Open on Training load"; open X Streak twice (the second time with no
+   new sessions) and check it opens on the Form page.
+4. Save a session in any X app, then open Streak: after its toast, "Form now ...".
+5. Look at the glance on a banked week.
+
+### S10: the family's Saved screens (next)
+
+Every X app's Saved screen shows the Streak line ("3 of 4 this week", "8-week streak") worked out
+from `streak_now.json`. S10 adds form: Streak leaves its load window in that file, each app adds
+the session it has just saved, and the Saved screen says where form now stands. It changes the
+shared link library and six apps (Run, Race, Trail, Workout, Ride, X Training), so it is a phase of
+its own, with the family check.

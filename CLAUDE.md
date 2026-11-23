@@ -58,6 +58,10 @@ GUI's words are `gui/copy/DashWords`, each measured in pixels (`WheelFontWidths.
 And the **training load graphs** (S8, 22 November 2026; NOTES "S8"): R1 on Training load opens
 fitness and fatigue together (cyan and orange), form, and daily load (`GraphScreen`, `GraphMath.hpp`),
 from a daily history (`LoadTrend` in `LoadHistory.hpp`, the state's optional `"H"`) sent on request.
+And **form up front** (S9, 23 November 2026; NOTES "S9"): Home's second page, **Form** (`FormHomeScreen`;
+L1/L2 from the mountain), the **Opens on** setting (`opensOnLoad`, AppConfig's sixth field), Training load
+first in the menu, the form toast after an open's sessions (`EventKind::FormNow`), and the glance's form line
+on banked weeks. **S10** (next): form on every X app's Saved screen, through `streak_now.json`.
 - **Docs:**
   - brief: `hybridx-streak/docs/UNA_STREAK_TRACKER_BRIEF.md`;
   - plan and phases: `PLAN.md`, §11 (S0-S6);
@@ -95,6 +99,8 @@ from a daily history (`LoadTrend` in `LoadHistory.hpp`, the state's optional `"H
       `sim_fixtures_dash.sh`: every family file written by hand; into `docs/screens/real/s7-*.png`);
     - the training load graphs (S8): `docs/experiments/capture_graph.sh` (a 16-week block from
       `build-tests/make_state <out> 16 0 block`, a first week, an older file; into `s8-*.png`);
+    - form up front (S9): `docs/experiments/capture_form.sh` (the form toast, both Home pages, Opens on
+      from the phone and from Settings, a first week; into `s9-*.png`);
     - demo: `RECORD=1 capture_screens.sh`, `walkthrough.sh`;
     - glance mock-up: `glance_preview.py build-tests/glance_preview <out.png>`.
 

@@ -59,6 +59,10 @@ void bestWeekToast(uint8_t sessions, char* out, size_t size);   ///< "Best week 
 void shieldToast(uint8_t shields, char* out, size_t size);      ///< "+1 shield · 2 held"
 void lastWeekToast(uint8_t count, uint8_t target, char* out, size_t size);   ///< "Last week: 2 of 3"
 
+/// After the sessions an open found, where form now stands (NOTES "S9"): "Form now +12, fresh",
+/// or a shorter form within kMaxCoachChars. @p formWord is a Streak::FormWord.
+void formToast(uint8_t formWord, int16_t form, char* out, size_t size);
+
 /// An app folder as the athlete knows it: "HybridXRace" -> "HybridX", "HybridXRun" -> "X Run", ... (their watch names).
 void appName(const char* folder, char* out, size_t size);
 /// "Mon", "Tue", ... for a weekday (0 = Sunday).

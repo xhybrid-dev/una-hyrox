@@ -5,6 +5,7 @@
 #include <cstring>
 #include <string>
 
+#include "LoadHistory.hpp"
 #include "gui/copy/Coach.hpp"
 
 using Streak::HomeView;
@@ -154,4 +155,21 @@ TEST(Coach, NamesForTheScreens)
     EXPECT_STREQ(Coach::scopeName(static_cast<uint8_t>(Streak::Kind::Run)), "Runs only");
     EXPECT_STREQ(Coach::dayShort(1), "Mon");
     EXPECT_STREQ(Coach::dayLong(0), "Sunday");
+}
+
+// S9: the toast after an open's sessions, within the coach's line.
+TEST(Coach, FormToastFitsTheLine)
+{
+    char b[48];
+    Coach::formToast(static_cast<uint8_t>(Streak::FormWord::Fresh), 12, b, sizeof(b));
+    EXPECT_STREQ(b, "Form now +12, fresh");
+    Coach::formToast(static_cast<uint8_t>(Streak::FormWord::Overreaching), -130, b, sizeof(b));
+    EXPECT_STREQ(b, "Form -130, ease off");
+    for (uint8_t w = static_cast<uint8_t>(Streak::FormWord::Fresh); w <= static_cast<uint8_t>(Streak::FormWord::Overreaching);
+         ++w) {
+        for (int16_t form : {int16_t(-9999), int16_t(-999), int16_t(0), int16_t(7), int16_t(9999)}) {
+            Coach::formToast(w, form, b, sizeof(b));
+            EXPECT_LE(std::strlen(b), Coach::kMaxCoachChars) << b;
+        }
+    }
 }

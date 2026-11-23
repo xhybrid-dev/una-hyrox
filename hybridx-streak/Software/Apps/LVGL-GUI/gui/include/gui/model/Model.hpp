@@ -62,6 +62,11 @@ public:
     bool hasSeries() const { return mSeriesMask == kAllSeries; }
     const CustomMessage::GoalData&     goal() const { return mGoal; }
     bool clockUnset() const { return (mHome.flags & Streak::HomeView::kClockUnset) != 0; }
+    /// The "Opens on" setting (NOTES "S9"): the Form page rather than the mountain.
+    bool opensOnLoad() const { return (mHome.flags & Streak::HomeView::kOpensOnLoad) != 0; }
+    /// True once, for the first view, when the app should open on the Form page: the setting is
+    /// on and Home has nothing to play (a moment keeps the app on the mountain).
+    bool takeOpenOnForm();
 
     /// Change the view locally (the demo, and a screen playing a moment
     /// forward) and tell the bound screen.
@@ -91,6 +96,8 @@ public:
     void setGoal(const Streak::Goal& goal);
     /// Ask for the graphs' series; onSeries() follows once all three have come.
     void requestSeries();
+    /// Change the "Opens on" setting; the service saves it and sends the views again.
+    void setOpensOnLoad(bool onLoad);
 
     // -- Navigation memory ----------------------------------------------------------------
     /// The climb just summited, for the summit screen.
@@ -106,6 +113,7 @@ public:
     uint16_t sportAt    = 0;
     uint16_t numbersAt  = 0;
     uint8_t  graphPage  = 0;   ///< GraphScreen::Page
+    ScreenId graphReturn = ScreenId::Load;   ///< where R2 leaves the graphs for
 
     /// The week item a confirm screen acts on, and the setting a value
     /// screen edits.
@@ -154,6 +162,7 @@ private:
     static constexpr uint8_t    kAllSeries = (1u << CustomMessage::SeriesData::kCount) - 1u;
     CustomMessage::SeriesData   mSeries[CustomMessage::SeriesData::kCount] {};
     uint8_t                     mSeriesMask = 0;
+    bool                        mEntryDone  = false;   ///< the first view has been placed
     CustomMessage::GoalData     mGoal {};
     Streak::Events           mMoments {};
     uint8_t                  mMomentAt   = 0;

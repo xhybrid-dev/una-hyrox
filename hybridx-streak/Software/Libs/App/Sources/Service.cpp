@@ -121,6 +121,7 @@ void Service::open()
     mConfig.reset(new SDK::AppConfig(mKernel, StreakConfig::kFileName, StreakConfig::kFields,
                                      StreakConfig::kFieldCount));
     const Streak::Goal wanted = goalFromConfig();
+    mOpensOnLoad              = mConfig->getBool(StreakConfig::kOpensOnLoad);
 
     const auto source = Streak::StateCodec::load(mKernel.fs, kStateFile, sModel->state(), sScratch, sizeof(sScratch));
     if (source == Streak::StateCodec::Source::None) {
@@ -242,6 +243,12 @@ void Service::sendViews()
         }
         if (s.pendingMissed > 0) {
             home->view.flags |= Streak::HomeView::kDecisionPending;
+        }
+        if (mOpensOnLoad) {
+            home->view.flags |= Streak::HomeView::kOpensOnLoad;
+        }
+        if (mMoments.count > 0) {
+            home->view.flags |= Streak::HomeView::kMomentsComing;   // sendMoments() follows sendViews()
         }
         home.send();
     }
@@ -428,6 +435,17 @@ void Service::handle(SDK::MessageBase* msg)
 
         case CustomMessage::SERIES_REQUEST:
             sendSeries();
+            return;
+
+        case CustomMessage::SET_OPENS_ON:
+            mOpensOnLoad = static_cast<CustomMessage::SetOpensOn*>(msg)->onLoad != 0;
+            if (mConfig) {
+                mConfig->setBool(StreakConfig::kOpensOnLoad, mOpensOnLoad);
+                if (!mConfig->save()) {
+                    LOG_ERROR("Could not save the settings\n");
+                }
+            }
+            sendViews();
             return;
 
         case CustomMessage::CELEBRATE:

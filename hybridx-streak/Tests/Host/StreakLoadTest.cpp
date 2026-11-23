@@ -164,3 +164,82 @@ TEST(StreakLoad, ABrokenLoadIsDroppedAndTheStreakKept)
     EXPECT_FALSE(back.load.started);
     EXPECT_EQ(back.sessionCount, 1);
 }
+
+// -- S9: form after an open's sessions (EventKind::FormNow) -------------------------------------
+
+TEST(StreakLoad, AnOpenThatFindsALoadSaysWhereFormNowStands)
+{
+    StreakModel m = fresh();
+    for (int d = 0; d < 20; ++d) {
+        open(m, kMon + d, {session(kMon + d, 40, 30, "HybridXRun", 7)});
+    }
+    Events ev;
+    std::vector<Found> f = {session(kMon + 20, 90, 45, "HybridXRide", 7), session(kMon + 20, 30, 20, "HybridXRun", 18)};
+    m.update(kMon + 20, f.data(), f.size(), ev);
+    // The sessions' toasts, then form, before anything the week does next.
+    int sessions = 0, formAt = -1;
+    for (uint8_t i = 0; i < ev.count; ++i) {
+        if (ev.items[i].kind == EventKind::SessionFound) {
+            ++sessions;
+            EXPECT_EQ(formAt, -1) << "form plays after every session toast";
+        }
+        if (ev.items[i].kind == EventKind::FormNow) {
+            formAt = i;
+        }
+    }
+    EXPECT_EQ(sessions, 2);
+    ASSERT_NE(formAt, -1);
+    EXPECT_EQ(formAt, 2);
+    const HomeView v = m.view(kMon + 20);
+    EXPECT_EQ(static_cast<int16_t>(ev.items[formAt].b), v.form);
+    EXPECT_EQ(ev.items[formAt].a, v.formWord);
+}
+
+TEST(StreakLoad, NoFormToastWhileLearningOrWithoutALoad)
+{
+    StreakModel m = fresh();
+    Events ev;
+    std::vector<Found> f = {session(kMon, 60)};
+    m.update(kMon, f.data(), f.size(), ev);   // day one: learning
+    for (uint8_t i = 0; i < ev.count; ++i) {
+        EXPECT_NE(ev.items[i].kind, EventKind::FormNow);
+    }
+    for (int d = 1; d < 20; ++d) {
+        open(m, kMon + d, {session(kMon + d, 40, 30, "HybridXRun", 7)});
+    }
+    Events ev2;
+    std::vector<Found> noLoad = {session(kMon + 20, 0, 30, "HybridXWorkout", 9)};
+    m.update(kMon + 20, noLoad.data(), noLoad.size(), ev2);
+    for (uint8_t i = 0; i < ev2.count; ++i) {
+        EXPECT_NE(ev2.items[i].kind, EventKind::FormNow);
+    }
+    Events ev3;
+    m.update(kMon + 20, nullptr, 0, ev3);   // nothing found: nothing to say
+    EXPECT_EQ(ev3.count, 0);
+}
+
+TEST(StreakLoad, TheFormToastIsTheFirstToGiveWay)
+{
+    Events ev;
+    ev.add(EventKind::SessionFound, 0, 30);
+    ev.add(EventKind::StepUp, 0, 4);
+    ev.addAfterSessions(EventKind::FormNow, 2, 5);
+    ASSERT_EQ(ev.count, 3);
+    EXPECT_EQ(ev.items[1].kind, EventKind::FormNow);   // between the session and the step up
+    EXPECT_EQ(ev.items[2].kind, EventKind::StepUp);
+
+    Events full;
+    for (int i = 0; i < Events::kMax; ++i) {
+        full.add(EventKind::SessionFound, 0, 30);
+    }
+    full.addAfterSessions(EventKind::FormNow, 2, 5);
+    EXPECT_EQ(full.count, Events::kMax);
+    EXPECT_EQ(full.dropped, 1);
+    for (uint8_t i = 0; i < full.count; ++i) {
+        EXPECT_EQ(full.items[i].kind, EventKind::SessionFound);
+    }
+
+    Events none;
+    none.addAfterSessions(EventKind::FormNow, 2, 5);   // no sessions: at the end
+    EXPECT_EQ(none.count, 1);
+}
