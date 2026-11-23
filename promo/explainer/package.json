@@ -7,7 +7,7 @@
   "scripts": {
     "assets": "python3 scripts/extract-una.py && node scripts/lvgl-fonts.mjs && python3 scripts/trace-xmark.py && node scripts/copy-assets.mjs",
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && rm -rf dist/gen/ref dist/gen/una/ref-graphite.png",
+    "build": "tsc --noEmit && vite build && rm -rf dist/gen/ref",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

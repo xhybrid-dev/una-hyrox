@@ -98,7 +98,7 @@ export function screenAt(t: number): Draw {
     return (ctx) => race.raceFace(ctx, r.idx, r.segSec, r.total, r.hr);
   }
   if (t < b.savePress) return (ctx) => race.finished(ctx);
-  const swap = STREAK_BEATS.turn + STREAK_BEATS.turnDur / 2;
+  const swap = STREAK_BEATS.swap + STREAK_BEATS.swapDur / 2;
   if (t < swap) {
     const local = t - b.savePress;
     const line = t >= b.savedLine ? streakLine(4) : null;

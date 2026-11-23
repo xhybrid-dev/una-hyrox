@@ -121,22 +121,22 @@ bridge between the two apps.
 
 | Asset | Where it is | How it's used |
 |---|---|---|
-| UNA watch, front renders (graphite, teal, white; 2000 px, screen cut out) | the SDK's Figma pack, `una-sdk/Docs/Templates/Figma-UI-Kit/UNA-Watch-UI-Resource-Pack.fig` | the reference the 3D model is matched to (an ortho front render laid over it). Not shown in the film |
-| UNA bezel ring print (UP, DOWN, START SELECT STOP, BACK, UNA, ticks; 500 px) | same pack | the texture on the model's inner bezel |
+| UNA watch, front renders (graphite, teal, white; 2000 px, screen cut out) | the SDK's Figma pack, `una-sdk/Docs/Templates/Figma-UI-Kit/UNA-Watch-UI-Resource-Pack.fig` | **the film's watch**: the graphite render, with the live screen behind its opening (23 November 2026, Jon: use UNA's official mockup, not a model) |
 | UNA wordmark (white, 4096 px) | same pack | the lockup |
 | HybridX X mark (`x-mark.png`, 593 px) | `hybridx-link/Tools/Brand/assets/` | traced to a vector, extruded for the lockup |
 | Space Grotesk, Inter (OFL) | `hybridx-link/Tools/Brand/fonts/`, or `@fontsource` | the overlay type |
 | App icons, 1024 px | `hybridx-link/docs/brand/icons/race-1024.png`, `streak-1024.png` | the outro |
 | The apps' screen fonts (Poppins, LVGL 2 bpp bitmaps) | `*/Software/Apps/LVGL-GUI/assets/fonts/*.c` | the on-watch text, glyph for glyph |
 
-There is **no GLB** and no side view of the watch, so the model is procedural (section 4). As the
-existing promo films do, UNA's art is read from the SDK at build time (`scripts/extract-una.py`, into a
-git-ignored `public/una/`) and never committed. With UNA's permission it could be committed instead (your
-call, decision 1).
+There is **no GLB** and the pack has the **front view only** (no side or back). The first build modelled
+the watch in code to match the render; since 23 November 2026 the film shows UNA's render itself
+(section 4). As the existing promo films do, UNA's art is read from the SDK at build time
+(`scripts/extract-una.py`, into the git-ignored `public/gen/una/`) and never committed.
 
-Measured from UNA's front render, in screen radii (R): printed bezel R 1.00 to 1.33; metal bezel lip to
-about 1.45; case 1.55 at the buttons; lugs with a screw at each corner out to about 1.36 above and below;
-strap 1.41 wide with oval vent holes; USB-C port at 3 o'clock.
+Measured from UNA's front render by the extractor (`meta.json`), in screen radii (R): the screen opening
+is a circle of 366.6 px at (999.5, 1010.5) in the 2000 px image; the buttons' outer edges are at
+L1 299.3° R 1.62, L2 239.5° R 1.64, R1 60.5° R 1.62, R2 120.5° R 1.64 (TouchGFX degrees), within a degree
+of the SDK's hint angles.
 
 ---
 
@@ -211,13 +211,19 @@ really buzzes: a split, the finish, X Streak's moments.
 - **Lighting:** RoomEnvironment through PMREM for reflections, plus a key and a rim light. Contact shadow
   from the three.js contact-shadow technique (a depth render from below, blurred, at 512 px).
 - **Floor:** a shader plane with a fine perspective grid that fades with distance, on `#0A0A0A`.
-- **The watch, procedural and matched to UNA's front render:**
-  - case: an extruded, bevelled outline of the render's silhouette, with lugs and four corner screws;
-  - bezel: LatheGeometry with a bevelled metal lip, and UNA's printed ring as the inner bezel's texture;
-  - glass: MeshPhysicalMaterial with clearcoat, sitting over the display;
-  - four buttons at the measured angles, each pressing in on its timeline event, and a USB-C port;
-  - strap: extruded along a curve that loops back behind the case, with vent holes, fading at its ends;
-  - check: an orthographic front render, laid over UNA's render at 50%, until the outlines agree.
+- **The watch: UNA's own render** (graphite, from the SDK's Figma pack; `src/watch/model.ts`):
+  - a card that always faces the camera (the pack has no other view), with a slight idle sway; the
+    camera and the world move round it;
+  - the live screen sits just behind its transparent opening, on black;
+  - lit in its shader: the room's light scales UNA's own shading (full light shows the render as it
+    is), an edge light picks out the outline on the rim light's side, and in the dark intro a soft
+    band of light sweeps across it;
+  - the strap's cut ends fade out, as in `promo/tools/una_mockups.py`;
+  - drawn in two passes, depth where it is solid and then colour, so the race ring passes behind it;
+  - a plain case shape, never drawn, casts the floor's contact shadow;
+  - race to X Streak: the watch dips back and returns, the screen passing through black (it was a
+    full turn while the watch was a model);
+  - a press shows as a ring pulse from the button's measured edge (the render's buttons cannot move).
 - **The screen:** a 240 × 240 **CanvasTexture**, redrawn every frame, NearestFilter, no mipmaps. The
   screen shader quantises it to the display's 64 colours (2 bits per channel: 0, 85, 170, 255), as the MIP
   display shows them: flat colour, no glow.
@@ -269,7 +275,8 @@ Scene by scene. After each one:
 - the screen check sheet after any change to a screen.
 
 1. Scaffold: config, timeline, URL params, dev overlay, and the export proven end to end on a test scene.
-2. The watch, lighting, floor, shadow and post: **scene 0**. Model check against UNA's render.
+2. The watch, lighting, floor, shadow and post: **scene 0**. (Since 23 November 2026 the watch is UNA's
+   render, not a model.)
 3. The screen renderer: fonts, Race's screens, check sheet.
 4. **Scenes 1, 2 and 3.**
 5. Streak's screens and **scene 4**.
@@ -298,3 +305,5 @@ with the overlay's FPS readout.
    colourways).
 10. **Launch:** no UNA app list; the film shows each app's own screens.
 11. **Where it lives:** `promo/explainer/`.
+12. **The watch** (23 November 2026): UNA's official Figma mockup, not a model of it. Its front view is
+    the only one, so the watch faces the camera throughout and the turn to X Streak became a dip.

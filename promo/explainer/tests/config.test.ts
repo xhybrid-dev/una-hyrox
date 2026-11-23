@@ -50,7 +50,7 @@ describe('scenes', () => {
     const at = (id: string) => SCENES.find((s) => s.id === id)!;
     expect(MONTAGE.start + FAMILY.length * MONTAGE.step).toBeLessThanOrEqual(at('family').end);
     expect(WEEK_BEATS.start + 3 * WEEK_BEATS.step).toBeLessThanOrEqual(at('race').start + 0.1);
-    expect(RACE_BEATS.savedLine).toBeLessThan(STREAK_BEATS.turn);
+    expect(RACE_BEATS.savedLine).toBeLessThan(STREAK_BEATS.swap);
     expect(STREAK_BEATS.homeAfter).toBeLessThan(at('streak').end);
   });
 });

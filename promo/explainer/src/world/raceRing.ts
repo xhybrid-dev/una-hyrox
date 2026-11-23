@@ -56,7 +56,7 @@ export class RaceRing {
         }`,
     });
     this.ring = new THREE.Mesh(new THREE.RingGeometry(segR - 0.075, segR + 0.075, 256, 1), this.mat);
-    this.ring.renderOrder = 4;
+    this.ring.renderOrder = 1.5; // after the watch's depth pass, before its colour (watch/model.ts)
     this.group.add(this.ring);
 
     // A panel for each split: the segment's short name and its time.

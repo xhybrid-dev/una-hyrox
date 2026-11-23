@@ -16,7 +16,7 @@ HybridX yellow (`#FADB5C`), black and white. Decisions and the storyboard: [`PLA
 | The family | 5-15 s | Each app's real screen in turn; its icon lifts out into an orbit with what it does for you. |
 | One week, in sync | 15-27 s | X Run, X Ride and X Workout save; each Saved screen counts the week up ("3 of 4 this week"); each session flies to its day. |
 | Race day | 27-43 s | HybridX Race: one button, sixteen splits round a ring; Save, and the week is done ("4 of 4 / 12-week streak"). |
-| X Streak | 43-55 s | "+1 Hybrid · 75 min", "Week complete!", Summit! Snowdon at 12 weeks; then one training load from every app. |
+| X Streak | 43-55 s | The watch dips from Race to X Streak; "+1 Hybrid · 75 min", "Week complete!", Summit! Snowdon at 12 weeks; then one training load from every app. |
 | Outro | 55-62 s | The family, the lockup, HYBRIDX.CLUB. |
 
 ## Running it
@@ -37,8 +37,8 @@ npm run dev
 ```
 
 Then open the address Vite prints. `npm run assets` writes everything the page loads from elsewhere
-in the repository into the git-ignored `public/gen/`: UNA's bezel print, wordmark and reference
-render; the apps' LVGL fonts as JSON; the traced HybridX X; the family's icons and real screens.
+in the repository into the git-ignored `public/gen/`: UNA's watch render (and where its screen
+opening and buttons are) and wordmark; the apps' LVGL fonts as JSON; the traced HybridX X; the family's icons and real screens.
 Run it again after a change to any of those.
 
 **URL parameters:** `?t=12.5` (start time), `?scene=week` (`intro`, `family`, `week`, `race`,
@@ -104,8 +104,9 @@ WebGL runs on SwiftShader at about 0.9 s a frame: about an hour for a 60 fps fil
     family's formula;
   - the Training load screen's numbers (form −9, Building, which agrees with Streak's bands);
   - the chart's curves.
-- **The watch** is modelled in code to match UNA's front render; UNA's printed bezel and wordmark
-  are UNA's own art, used with UNA's permission (Jon, 22 November 2026).
+- **The watch** is UNA's own render, the graphite watch from the SDK's Figma pack, with the live
+  screen behind its opening. It and UNA's wordmark are UNA's art, used with UNA's permission (Jon,
+  22 November 2026). The pack has the front view only, so the watch always faces the camera.
 
 ## Where things are
 
@@ -115,7 +116,7 @@ src/layout.ts          per-ratio cameras and placement
 src/timeline.ts        the GSAP master timeline (seek(t) every frame) and easing helpers
 src/app.ts             the renderer, the stage, renderAt(t)
 src/screen/            the watch's UI: LVGL fonts and widgets, Race, Streak, the family, the script
-src/watch/             the model, the 240 px screen and its quantise shader, presses and haptics
+src/watch/             UNA's render as the watch, the 240 px screen and its quantise shader, presses and haptics
 src/world/             the family's orbit, the week, the race ring, Streak's mountain and load
 src/hud/               captions, callouts, the lockup (troika-three-text, Space Grotesk)
 src/render/            post (bloom, SMAA, grain), stage (grid, contact shadow, light)

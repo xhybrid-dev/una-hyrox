@@ -225,8 +225,8 @@ export const RACE_BEATS = (() => {
 
 /** Scene 4, X Streak's moments (HomeScreen.cpp: toast 2.2 s, beat 0.9 s, glide 1.1 s, to summit 0.9 s). */
 export const STREAK_BEATS = {
-  turn: 43.0, // the watch turns to X Streak
-  turnDur: 1.0, // the screen changes halfway, facing away
+  swap: 43.0, // the watch goes from Race to X Streak
+  swapDur: 1.0, // the watch dips back; the screen changes halfway, through black
   home: 43.8, // Home, before
   toast: 44.6, // "+1 Hybrid · 75 min", the fourth pip pops
   stepUp: 45.5, // "Week complete!", the glide begins
