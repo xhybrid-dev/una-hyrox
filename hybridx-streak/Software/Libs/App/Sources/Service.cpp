@@ -50,6 +50,7 @@ Streak::LinkReader*      sLink    = nullptr;
 Streak::WeekTotals*      sTotals  = nullptr;   // the week by sport (NOTES "S7")
 Streak::FamilyReader*    sFamily  = nullptr;   // the family's other figures (NOTES "S7")
 Streak::FamilyView       sFamilyView {};       // read once, on open
+Streak::LoadSeries       sSeries {};           // the graphs' days (NOTES "S8"), made when asked
 Streak::Found            sFound[kMaxFound];
 char                     sScratch[Streak::StateCodec::kMaxBytes];
 } // namespace
@@ -120,6 +121,7 @@ void Service::open()
     mConfig.reset(new SDK::AppConfig(mKernel, StreakConfig::kFileName, StreakConfig::kFields,
                                      StreakConfig::kFieldCount));
     const Streak::Goal wanted = goalFromConfig();
+    mOpensOnLoad              = mConfig->getBool(StreakConfig::kOpensOnLoad);
 
     const auto source = Streak::StateCodec::load(mKernel.fs, kStateFile, sModel->state(), sScratch, sizeof(sScratch));
     if (source == Streak::StateCodec::Source::None) {
@@ -206,6 +208,14 @@ void Service::saveStreakNow()
     n.pending    = st.hasPending;
     n.counted    = m.qualifying();
     n.streak     = static_cast<uint16_t>(m.liveStreak() - (m.weekMet() ? 1 : 0));
+    // The load window and the moment of the save, so the apps can say where form stands after
+    // their session (hybridx-link StreakNow, S10).
+    if (st.load.started) {
+        const Now t = now();
+        n.hasLoad   = true;
+        n.load      = st.load;
+        n.at        = static_cast<uint32_t>(t.day) * 86400u + t.secondOfDay;
+    }
     for (uint8_t i = 0; i < st.sessionCount; ++i) {
         const Streak::Session& x = st.sessions[i];
         const int32_t d = static_cast<int32_t>(x.localStart / 86400u) - st.weekStartDay;
@@ -222,8 +232,8 @@ void Service::saveStreakNow()
         LOG_WARNING("Could not save streak_now.json\n");
         return;
     }
-    LOG_INFO("Streak line: %u of %u this week, streak %u before it (%lu bytes)\n", n.counted, n.target,
-             n.streak, static_cast<unsigned long>(len));
+    LOG_INFO("Streak line: %u of %u this week, streak %u before it, load window %s (%lu bytes)\n", n.counted,
+             n.target, n.streak, n.hasLoad ? "yes" : "no", static_cast<unsigned long>(len));
 }
 
 // -- Views ----------------------------------------------------------------------------------
@@ -241,6 +251,12 @@ void Service::sendViews()
         }
         if (s.pendingMissed > 0) {
             home->view.flags |= Streak::HomeView::kDecisionPending;
+        }
+        if (mOpensOnLoad) {
+            home->view.flags |= Streak::HomeView::kOpensOnLoad;
+        }
+        if (mMoments.count > 0) {
+            home->view.flags |= Streak::HomeView::kMomentsComing;   // sendMoments() follows sendViews()
         }
         home.send();
     }
@@ -335,6 +351,37 @@ void Service::sendViews()
     }
 }
 
+void Service::sendSeries()
+{
+    const Streak::State& s = sModel->state();
+    const Now            n = now();
+    // A copy of the window, moved to today: the model's own is there already (open() moved it),
+    // unless the GUI has stayed open past midnight, when the graphs start from the window.
+    Streak::LoadState   copy = s.load;
+    Streak::LoadHistory h(copy);
+    if (copy.started && mClockOk) {
+        h.advanceTo(n.day);
+        h.series(s.trend, n.day, sSeries);
+    } else {
+        sSeries = Streak::LoadSeries {};
+    }
+    const uint16_t* const values[CustomMessage::SeriesData::kCount] = {sSeries.fitnessX10, sSeries.fatigueX10,
+                                                                       sSeries.load};
+    for (uint8_t which = 0; which < CustomMessage::SeriesData::kCount; ++which) {
+        if (auto msg = SDK::make_msg<CustomMessage::SeriesView>(mKernel)) {
+            CustomMessage::SeriesData& d = msg->data;
+            d.which       = which;
+            d.count       = sSeries.count;
+            d.historyDays = sSeries.historyDays;
+            d.lastDay     = sSeries.lastDay;
+            std::memcpy(d.v, values[which], sizeof(d.v));
+            msg.send();
+        }
+    }
+    LOG_INFO("Series: %u days to %ld (history %u days, %u kept)\n", sSeries.count,
+             static_cast<long>(sSeries.lastDay), sSeries.historyDays, s.trend.count);
+}
+
 void Service::sendMoments()
 {
     if (mMoments.count == 0) {
@@ -392,6 +439,21 @@ void Service::handle(SDK::MessageBase* msg)
 
         case SDK::MessageType::COMMAND_APP_NOTIF_GUI_STOP:
             mGuiStarted = false;
+            return;
+
+        case CustomMessage::SERIES_REQUEST:
+            sendSeries();
+            return;
+
+        case CustomMessage::SET_OPENS_ON:
+            mOpensOnLoad = static_cast<CustomMessage::SetOpensOn*>(msg)->onLoad != 0;
+            if (mConfig) {
+                mConfig->setBool(StreakConfig::kOpensOnLoad, mOpensOnLoad);
+                if (!mConfig->save()) {
+                    LOG_ERROR("Could not save the settings\n");
+                }
+            }
+            sendViews();
             return;
 
         case CustomMessage::CELEBRATE:

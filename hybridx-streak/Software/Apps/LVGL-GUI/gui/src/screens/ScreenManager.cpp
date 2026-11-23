@@ -25,6 +25,8 @@
 #include "gui/screens/ShieldScreen.hpp"
 #include "gui/screens/SummitScreen.hpp"
 #include "gui/screens/TrophyScreen.hpp"
+#include "gui/screens/FormHomeScreen.hpp"
+#include "gui/screens/GraphScreen.hpp"
 #include "gui/screens/LoadScreen.hpp"
 #include "gui/screens/NumbersScreen.hpp"
 #include "gui/screens/SportScreen.hpp"
@@ -123,6 +125,8 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::Clock:      return new ClockScreen(m);
         case ScreenId::Sport:      return new SportScreen(m);
         case ScreenId::Numbers:    return new NumbersScreen(m);
+        case ScreenId::Graph:      return new GraphScreen(m);
+        case ScreenId::FormHome:   return new FormHomeScreen(m);
     }
     return nullptr;
 }

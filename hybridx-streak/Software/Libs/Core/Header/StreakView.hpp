@@ -43,6 +43,8 @@ struct HomeView {
     static constexpr uint8_t kClockUnset     = 0x01;   ///< the watch has lost the time: nothing is judged
     static constexpr uint8_t kDecisionPending = 0x02;  ///< a shield offer is waiting for an answer
     static constexpr uint8_t kTrialWeek       = 0x04;  ///< this week is a trial (S9), met or not
+    static constexpr uint8_t kOpensOnLoad     = 0x08;  ///< the app opens on the Form page (NOTES "S9" of 2026-11-23)
+    static constexpr uint8_t kMomentsComing   = 0x10;  ///< moments follow this view: Home plays them first
 };
 
 static_assert(std::is_trivially_copyable<HomeView>::value, "HomeView travels inside a kernel message");

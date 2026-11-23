@@ -22,11 +22,12 @@ public:
     void onHide() override;
     void onKey(uint8_t code) override;
     void onGoal() override;
+    void onHomeView() override;   ///< the "Opens on" setting comes with the home view
 protected:
     void build() override;
 
 private:
-    enum : uint8_t { kTarget, kWeekStart, kCounts, kMinimum, kOnePerDay, kCount };
+    enum : uint8_t { kTarget, kWeekStart, kCounts, kMinimum, kOnePerDay, kOpensOn, kCount };
 
     void fill();
     Streak::Goal effective() const;

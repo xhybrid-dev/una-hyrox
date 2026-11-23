@@ -12,7 +12,7 @@
 #include "gui/screens/ScreenManager.hpp"
 #include "gui/theme/Theme.hpp"
 
-#include "FormText.hpp"
+#include "LoadFormText.hpp"
 #include "gui/copy/DashWords.hpp"
 
 using Style = Widgets::Wheel::Item::Style;

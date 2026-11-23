@@ -19,6 +19,7 @@ const AppConfig::Field kFields[] = {
     AppConfig::intField("counts", 0, 0, 8),
     AppConfig::intField("minMinutes", 10, 0, 120),
     AppConfig::boolField("onePerDay", false),
+    AppConfig::boolField("opensOnLoad", false),
 };
 
 const size_t kFieldCount = sizeof(kFields) / sizeof(kFields[0]);

@@ -113,6 +113,7 @@ public:
     bool        hasStreakLine() const { return mStreakShow; }
     const char* streakLine1() const { return mStreakLine1; }
     const char* streakLine2() const { return mStreakLine2; }
+    const char* streakForm() const { return mStreakForm; }   ///< empty: no form to show
     /// The saved session's training load (0: none), sent with the Streak line.
     uint16_t    sessionLoad() const { return mSessionLoad; }
     void intervalsNextPhase();
@@ -209,6 +210,7 @@ private:
     bool mStreakShow      = false;   ///< the Streak line (STREAK_LINE)
     char mStreakLine1[24] = {};
     char mStreakLine2[20] = {};
+    char mStreakForm[24]  = {};   ///< "Form now +12, fresh" (Streak NOTES "S10")
     uint16_t mSessionLoad = 0;   ///< the saved session's training load (STREAK_LINE)
     // Fields required for GUI <-> Service communication
     ModelListener*           modelListener;

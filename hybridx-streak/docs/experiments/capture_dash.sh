@@ -47,14 +47,14 @@ expect() {   # expect <log> <pattern> <what>
 }
 
 # Keys: 1 L1 (up), 2 L2 (down), 3 R1 (select), 4 R2 (back).
-# The menu: This week, By sport, Your numbers, Log a session, Trophy case, Training load, Settings.
+# The menu: Training load, This week, By sport, Your numbers, Log a session, Trophy case, Settings.
 
 # -- A: the whole family -----------------------------------------------------------------
 A="$WORK/a"
 bash "$APP/docs/experiments/sim_fixtures_dash.sh" "$A" >/dev/null
 run "$A"
 sleep 17                          # the first open's five arrivals and the week's step up
-key 3;      key 2;  snap s7-01-menu-by-sport
+key 3;      key 2;  key 2;  snap s7-01-menu-by-sport   # past Training load and This week
 key 2;      snap s7-02-menu-your-numbers
 key 1;      key 3;  snap s7-03-by-sport-week
 key 2;      snap s7-04-by-sport-distance
@@ -78,7 +78,7 @@ B="$WORK/b"
 TODAY_STATE=done UNITS=1 bash "$APP/docs/experiments/sim_fixtures_dash.sh" "$B" >/dev/null
 run "$B"
 sleep 17
-key 3; key 2; key 2; key 3; snap s7-20-numbers-done
+key 3; key 2; key 2; key 2; key 3; snap s7-20-numbers-done
 key 2;      snap s7-21-numbers-next
 key 2; key 2; snap s7-22-numbers-weight-st
 key 2;      snap s7-23-numbers-trend-lb
@@ -91,7 +91,7 @@ C="$WORK/c"
 NO_FAMILY=1 bash "$APP/docs/experiments/sim_fixtures_dash.sh" "$C" >/dev/null
 run "$C"
 sleep 17
-key 3; key 2; key 2; snap s7-30-menu-numbers-empty
+key 3; key 2; key 2; key 2; snap s7-30-menu-numbers-empty
 key 3;      snap s7-31-numbers-needs-training
 key 2;      snap s7-32-numbers-needs-run
 key 2;      snap s7-33-numbers-needs-weighin

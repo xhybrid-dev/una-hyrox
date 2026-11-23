@@ -3,8 +3,12 @@
  * simulator can open onto moments that take weeks to reach for real: a missed
  * week with shields to spend, or a summit one session away.
  *
- *   make_state <out.json> <weeks achieved> <weeks missed after them>
+ *   make_state <out.json> <weeks achieved> <weeks missed after them> [block]
  *
+ * With "block" the loads follow a training block instead of the same three every week (for the
+ * training load graphs, NOTES "S8"): three weeks building, an easy week, four weeks building
+ * harder with a fourth session, an easy week, then a taper, repeated; the weeks scale 60, 45
+ * and 90.
  * The weeks run up to the one before this one (weeks start on Monday); each
  * achieved week has three sessions from an app folder "Earlier", with training
  * loads of 60, 45 and 90 (so the Load screen has weeks of history). The model
@@ -14,6 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <string>
 #include <vector>
 
 #include "StateCodec.hpp"
@@ -26,8 +31,11 @@ int main(int argc, char** argv)
         std::fprintf(stderr, "usage: make_state <out.json> <weeks achieved> <weeks missed>\n");
         return 2;
     }
-    const int achieved = std::atoi(argv[2]);
-    const int missed   = std::atoi(argv[3]);
+    const int  achieved = std::atoi(argv[2]);
+    const int  missed   = std::atoi(argv[3]);
+    const bool block    = argc > 4 && std::string(argv[4]) == "block";
+    // Per cent of the plain week's loads, week by week (repeats); the hard weeks add a session.
+    static constexpr int kBlock[] = {80, 100, 120, 60, 110, 130, 150, 170, 70, 120, 90, 60};
 
     const std::time_t utc = std::time(nullptr);
     std::tm           local {};
@@ -42,15 +50,18 @@ int main(int argc, char** argv)
     Streak::Events ev;
     m.update(first, nullptr, 0, ev);
     for (int w = 0; w < achieved; ++w) {
-        const int32_t      start = first + 7 * w;
-        std::vector<Streak::Found> f(3);
-        for (int i = 0; i < 3; ++i) {
+        const int32_t      start   = first + 7 * w;
+        const int          percent = block ? kBlock[w % (sizeof(kBlock) / sizeof(kBlock[0]))] : 100;
+        const int          count   = block && percent >= 150 ? 4 : 3;
+        std::vector<Streak::Found> f(static_cast<size_t>(count));
+        for (int i = 0; i < count; ++i) {
             f[i].appKey     = Streak::ActivityScanner::appKey("Earlier");
             f[i].localDay   = start + 2 * i;
             f[i].localStart = static_cast<uint32_t>(start + 2 * i) * 86400u + 7u * 3600u;
             f[i].kind       = i == 1 ? Streak::Kind::Strength : Streak::Kind::Run;
             f[i].minutes    = 40;
-            f[i].load       = static_cast<uint16_t>(i == 0 ? 60 : (i == 1 ? 45 : 90));   // a training load each
+            const int base  = i == 0 ? 60 : (i == 1 ? 45 : (i == 2 ? 90 : 70));
+            f[i].load       = static_cast<uint16_t>(base * percent / 100);   // a training load each
             snprintf(f[i].app, sizeof(f[i].app), "Earlier");
         }
         Streak::Events e;

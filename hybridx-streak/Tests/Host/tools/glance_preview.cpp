@@ -10,6 +10,7 @@
 #include <cstdlib>
 
 #include "GlanceLayout.hpp"
+#include "LoadHistory.hpp"
 
 namespace
 {
@@ -57,6 +58,17 @@ int main(int argc, char** argv)
     dump("Climbing", view(7, 7, 2, 3, Streak::Mood::Climbing), Glance::State::Normal, w, h, n);
     dump("Week banked", view(12, 12, 3, 3, Streak::Mood::Done), Glance::State::Normal, w, h, n);
     dump("At risk", view(23, 40, 2, 4, Streak::Mood::AtRisk), Glance::State::Normal, w, h, n);
+    // Form once two weeks of load are known (NOTES "Training load"; S9: banked weeks too).
+    Streak::HomeView onTrack = view(7, 7, 2, 3, Streak::Mood::Climbing);
+    onTrack.form     = 14;
+    onTrack.formWord = static_cast<uint8_t>(Streak::FormWord::Fresh);
+    onTrack.loadDays = 30;
+    dump("Form, on track", onTrack, Glance::State::Normal, w, h, n);
+    Streak::HomeView banked = view(12, 12, 3, 3, Streak::Mood::Done);
+    banked.form     = 14;
+    banked.formWord = static_cast<uint8_t>(Streak::FormWord::Fresh);
+    banked.loadDays = 30;
+    dump("Week banked, form", banked, Glance::State::Normal, w, h, n);
     dump("First week", view(0, 0, 1, 3, Streak::Mood::Trial, Streak::HomeView::kTrialWeek), Glance::State::Normal, w,
          h, n);
     dump("Shield waiting", view(9, 30, 0, 3, Streak::Mood::Climbing, Streak::HomeView::kDecisionPending),

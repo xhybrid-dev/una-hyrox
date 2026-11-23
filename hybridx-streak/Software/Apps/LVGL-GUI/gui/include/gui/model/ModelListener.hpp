@@ -24,6 +24,7 @@ public:
     virtual void onTrophies() {}
     virtual void onLoad() {}
     virtual void onDash() {}   ///< the family dashboard (NOTES "S7")
+    virtual void onSeries() {} ///< the training load graphs' series (NOTES "S8")
     virtual void onGoal() {}
 
     /// No button for the screen timeout (Model::kScreenTimeoutSteps).

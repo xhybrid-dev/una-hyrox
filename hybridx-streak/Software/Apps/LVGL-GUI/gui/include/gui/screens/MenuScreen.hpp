@@ -1,8 +1,8 @@
 /**
  ******************************************************************************
  * @file    MenuScreen.hpp
- * @brief   The menu: This week, By sport, Your numbers, Log a session, Trophy
- *          case, Training load, Settings.
+ * @brief   The menu: Training load, This week, By sport, Your numbers, Log a
+ *          session, Trophy case, Settings.
  ******************************************************************************
  */
 
@@ -30,7 +30,8 @@ protected:
     void build() override;
 
 private:
-    enum : uint8_t { kWeek, kSport, kNumbers, kLog, kTrophy, kLoad, kSettings, kCount };
+    // Training load first (NOTES "S9"): the data up front.
+    enum : uint8_t { kLoad, kWeek, kSport, kNumbers, kLog, kTrophy, kSettings, kCount };
 
     Widgets::Wheel::Item             mItems[kCount] {};
     char                             mWeekTip[32] {};

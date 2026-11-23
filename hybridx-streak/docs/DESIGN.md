@@ -54,6 +54,8 @@ All values are `SDK::GUI::Color` names.
 | At risk | YELLOW_DARK (amber) | the coach line when the week is in danger |
 | Shields | CYAN | the shield glyph, bonus pips, shield counts |
 | Sunrise | YELLOW_DARK sun, LEMON rays | Fresh start |
+| Fitness | CYAN, the thicker line on top | the training load graphs, the Form page (NOTES "S8", "S9") |
+| Fatigue | ORANGE_DARK (not the amber of "at risk") | the same, the thinner line underneath |
 
 Lime is kept for **you did it**. If lime is on the screen, something was
 earned.

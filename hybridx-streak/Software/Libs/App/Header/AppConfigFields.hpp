@@ -31,6 +31,7 @@ constexpr const char* kWeekStart    = "weekStart";
 constexpr const char* kCounts       = "counts";
 constexpr const char* kMinMinutes   = "minMinutes";
 constexpr const char* kOnePerDay    = "onePerDay";
+constexpr const char* kOpensOnLoad  = "opensOnLoad";   ///< open on the Form page (NOTES "S9")
 
 /// "counts": 0 = every kind, otherwise Streak::Kind + 1.
 constexpr int32_t kCountsAny = 0;

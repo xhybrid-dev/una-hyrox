@@ -224,6 +224,22 @@ size_t encode(const State& s, char* out, size_t cap)
         w.endArray();
     }
 
+    // The graphs' history (NOTES "S8"): [1, lastDay, [fitness x10], [fatigue x10], [load]].
+    if (s.trend.count > 0) {
+        w.startArray("H");
+        w.add(static_cast<uint8_t>(1));
+        w.add(static_cast<uint32_t>(s.trend.lastDay));
+        const uint16_t* const series[3] = {s.trend.fitnessX10, s.trend.fatigueX10, s.trend.load};
+        for (const uint16_t* v : series) {
+            w.startArray();
+            for (uint8_t i = 0; i < s.trend.count; ++i) {
+                w.add(v[i]);
+            }
+            w.endArray();
+        }
+        w.endArray();
+    }
+
     w.endMap();
     if (w.isError()) {
         return 0;
@@ -340,6 +356,28 @@ bool decode(const char* json, size_t len, State& out)
             l.openStart = static_cast<int32_t>(open);
             l.seeded    = seeded != 0;
             s.load      = l;
+        }
+    }
+
+    // The graphs' history: optional, as "L". Anything wrong with it leaves no history; the graphs
+    // then start again from the open window.
+    s.trend = LoadTrend();
+    const size_t n = d.length("H[2]");
+    if (s.load.started && d.length("H") == 5 && n > 0 && n <= kTrendDays && d.length("H[3]") == n
+        && d.length("H[4]") == n) {
+        LoadTrend t;
+        uint8_t   version = 0;
+        uint32_t  last    = 0;
+        bool ok = d.get(version, "H[0]") && version == 1 && d.get(last, "H[1]");
+        for (uint8_t i = 0; ok && i < n; ++i) {
+            ok = d.get(t.fitnessX10[i], "H[2][%d]", i) && d.get(t.fatigueX10[i], "H[3][%d]", i)
+                 && d.get(t.load[i], "H[4][%d]", i);
+        }
+        // It must end where the load's settled days end, or it is not this history.
+        if (ok && static_cast<int32_t>(last) == s.load.openStart - 1) {
+            t.count   = static_cast<uint8_t>(n);
+            t.lastDay = static_cast<int32_t>(last);
+            s.trend   = t;
         }
     }
 

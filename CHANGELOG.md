@@ -11,6 +11,12 @@ when it stamps `BUILD_VERSION` into the `.uapp`.
 
 ## [Unreleased]
 
+### Added
+
+- **Form after a save**: with X Streak installed (a version that leaves its training load,
+  Streak NOTES "S10"), the Saved screen says where your form now stands, under the race's load
+  ("Form now -18, building"), worked out by Streak's own model.
+
 ## [1.1.0] - 2026-11-09
 
 HybridX Race joins the X family (`hybridx-link/docs/STORE_RELEASE.md`).

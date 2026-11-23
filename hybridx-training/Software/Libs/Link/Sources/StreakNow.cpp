@@ -13,6 +13,8 @@
 #include "SDK/JSON/JsonStreamReader.hpp"
 #include "SDK/JSON/JsonStreamWriter.hpp"
 
+#include "LoadFormText.hpp"
+
 namespace HybridXLink
 {
 
@@ -88,6 +90,21 @@ size_t encodeStreakNow(const StreakNow& s, char* buf, size_t cap)
         w.endArray();
     }
     w.endArray();
+    if (s.hasLoad && s.load.started && s.load.firstDay >= 0 && s.load.openStart >= 0) {
+        w.add("at", s.at);
+        w.startArray("lw");
+        w.add(static_cast<uint32_t>(s.load.firstDay));
+        w.add(static_cast<uint32_t>(s.load.openStart));
+        w.add(s.load.fitnessX100);
+        w.add(s.load.fatigueX100);
+        w.add(static_cast<uint8_t>(s.load.seeded ? 1 : 0));
+        w.startArray();
+        for (uint8_t i = 0; i < Streak::kOpenDays; ++i) {
+            w.add(s.load.daily[i]);
+        }
+        w.endArray();
+        w.endArray();
+    }
     w.endMap();
     if (w.isError()) {
         buf[0] = '\0';
@@ -160,12 +177,42 @@ bool decodeStreakNow(const char* text, size_t len, StreakNow& out)
         s.keys[i].localStart = static_cast<uint32_t>(start);
     }
     s.keyCount = static_cast<uint8_t>(n);
+
+    // The load window (optional, S10): anything wrong with it leaves the line without form, never
+    // without the rest.
+    size_t lw = 0, daily = 0;
+    if (r.getArrayLength("lw", lw) && lw == 6 && r.getArrayLength("lw[5]", daily) && daily == Streak::kOpenDays) {
+        constexpr int64_t kMaxAvgX100 = 0xFFFFll * 100;   // no average can pass the largest daily load
+        int64_t at = 0, first = 0, open = 0, fit = 0, fat = 0, seeded = 0;
+        bool    lok = readInt(r, "at", 0, 0xFFFFFFFFll, at) && readInt(r, "lw[0]", 0, kMaxDay, first)
+                   && readInt(r, "lw[1]", 0, kMaxDay, open) && readInt(r, "lw[2]", 0, kMaxAvgX100, fit)
+                   && readInt(r, "lw[3]", 0, kMaxAvgX100, fat) && readInt(r, "lw[4]", 0, 1, seeded);
+        Streak::LoadState l;
+        for (uint8_t i = 0; lok && i < Streak::kOpenDays; ++i) {
+            char    q[16];
+            int64_t d = 0;
+            std::snprintf(q, sizeof(q), "lw[5][%u]", static_cast<unsigned>(i));
+            lok = readInt(r, q, 0, 0xFFFF, d);
+            l.daily[i] = static_cast<uint16_t>(d);
+        }
+        if (lok) {
+            l.started     = true;
+            l.firstDay    = static_cast<int32_t>(first);
+            l.openStart   = static_cast<int32_t>(open);
+            l.fitnessX100 = static_cast<uint32_t>(fit);
+            l.fatigueX100 = static_cast<uint32_t>(fat);
+            l.seeded      = seeded != 0;
+            s.load        = l;
+            s.at          = static_cast<uint32_t>(at);
+            s.hasLoad     = true;
+        }
+    }
     out = s;
     return true;
 }
 
 StreakProjector::StreakProjector(const StreakNow& now, int32_t today)
-    : mNow(now)
+    : mNow(now), mToday(today)
 {
     mValid = now.target > 0 && today >= now.weekStart;
     if (!mValid) {
@@ -192,10 +239,38 @@ void StreakProjector::add(const ActivityFile& file)
     }
 }
 
+void StreakProjector::offerLoad(uint32_t key, uint32_t local, uint16_t load)
+{
+    if (!mNow.hasLoad || load == 0) {
+        return;
+    }
+    bool inK = false;
+    for (uint8_t i = 0; i < mNow.keyCount && !inK; ++i) {
+        inK = mNow.keys[i].appKey == key && mNow.keys[i].localStart == local;
+    }
+    // New to Streak: not among the sessions it lists, and either started after its save, or in its
+    // week (where the list is all of them, unless it is full).
+    const int32_t day         = static_cast<int32_t>(local / kSecondsDay);
+    const bool    streakWeek  = day >= mNow.weekStart && day <= mNow.weekStart + 6;
+    const bool    listedFully = mNow.keyCount < kMaxKeys;
+    if (inK || !(local > mNow.at || (streakWeek && listedFully))) {
+        return;
+    }
+    for (uint8_t i = 0; i < mLoadCount; ++i) {
+        if (mLoads[i].key.appKey == key && mLoads[i].key.localStart == local) {
+            return;   // offered twice
+        }
+    }
+    if (mLoadCount < sizeof(mLoads) / sizeof(mLoads[0])) {
+        mLoads[mLoadCount++] = NewLoad{StreakKey{key, local}, load};
+    }
+}
+
 void StreakProjector::offer(uint32_t key, const Entry& e)
 {
     const uint32_t local = e.localStart();
     const int32_t  day   = static_cast<int32_t>(local / kSecondsDay);
+    offerLoad(key, local, e.load);   // form counts any day (S10); the line, this week only
     if (day < mWeekStart || day > mWeekStart + 6) {
         return;   // another week
     }
@@ -253,6 +328,23 @@ StreakLine StreakProjector::result() const
         l.streak    = static_cast<uint16_t>(mNow.streak + 1 + (met ? 1 : 0));
         l.hasStreak = true;
     }
+
+    // Form (S10): Streak's window, the new loads, replayed to today by Streak's own model.
+    if (mNow.hasLoad && mNow.load.started) {
+        Streak::LoadState   copy = mNow.load;
+        Streak::LoadHistory h(copy);
+        h.advanceTo(mToday);
+        for (uint8_t i = 0; i < mLoadCount; ++i) {
+            h.add(static_cast<int32_t>(mLoads[i].key.localStart / kSecondsDay), mLoads[i].load);
+        }
+        const Streak::LoadFigures f = h.figures(mToday);
+        if (f.word != Streak::FormWord::Learning && f.word != Streak::FormWord::NoLoad) {
+            const int32_t form = f.formX100 >= 0 ? (f.formX100 + 50) / 100 : -((-f.formX100 + 50) / 100);
+            l.form     = static_cast<int16_t>(form < -9999 ? -9999 : (form > 9999 ? 9999 : form));
+            l.formWord = static_cast<uint8_t>(f.word);
+            l.hasForm  = true;
+        }
+    }
     return l;
 }
 
@@ -276,6 +368,18 @@ bool formatStreakLine(const StreakLine& l, char* line1, size_t cap1, char* line2
         std::snprintf(line2, cap2, "%u-week streak", static_cast<unsigned>(l.streak));
     }
     return true;
+}
+
+size_t formatStreakForm(const StreakLine& l, char* out, size_t cap, size_t maxChars)
+{
+    if (out == nullptr || cap == 0) {
+        return 0;
+    }
+    out[0] = '\0';
+    if (!l.show || !l.hasForm) {
+        return 0;
+    }
+    return Streak::formatFormNow(out, cap, l.form, static_cast<Streak::FormWord>(l.formWord), maxChars);
 }
 
 }  // namespace HybridXLink

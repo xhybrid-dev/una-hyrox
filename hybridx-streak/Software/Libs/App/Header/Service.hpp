@@ -58,6 +58,7 @@ private:
     void         goalToConfig(const Streak::Goal& goal);
     void         sendViews();
     void         sendMoments();
+    void         sendSeries();      ///< the training load graphs' three series (NOTES "S8")
     void         handle(SDK::MessageBase* msg);
 
     void celebrate(CustomMessage::Moment moment);
@@ -69,6 +70,7 @@ private:
     Streak::Events                   mMoments {};   ///< waiting for the GUI
     bool                             mGuiStarted = false;
     bool                             mClockOk    = false;
+    bool                             mOpensOnLoad = false;   ///< AppConfig "opensOnLoad" (NOTES "S9")
 
     static constexpr uint32_t skStartupGraceMs = 5000u;
     static constexpr uint32_t skWaitMs         = 1000u;

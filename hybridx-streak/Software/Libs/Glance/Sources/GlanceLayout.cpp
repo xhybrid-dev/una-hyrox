@@ -7,7 +7,7 @@
 
 #include "GlanceLayout.hpp"
 
-#include "FormText.hpp"
+#include "LoadFormText.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -133,29 +133,37 @@ void words(const Streak::HomeView& v, State state, Words& w)
     w.weekColour = met ? GLANCE_COLOR_GREEN : GLANCE_COLOR_WHITE;
     std::snprintf(w.tiny, sizeof(w.tiny), "%u wk streak, %u/%u", u(v.streakWeeks), u(v.sessions), u(v.target));
 
-    // The bottom line: what matters most now, first.
-    const unsigned left = met ? 0u : u(v.target - v.sessions);
+    // The bottom line: what matters most now, first. Form shows whenever it is known, banked
+    // weeks included (Jon, 23 November 2026, NOTES "S9"); only a shield waiting and a week at
+    // risk, the streak's calls to act, come before it.
+    const unsigned left      = met ? 0u : u(v.target - v.sessions);
+    const auto     word      = static_cast<Streak::FormWord>(v.formWord);
+    const bool     formKnown = v.formWord >= static_cast<uint8_t>(Streak::FormWord::Fresh);
     if (v.flags & Streak::HomeView::kDecisionPending) {
         std::snprintf(w.coach, sizeof(w.coach), "Shield? Open app");
         w.coachColour = GLANCE_COLOR_YELLOW_DARK;
-    } else if (met) {
-        std::snprintf(w.coach, sizeof(w.coach), "Banked. Rest up.");
-        w.coachColour = GLANCE_COLOR_GREEN;
-    } else if (v.mood == Streak::Mood::AtRisk) {
+    } else if (!met && v.mood == Streak::Mood::AtRisk) {
         if (v.daysLeft <= 1) {
             std::snprintf(w.coach, sizeof(w.coach), "Last day: %u more", left);
         } else {
             std::snprintf(w.coach, sizeof(w.coach), "%u more, %u days left", left, u(v.daysLeft));
         }
         w.coachColour = GLANCE_COLOR_YELLOW_DARK;
-    } else if (v.formWord >= static_cast<uint8_t>(Streak::FormWord::Fresh)) {
-        // On track, with two weeks of load history: form (Jon, 2 November 2026), in amber
-        // when it says to ease off.
-        const auto word = static_cast<Streak::FormWord>(v.formWord);
-        Streak::formatFormLine(w.coach, sizeof(w.coach), v.form, word, v.loadDays);
+    } else if (formKnown) {
+        // Two weeks of load history: form (Jon, 2 November 2026), "Banked." first on a banked
+        // week, in amber when it says to ease off.
+        if (met) {
+            Streak::formatBankedForm(w.coach, sizeof(w.coach), v.form);
+            w.coachColour = GLANCE_COLOR_GREEN;
+        } else {
+            Streak::formatFormLine(w.coach, sizeof(w.coach), v.form, word, v.loadDays);
+        }
         if (word == Streak::FormWord::Overreaching) {
             w.coachColour = GLANCE_COLOR_YELLOW_DARK;
         }
+    } else if (met) {
+        std::snprintf(w.coach, sizeof(w.coach), "Banked. Rest up.");
+        w.coachColour = GLANCE_COLOR_GREEN;
     } else {
         // On track: the next summit.
         const Streak::ClimbPosition pos = Streak::climbFor(v.weeksAchieved);

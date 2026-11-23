@@ -24,7 +24,27 @@ strips the prefix for the SDK's version script.
   Each row says which app fills it ("Needs X Run") until that app has left its file.
 - **Home** names X Training's session on a banked week ("Banked. Tempo today") rather than saying
   "Rest up." on a day the plan has a session to do.
-- The store listing gains two previews: By sport, and Your numbers.
+- **Training load graphs**: R1 on the Training load screen opens a graph of the row: **fitness
+  and fatigue** together over 12 weeks (fitness in cyan, fatigue in orange), **form** about a zero
+  line, and the **daily load** over 4 weeks as bars. L1 and L2 move between them. Streak now keeps
+  a daily history for them (a new optional part of the saved state); after updating, the graphs
+  start with the last two weeks and fill in from there.
+- **Form up front**:
+  - Home has a second page, **Form** (L1 or L2 from the mountain): your form, large, with its
+    word; fitness and fatigue in the graphs' colours; the last four weeks of the two lines. R1
+    opens the graphs.
+  - **Opens on** (Settings, and the UNA app): open on the Form page instead of the mountain. News
+    from your sessions still plays on the mountain first.
+  - **Training load** is now the menu's first row.
+  - After the sessions an open finds, Home says where your form now stands ("Form now +12,
+    fresh").
+  - **The glance** shows form on banked weeks too ("Banked. Form +14"); only a shield waiting or a
+    week at risk comes before it.
+- **The family's Saved screens say where your form stands**: Streak leaves its training load
+  window in `streak_now.json` (two optional keys), and every X app works out form after its save
+  with Streak's own model.
+- The store listing gains three previews (By sport, Your numbers, the training load graph), and
+  the menu's gives way to the Form page; the glance's listing gains its form line.
 
 ## [1.1.1] - 2026-11-20
 

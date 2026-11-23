@@ -26,6 +26,7 @@ enum class EventKind : uint8_t {
     WeekResult,     ///< last week closed; a: its count, b: target | outcome << 8
     ShieldOffer,    ///< a: missed weeks, b: the streak at stake
     StreakReset,    ///< b: the streak that ended
+    FormNow,        ///< form after this open's sessions (NOTES "S9"); a: FormWord, b: form (int16_t)
 };
 
 struct Event {
@@ -39,6 +40,28 @@ struct Events {
     Event   items[kMax] {};
     uint8_t count   = 0;
     uint8_t dropped = 0;   ///< events dropped to make room (session toasts first)
+
+    /// Add just after the last session toast (at the end if there is none), so it plays with
+    /// them. When full it is not added: it is the first to give way.
+    void addAfterSessions(EventKind kind, uint8_t a = 0, uint16_t b = 0)
+    {
+        if (count >= kMax) {
+            ++dropped;
+            return;
+        }
+        uint8_t at = count;
+        for (int i = static_cast<int>(count) - 1; i >= 0; --i) {
+            if (items[i].kind == EventKind::SessionFound) {
+                at = static_cast<uint8_t>(i + 1);
+                break;
+            }
+        }
+        for (uint8_t j = count; j > at; --j) {
+            items[j] = items[j - 1];
+        }
+        items[at] = Event { kind, a, b };
+        ++count;
+    }
 
     /// Add; when full, a session toast gives way to anything else.
     void add(EventKind kind, uint8_t a = 0, uint16_t b = 0)

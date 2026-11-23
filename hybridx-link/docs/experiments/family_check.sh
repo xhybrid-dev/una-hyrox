@@ -14,6 +14,10 @@
 # X Run's VO2max (training_vo2_*.json). X Run then opens once more and must read them once,
 # behind its own mark for X Training.
 #
+# Form (Streak NOTES "S10"): after Streak's first open the script puts a mature load window in its
+# summary, and each app's "Streak form:" must be what a separate copy of Streak's model makes of it
+# plus the sessions saved so far.
+#
 # Training load (ACTIVITY_LINK.md, "Training load"): each summary's 8th number must be the
 # Edwards load worked out again here from its own .fit's records (each record's heart rate in
 # the watch's default zones, 95/114/133/152/171/190, a second each; within a point or 5 %, as
@@ -196,6 +200,18 @@ open_streak() {   # open_streak <log name>: open, let the "+1" toasts play, clos
 # save (hybridx-link StreakNow), counting what the apps before it saved.
 echo "Opening Streak, to leave its summary of the week..."
 open_streak Streak-0
+# Form after each save (Streak NOTES "S10"): Streak's summary as one with two months of history
+# would leave it, a mature load window and the moment of the save, so each app works out where
+# form stands after its session. Streak's own state is not touched: its next open writes its own.
+python3 - "$OUT/SharedData/HybridX/streak_now.json" <<'PY'
+import json, sys, time
+p = sys.argv[1]
+d = json.load(open(p))
+today = int(time.time() // 86400)   # the simulators' local day (the container runs in UTC)
+d["at"] = int(time.time())
+d["lw"] = [today - 60, today - 13, 4000, 4000, 1, [40] * 13 + [0]]
+json.dump(d, open(p, "w"), separators=(",", ":"))
+PY
 
 if [ "$LONG" = 1 ]; then
     echo "Recording: X Training, Run, Race, Trail, Workout (three in turn) and Ride at once, about $SECS s each..."
@@ -303,6 +319,52 @@ for n, app in enumerate(("Training", "Run", "Race", "Trail", "Workout-free", "Wo
     else:
         want_line = (f"{n} of 7 this week", "1-week streak" if n >= 7 else "")
         check(f"{app}'s Streak line", got == want_line, f"{got}")
+
+# Form after each save (Streak NOTES "S10"): the window put in Streak's summary above, plus every
+# session saved so far (all today), replayed by a separate copy of Streak's model, in its words
+# (LoadFormText.hpp formatFormNow). At once (LONG=1) only its shape is certain.
+def form_step(avg, load, days):   # LoadHistory's integer step, as step() further down
+    diff = load * 100 - avg
+    half = days // 2
+    delta = (diff + half) // days if diff >= 0 else -((-diff + half) // days)
+    return max(0, avg + delta)
+def form_word(fit, fat):
+    if fit == 0 and fat == 0:
+        return ""
+    form, base = fit - fat, (fit if fit else 1)
+    if form * 100 > 10 * base: return "fresh"
+    if form * 100 >= -10 * base: return "steady"
+    if form * 100 >= -30 * base: return "building"
+    return "ease off"
+def form_text(f, g, max_chars):   # Workout and Ride word it within 18 characters, the rest 21
+    x = f - g
+    whole = (x + 50) // 100 if x >= 0 else -((-x + 50) // 100)
+    num = f"+{whole}" if whole > 0 else f"{whole}"
+    word = form_word(f, g)
+    for t in (f"Form now {num}, {word}", f"Form {num}, {word}"):
+        if word and len(t) <= max_chars:
+            return t
+    return f"Form now {num}"
+def streak_form(log):
+    try:
+        text = open(f"{out}/{log}.log", errors="replace").read()
+    except OSError:
+        return None
+    m = re.findall(r'Streak form: "([^"]*)"', text)
+    return m[-1] if m else None
+so_far = 0
+for n, app in enumerate(("Training", "Run", "Race", "Trail", "Workout-free", "Workout-strength", "Workout-circuit",
+                         "Ride")):
+    so_far += loads[n] if n < len(loads) else 0
+    got = streak_form(app)
+    if long_run:
+        check(f"{app}'s form", got is not None and got.startswith("Form "), f"{got}")
+        continue
+    f, g = 4000, 4000
+    for d in [40] * 13 + [so_far]:
+        f, g = form_step(f, d, 42), form_step(g, d, 7)
+    want = form_text(f, g, 18 if app.startswith(("Workout", "Ride")) else 21)
+    check(f"{app}'s form", got == want, f"{got!r} (reference {want!r}, loads so far {so_far})")
 
 first, second = summaries("Streak-1"), summaries("Streak-2")
 check("Streak, first open", first is not None and first[:3] == (6, 8, 8), f"files, entries, new = {first[:3] if first else None}")

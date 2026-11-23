@@ -54,8 +54,12 @@ ws = today - (today + 3) % 7                 # Monday (1970-01-01 was a Thursday
 mask = 0
 for d in range(min(2, today - ws + 1)):
     mask |= 1 << d
+# With Streak's load window (Streak NOTES "S10"): two months of history, so the Saved screen
+# also says where form stands after the session (when it has a load).
+lw = '[%d,%d,4000,4000,1,[%s]]' % (today - 60, today - 13, ",".join(["40"] * 13 + ["0"]))
 open(sys.argv[1], "w").write(
-    '{"v":1,"day":%d,"ws":%d,"t":4,"min":0,"sc":255,"opd":0,"pend":0,"n":2,"days":%d,"st":7,"k":[]}' % (today, ws, mask))
+    '{"v":1,"day":%d,"ws":%d,"t":4,"min":0,"sc":255,"opd":0,"pend":0,"n":2,"days":%d,"st":7,"k":[],"at":%d,"lw":%s}'
+    % (today, ws, mask, int(time.time()), lw))
 EOF
 
 Xvfb $DISP -screen 0 800x800x24 >/dev/null 2>&1 & XPID=$!

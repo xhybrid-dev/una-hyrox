@@ -120,6 +120,7 @@ struct StreakLineUpd : public SDK::MessageBase {
     bool show      = false;
     char line1[24] = {};   ///< "3 of 4 this week"
     char line2[20] = {};   ///< "8-week streak", or empty
+    char form[24]  = {};   ///< "Form now +12, fresh", or empty (Streak NOTES "S10")
     uint16_t load  = 0;    ///< The session's training load, sent whether or not there is a line (0: none)
 
     StreakLineUpd() : SDK::MessageBase(STREAK_LINE) {}

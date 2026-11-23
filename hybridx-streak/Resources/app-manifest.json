@@ -66,6 +66,13 @@
       "label": "One per day",
       "description": "Count at most one session a day towards the target.",
       "default": false
+    },
+    {
+      "id": "opensOnLoad",
+      "type": "bool",
+      "label": "Open on Training load",
+      "description": "Open on your form, fitness and fatigue instead of the mountain. News from your sessions still plays on the mountain first.",
+      "default": false
     }
   ]
 }

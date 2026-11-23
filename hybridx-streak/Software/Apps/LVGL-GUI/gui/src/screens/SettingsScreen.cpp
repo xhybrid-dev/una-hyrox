@@ -65,6 +65,12 @@ void SettingsScreen::fill()
         mItems[i].tipColor = Palette::kWin;
     }
     mItems[kOnePerDay].toggleState = e.onePerDay;
+
+    // Where the app opens (NOTES "S9"): R1 switches it.
+    snprintf(mTip[kOpensOn], sizeof(mTip[kOpensOn]), "%s", mModel.opensOnLoad() ? "Form" : "The mountain");
+    mItems[kOpensOn]          = { Style::Tip, "Opens on" };
+    mItems[kOpensOn].tip      = mTip[kOpensOn];
+    mItems[kOpensOn].tipColor = Palette::kWin;
 }
 
 void SettingsScreen::build()
@@ -93,6 +99,12 @@ void SettingsScreen::onGoal()
     mMenu->refresh();
 }
 
+void SettingsScreen::onHomeView()
+{
+    fill();
+    mMenu->refresh();
+}
+
 void SettingsScreen::onKey(uint8_t code)
 {
     namespace Btn = SDK::GUI::Button;
@@ -100,7 +112,12 @@ void SettingsScreen::onKey(uint8_t code)
         case Btn::L1: mMenu->prev(); break;
         case Btn::L2: mMenu->next(); break;
         case Btn::R1:
-            if (mMenu->selected() == kOnePerDay) {
+            if (mMenu->selected() == kOpensOn) {
+                const bool load = !mModel.opensOnLoad();
+                mModel.setOpensOnLoad(load);
+                snprintf(mTip[kOpensOn], sizeof(mTip[kOpensOn]), "%s", load ? "Form" : "The mountain");   // the service confirms
+                mMenu->refresh();
+            } else if (mMenu->selected() == kOnePerDay) {
                 Streak::Goal g = effective();
                 g.onePerDay    = !g.onePerDay;
                 mModel.setGoal(g);

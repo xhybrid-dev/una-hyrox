@@ -25,7 +25,8 @@ HybridX Race, which lives alongside it in this same repository.
   **Your numbers** shows X Training's plan for today, X Run's VO2max and
   X Weigh-in's weight trend, read from the files those apps leave in the
   shared folder (`docs/NOTES.md`, "S7").
-- **Training load**: fitness, fatigue and form from the family's heart-rate scores.
+- **Training load**: fitness, fatigue and form from the family's heart-rate scores, with graphs
+  over 12 weeks (R1 on the Training load screen; `docs/NOTES.md`, "S8").
 
 Status: **v0.1.0, unreleased.** Phases S0–S4 of the build plan are complete.
 Nothing has yet run on a watch — see `docs/PROBE.md` (Gate 0) and
@@ -38,11 +39,14 @@ Nothing has yet run on a watch — see `docs/PROBE.md` (Gate 0) and
 Buttons follow UNA's convention: R1 means yes or go, R2 means no or back.
 L1/L2 move between items.
 
-| | Home | Menu | This week | Log a session | Settings |
-|---|---|---|---|---|---|
-| **L1/L2** | — | Move | Move | — | Move |
-| **R1** | Open menu | Select | Leave out / undo | Next | Choose |
-| **R2** | Exit | Home | Back | Back | Back |
+| | Home (the mountain) | Home (Form page) | Menu | This week | Log a session | Settings |
+|---|---|---|---|---|---|---|
+| **L1/L2** | Form page | The mountain | Move | Move | — | Move |
+| **R1** | Open menu | The graphs | Select | Leave out / undo | Next | Choose |
+| **R2** | Exit | Exit | Home | Back | Back | Back |
+
+Settings' **Opens on** (also in the UNA app) picks which Home page the app opens on; news from
+your sessions always plays on the mountain first.
 
 ## Repository layout
 

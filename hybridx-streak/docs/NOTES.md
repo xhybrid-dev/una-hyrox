@@ -1239,3 +1239,266 @@ rather than agreed in plan mode first; the gate is at the end (below, "S7 gate")
    shows (X Run's VO2max glance, X Training's Today, X Weigh-in's Home).
 3. Decide: the names ("By sport", "Your numbers"), kilometres, and Home's banked line ("Banked.
    Tempo today").
+
+## S8: training load graphs (22 November 2026)
+
+Jon's request: from the Training load screen, press through to graphs of how the figures change,
+with **fitness and fatigue on one graph**, drawn as X Weigh-in draws its trend, and the two lines
+clearly different on the watch. Agreed in chat; the plan is recorded here and the gate is below.
+
+### What it adds
+
+- **R1 on the Training load screen** opens a graph of the selected row (it did nothing before):
+  Fitness or Fatigue opens **Fitness and fatigue**, Form opens **Form**, This week or Today opens
+  **Daily load**. L1 and L2 step between the three, R2 goes back.
+- **Fitness and fatigue**: the last 12 weeks, a point a day, both lines on one scale from 0.
+  - **Fitness: cyan, 3 px, drawn on top. Fatigue: orange, 2 px, underneath.** Blue against
+    orange is the pair that stays apart in the common kinds of colour blindness; the two also
+    differ in brightness (cyan is about twice as bright on the display) and in thickness, so they
+    can be told apart even without colour. The legend under the graph is set in the same colours.
+  - Orange is the SDK's `ORANGE_DARK` (C0 40 00), not Streak's amber `YELLOW_DARK`, which means
+    "at risk" (DESIGN 2).
+- **Form**: the same 12 weeks, one white line about a zero line.
+- **Daily load**: the last 4 weeks, a bar a day.
+- During the first two weeks the line graphs say "Learning", as the Form row does; the bars show.
+
+### How
+
+- **A daily history** (`LoadTrend`, in the state under a new optional key `"H"`, no version change,
+  as `"L"` was): 84 days of fitness and fatigue (tenths) and the day's load, recorded as each day
+  leaves the 14-day open window. The open days are replayed when asked. An older file reads with an
+  empty history, so for anyone updating the graphs start with the two weeks in the window and fill
+  from there.
+- **On demand**: the GUI asks when a graph opens (`LOAD_SERIES_REQUEST`) and the service answers
+  with three `LOAD_SERIES` messages (fitness, fatigue, load; 84 values each, under the 256-byte
+  block). The update on open stays at eight messages.
+- **Drawn as X Weigh-in's graph**: LVGL lines (`LV_USE_LINE` is on in the SDK's build; the chart
+  widget is off), its plot geometry (x 80 to 209, y 60 to 159, clear of the bezel arcs), grey guides
+  at the top and bottom of the scale, the scale's ends on the left, the dates underneath. The
+  glance's line control, which does not draw on a watch (S4.3), is not involved.
+- `GraphMath.hpp` (Core, header-only): the scales and the pixel mapping, host-tested.
+
+### As built
+
+- **The screens.** The Training load screen shows R1 (amber) now; R1 on a row opens its graph
+  (`GraphScreen`). Titles: **Training load** (fitness and fatigue: "Fitness, fatigue" is 134 px
+  and the title box 120), **Form**, **Daily load**. Under the plot: the dates ("31 Aug - 22
+  Nov"), then the legend in the lines' own colours, its numbers the Training load screen's own
+  (so the two screens agree): "Fitness 30" in cyan over "Fatigue 34" in orange; "Form -4,
+  Building" (amber when overreaching; the number alone if the word does not fit); "This week 244"
+  over "Today 95". Three dots at the foot mark the page, as X Weigh-in's do.
+- **The plot** is X Weigh-in's (x 80 to 209), 2 px higher and 8 px shorter (y 58 to 149) to leave
+  room for two legend lines low on the disc. Its scale labels are in a box 4 px wider than X
+  Weigh-in's (46 px: the daily load's largest possible scale, "80000", is 44 px).
+- **The scales** (`GraphMath`): fitness and fatigue share one from 0 to a round number above the
+  higher of the two (at least 10); form is the same distance each way from 0 (at least 5), with a
+  grey zero line a shade lighter than the guides; the daily load runs from 0 (at least 50). The
+  round numbers are 1, 1.5, 2, 3, 4, 5, 6 and 8 times a power of ten, so a peak of 61 tops out
+  at 80, not 100.
+- **The history**: 84 days of three numbers, 504 bytes in the state (and so in the glance's copy
+  of it, which ignores it). The worst-case state file, a year of everything with a full history
+  of the largest numbers, is **3,819 bytes**: inside PLAN 6.5's 4 KB, and kMaxBytes is 6,144.
+- **An updating athlete** gets the two open weeks at once, plus each day that leaves the window
+  from then on; the months before cannot be rebuilt (the averages were kept, not the days).
+- `make_state ... block` writes a training block (three weeks building, an easy week, four
+  harder with a fourth session, an easy week, a taper) for the captures.
+- Not in the glance: it has no room, and the glance's line control does not draw (S4.3).
+
+### Verified (22 November 2026)
+
+- **Host tests: 207**, 17 new:
+  - `LoadTrendTest` (16): nothing recorded until a day leaves the window, and never a filler
+    day before the first; each settled day equal to the model replayed from scratch to it; 12
+    weeks kept; a gap starting again and a years-long one clearing; tenths rounding and holding;
+    the series ending today with today's figures and each day's load; a new athlete's days only;
+    an updated athlete's two weeks; the model recording and the file keeping it and carrying on;
+    an older file, a broken history and one ending on the wrong day all read with the streak
+    kept; the worst-case file in bounds; and `GraphMath`'s round numbers, scales and pixels.
+  - `DashTextTest` (1 more): every title, legend, date span and scale label within its width,
+    measured with the fonts' own advances (`WheelFontWidths.hpp` now also has Regular 16 and 14).
+- **The simulator** (`docs/experiments/capture_graph.sh`, into `docs/screens/real/s8-*.png`; all
+  three checks pass): sixteen weeks of a block (the service sends "84 days", the history keeps
+  84), a first week ("Learning", one day of bars), and a file from before S8 (the lines start at
+  the open weeks plus the days since the save). Every page by key presses, L2 round all three and
+  back to the first, R2 back to Training load. The LVGL pool peak is still 62 %.
+- `capture_real.sh` re-run; `11b` and `27` show the R1 mark. The store previews gain
+  `9-load-graph`; `4-training-load` is refreshed.
+- **Watch builds compile** (compile checks only): the app 306,304 bytes, the glance 43,772.
+
+### Not checked, and open
+
+- **Anything on a watch**, the lines above all. X Weigh-in's graph, drawn the same way, has been
+  on Jon's watch since October, but no note records that its Graph page was looked at there.
+- Whether the colours read apart on the watch's own display in daylight (the simulator shows the
+  same 64 colours, but not the panel).
+
+### S8 gate (Jon)
+
+1. Look at `docs/screens/real/s8-*.png`.
+2. On the watch: open X Streak, Menu, Training load, then R1 on Fitness. Check that the cyan and
+   orange lines are easy to tell apart, outdoors as well as in. L2 to Form and Daily load, R2 back.
+3. Say whether the 12 weeks, the titles and the legends are right.
+
+## S9: form and fitness up front (23 November 2026)
+
+Jon's request: make the training load data front and centre, easier to see and reach. Of the six
+options offered he chose all six; this phase does the five inside Streak, and S10 (below) the one
+across the family. Agreed in chat; the gate is at the end.
+
+### What it does
+
+1. **A Training load page on Home.** L1 and L2 on Home (which opened the menu, as R1 does) now
+   turn between two pages: the mountain, and **Form**: form large with its word, fitness and
+   fatigue in the graphs' cyan and orange, and a 4-week graph of the two lines. R1 on it opens the
+   full graphs; R1 on the mountain still opens the menu; R2 on either leaves the app. During the
+   first two weeks it says "Learning: day N of 14".
+2. **Opens on.** A setting, on the watch (Settings) and in the UNA app ("Open on Training load",
+   off by default): open on the Form page instead of the mountain. Anything Home has to play first
+   (a session found, a week banked, a summit, a shield offer) still plays on the mountain, and the
+   app stays there.
+3. **Training load first in the menu**: Training load, This week, By sport, Your numbers, Log a
+   session, Trophy case, Settings.
+4. **Form on the glance every day it means something.** The bottom line's order becomes: a shield
+   waiting; the days left when the week is at risk (the streak's call to act); then form whenever
+   it is known, banked weeks included ("Banked. Form +14"); else the next summit. Until two weeks
+   of history, the summit, as now.
+5. **Home's arrival messages say what the session did to form**: after the "+1 Run · 42 min"
+   toasts, one more, "Form now +12, fresh" (shorter forms when it would not fit), when a session
+   found on this open carried a load and the warm-up is over.
+
+### How
+
+- The page is its own screen (`FormHomeScreen`), so the mountain's LVGL memory is freed before it
+  is built. It asks for the series as the graphs do.
+- The setting is AppConfig's sixth field, `opensOnLoad` (bool), in the manifest and the C++ table
+  (CI checks they agree). The service sends it in `HomeView`'s flags with a second flag, "moments
+  are coming", so the GUI opens on the Form page only when Home has nothing to play.
+- The form toast is a new event, `FormNow` (a: the word, b: form), added by the model after the
+  open's sessions; it is the first to give way when the eight-event list is full.
+
+### As built
+
+- **The Form page** (`FormHomeScreen`; `s9-04`): "Form" small at the top, the number in the
+  60-point face (it has the signs and the digits), the word under it, fitness and fatigue as
+  cyan and orange numbers with grey names, and the last four weeks of the two lines. Amber when
+  overreaching, as everywhere else. The figures are the Training load screen's (`LOAD_VIEW`), so
+  the screens agree. Learning: "Learning" and "Day 1 of 14" in the number's place (`s9-30`).
+- **The small graph** is scaled to its own low and high (`GraphMath::ownRange`), not from zero:
+  from zero, a month between 30 and 40 drew as a flat line. Both lines are 2 px (at 1 px the
+  orange all but vanished, `s9` first capture); the colours carry the difference.
+- **Home's marks** now show L1 and L2 (white), which turn to the Form page; R1 still opens the
+  menu. The graphs' R2 goes back to where they were opened from (`Model::graphReturn`).
+- **Opens on**: Settings' last row, R1 switches "The mountain" and "Form"; the phone's field is
+  "Open on Training load". `HomeView`'s flags carry it (`kOpensOnLoad`) and "moments are coming"
+  (`kMomentsComing`): the GUI goes to the Form page on the first view only when the setting is on
+  and there is nothing to play, no clock problem and no shield decision.
+- **The toast**: "Form now -34, ease off" in amber after the run's "+1 Run · 45 min" (`s9-01`,
+  `s9-02`); "Form now +12, fresh" in white otherwise; shorter forms within the coach's 21
+  characters. No buzz.
+- **The glance**: "Banked. Form +14" in green, amber when overreaching
+  (`docs/screens/glance-preview.png`, and a fourth glance store preview, `4-form.png`).
+- **The store previews**: the menu's (6) gives way to the Form page.
+
+### Verified (23 November 2026)
+
+- **Host tests: 214**, 7 new: the glance's banked form line, its colours and its widest case; the
+  form event after an open's sessions (its place after the last toast, its figure equal to the
+  view's, none while learning or without a load, the first to give way when the list is full);
+  the toast within the coach's line; the small graph's own range.
+- **The simulator** (`docs/experiments/capture_form.sh`, all four checks pass; `docs/screens/real/
+  s9-*.png`): a second open finding one run plays its toast and then the form toast; L1 to the
+  Form page, R1 to the graph, R2 back, L2 to the mountain, R1 to the menu with Training load first;
+  "Opens on" from the phone: the first open has news and stays on the mountain, the second opens on
+  the Form page; Settings switches it and `app_config.json` is written with `"opensOnLoad":true`;
+  a first week's Form page says "Learning".
+- **Every other capture re-run** for the new menu (`capture_real.sh`, `capture_dash.sh`,
+  `capture_graph.sh`): every walk lands on its screen; all their checks pass; the LVGL pool peak is
+  still 62 %. One existing fragility, not S9's: `capture_real.sh`'s scenario B needs three sessions
+  in the week of the run, so on a Monday its summit never comes and its last three screens land
+  one press early (23 November was a Monday). Its committed screens 20 to 27 are from an earlier
+  day and were kept.
+- The SDK's `validate_app_config.py` passes with six fields; both packagers pass.
+- **Watch builds compile** (compile checks only): the app 309,552 bytes, the glance 44,156.
+
+### Not checked
+
+- Anything on a watch: the Form page, the toast, Opens on from the UNA app, the glance's new line.
+
+### S9 gate (Jon)
+
+1. Look at `docs/screens/real/s9-*.png` and the glance mock-up.
+2. On the watch: from the mountain press L1 (the Form page), R1 (the graphs), R2, L2 (back).
+3. In the UNA app, turn on "Open on Training load"; open X Streak twice (the second time with no
+   new sessions) and check it opens on the Form page.
+4. Save a session in any X app, then open Streak: after its toast, "Form now ...".
+5. Look at the glance on a banked week.
+
+## S10: form on the family's Saved screens (23 November 2026)
+
+The sixth of Jon's six options (S9): form and fitness in every activity, not only in Streak. After
+a save, each X app's Saved screen says where form now stands, under the session's load.
+
+### As built
+
+- **Streak's load model moved into the link library**: `LoadHistory.hpp` and `FormText.hpp` (now
+  `LoadFormText.hpp`, because X Run and X Training each have a `FormText.hpp` about running form)
+  are `hybridx-link`'s originals, copied into every app with the rest of the link
+  (`check-link-copies.sh`, CI). Streak reads them from its own `Libs/Link` copy; their namespace
+  stays `Streak`.
+- **Streak leaves its load window** in `streak_now.json` (`saveStreakNow`): the optional `at` (the
+  local second of the save) and `lw` (its `LoadState`). Version 1 still: older readers ignore them.
+  The widest file is 626 bytes; the limit is now 896 (within the apps' 1 KB read buffers).
+- **Each app projects form** (`StreakProjector`): Streak's window, plus the loads Streak has not
+  counted, replayed to today by `LoadHistory`; `formatStreakForm` words it ("Form now -18,
+  building", within 21 characters, as Streak's own toast: `Coach::formToast` now calls the same
+  `formatFormNow`). Nothing while Streak is learning, or with a Streak from before S10.
+- **The six apps**: `StreakLineUpd.form[24]`, filled in `sendStreakLine()` and logged as `Streak
+  form: "..."`; the model keeps it (`streakForm()`); the Saved screen shows it with the load: a
+  Regular 16 line at y 134 between the load and the Streak line (Run, Race, Trail, X Training; in X
+  Training after its plan lines, with the load), or the load's own small label's second line
+  (Workout, Ride). Only with a load, as the load itself.
+- **Workout and Ride word it within 18 characters** ("Form +12, fresh"), not 21: their load label
+  sits at y 174, and two lines of "Form now +100, steady" (163 px in Regular 14) reached 116 px from
+  the centre, past the arcs' clear radius of 109 (their audits caught it). With the form line the
+  Streak line moves up to y 112 and the load to y 164; the widest at 18, "Form +1000, steady", is
+  139 px and its corners about 105 px out.
+- The details, the limits and the dedupe rule are in `hybridx-link/docs/ACTIVITY_LINK.md`, "Form
+  after a save".
+
+### Verified (23 November 2026)
+
+- **Host tests**: `hybridx-link` 58, with the new "StreakNowForm" suite (the window's round trip;
+  an older file; a broken window dropped and the rest kept; the widest file 626 bytes of 896;
+  form equal to Streak's model plus the new sessions; what Streak counted not counted again; a
+  session after `at` counted, one before it not; nothing while learning; the words' length at 21
+  and 18). Streak 214 (its toast now from `formatFormNow`, same words). Run, Race, Trail, Workout
+  (125), Ride (112) and X Training pass.
+- **The family check** (`family_check.sh`, quick mode): Streak's first summary given a mature
+  window, then each of the eight saves' "Streak form" equal to a separate copy of the model plus
+  the sessions saved so far; every earlier check still passes (counts, kinds, loads, fitness,
+  fatigue and form, X Run's VO2max). Passed with every app at 21 characters; the re-run with
+  Workout and Ride at 18 is running as this is committed (its result follows).
+- **The screens**: X Run's Saved screen (`docs/screens/real/s10-run-saved.png`) and X Ride's
+  (`s10-ride-saved.png`, from Ride's capture, all its checks passing; `r1-25` and `r1-54` refreshed).
+  X Training's, Workout's and Ride's text-fit audits: 0 problems, the widest form included.
+- **Watch builds compile** (compile checks only): X Run 523,084 bytes, Race 385,788, Trail 461,112,
+  Workout 333,084, Ride 338,036, X Training 572,136; Streak's app and glance.
+- `check-link-copies.sh`: the seven apps' copies match, `LoadHistory.hpp` and `LoadFormText.hpp`
+  included.
+
+### Not checked
+
+- Anything on a watch. In particular the order on a real save: the line is worked out after the
+  `.fit` closes and the summary is written, as the Streak line always was.
+- Race, Run and Trail have no text-fit audit: their form line is a Regular 16 label across the
+  disc at y 134, near the centre, and the widest (21 characters, about 170 px) was checked by eye.
+
+### S10 gate (Jon)
+
+1. Look at `docs/screens/real/s10-*.png`.
+2. On the watch, after Streak has two weeks of history: open X Streak once (it leaves its window),
+   then save a session in any X app. The Saved screen shows the load and "Form now ..." under it.
+3. Open X Streak: its form toast should give the same figure (it may differ by a point if the save
+   was very short, as Streak rounds the day's load once).
+4. With a Streak from before this update, the apps show the Streak line and the load, and no form,
+   until Streak has been opened once.

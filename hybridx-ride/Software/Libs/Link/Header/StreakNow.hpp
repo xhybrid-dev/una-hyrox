@@ -20,6 +20,18 @@
  *        minus this week, if met)
  *   k    [appKey, localStart] of every automatic session in this week, at
  *        most kMaxKeys: what Streak has already counted
+ * and, optional (Streak NOTES "S10", 23 November 2026; a file without them reads
+ * as before, and a reader that predates them ignores them):
+ *   at   the local second of the save: Streak had counted what started before
+ *   lw   Streak's training load window (LoadHistory.hpp's LoadState): [first day,
+ *        first open day, fitness x100, fatigue x100, seeded 0/1, [14 daily loads]]
+ *
+ * With them, the app also works out where form stands after its session: Streak's
+ * window, plus the load of every session Streak has not counted (one not in k, or
+ * started after "at"), replayed to today by Streak's own model (formatFormNow). A
+ * session Streak counted in its week beyond the 16 in k, or one recording across
+ * Streak's save, can be counted twice or missed here; Streak's own figures, on its
+ * next open, are always right.
  *
  * An app, after writing its own activity summary, reads this file and every
  * act_*.json (kSlotPaths) and projects the line with Streak's own rules
@@ -40,6 +52,7 @@
 #include <cstdint>
 
 #include "ActivityLink.hpp"
+#include "LoadHistory.hpp"
 
 namespace HybridXLink
 {
@@ -74,10 +87,16 @@ struct StreakNow {
     uint16_t  streak     = 0;
     uint8_t   keyCount   = 0;
     StreakKey keys[kMaxKeys] {};
+    // Training load (optional; see the file comment).
+    bool              hasLoad = false;
+    uint32_t          at      = 0;   ///< local seconds of the save
+    Streak::LoadState load {};       ///< load.started is true whenever hasLoad is
 };
 
-/// A buffer big enough for any summary.
-inline constexpr size_t kStreakNowMaxBytes = 640;
+/// A buffer big enough for any summary, the load window included (it fits the apps' kMaxBytes
+/// buffers, which they read it with).
+inline constexpr size_t kStreakNowMaxBytes = 896;
+static_assert(kStreakNowMaxBytes <= kMaxBytes, "the apps read streak_now.json into an activity file's buffer");
 
 /// Write the summary. Returns the length, or 0 (buf emptied) if a value is out of range or it did not fit.
 size_t encodeStreakNow(const StreakNow& s, char* buf, size_t cap);
@@ -91,6 +110,10 @@ struct StreakLine {
     uint8_t  target     = 0;       ///< 0: not known (a goal change waits): "N this week"
     bool     hasStreak  = false;
     uint16_t streak     = 0;       ///< weeks, this one included if met
+    // Form after the sessions Streak has not counted, this one included (optional; S10).
+    bool     hasForm    = false;   ///< false: no load window, or still learning (two weeks)
+    int16_t  form       = 0;       ///< whole points
+    uint8_t  formWord   = 0;       ///< Streak::FormWord
 };
 
 /// Works the line out as sessions are offered: construct it from Streak's summary and today's local
@@ -108,7 +131,10 @@ public:
 private:
     void offer(uint32_t appKey, const Entry& e);
 
+    void offerLoad(uint32_t appKey, uint32_t localStart, uint16_t load);
+
     StreakNow mNow;
+    int32_t   mToday     = 0;
     bool      mValid     = false;
     bool      mSameWeek  = false;
     bool      mNextWeek  = false;   ///< exactly one week on
@@ -118,11 +144,25 @@ private:
     // Sessions added here, so one offered twice counts once.
     StreakKey mAdded[kMaxKeys * kSlotCount] {};
     uint8_t   mAddedCount = 0;
+    // Loads Streak has not counted, for form (S10), once each. Apps build the projector on their
+    // service stack, so the list is short: more than 32 sessions since Streak last opened, all
+    // with a load, is far past any real fortnight (the rest would be left out of the form shown).
+    static constexpr uint8_t kMaxNewLoads = 32;
+    struct NewLoad {
+        StreakKey key {};
+        uint16_t  load = 0;
+    };
+    NewLoad   mLoads[kMaxNewLoads] {};
+    uint8_t   mLoadCount = 0;
 };
 
 /// "3 of 4 this week" (or "3 this week"), and a second line "8-week streak" when there is one, as
 /// two strings. Returns false when there is nothing to show.
 bool formatStreakLine(const StreakLine& l, char* line1, size_t cap1, char* line2, size_t cap2);
+
+/// "Form now +12, fresh" (Streak::formatFormNow, at most @p maxChars), or empty when the line has
+/// no form. Returns the length.
+size_t formatStreakForm(const StreakLine& l, char* out, size_t cap, size_t maxChars = 21);
 
 }  // namespace HybridXLink
 

@@ -96,6 +96,34 @@ void numbersMenuTip(const Streak::FamilyView& v, char* out, size_t size);
 /// False with no session to do today.
 bool bankedPlanLine(const Streak::FamilyView& v, char* out, size_t size);
 
+// -- The training load graphs (NOTES "S8") ---------------------------------------------
+
+/// The graphs' pages' titles, each within kMaxTitlePx ("Fitness, fatigue" is 134 px: the legend
+/// names the two lines instead).
+constexpr const char* kGraphTitles[3] = {"Training load", "Form", "Daily load"};
+/// The widest legend line (Regular 16) and date or scale label (Regular 14), px: the legend's
+/// second line sits low on the disc, where about 158 px are clear of the bezel arcs.
+constexpr uint16_t kMaxLegendPx = 150;
+constexpr uint16_t kMaxScalePx  = 46;    ///< the scale's labels, in a 46 px box left of the plot
+constexpr uint16_t kMaxSpanPx   = 170;   ///< the dates under the plot
+
+uint16_t legendPx(const char* s);   ///< Regular 16
+uint16_t smallPx(const char* s);    ///< Regular 14
+
+/// "22 Nov" for a local day number.
+void dayMonth(int32_t day, char* out, size_t size);
+/// "30 Aug - 22 Nov": the first and last day a graph shows.
+void graphSpan(int32_t first, int32_t last, char* out, size_t size);
+/// A scale label: whole points from @p value in @p unit (10 for tenths); @p sign adds "+" above 0.
+void scaleLabel(int32_t value, int32_t unit, bool sign, char* out, size_t size);
+/// The legends, from the Training load screen's own figures so the two agree: "Fitness 21",
+/// "Fatigue 7", "Form +14, Fresh" (or "Form +14" if that is too wide), "This week 210", "Today 45".
+void fitnessLegend(uint16_t fitness, char* out, size_t size);
+void fatigueLegend(uint16_t fatigue, char* out, size_t size);
+void formLegend(int16_t form, uint8_t formWord, char* out, size_t size);
+void weekLoadLegend(uint32_t weekLoad, char* out, size_t size);
+void todayLoadLegend(uint16_t todayLoad, char* out, size_t size);
+
 /// Every row Your numbers shows, in order, into @p rows (room for kMaxRows): X Training's,
 /// X Run's and X Weigh-in's, each with at least one row ("Needs X Run" when its app has left
 /// nothing). Returns how many, 3 to 5 (pace and next never show together).
