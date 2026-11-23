@@ -224,9 +224,13 @@ export const RACE_BEATS = (() => {
 })();
 
 /** Scene 4, X Streak's moments (HomeScreen.cpp: toast 2.2 s, beat 0.9 s, glide 1.1 s, to summit 0.9 s). */
+/** The watch: UNA's CAD housing with UNA's front render on its face (src/watch/model.ts), in one of
+ * the render's colourways: graphite (the film's) or white (UNA's product photos). */
+export const HOUSING = { colourway: 'graphite' as 'graphite' | 'white' };
+
 export const STREAK_BEATS = {
-  swap: 43.0, // the watch goes from Race to X Streak
-  swapDur: 1.0, // the watch dips back; the screen changes halfway, through black
+  turn: 43.0, // the watch turns to X Streak
+  turnDur: 1.0, // the screen changes halfway, facing away
   home: 43.8, // Home, before
   toast: 44.6, // "+1 Hybrid · 75 min", the fourth pip pops
   stepUp: 45.5, // "Week complete!", the glide begins

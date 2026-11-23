@@ -30,7 +30,7 @@ export const span = (t: number, a: number, b: number, e = 'power3.inOut') => (t 
 export type State = {
   cam: { px: number; py: number; pz: number; lx: number; ly: number; lz: number; fov: number };
   light: { env: number; key: number; rim: number; rimX: number; grid: number };
-  watch: { swap: number };
+  watch: { turn: number };
   family: { a: number; spin: number; tight: number };
   week: { a: number };
   race: { a: number };
@@ -43,7 +43,7 @@ export function buildTimeline(ratio: Ratio) {
   const S: State = {
     cam: { px: 0, py: 0, pz: 0, lx: 0, ly: 0, lz: 0, fov: 30 },
     light: { env: 0, key: 0, rim: 0, rimX: -8, grid: 0 },
-    watch: { swap: 0 },
+    watch: { turn: 0 },
     family: { a: 0, spin: 0, tight: 0 },
     week: { a: 0 },
     race: { a: 0 },
@@ -74,8 +74,8 @@ export function buildTimeline(ratio: Ratio) {
     [27.8, L.shots.race, 'power3.inOut'],
     [RACE_BEATS.finish - 0.2, L.shots.race],
     [RACE_BEATS.savePress + 0.3, L.shots.raceWide, 'power3.inOut'],
-    [STREAK_BEATS.swap + 0.9, L.shots.raceWide],
-    [STREAK_BEATS.swap + 2.0, L.shots.streak, 'power3.inOut'],
+    [STREAK_BEATS.turn + 0.9, L.shots.raceWide],
+    [STREAK_BEATS.turn + 2.0, L.shots.streak, 'power3.inOut'],
     [STREAK_BEATS.homeAfter + 0.4, L.shots.streak],
     [56.4, L.shots.outro, 'power3.inOut'],
     [62, L.shots.outro],
@@ -100,8 +100,8 @@ export function buildTimeline(ratio: Ratio) {
   track(S.lockup, 'a', [[0, 0], [1.4, 0], [2.4, 1, 'power3.out'], [4.4, 1], [5.0, 0, 'power2.in'], [57.4, 0], [58.4, 1, 'power3.out']]);
   track(S.lockup, 'cta', [[0, 0], [58.2, 0], [59.0, 1, 'power3.out']]);
 
-  // Race to X Streak: the watch dips back and returns; the screen changes at the bottom of the dip.
-  track(S.watch, 'swap', [[0, 0], [STREAK_BEATS.swap, 0], [STREAK_BEATS.swap + STREAK_BEATS.swapDur, 1, 'power3.inOut']]);
+  // The watch turns to X Streak (one full turn; the screen changes facing away).
+  track(S.watch, 'turn', [[0, 0], [STREAK_BEATS.turn, 0], [STREAK_BEATS.turn + STREAK_BEATS.turnDur, 1, 'power3.inOut']]);
 
   // Each layer's presence.
   track(S.family, 'a', [[0, 0], [MONTAGE.start, 1, 'none'], [26.6, 1], [27.4, 0.0, 'power2.inOut'], [49.6, 0], [50.4, 1, 'power2.out'], [62, 1]]);
@@ -111,9 +111,9 @@ export function buildTimeline(ratio: Ratio) {
   // The week panel steps aside while the race runs, and is back for the race's tile.
   track(S.week, 'a', [[0, 0], [WEEK_BEATS.start - 0.6, 0], [WEEK_BEATS.start + 0.4, 1, 'power3.out'], [RACE_BEATS.marks, 1],
     [RACE_BEATS.gun + 0.4, 0, 'power2.inOut'], [RACE_BEATS.finish, 0], [RACE_BEATS.savePress - 0.1, 1, 'power2.out'],
-    [STREAK_BEATS.swap - 0.2, 1], [STREAK_BEATS.swap + 0.6, 0, 'power2.in']]);
+    [STREAK_BEATS.turn - 0.2, 1], [STREAK_BEATS.turn + 0.6, 0, 'power2.in']]);
   track(S.race, 'a', [[0, 0], [RACE_BEATS.gun - 0.4, 0], [RACE_BEATS.gun + 0.4, 1, 'power3.out'], [RACE_BEATS.finish + 1.2, 1], [RACE_BEATS.finish + 2.0, 0, 'power2.in']]);
-  track(S.streak, 'a', [[0, 0], [STREAK_BEATS.swap + 0.9, 0], [STREAK_BEATS.swap + 1.7, 1, 'power3.out'], [STREAK_BEATS.homeAfter + 0.4, 1], [56.0, 0, 'power2.in']]);
+  track(S.streak, 'a', [[0, 0], [STREAK_BEATS.turn + 0.9, 0], [STREAK_BEATS.turn + 1.7, 1, 'power3.out'], [STREAK_BEATS.homeAfter + 0.4, 1], [56.0, 0, 'power2.in']]);
   track(S.streak, 'load', [[0, 0], [STREAK_BEATS.load, 0], [STREAK_BEATS.load + 0.6, 1, 'power3.out'], [STREAK_BEATS.homeAfter + 0.4, 1], [56.0, 0, 'power2.in']]);
 
   return { tl, S };

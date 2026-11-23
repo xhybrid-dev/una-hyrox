@@ -16,13 +16,16 @@ HybridX yellow (`#FADB5C`), black and white. Decisions and the storyboard: [`PLA
 | The family | 5-15 s | Each app's real screen in turn; its icon lifts out into an orbit with what it does for you. |
 | One week, in sync | 15-27 s | X Run, X Ride and X Workout save; each Saved screen counts the week up ("3 of 4 this week"); each session flies to its day. |
 | Race day | 27-43 s | HybridX Race: one button, sixteen splits round a ring; Save, and the week is done ("4 of 4 / 12-week streak"). |
-| X Streak | 43-55 s | The watch dips from Race to X Streak; "+1 Hybrid · 75 min", "Week complete!", Summit! Snowdon at 12 weeks; then one training load from every app. |
+| X Streak | 43-55 s | The watch turns to X Streak; "+1 Hybrid · 75 min", "Week complete!", Summit! Snowdon at 12 weeks; then one training load from every app. |
 | Outro | 55-62 s | The family, the lockup, HYBRIDX.CLUB. |
 
 ## Running it
 
-You need Node 20+, Python 3 with `numpy` and `Pillow`, and the SDK checked out at `../../una-sdk`
-(or `UNA_SDK`): UNA's watch art is read from its Figma pack at build time and never committed.
+You need Node 20+, Python 3 with `numpy` and `Pillow`, git, and the SDK checked out at `../../una-sdk`
+(or `UNA_SDK`): UNA's watch art is read from its Figma pack at build time and never committed. The
+watch's housing is UNA's CAD: the first `npm run assets` clones UNA's hardware repository
+([UNAWatch/una-hardware](https://github.com/UNAWatch/una-hardware)) into the git-ignored `.cache/`
+(or set `UNA_HARDWARE` to a copy).
 
 ```bash
 npm install
@@ -37,8 +40,9 @@ npm run dev
 ```
 
 Then open the address Vite prints. `npm run assets` writes everything the page loads from elsewhere
-in the repository into the git-ignored `public/gen/`: UNA's watch render (and where its screen
-opening and buttons are) and wordmark; the apps' LVGL fonts as JSON; the traced HybridX X; the family's icons and real screens.
+in the repository into the git-ignored `public/gen/`: UNA's watch housing from UNA's CAD (a GLB),
+UNA's front renders in graphite and white (and where the screen opening and buttons are), UNA's
+wordmark; the apps' LVGL fonts as JSON; the traced HybridX X; the family's icons and real screens.
 Run it again after a change to any of those.
 
 **URL parameters:** `?t=12.5` (start time), `?scene=week` (`intro`, `family`, `week`, `race`,
@@ -47,7 +51,7 @@ Run it again after a change to any of those.
 **The dev overlay:** play and pause (or Space), a scrub bar with the scenes marked, a button per
 scene, the time and frame, the ratio, and the frame rate. Arrow keys step a frame (Shift: a second).
 
-**For hybridx.club:** `npm run build` writes a static site to `dist/` (about 2.5 MB; relative paths, so
+**For hybridx.club:** `npm run build` writes a static site to `dist/` (about 9 MB, most of it UNA's CAD, which a server sends gzipped at about half; relative paths, so
 it can sit in any folder). It leaves out the files that are only for the checks.
 
 ## Editing
@@ -104,9 +108,17 @@ WebGL runs on SwiftShader at about 0.9 s a frame: about an hour for a 60 fps fil
     family's formula;
   - the Training load screen's numbers (form −9, Building, which agrees with Streak's bands);
   - the chart's curves.
-- **The watch** is UNA's own render, the graphite watch from the SDK's Figma pack, with the live
-  screen behind its opening. It and UNA's wordmark are UNA's art, used with UNA's permission (Jon,
-  22 November 2026). The pack has the front view only, so the watch always faces the camera.
+- **The watch** is UNA's own:
+  - the housing (bezel, housing, buttons, rear cover, sensor window) is UNA's CAD, from
+    [UNAWatch/una-hardware](https://github.com/UNAWatch/una-hardware) (CC BY 4.0), converted by
+    `scripts/una-cad.mjs`;
+  - its face is UNA's front render from the SDK's Figma pack, projected onto the CAD, so from the
+    front the watch is UNA's mockup; the CAD and the render agree to within the outline;
+  - not in the CAD, so made for the film: the lens (carrying the render's printed ring), the USB-C
+    cover and the strap (from UNA's product photos);
+  - the colourway is `HOUSING` in `src/config.ts`: graphite (the film's) or white.
+
+  UNA's render and wordmark are UNA's art, used with UNA's permission (Jon, 22 November 2026).
 
 ## Where things are
 
@@ -116,7 +128,7 @@ src/layout.ts          per-ratio cameras and placement
 src/timeline.ts        the GSAP master timeline (seek(t) every frame) and easing helpers
 src/app.ts             the renderer, the stage, renderAt(t)
 src/screen/            the watch's UI: LVGL fonts and widgets, Race, Streak, the family, the script
-src/watch/             UNA's render as the watch, the 240 px screen and its quantise shader, presses and haptics
+src/watch/             UNA's watch (CAD and render), the strap, the 240 px screen and its quantise shader, presses and haptics
 src/world/             the family's orbit, the week, the race ring, Streak's mountain and load
 src/hud/               captions, callouts, the lockup (troika-three-text, Space Grotesk)
 src/render/            post (bloom, SMAA, grain), stage (grid, contact shadow, light)
@@ -124,5 +136,10 @@ scripts/               assets, export, shots, screen check, determinism
 tests/                 the config and story checks
 ```
 
-Fonts: Space Grotesk (SIL OFL, via `@fontsource`) for the overlay; the apps' own Poppins builds on
-the watch.
+## Credits
+
+- Watch housing: UNA, [una-hardware](https://github.com/UNAWatch/una-hardware), CC BY 4.0.
+  Put this line in a film's description wherever it is posted.
+- UNA's watch render and wordmark: UNA, used with UNA's permission.
+- Fonts: Space Grotesk (SIL OFL, via `@fontsource`) for the overlay; the apps' own Poppins builds
+  on the watch.

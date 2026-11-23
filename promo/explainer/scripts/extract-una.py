@@ -5,11 +5,12 @@ The pack (una-sdk/Docs/Templates/Figma-UI-Kit/UNA-Watch-UI-Resource-Pack.fig) is
 images/ folder holds UNA's renders. They carry UNA's logo, so, as promo/tools/una_mockups.py does,
 they are read from the SDK at build time and never committed here.
 
-The film's watch is UNA's own render: the graphite watch from the front (the pack has no other
-view), its screen opening transparent, with the film's live 240 x 240 screen behind it.
+The film's watch is UNA's CAD housing (scripts/una-cad.mjs) with UNA's front render projected on its
+face: the graphite or the white watch from the front, its screen opening transparent.
 
 Writes:
   watch-graphite.png  the graphite watch, cropped to the watch with a clear margin
+  watch-white.png     the white watch, cropped the same way (the same watch: the same opening)
   una-wordmark.png    UNA's white wordmark, 1600 px wide
   meta.json           where the screen opening is (centre and radius, px), the image's size, the
                       wordmark's aspect, and each button's outer edge (angle in TouchGFX degrees,
@@ -34,6 +35,7 @@ OUT = os.path.join(HERE, '..', 'public', 'gen', 'una')
 # Image names inside the pack (checked by eye; promo/tools/una_mockups.py names the renders).
 WORDMARK = 'dab12a846023edfef71bdacc57d515ddcc765da8'  # 4096 x 1372 white UNA
 GRAPHITE = '7fcc1a77ec68190d68598271ef7001237214c36d'  # 2000 px graphite watch, front
+WHITE = '8a9fead257a6c70ffc99d9fe6f3c0ba3fc144d36'  # 2000 px white watch, front
 
 # The SDK's button hint angles (screen/lvgl.ts BTN_ANGLE); each button is looked for within 15 degrees.
 BUTTONS = {'l1': 299.5, 'l2': 240.5, 'r1': 60.5, 'r2': 120.0}
@@ -132,14 +134,19 @@ def main():
         mark.save(os.path.join(OUT, 'una-wordmark.png'))
         meta['wordmarkAspect'] = mark.width / mark.height
 
-        g = load(GRAPHITE)
-        alpha = np.array(g)[:, :, 3]
+        renders = {'graphite': load(GRAPHITE), 'white': load(WHITE)}
+        alpha = np.array(renders['graphite'])[:, :, 3]
         cx, cy, r = screen_opening(alpha)
+        wx, wy, wr = screen_opening(np.array(renders['white'])[:, :, 3])
+        if max(abs(wx - cx), abs(wy - cy), abs(wr - r)) > 1.5:
+            sys.exit(f"extract-una: the white render's opening ({wx:.1f}, {wy:.1f}, {wr:.1f}) is not the graphite's")
         meta['buttons'] = buttons(alpha, cx, cy, r)
-        x0, y0, x1, y1 = g.getbbox()
-        x0, y0, x1, y1 = x0 - MARGIN, y0 - MARGIN, x1 + MARGIN, y1 + MARGIN
-        g = bleed(g.crop((x0, y0, x1, y1)))  # PIL pads past the image with transparency
-        g.save(os.path.join(OUT, 'watch-graphite.png'))
+        boxes = [im.getbbox() for im in renders.values()]
+        x0, y0 = min(b[0] for b in boxes) - MARGIN, min(b[1] for b in boxes) - MARGIN
+        x1, y1 = max(b[2] for b in boxes) + MARGIN, max(b[3] for b in boxes) + MARGIN
+        for name, im in renders.items():
+            bleed(im.crop((x0, y0, x1, y1))).save(os.path.join(OUT, f'watch-{name}.png'))  # PIL pads with transparency
+        g = renders['graphite'].crop((x0, y0, x1, y1))
         meta['watch'] = {'cx': round(cx - x0, 2), 'cy': round(cy - y0, 2), 'r': round(r, 2), 'w': g.width, 'h': g.height}
 
     with open(os.path.join(OUT, 'meta.json'), 'w') as f:

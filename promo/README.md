@@ -89,8 +89,9 @@ clock and date (02:02, Thu 30 Mar) had not been set yet. The cover
 ## The explainer
 
 [`explainer/`](explainer/README.md): a browser-based three.js explainer of the whole family on the
-UNA Watch, "Seven apps. One watch. All in sync." (Jon, 22 November 2026). The watch is UNA's own render
-from the SDK's Figma pack; its screen is the apps' own UI, redrawn live; the week, the race and the climb are explained round
+UNA Watch, "Seven apps. One watch. All in sync." (Jon, 22 November 2026). The watch is UNA's own CAD
+(una-hardware, CC BY 4.0) with UNA's render from the SDK's Figma pack on its face; its screen is
+the apps' own UI, redrawn live; the week, the race and the climb are explained round
 it. It plays in a browser (hybridx.club) and exports as 16:9, 9:16 and 1:1 MP4 into
 [`videos/explainer/`](videos/explainer/). Unlike the films above, it is built with Vite, three.js
 and GSAP, and has its own `package.json`.

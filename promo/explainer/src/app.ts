@@ -3,7 +3,8 @@
 
 import * as THREE from 'three';
 import type gsap from 'gsap';
-import { DURATION, RATIOS, FAMILY, STREAK_BEATS, type Ratio } from './config';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DURATION, RATIOS, FAMILY, HOUSING, type Ratio } from './config';
 import { LAYOUTS, type Layout } from './layout';
 import { buildTimeline, type State } from './timeline';
 import { createPost, type Post } from './render/post';
@@ -78,9 +79,10 @@ export class App {
 
   private async init() {
     const L = LAYOUTS[this.ratio];
-    const [render, meta, wordmark, icons] = await Promise.all([
-      loadTexture(`${GEN}una/watch-graphite.png`),
+    const [render, meta, cad, wordmark, icons] = await Promise.all([
+      loadTexture(`${GEN}una/watch-${HOUSING.colourway}.png`),
       fetch(`${GEN}una/meta.json`).then((r) => r.json() as Promise<WatchMeta>),
+      new GLTFLoader().loadAsync(`${GEN}una/watch-cad.glb`).then((g) => g.scene),
       loadTexture(`${GEN}una/una-wordmark.png`),
       Promise.all(FAMILY.map((f) => loadTexture(`${GEN}icons/${f.id}.png`))),
       loadFonts(GEN),
@@ -93,7 +95,7 @@ export class App {
     this.shadow = new ContactShadow(this.scene, L.floorY);
 
     this.screen = new Screen();
-    this.watch = buildWatch(render, meta, this.screen.mesh);
+    this.watch = buildWatch(cad, render, meta, this.screen.mesh, HOUSING.colourway, wordmark);
     this.scene.add(this.watch.root);
     this.feedback = new Feedback(this.scene);
 
@@ -141,23 +143,11 @@ export class App {
     this.lights.fill.intensity = 0.35 * S.light.env;
     this.gridMat.uniforms.opacity.value = S.light.grid;
 
-    // The watch: UNA's render, square to the camera with a slight idle sway; for Race to X Streak
-    // it dips back and returns, the screen passing through black as one app closes and the next opens.
+    // The watch: an idle sway, the turn to X Streak. UNA's render on its face follows the room's
+    // light (its own colours at full light); the rest of it is lit by the stage's lights.
     const w = this.watch;
-    const dip = Math.sin(Math.PI * S.watch.swap);
-    w.root.position.set(0, 0, -0.9 * dip);
-    w.root.scale.setScalar(1 - 0.05 * dip);
-    w.root.quaternion.copy(this.camera.quaternion);
-    w.root.rotateX(0.025 * Math.sin(t * 0.37));
-    w.root.rotateY(0.035 * Math.sin(t * 0.29));
-    const look = w.look.uniforms;
-    look.level.value = Math.min(1, 0.035 + 0.965 * S.light.env);
-    look.rim.value = 0.42 * S.light.rim;
-    look.rimDir.value.set(S.light.rimX, 2.5).normalize();
-    look.sweep.value = (S.light.rim / 4.5) * (1 - S.light.env) * 0.55;
-    look.sweepPos.value = (S.light.rimX / 9) * 2.4;
-    const fromSwap = Math.abs(t - (STREAK_BEATS.swap + STREAK_BEATS.swapDur / 2));
-    this.screen.power = THREE.MathUtils.smoothstep(fromSwap, 0.05, 0.22);
+    w.root.rotation.set(0.04 * Math.sin(t * 0.37), S.watch.turn * Math.PI * 2 + 0.06 * Math.sin(t * 0.29), 0);
+    w.level.value = Math.min(1, 0.035 + 0.965 * S.light.env);
     this.screen.draw(screenAt(t));
     const dist = this.camera.position.distanceTo(w.root.position);
     const pxToWorld = (2 * dist * Math.tan((this.camera.fov * Math.PI) / 360)) / this.H;
@@ -173,11 +163,7 @@ export class App {
     this.renderer.autoClear = true;
     this.renderer.setRenderTarget(null);
     this.renderer.clear();
-    w.card.visible = false;
-    w.shadowCaster.visible = true;
     this.shadow.update(this.renderer, this.scene, w.root);
-    w.shadowCaster.visible = false;
-    w.card.visible = true;
     this.post.grain.uniforms.seed.value = Math.round(t * 60) % 997;
     this.post.composer.render();
     this.renderer.setRenderTarget(null);

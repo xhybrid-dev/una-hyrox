@@ -1,20 +1,31 @@
-// UNA's watch: UNA's own render, the graphite watch from the front (the SDK's Figma pack, read by
-// scripts/extract-una.py), on a card that always faces the camera, with the film's live screen
-// behind its transparent opening. The pack has the front view only, so the watch never turns:
-// the camera and the world move round it. Units: the display's radius is 1.
+// UNA's watch, from UNA's own CAD and UNA's own render.
 //
-// The card is lit in its shader: the room's light scales UNA's own shading (at full light the
-// render's colours are shown as they are), an edge light picks out the outline on the side the
-// rim light is on, and in the dark intro a soft band of light sweeps across the face.
+// - The housing: the bezel, the housing, the four buttons, the rear cover and the sensor window are
+//   UNA's CAD (github.com/UNAWatch/una-hardware, CC BY 4.0), converted by scripts/una-cad.mjs.
+// - The face: every surface that faces the front shows UNA's front render (the SDK's Figma pack),
+//   projected straight on, so from the front the watch is UNA's art; the rest is lit.
+// - Not in the CAD: the lens (a disc carrying the render's printed ring, the live screen under it),
+//   the USB-C cover (a rubber block in the housing's port) and the strap (strap.ts, from UNA's photos).
 //
-// A plain case shape (never drawn) stands behind the card for the floor's contact shadow.
+// Units: the display's radius is 1 (15.35 mm); the bezel's top at z = 0, the back towards -z.
 
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { Btn } from '../screen/lvgl';
+import { strap } from './strap';
 
+export const MM = 15.35; // mm per display radius: UNA's CAD fitted to UNA's render
+const mm = (v: number) => v / MM;
+
+export type Colourway = 'graphite' | 'white';
 export type WatchMeta = {
-  watch: { cx: number; cy: number; r: number; w: number; h: number };
-  buttons: Record<Btn, { deg: number; r: number }>;
+  watch: { cx: number; cy: number; r: number; w: number; h: number }; // the screen opening in the render (px)
+  buttons: Record<Btn, { deg: number; r: number }>; // TouchGFX degrees, display radii
+};
+
+const COLOURS: Record<Colourway, { housing: string; bezel: string; strapOut: string; strapIn: string; back: string; rubber: string }> = {
+  graphite: { housing: '#232528', bezel: '#121315', strapOut: '#1a1b1e', strapIn: '#101113', back: '#18191b', rubber: '#141517' },
+  white: { housing: '#dcdcda', bezel: '#141517', strapOut: '#dfe0de', strapIn: '#333437', back: '#202124', rubber: '#1b1c1f' },
 };
 
 /** TouchGFX degrees (0 = 12 o'clock, clockwise) to a unit direction in the face's plane. */
@@ -23,139 +34,118 @@ export const dirOf = (deg: number) => {
   return new THREE.Vector2(Math.cos(a), Math.sin(a));
 };
 
-/** The case's front outline: a 1.47 circle joined with the lug block (|x| 1.03, |y| 1.45, r 0.22). */
-function caseOutline(n = 128): THREE.Shape {
-  const a = 1.03, b = 1.45, rc = 0.22, rCircle = 1.47;
-  const sdf = (x: number, y: number) => {
-    const qx = Math.abs(x) - (a - rc), qy = Math.abs(y) - (b - rc);
-    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - rc;
+/**
+ * A lit material whose front-facing surfaces show UNA's render, projected along z, where the render
+ * is opaque. `level` scales the render with the room's light (1: its own colours).
+ */
+function projected(base: THREE.MeshPhysicalMaterial, render: THREE.Texture, m: WatchMeta['watch'], level: { value: number }, frontLo = 0.6) {
+  base.onBeforeCompile = (s) => {
+    s.uniforms.projMap = { value: render };
+    s.uniforms.projXf = { value: new THREE.Vector4(m.r / m.w, m.r / m.h, m.cx / m.w, (m.h - m.cy) / m.h) };
+    s.uniforms.projLevel = level;
+    s.vertexShader = s.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vOP;\nvarying vec3 vON;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOP = position;\nvON = normal;');
+    s.fragmentShader = s.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D projMap;\nuniform vec4 projXf;\nuniform float projLevel;\nvarying vec3 vOP;\nvarying vec3 vON;')
+      .replace('#include <opaque_fragment>', `#include <opaque_fragment>
+        {
+          vec2 puv = vec2(vOP.x * projXf.x + projXf.z, vOP.y * projXf.y + projXf.w);
+          vec4 pc = texture2D(projMap, puv);
+          float front = smoothstep(${frontLo.toFixed(2)}, ${(frontLo + 0.3).toFixed(2)}, normalize(vON).z) * smoothstep(0.35, 0.8, pc.a);
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, pc.rgb * projLevel, front);
+        }`);
   };
-  const pts: THREE.Vector2[] = [];
-  for (let i = 0; i < n; i++) {
-    const th = (i / n) * Math.PI * 2;
-    const dx = Math.cos(th), dy = Math.sin(th);
-    let lo = 0, hi = 3;
-    for (let k = 0; k < 40; k++) {
-      const m = (lo + hi) / 2;
-      if (sdf(dx * m, dy * m) < 0) lo = m; else hi = m;
-    }
-    const r = Math.max(rCircle, lo);
-    pts.push(new THREE.Vector2(dx * r, dy * r));
-  }
-  return new THREE.Shape(pts);
+  base.customProgramCacheKey = () => `una-projected-${frontLo}`;
+  return base;
 }
 
-const VERT = /* glsl */ `
-  varying vec2 vUv;
-  varying vec2 vP;
-  void main() {
-    vUv = uv;
-    vP = position.xy;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }`;
-
-/** UNA's render, lit. Its texture is sRGB, so it samples as linear; the output stays linear (post converts). */
-const FRAG = /* glsl */ `
-  uniform sampler2D map;
-  uniform vec2 texel;      // one texture pixel in uv
-  uniform float level;     // the room's light: 1 shows the render's own colours
-  uniform float rim;       // the edge light
-  uniform vec2 rimDir;     // towards the rim light, in the face's plane
-  uniform float sweep;     // the intro's band of light
-  uniform float sweepPos;
-  uniform vec2 fade;       // the strap fades out between these heights (display radii)
-  uniform float cut;       // alpha under which nothing is drawn (the depth pass uses 0.5)
-  varying vec2 vUv;
-  varying vec2 vP;
-  float A(vec2 o) { return texture2D(map, vUv + o * texel).a; }
-  void main() {
-    vec4 c = texture2D(map, vUv);
-    float a = c.a * (1.0 - smoothstep(fade.x, fade.y, abs(vP.y)));
-    if (a < cut) discard;
-    vec3 col = c.rgb * level;
-    // Edge light: the outline's outward normal from the alpha's slope, lit where it faces the light.
-    vec2 g = vec2(A(vec2(3.0, 0.0)) - A(vec2(-3.0, 0.0)), A(vec2(0.0, 3.0)) - A(vec2(0.0, -3.0)));
-    float e = length(g);
-    float facing = e > 0.001 ? max(0.0, dot(-g / e, rimDir)) : 0.0;
-    float lum = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
-    col += vec3(rim * min(e, 1.0) * facing * facing * (0.3 + 2.0 * lum));
-    // The intro's sweep: a soft diagonal band that lifts UNA's shading where it passes.
-    float s = dot(vP, vec2(0.94, 0.34));
-    col += c.rgb * sweep * exp(-pow((s - sweepPos) / 0.55, 2.0)) * 2.2;
-    gl_FragColor = vec4(col, a);
-  }`;
-
 export type WatchParts = {
-  root: THREE.Group; // placed and turned to the camera by the film
+  root: THREE.Group; // moved by the film
   body: THREE.Group; // shaken by the haptics
-  card: THREE.Group; // UNA's render (depth and colour passes)
-  look: THREE.ShaderMaterial; // the render's light
-  shadowCaster: THREE.Object3D; // the case shape, shown only for the contact shadow
-  buttonTip: Record<Btn, THREE.Vector3>; // the outer edge of each button, in body space
+  level: { value: number }; // the render's light
+  buttons: Record<Btn, THREE.Object3D[]>; // each button's cap and stem, pressed in by the film
+  buttonDir: Record<Btn, THREE.Vector3>; // outward, in body space
+  buttonTip: Record<Btn, THREE.Vector3>; // the outer face of each button, in body space
 };
 
-export function buildWatch(render: THREE.Texture, meta: WatchMeta, screen: THREE.Mesh): WatchParts {
+export function buildWatch(cad: THREE.Object3D, render: THREE.Texture, meta: WatchMeta, screen: THREE.Mesh, colourway: Colourway, wordmark: THREE.Texture): WatchParts {
+  const c = COLOURS[colourway];
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
-  const { cx, cy, r, w, h } = meta.watch;
+  const level = { value: 1 };
+  render.anisotropy = 8;
+  const m = meta.watch;
 
-  // The card: the image in display radii, its screen opening's centre at the origin.
-  render.generateMipmaps = true;
-  render.minFilter = THREE.LinearMipmapLinearFilter;
-  render.magFilter = THREE.LinearFilter;
-  const geo = new THREE.PlaneGeometry(w / r, h / r);
-  geo.translate((w / 2 - cx) / r, -(h / 2 - cy) / r, 0);
-  const uniforms = {
-    map: { value: render },
-    texel: { value: new THREE.Vector2(1 / w, 1 / h) },
-    level: { value: 1 },
-    rim: { value: 0 },
-    rimDir: { value: new THREE.Vector2(1, 0) },
-    sweep: { value: 0 },
-    sweepPos: { value: 0 },
-    // The strap's cut ends: gone by the nearer of the two (the image has a 24 px clear margin).
-    fade: { value: new THREE.Vector2(1.55, Math.min(cy - 24, h - 24 - cy) / r) },
-    cut: { value: 0.004 },
+  const mats = {
+    bezel: projected(new THREE.MeshPhysicalMaterial({ color: c.bezel, roughness: 0.42, metalness: 0.1, clearcoat: 0.3, clearcoatRoughness: 0.35 }), render, m, level),
+    housing: projected(new THREE.MeshPhysicalMaterial({ color: c.housing, roughness: 0.55, specularIntensity: 0.5 }), render, m, level),
+    button: projected(new THREE.MeshPhysicalMaterial({ color: '#1a1b1d', roughness: 0.35, metalness: 0.35, clearcoat: 0.3 }), render, m, level),
+    back: new THREE.MeshPhysicalMaterial({ color: c.back, roughness: 0.45, clearcoat: 0.4 }),
+    window: new THREE.MeshPhysicalMaterial({ color: '#0b0c0e', roughness: 0.08, clearcoat: 1 }),
   };
-  // Two passes: depth where the watch is solid (so the race ring passes behind it), then colour.
-  const depthMat = new THREE.ShaderMaterial({ uniforms: { ...uniforms, cut: { value: 0.5 } }, vertexShader: VERT, fragmentShader: FRAG, colorWrite: false });
-  const look = new THREE.ShaderMaterial({ uniforms, vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false });
-  const card = new THREE.Group();
-  const depth = new THREE.Mesh(geo, depthMat);
-  depth.renderOrder = 1;
-  const colour = new THREE.Mesh(geo, look);
-  colour.renderOrder = 2;
-  card.add(depth, colour);
-  body.add(card);
 
-  // The live display just behind the opening, on black (the opening's soft edge shows black, as
-  // the glass over a display's border does).
-  screen.position.z = -0.004;
-  body.add(screen);
-  const surround = new THREE.Mesh(new THREE.CircleGeometry(1.06, 128), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-  surround.position.z = -0.008;
-  body.add(surround);
-
-  // The case shape behind the card, for the contact shadow only.
-  const caseGeo = new THREE.ExtrudeGeometry(caseOutline(), { depth: 0.55, bevelEnabled: false });
-  caseGeo.translate(0, 0, -0.6);
-  const strap = new THREE.BoxGeometry(1.41, 0.7, 0.12);
-  const shadowCaster = new THREE.Group();
-  shadowCaster.add(new THREE.Mesh(caseGeo));
-  for (const sy of [-1, 1]) {
-    const s = new THREE.Mesh(strap);
-    s.position.set(0, sy * 1.75, -0.2);
-    shadowCaster.add(s);
-  }
-  shadowCaster.visible = false;
-  body.add(shadowCaster);
-
-  const buttonTip = {} as Record<Btn, THREE.Vector3>;
-  (Object.keys(meta.buttons) as Btn[]).forEach((k) => {
-    const d = dirOf(meta.buttons[k].deg);
-    buttonTip[k] = new THREE.Vector3(d.x * meta.buttons[k].r, d.y * meta.buttons[k].r, 0.02);
+  // UNA's parts, in display radii (the GLB is in metres).
+  const buttons = { l1: [], l2: [], r1: [], r2: [] } as Record<Btn, THREE.Object3D[]>;
+  const k = 1000 / MM;
+  cad.updateMatrixWorld(true);
+  cad.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const g = mesh.geometry.clone();
+    g.applyMatrix4(mesh.matrixWorld);
+    g.scale(k, k, k);
+    const n = mesh.name || mesh.parent?.name || '';
+    const mat = n.startsWith('bezel') ? mats.bezel : n.startsWith('housing') ? mats.housing : n.startsWith('button') ? mats.button
+      : n === 'sensor-window' ? mats.window : mats.back;
+    const part = new THREE.Mesh(g, mat);
+    body.add(part);
+    const b = n.match(/^button-(l1|l2|r1|r2)/)?.[1] as Btn | undefined;
+    if (b) buttons[b].push(part);
   });
 
-  return { root, body, card, look, shadowCaster, buttonTip };
+  // The lens under the bezel's rim: UNA's printed ring round the live display, glass over both.
+  const lensZ = mm(-0.6);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.0, mm(20.5), 192, 1),
+    projected(new THREE.MeshPhysicalMaterial({ color: '#0d0d0e', roughness: 0.5 }), render, m, level, 0.2));
+  ring.position.z = lensZ - 0.004;
+  body.add(ring);
+  screen.position.z = lensZ - 0.01;
+  body.add(screen);
+  const well = new THREE.Mesh(new THREE.CircleGeometry(mm(20.6), 128), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+  well.position.z = lensZ - 0.03;
+  body.add(well);
+  const glass = new THREE.Mesh(new THREE.CircleGeometry(mm(20.4), 160), new THREE.MeshPhysicalMaterial({
+    color: 0x000000, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.04, transparent: true, opacity: 0.3,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  glass.position.z = lensZ;
+  glass.renderOrder = 2;
+  body.add(glass);
+
+  // The USB-C cover in the housing's port at 3 o'clock.
+  const usb = new RoundedBoxGeometry(mm(1.6), mm(7.6), mm(5.2), 3, mm(0.5));
+  usb.translate(mm(23.25), 0, mm(-6.5));
+  body.add(new THREE.Mesh(usb, projected(new THREE.MeshPhysicalMaterial({ color: c.rubber, roughness: 0.7 }), render, m, level)));
+
+  // UNA pressed into the housing's left side, as on the watch.
+  const una = new THREE.Mesh(new THREE.PlaneGeometry(mm(7.5), mm(7.5) / 2.985), new THREE.MeshStandardMaterial({
+    map: wordmark, transparent: true, opacity: colourway === 'white' ? 0.3 : 0.2, color: colourway === 'white' ? '#6d6e70' : '#9a9ca0',
+    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
+  }));
+  una.rotation.set(0, -Math.PI / 2, -Math.PI / 2);
+  una.position.set(mm(-23.72), 0, mm(-7.4));
+  body.add(una);
+
+  body.add(strap(c.strapOut, c.strapIn));
+
+  const buttonDir = {} as Record<Btn, THREE.Vector3>;
+  const buttonTip = {} as Record<Btn, THREE.Vector3>;
+  (Object.keys(buttons) as Btn[]).forEach((b) => {
+    const d = dirOf(meta.buttons[b].deg);
+    buttonDir[b] = new THREE.Vector3(d.x, d.y, 0);
+    buttonTip[b] = new THREE.Vector3(d.x * meta.buttons[b].r, d.y * meta.buttons[b].r, mm(-6.5));
+  });
+  return { root, body, level, buttons, buttonDir, buttonTip };
 }

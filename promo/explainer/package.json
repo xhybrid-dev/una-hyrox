@@ -5,7 +5,7 @@
   "description": "UNA x HybridX: a three.js explainer of the HybridX family of apps on the UNA Watch.",
   "type": "module",
   "scripts": {
-    "assets": "python3 scripts/extract-una.py && node scripts/lvgl-fonts.mjs && python3 scripts/trace-xmark.py && node scripts/copy-assets.mjs",
+    "assets": "python3 scripts/extract-una.py && node scripts/una-cad.mjs && node scripts/lvgl-fonts.mjs && python3 scripts/trace-xmark.py && node scripts/copy-assets.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build && rm -rf dist/gen/ref",
     "preview": "vite preview --port 4173 --strictPort",
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/node": "22.19.1",
     "@types/three": "0.187.0",
+    "occt-import-js": "0.0.23",
     "playwright": "1.63.0",
     "tsx": "4.23.15",
     "typescript": "5.9.3",

@@ -1,11 +1,12 @@
-// Button presses and haptics, as pure functions of film time: a ring pulses out from the pressed
-// button; where the watch really buzzes (screen/script.ts BUZZES) the body shakes by 2-3 px, once
-// per pulse of the buzz.
+// Button presses and haptics, as pure functions of film time: the pressed button (UNA's, from the
+// CAD) sinks and a ring pulses out from it; where the watch really buzzes (screen/script.ts BUZZES)
+// the body shakes by 2-3 px, once per pulse of the buzz.
 
 import * as THREE from 'three';
 import { BRAND } from '../config';
 import { PRESSES, BUZZES } from '../screen/script';
 import type { WatchParts } from './model';
+import type { Btn } from '../screen/lvgl';
 
 const hash = (n: number) => {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
@@ -44,6 +45,16 @@ export class Feedback {
     }
     const px = 2.5 * amp;
     w.body.position.set((hash(frame) - 0.5) * 2 * px * pxToWorld, (hash(frame + 7.3) - 0.5) * 2 * px * pxToWorld, 0);
+    // Buttons: in 0.03 (half a millimetre) and back over 0.18 s.
+    const depth: Record<Btn, number> = { l1: 0, l2: 0, r1: 0, r2: 0 };
+    for (const p of PRESSES) {
+      const k = (t - p.t) / 0.18;
+      if (k >= 0 && k <= 1) depth[p.btn] = Math.max(depth[p.btn], 0.03 * (1 - Math.abs(k * 2 - 1)));
+    }
+    (Object.keys(depth) as Btn[]).forEach((b) => {
+      const d = w.buttonDir[b];
+      for (const m of w.buttons[b]) m.position.set(-d.x * depth[b], -d.y * depth[b], 0);
+    });
     // Everything below (and the overlay's callouts) reads the watch's world matrices: bring them
     // up to this frame first, or they would carry the last frame's placement and shake.
     w.root.updateMatrixWorld(true);
