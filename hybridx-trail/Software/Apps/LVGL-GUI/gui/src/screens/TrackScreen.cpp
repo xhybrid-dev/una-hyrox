@@ -37,13 +37,21 @@ constexpr uint32_t kBackOnMs    = 4000;
 constexpr uint32_t kTurnMs      = 4000;
 constexpr int32_t  kToGoY       = 30;   ///< navigation face: the big "to go" row
 constexpr int32_t  kUnitGap     = 6;
-constexpr int32_t  kBannerX     = 14;   ///< the banner: a band across the middle, as in the promo
-constexpr int32_t  kBannerY     = 84;
-constexpr int32_t  kBannerW     = 212;
-constexpr int32_t  kBannerH     = 68;
+// The banner: a cap across the top of the round face (T4: the band across the
+// middle hid the runner's arrow and the route, and the map is what gets them
+// back). Text widths measured in Poppins: the widest title, "Route complete",
+// is 161 px in SemiBold 20, inside the circle's 167 px at its row; the
+// widest detail with its arrow ("1888 m from line") 183 px of 207.
+constexpr int32_t  kCapH        = 82;   ///< just clear of the scroll indicator at 9 o'clock
+constexpr int32_t  kCapTitleY   = 28;   ///< two lines: the title ...
+constexpr int32_t  kCapSubY     = 54;   ///< ... and the detail under it
+constexpr int32_t  kCapOneY     = 40;   ///< one line: the title alone
+constexpr int32_t  kCapArrowW   = 22;   ///< the way back, before the detail
+constexpr int32_t  kCapArrowGap = 6;
 constexpr int16_t  kWholeMarginPx = 34;   ///< the whole-route map, clear of the edge and its markers
 constexpr uint32_t kAlertYellow = 0xFFE000;   ///< off course
-constexpr uint32_t kAlertGreen  = 0x38D060;   ///< back on course, route complete
+constexpr uint32_t kAlertGreen  = 0x38D060;   ///< back on course, right way, route complete
+constexpr uint32_t kAlertOrange = 0xFF8000;   ///< wrong way (not off course's yellow)
 constexpr uint32_t kAlertInk    = 0x2A1E00;   ///< text on the yellow
 constexpr uint32_t kRouteMagenta = 0xE040FF;
 constexpr uint32_t kFinishedMs  = 8000;
@@ -135,7 +143,7 @@ void TrackScreen::dropFace()
     mMapToGo = mMapTurn = nullptr;
     mChart.reset();
     mProfMax = mProfAscent = mProfNext = mProfNow = nullptr;
-    mNavToGo = mNavToGoUnit = mNavDone = mNavTotal = mNavStatus = mNavFoot = nullptr;
+    mNavTop = mNavToGo = mNavToGoUnit = mNavDone = mNavTotal = mNavStatus = mNavFoot = nullptr;
 }
 
 void TrackScreen::buildFace(Kind kind)
@@ -178,6 +186,7 @@ void TrackScreen::buildFaceMap()
     mMap->showFurniture(true, true, mModel.isUnitsImperial());
     mMapToGo = Theme::label(f, F::SemiBold20, "", 20, 42, 200);
     mMapTurn = Theme::label(f, F::Medium18, "", 20, 68, 200, LV_TEXT_ALIGN_CENTER, kRouteMagenta);
+    syncMapLabels();   // under the cap, if one is up
 }
 
 void TrackScreen::buildFaceProfile()
@@ -194,7 +203,7 @@ void TrackScreen::buildFaceProfile()
 void TrackScreen::buildFaceNav()
 {
     lv_obj_t* f = mFace = Theme::container(mRoot, 0, 0, 240, 240);
-    Theme::label(f, F::Italic18, "To go", 0, 10, 240);
+    mNavTop = Theme::label(f, F::Italic18, "To go", 0, 10, 240);
     // SemiBold 40 is digits only: the unit is its own label, the pair centred in updateNav().
     mNavToGo     = Theme::label(f, F::SemiBold40, Strings::kNoValue, 0, kToGoY, LV_SIZE_CONTENT, LV_TEXT_ALIGN_LEFT);
     mNavToGoUnit = Theme::label(f, F::Regular18, "", 0, kToGoY + 22, LV_SIZE_CONTENT, LV_TEXT_ALIGN_LEFT);
@@ -211,15 +220,16 @@ void TrackScreen::buildFaceNav()
 
 void TrackScreen::buildBanner()
 {
-    mBanner = Theme::container(mRoot, kBannerX, kBannerY, kBannerW, kBannerH);
+    // A cap over the top of the face: square-cornered, the round glass cuts it.
+    mBanner = Theme::container(mRoot, 0, 0, 240, kCapH);
     lv_obj_set_style_bg_opa(mBanner, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_bg_color(mBanner, Theme::rgb(kAlertYellow), LV_PART_MAIN);
-    lv_obj_set_style_radius(mBanner, 12, LV_PART_MAIN);
-    mBannerText = Theme::label(mBanner, F::SemiBold25, "", 0, 4, kBannerW, LV_TEXT_ALIGN_CENTER, kAlertInk);
-    mBannerSub  = Theme::label(mBanner, F::Medium18, "", 0, 36, kBannerW, LV_TEXT_ALIGN_CENTER, kAlertInk);
+    lv_obj_set_style_radius(mBanner, 0, LV_PART_MAIN);
+    mBannerText = Theme::label(mBanner, F::SemiBold20, "", 0, kCapTitleY, 240, LV_TEXT_ALIGN_CENTER, kAlertInk);
+    mBannerSub  = Theme::label(mBanner, F::Medium18, "", 0, kCapSubY, LV_SIZE_CONTENT, LV_TEXT_ALIGN_LEFT, kAlertInk);
     mBannerArrow = lv_line_create(mBanner);
     lv_obj_set_pos(mBannerArrow, 0, 0);
-    lv_obj_set_style_line_width(mBannerArrow, 4, LV_PART_MAIN);
+    lv_obj_set_style_line_width(mBannerArrow, 3, LV_PART_MAIN);
     lv_obj_set_style_line_rounded(mBannerArrow, true, LV_PART_MAIN);
     lv_obj_set_style_line_color(mBannerArrow, Theme::rgb(kAlertInk), LV_PART_MAIN);
     lv_obj_add_flag(mBannerArrow, LV_OBJ_FLAG_HIDDEN);
@@ -467,25 +477,41 @@ void TrackScreen::onNav(const Trail::Navigator::Status& s)
         updateProfile(s);
     }
 
-    // The off-course banner stays as long as the runner is off; the timed
-    // ones (back on, finished) are left to their timer.
-    const bool off = s.alert == Trail::OffCourse::State::Off;
-    if (off) {
+    // The off-course and wrong-way banners stay as long as the runner is off
+    // or going the wrong way; the timed ones (back on, right way, finished)
+    // are left to their timer. An arrow points as the runner sees it: turned
+    // by the direction they face, or by nothing on a north-up map.
+    const bool  northUpMap = mKind == Kind::Map && mModel.getSettings().mapNorthUp;
+    const float faces      = s.headingValid && !northUpMap ? s.headingDeg : 0.0f;
+    if (s.alert == Trail::OffCourse::State::Off) {
         char text[32];
         std::snprintf(text, sizeof(text), "%lu m from line", static_cast<unsigned long>(s.pos.offRouteM + 0.5f));
         showBanner("Off course", text, kAlertYellow, 0);
-        // The way back, as the runner sees it: turned by the direction they face,
-        // or by nothing on a north-up map.
-        const bool northUpMap = mKind == Kind::Map && mModel.getSettings().mapNorthUp;
-        const float faces     = s.headingValid && !northUpMap ? s.headingDeg : 0.0f;
-        setBannerArrow(s.guideValid, s.guideBearingDeg - faces);
-        mOffBanner = true;
-    } else if (mOffBanner) {
-        mOffBanner = false;
+        setBannerArrow(s.guideValid, s.guideBearingDeg - faces);   // to the nearest part of the route
+        mStandingBanner = true;
+    } else if (s.wrongWay) {
+        showBanner("Wrong way", "turn around", kAlertOrange, 0);
+        setBannerArrow(true, s.routeBearingDeg - faces);   // the route's own way
+        mStandingBanner = true;
+    } else if (mStandingBanner) {
+        mStandingBanner = false;
         if (!mBannerTimer) {
             Theme::setHidden(mBanner, true);
+            syncMapLabels();
         }
     }
+}
+
+void TrackScreen::syncMapLabels()
+{
+    // The cap replaces the map's own top lines while it shows: they sit under
+    // it, and the second would peek out below its edge.
+    if (!mMapToGo) {
+        return;   // not on the map face (its labels exist only while it does)
+    }
+    const bool capped = !lv_obj_has_flag(mBanner, LV_OBJ_FLAG_HIDDEN);
+    Theme::setHidden(mMapToGo, capped);
+    Theme::setHidden(mMapTurn, capped);
 }
 
 void TrackScreen::updateMap(const Trail::Navigator::Status& s)
@@ -504,6 +530,20 @@ void TrackScreen::updateMap(const Trail::Navigator::Status& s)
     }
 
     char buf[32];
+    if (s.pos.finished) {
+        // After the finish the run goes on until it is saved (T4: "0 m to go"
+        // looked as if everything had stopped): its time and distance, live.
+        const Track::Data& d = mModel.getTrackData();
+        Fmt::hms(buf, sizeof(buf), d.totalTime);
+        lv_label_set_text(mMapToGo, buf);
+        char dist[16];
+        Fmt::distanceTotal(dist, sizeof(dist), Fmt::distUnits(d.distance, mIsImperial));
+        std::snprintf(buf, sizeof(buf), "%s %s", dist, Fmt::units(mIsImperial));
+        lv_label_set_text(mMapTurn, buf);
+        lv_obj_set_style_text_color(mMapTurn, Theme::rgb(Color::LIME), LV_PART_MAIN);
+        return;
+    }
+    lv_obj_set_style_text_color(mMapTurn, Theme::rgb(kRouteMagenta), LV_PART_MAIN);
     if (s.pos.everLocked) {
         char d[16];
         RouteFmt::distance(d, sizeof(d), s.pos.remainingM, mIsImperial);
@@ -517,8 +557,9 @@ void TrackScreen::updateMap(const Trail::Navigator::Status& s)
     }
     lv_label_set_text(mMapToGo, buf);
 
-    // The next turn, under it: "Right 120 m". Not while lost: the way back is the news then.
-    if (s.turnValid && s.alert != Trail::OffCourse::State::Off) {
+    // The next turn, under it: "Right 120 m". Not while lost or going the
+    // wrong way: the way back is the news then.
+    if (s.turnValid && s.alert != Trail::OffCourse::State::Off && !s.wrongWay) {
         char d[16];
         RouteFmt::distance(d, sizeof(d), static_cast<float>(s.turnDistM), mIsImperial);
         std::snprintf(buf, sizeof(buf), "%s %s", Trail::TurnFinder::name(s.turnAngleDeg), d);
@@ -570,23 +611,25 @@ void TrackScreen::updateProfile(const Trail::Navigator::Status& s)
 
 void TrackScreen::setBannerArrow(bool show, float screenDeg)
 {
-    // The text moves over to make room for the arrow.
-    lv_obj_set_x(mBannerText, show ? 48 : 0);
-    lv_obj_set_x(mBannerSub, show ? 48 : 0);
-    lv_obj_set_width(mBannerText, show ? kBannerW - 54 : kBannerW);
-    lv_obj_set_width(mBannerSub, show ? kBannerW - 54 : kBannerW);
+    // The detail and the arrow before it, centred together on the face.
+    lv_obj_update_layout(mBannerSub);
+    const int32_t textW = lv_obj_get_width(mBannerSub);
+    const int32_t groupW = show ? kCapArrowW + kCapArrowGap + textW : textW;
+    const int32_t left   = (240 - groupW) / 2;
+    lv_obj_set_x(mBannerSub, show ? left + kCapArrowW + kCapArrowGap : left);
     if (!show) {
         lv_obj_add_flag(mBannerArrow, LV_OBJ_FLAG_HIDDEN);
         return;
     }
-    static const float kShape[5][2] = { { 0, -18 }, { 13, 14 }, { 0, 6 }, { -13, 14 }, { 0, -18 } };
-    const float r = screenDeg * 3.14159265f / 180.0f;
-    const float c = std::cos(r);
-    const float s = std::sin(r);
+    static const float kShape[5][2] = { { 0, -12.5f }, { 9, 10 }, { 0, 4 }, { -9, 10 }, { 0, -12.5f } };
+    const float r  = screenDeg * 3.14159265f / 180.0f;
+    const float c  = std::cos(r);
+    const float sn = std::sin(r);
+    const float cx = static_cast<float>(left + kCapArrowW / 2);
+    const float cy = static_cast<float>(kCapSubY + 13);   // the detail's middle
     for (int i = 0; i < 5; ++i) {
-        mArrowPts[i].x = static_cast<lv_value_precise_t>(std::lround(28.0f + kShape[i][0] * c - kShape[i][1] * s));
-        mArrowPts[i].y = static_cast<lv_value_precise_t>(std::lround(static_cast<float>(kBannerH) / 2.0f +
-                                                                     kShape[i][0] * s + kShape[i][1] * c));
+        mArrowPts[i].x = static_cast<lv_value_precise_t>(std::lround(cx + kShape[i][0] * c - kShape[i][1] * sn));
+        mArrowPts[i].y = static_cast<lv_value_precise_t>(std::lround(cy + kShape[i][0] * sn + kShape[i][1] * c));
     }
     lv_line_set_points(mBannerArrow, mArrowPts, 5);
     lv_obj_remove_flag(mBannerArrow, LV_OBJ_FLAG_HIDDEN);
@@ -594,7 +637,7 @@ void TrackScreen::setBannerArrow(bool show, float screenDeg)
 
 void TrackScreen::onTurnCue(int16_t angleDeg)
 {
-    if (!mHasRoute || mOffBanner) {
+    if (!mHasRoute || mStandingBanner) {
         return;
     }
     const uint16_t dist = mModel.nav().turnDistM;
@@ -617,8 +660,17 @@ void TrackScreen::updateNav(const Trail::Navigator::Status& s)
     }
     char        buf[32];
     const char* unit      = "";
-    const float remaining = s.pos.everLocked ? s.pos.remainingM : static_cast<float>(mModel.route().lengthM);
-    RouteFmt::distanceParts(buf, sizeof(buf), unit, remaining, mIsImperial);
+    // After the finish the run goes on until it is saved (T4): the top row is
+    // its time, and Done its distance, both still counting.
+    const bool          finished = s.pos.finished;
+    const Track::Data&  run      = mModel.getTrackData();
+    lv_label_set_text(mNavTop, finished ? "Time" : "To go");
+    if (finished) {
+        Fmt::hms(buf, sizeof(buf), run.totalTime);
+    } else {
+        const float remaining = s.pos.everLocked ? s.pos.remainingM : static_cast<float>(mModel.route().lengthM);
+        RouteFmt::distanceParts(buf, sizeof(buf), unit, remaining, mIsImperial);
+    }
     lv_label_set_text(mNavToGo, buf);
     lv_label_set_text(mNavToGoUnit, unit);
     lv_obj_update_layout(mNavToGo);
@@ -627,7 +679,7 @@ void TrackScreen::updateNav(const Trail::Navigator::Status& s)
     const int32_t left = (240 - (numW + kUnitGap + lv_obj_get_width(mNavToGoUnit))) / 2;
     lv_obj_set_pos(mNavToGo, left, kToGoY);
     lv_obj_set_pos(mNavToGoUnit, left + numW + kUnitGap, kToGoY + 22);
-    Fmt::fixed(buf, sizeof(buf), Fmt::distUnits(s.pos.alongM, mIsImperial), 2);
+    Fmt::fixed(buf, sizeof(buf), Fmt::distUnits(finished ? run.distance : s.pos.alongM, mIsImperial), 2);
     lv_label_set_text(mNavDone, buf);
     Fmt::fixed(buf, sizeof(buf), Fmt::distUnits(static_cast<float>(mModel.route().lengthM), mIsImperial), 2);
     lv_label_set_text(mNavTotal, buf);
@@ -635,9 +687,12 @@ void TrackScreen::updateNav(const Trail::Navigator::Status& s)
     const char* status = "";
     uint32_t    colour = Color::WHITE;
     switch (s.alert) {
-        case Trail::OffCourse::State::OnCourse: status = "On course";  colour = Color::LIME; break;
+        case Trail::OffCourse::State::OnCourse:
+            status = s.wrongWay ? "Wrong way" : "On course";
+            colour = s.wrongWay ? kAlertOrange : Color::LIME;
+            break;
         case Trail::OffCourse::State::Off:      status = "Off course"; colour = Color::RED; break;
-        case Trail::OffCourse::State::Finished: status = "Finished";   colour = Color::LIME; break;
+        case Trail::OffCourse::State::Finished: status = "Finished"; colour = Color::LIME; break;
         case Trail::OffCourse::State::NotStarted:
             status = s.pos.everLocked ? "On the route" : (s.hasFix ? "To the start" : "No GPS");
             colour = Color::GRAY;
@@ -646,7 +701,9 @@ void TrackScreen::updateNav(const Trail::Navigator::Status& s)
     lv_label_set_text(mNavStatus, status);
     lv_obj_set_style_text_color(mNavStatus, Theme::rgb(colour), LV_PART_MAIN);
 
-    if (s.hasFix && !s.pos.everLocked) {
+    if (finished) {
+        std::snprintf(buf, sizeof(buf), "R1 to save");
+    } else if (s.hasFix && !s.pos.everLocked) {
         char d[16];
         RouteFmt::distance(d, sizeof(d), s.toStartM, mIsImperial);
         std::snprintf(buf, sizeof(buf), "start %s away", d);
@@ -666,15 +723,21 @@ void TrackScreen::onNavAlert(Trail::OffCourse::Event e)
     switch (e) {
         case Trail::OffCourse::Event::WentOff:
         case Trail::OffCourse::Event::StillOff:
+        case Trail::OffCourse::Event::WentWrong:
+        case Trail::OffCourse::Event::StillWrong:
             // The map is what gets a runner back: show it.
             showFace(FaceId::ID_MAP);
             break;
         case Trail::OffCourse::Event::BackOn:
-            mOffBanner = false;
+            mStandingBanner = false;
             showBanner("Back on course", "", kAlertGreen, kBackOnMs);
             break;
+        case Trail::OffCourse::Event::RightWay:
+            mStandingBanner = false;
+            showBanner("Right way", "", kAlertGreen, kBackOnMs);
+            break;
         case Trail::OffCourse::Event::Finished:
-            mOffBanner = false;
+            mStandingBanner = false;
             {
                 char d[16];
                 RouteFmt::distance(d, sizeof(d), static_cast<float>(mModel.route().lengthM), mIsImperial);
@@ -684,20 +747,31 @@ void TrackScreen::onNavAlert(Trail::OffCourse::Event e)
         case Trail::OffCourse::Event::None:
             break;
     }
-    onNav(mModel.nav());
+    // The service sends an alert just before the status it comes from, so the
+    // Model's status is still the one before it. After the good news (back on
+    // course, right way, the finish) that old status still says off course or
+    // wrong way, and redrawing from it put the old banner straight back over
+    // the green one (T4: "Back on course" never showed). The next status
+    // update, a moment later, draws the faces.
+    const bool goodNews = e == Trail::OffCourse::Event::BackOn || e == Trail::OffCourse::Event::RightWay ||
+                          e == Trail::OffCourse::Event::Finished;
+    if (!goodNews) {
+        onNav(mModel.nav());
+    }
 }
 
 void TrackScreen::showBanner(const char* title, const char* sub, uint32_t colour, uint32_t forMs)
 {
-    // One line sits in the middle of the band; two, the title above the detail.
+    // One line sits in the middle of the cap; two, the title above the detail.
     const bool two = sub[0] != '\0';
     lv_label_set_text(mBannerText, title);
     lv_label_set_text(mBannerSub, sub);
     setBannerArrow(false, 0.0f);   // a caller with a direction to show puts it back
-    lv_obj_set_y(mBannerText, two ? 5 : 18);
+    lv_obj_set_y(mBannerText, two ? kCapTitleY : kCapOneY);
     lv_obj_set_style_bg_color(mBanner, Theme::rgb(colour), LV_PART_MAIN);
     Theme::setHidden(mBanner, false);
     lv_obj_move_foreground(mBanner);
+    syncMapLabels();
     if (mBannerTimer) {
         lv_timer_delete(mBannerTimer);
         mBannerTimer = nullptr;
@@ -712,8 +786,9 @@ void TrackScreen::bannerTimerCb(lv_timer_t* t)
 {
     auto* self         = static_cast<TrackScreen*>(lv_timer_get_user_data(t));
     self->mBannerTimer = nullptr;   // a one-shot timer deletes itself
-    if (!self->mOffBanner) {
+    if (!self->mStandingBanner) {
         Theme::setHidden(self->mBanner, true);
+        self->syncMapLabels();
     }
 }
 

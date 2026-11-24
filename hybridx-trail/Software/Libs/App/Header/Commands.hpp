@@ -308,12 +308,16 @@ namespace CustomMessage {
         const Trail::RouteInfo* routes   = nullptr;   ///< non-owning; copy before releaseMessage
         uint8_t                 count    = 0;
         int8_t                  selected = -1;        ///< -1: no route (a plain run)
+        char                    folder[24] = {};      ///< this app's folder in Apps/, where Routes/ is
         RouteList() : SDK::MessageBase(ROUTE_LIST) {}
-        RouteList(const Trail::RouteInfo* r, uint8_t n, int8_t sel) : RouteList()
+        RouteList(const Trail::RouteInfo* r, uint8_t n, int8_t sel, const char* appFolder) : RouteList()
         {
             routes   = r;
             count    = n;
             selected = sel;
+            for (size_t i = 0; appFolder != nullptr && i + 1 < sizeof(folder) && appFolder[i] != '\0'; ++i) {
+                folder[i] = appFolder[i];
+            }
         }
     };
 
@@ -363,6 +367,7 @@ namespace CustomMessage {
     };
 
     // An oversized message fails silently on the watch (hybridx-race NOTES 0.9).
+    static_assert(sizeof(RouteList) <= 256u, "RouteList exceeds the 256-byte kernel pool block");
     static_assert(sizeof(RouteLoaded) <= 256u, "RouteLoaded exceeds the 256-byte kernel pool block");
     static_assert(sizeof(NavUpdate) <= 256u, "NavUpdate exceeds the 256-byte kernel pool block");
 

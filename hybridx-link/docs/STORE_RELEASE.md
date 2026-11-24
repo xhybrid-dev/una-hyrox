@@ -271,19 +271,23 @@ Counts in X Streak.
 >
 > - Load a GPX route and see it on a map with you on the line: heading-up or north-up, zoomed
 >   from 300 m to 3 km with one button.
-> - Off by 25 m or more? A buzz, and an arrow back to the route. "Back on course" when you are.
+> - Off by 20 m or more? A buzz, and an arrow back to the route. "Back on course" when you are.
+> - Running the route the wrong way? A different buzz, and an arrow the right way.
 > - Turn cues before each turn, distance to go, and an elevation profile for routes with heights.
 > - It records the run too, with distance, pace, heart rate and laps, and it syncs to the UNA app
 >   and Strava.
 > - Counts in **X Streak**, with its training load. Your steady minutes also count towards
 >   X Run's VO2max.
 >
-> **Routes:** copy GPX files to the app's Routes folder with the watch connected by USB.
+> **Routes:** copy GPX files to the app's Routes folder with the watch connected by USB. The
+> app's "Add routes" shows where: `Apps/1C83FDDE4EA3C880/Routes`.
 >
 > Made by HybridX.
 
 **Facts checked against the code:** Trail NOTES T3, T3b and T3c (zoom 300 m, 750 m, 1.5 km and
-3 km; off course from 25 m; turn cues; the way back; elevation), and "Run link".
+3 km; turn cues; the way back; elevation), T4 (off course from 20 m, the wrong way, the folder;
+for 1.1.0: 1.0.0's text said 25 m, which was where the arrow back appears, not the alert), and
+"Run link".
 
 **Not claimed:** routes sent from the phone. The Route Sender is a test and is not part of
 this release.

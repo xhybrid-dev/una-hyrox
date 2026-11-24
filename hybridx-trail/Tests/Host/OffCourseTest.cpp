@@ -4,6 +4,8 @@
  *
  * The scenarios double as the walk-through for Gate T1 (NOTES, "T1"): each is
  * a situation a trail runner would recognise, with the buzzes it produces.
+ * The numbers are Jon's after the first field test (T4): off at 20 m, back
+ * within 12 m (they were 50 m and 30 m).
  */
 
 #include <gtest/gtest.h>
@@ -82,12 +84,31 @@ TEST(OffCourse, WalkingToTheStartIsNotBeingLost)
 TEST(OffCourse, AWrongTurnBuzzesOnceThenRemindsThenClears)
 {
     OffCourse oc     = started();
-    // 20 s on the line, 150 s on a wrong path 70-120 m off, 10 s at 40 m
+    // 20 s on the line, 150 s on a wrong path 30-120 m off, 10 s at 15 m
     // (between the thresholds: still off), then back on the line from 180 s.
-    const auto trace = repeat(5, 20) + repeat(70, 5) + repeat(120, 145) + repeat(40, 10) + repeat(10, 10);
+    const auto trace = repeat(5, 20) + repeat(30, 5) + repeat(120, 145) + repeat(15, 10) + repeat(8, 10);
     EXPECT_EQ(feed(oc, trace, 1000),
               (std::vector<std::string> { "25s went off", "85s still off", "145s still off", "183s back on" }));
     EXPECT_EQ(oc.state(), State::OnCourse);
+}
+
+TEST(OffCourse, TwentyFiveMetresOffBuzzes)
+{
+    // The field test: a wrong path that only drifts 25 m from the line
+    // (under the old 50 m it never buzzed).
+    OffCourse oc = started();
+    EXPECT_EQ(feed(oc, repeat(5, 10) + repeat(25, 10), 1000), (std::vector<std::string> { "15s went off" }));
+}
+
+TEST(OffCourse, APathDrawnFifteenMetresOffNeverBuzzes)
+{
+    // The GPX was drawn a little off the real path: 10-18 m, all the way.
+    OffCourse          oc = started();
+    std::vector<float> path;
+    for (int i = 0; i < 600; ++i) {
+        path.push_back(10.0f + static_cast<float>((i * 7) % 9));   // 10..18 m
+    }
+    EXPECT_TRUE(feed(oc, path, 1000).empty());
 }
 
 TEST(OffCourse, AGpsSpikeNeverBuzzes)
@@ -100,10 +121,10 @@ TEST(OffCourse, AGpsSpikeNeverBuzzes)
 TEST(OffCourse, HoveringBetweenTheThresholdsDoesNotChatter)
 {
     OffCourse oc = started();
-    // A switchback 35-48 m from the GPX line: never far enough to go off.
+    // A switchback 13-19 m from the GPX line: never far enough to go off.
     std::vector<float> wobble;
     for (int i = 0; i < 120; ++i) {
-        wobble.push_back(i % 2 ? 48.0f : 35.0f);
+        wobble.push_back(i % 2 ? 19.0f : 13.0f);
     }
     EXPECT_TRUE(feed(oc, wobble, 1000).empty());
 
@@ -123,8 +144,10 @@ TEST(OffCourse, HoveringBetweenTheThresholdsDoesNotChatter)
 TEST(OffCourse, BadFixesAreIgnored)
 {
     OffCourse oc = started();
-    // 30 s reading 80 m off, but with the GPS itself saying +-40 m.
+    // 30 s reading 80 m off, but with the GPS itself saying +-40 m; and 30 s
+    // at 30 m off with +-22 m, which can't tell 20 m from the line.
     EXPECT_TRUE(feed(oc, repeat(80, 30), 1000, 40.0f).empty());
+    EXPECT_TRUE(feed(oc, repeat(30, 30), 1000, 22.0f).empty());
     EXPECT_EQ(oc.state(), State::OnCourse);
     // Precision 0 (not reported) still counts.
     EXPECT_EQ(feed(oc, repeat(80, 6), 40000, 0.0f), (std::vector<std::string> { "5s went off" }));

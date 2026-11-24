@@ -419,3 +419,111 @@ TEST(RouteTracker, ThreeLapsOfTheSimulatorTrack)
     EXPECT_NEAR(along[static_cast<size_t>(500.0 / 5.5)], 500.0f, 10.0f);   // lap 2, not lap 1
     EXPECT_TRUE(t.fix(RunSim::at(stadium(0.0))).finished);
 }
+
+// -- Turnarounds (T4: the wrong-way warning must never fire on an out-and-back) --
+
+TEST(RouteTracker, NoisyOutAndBackOnOnePathTurnsWithTheRunner)
+{
+    // An out-and-back drawn along one path (as a planner draws it), and GPS
+    // noise at the turnaround: the furthest fix can fall several metres short
+    // of the GPX's end. The runner must still come out on the return leg.
+    for (double noiseM : { 0.0, 3.0, 5.0, 8.0 }) {
+        for (uint32_t seed = 1; seed <= 10; ++seed) {
+            Track      t(kOutAndBack);
+            const auto along = t.runAll(RunSim::run(kOutAndBack, 3.0, noiseM, seed));
+            // At the turn the tracker may follow the runner back for up to
+            // kTurnBackM and three fixes before taking the return leg: "to go"
+            // can be ~50 m out for a few seconds. Outside the turn, as tight as
+            // anywhere else (45 m either side of the turn, both legs are one place).
+            EXPECT_LT(worstError(along, 3.0, 2000.0), 55.0f) << "noise " << noiseM << " seed " << seed;
+            const size_t turnFix = static_cast<size_t>(1000.0 / 3.0);
+            const std::vector<float> before(along.begin(), along.begin() + static_cast<long>(turnFix - 15));
+            EXPECT_LT(worstError(before, 3.0, 2000.0), 20.0f) << "noise " << noiseM << " seed " << seed;
+            float after = 0.0f;
+            for (size_t i = turnFix + 15; i < along.size(); ++i) {
+                after = std::max(after, std::fabs(along[i] - static_cast<float>(std::min(i * 3.0, 2000.0))));
+            }
+            EXPECT_LT(after, 20.0f) << "noise " << noiseM << " seed " << seed;
+            EXPECT_TRUE(t.tracker.position().finished) << "noise " << noiseM << " seed " << seed;
+        }
+    }
+}
+
+TEST(RouteTracker, TurningShortOfTheTurnaroundComesBackOnTheReturnLeg)
+{
+    // The cone is short of where the GPX turns (or the runner turns early):
+    // the runner turns 10 m or 25 m before the GPX's end and runs back.
+    for (double shortM : { 10.0, 25.0 }) {
+        for (uint32_t seed = 1; seed <= 5; ++seed) {
+            Track t(kOutAndBack);
+            for (const GeoPoint& f : RunSim::run({ { 0, 0 }, { 1000 - shortM, 0 }, { 600, 0 } }, 3.0, 3.0, seed)) {
+                t.fix(f);
+            }
+            // At 600 m on the way back, the runner is about 1,400 m along.
+            EXPECT_NEAR(t.tracker.position().alongM, 1400.0f, 30.0f) << "short " << shortM << " seed " << seed;
+        }
+    }
+}
+
+TEST(RouteTracker, GoingBackOnAStraightRouteIsFollowedBack)
+{
+    // No way back on a point-to-point route: the runner who turns round is
+    // followed back down it (the wrong-way warning's evidence), never put ahead.
+    for (uint32_t seed : { 1u, 2u, 3u, 4u, 5u }) {
+        Track t(kStraight);
+        for (const GeoPoint& f : RunSim::run({ { 0, 0 }, { 500, 0 } }, 3.0, 5.0, seed)) {
+            t.fix(f);
+        }
+        float highest = 0.0f;
+        for (const GeoPoint& f : RunSim::run({ { 500, 0 }, { 300, 0 } }, 3.0, 5.0, seed + 10u)) {
+            const auto& p = t.fix(f);
+            highest       = std::max(highest, p.alongM);
+            EXPECT_FALSE(p.jumped) << "seed " << seed;
+            EXPECT_FALSE(p.wayBack) << "seed " << seed;
+        }
+        EXPECT_LT(highest, 515.0f) << "seed " << seed;
+        EXPECT_NEAR(t.tracker.position().alongM, 300.0f, 15.0f) << "seed " << seed;
+    }
+}
+
+TEST(RouteTracker, GpsDriftAtAFeedStationNeverTurnsTheRunner)
+{
+    // On the way out, 150 m before the turnaround (the return leg is in reach):
+    // three minutes standing, the GPS wandering 6 m and drifting 25 m back
+    // down the path over the last 100 s. Then on to the turnaround and back.
+    Track t(kOutAndBack);
+    for (const GeoPoint& f : RunSim::run({ { 0, 0 }, { 850, 0 } }, 3.0)) {
+        t.fix(f);
+    }
+    RunSim::Noise noise(42u);
+    for (int i = 0; i < 180; ++i) {
+        const double drift = i < 80 ? 0.0 : -0.25 * (i - 80);
+        const auto&  p     = t.fix(RunSim::at({ 850 + drift + noise.next(6.0), noise.next(6.0) }));
+        ASSERT_LT(p.alongM, 900.0f) << "second " << i;   // still on the way out
+    }
+    for (const GeoPoint& f : RunSim::run({ { 825, 0 }, { 1000, 0 }, { 700, 0 } }, 3.0)) {
+        t.fix(f);
+    }
+    EXPECT_NEAR(t.tracker.position().alongM, 1300.0f, 15.0f);
+}
+
+TEST(RouteTracker, RestingShortOfTheTurnaroundThenGoingBack)
+{
+    // The cone is 15 m short of the GPX's end: the runner stops there for a
+    // minute (a drink, a photo), then runs back. With a wandering GPS and a
+    // perfectly still one (the furthest point is not refreshed while resting).
+    for (double still : { 0.0, 3.0 }) {
+        Track t(kOutAndBack);
+        for (const GeoPoint& f : RunSim::run({ { 0, 0 }, { 985, 0 } }, 3.0)) {
+            t.fix(f);
+        }
+        RunSim::Noise noise(5u);
+        for (int i = 0; i < 60; ++i) {
+            t.fix(RunSim::at({ 985 + noise.next(still), noise.next(still) }));
+        }
+        for (const GeoPoint& f : RunSim::run({ { 985, 0 }, { 700, 0 } }, 3.0, 3.0, 6u)) {
+            t.fix(f);
+        }
+        EXPECT_NEAR(t.tracker.position().alongM, 1300.0f, 30.0f) << "wander " << still;
+    }
+}

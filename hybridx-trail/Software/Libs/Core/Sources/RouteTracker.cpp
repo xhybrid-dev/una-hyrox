@@ -46,6 +46,9 @@ void RouteTracker::reset()
     mPos          = Position {};
     mPos.remainingM = mLengthM;
     mLastAlong    = 0.0f;
+    mHighAlong    = 0.0f;
+    mSinceHigh    = 0;
+    mTurnCount    = 0;
     mAdvance      = 0.0f;
     mFixesSince   = 0;
     mCovered      = 0;
@@ -134,15 +137,62 @@ RouteTracker::Match RouteTracker::pick(const GeoPoint& fix, bool windowOnly) con
     return best;
 }
 
-void RouteTracker::accept(const Match& m)
+float RouteTracker::segmentBearing(uint16_t i) const
 {
+    return Geo::bearingDeg(mPoints[i], mPoints[i + 1]);
+}
+
+RouteTracker::Match RouteTracker::turnaround(const GeoPoint& fix, const Match& m) const
+{
+    Match       best;
+    const float back = mHighAlong - m.along;
+    if (back < kTurnBackM) {
+        return best;
+    }
+    // The way back is the opposite way to the leg the runner is matched on.
+    const float wantDeg = Geo::wrap360(segmentBearing(m.segment) + 180.0f);
+    const float minAlong = mHighAlong + back - kTurnSlackM;
+    const float maxAlong = mHighAlong + kWindowAheadM;
+    for (uint16_t i = 0; i + 1 < mCount; ++i) {
+        if (mCumulative[i + 1] < minAlong || mCumulative[i] > maxAlong) {
+            continue;
+        }
+        const Match c = matchSegment(fix, i);
+        if (c.d > kRejoinM || c.along < minAlong || c.along > maxAlong) {
+            continue;
+        }
+        const float turn = Geo::wrap180(segmentBearing(i) - wantDeg);
+        if (turn > kTurnMaxDeg || turn < -kTurnMaxDeg) {
+            continue;
+        }
+        if (!best.valid || c.d < best.d) {
+            best = c;
+        }
+    }
+    return best;
+}
+
+void RouteTracker::accept(const Match& m, bool jump)
+{
+    bool fromHere = true;   // the furthest point starts again here (first lock, or a jump)
     if (mPos.everLocked) {
+        const bool isFar = far(m.along);
         float step = m.along - mLastAlong;
-        if (step > 0.0f && mFixesSince <= kCoverMaxMissed && !far(m.along)) {
+        if (step > 0.0f && mFixesSince <= kCoverMaxMissed && !isFar && !jump) {
             cover(mLastAlong, m.along);   // an ordinary step forwards; a rejoin covers nothing
         }
         step     = step < 0.0f ? 0.0f : (step > kMaxAdvanceM ? kMaxAdvanceM : step);
-        mAdvance = 0.7f * mAdvance + 0.3f * step;
+        mAdvance = jump ? 0.0f : 0.7f * mAdvance + 0.3f * step;   // a jump itself says nothing about pace
+        fromHere = jump || isFar;
+    }
+    mPos.jumped     = fromHere && mPos.everLocked;
+    // The furthest point; after kTurnMaxFixes without a new one (a rest), it
+    // starts again where the runner is, so a turn is judged from there.
+    if (fromHere || m.along > mHighAlong || mSinceHigh >= kTurnMaxFixes) {
+        mHighAlong = m.along;
+        mSinceHigh = 0;
+    } else if (mSinceHigh < 0xFFFFu) {
+        ++mSinceHigh;
     }
     mLastAlong      = m.along;
     mFixesSince     = 0;
@@ -161,6 +211,8 @@ void RouteTracker::accept(const Match& m)
 
 const RouteTracker::Position& RouteTracker::update(const GeoPoint& fix)
 {
+    mPos.jumped  = false;
+    mPos.wayBack = false;
     if (mCount == 0) {
         return mPos;
     }
@@ -171,7 +223,7 @@ const RouteTracker::Position& RouteTracker::update(const GeoPoint& fix)
         if (mPos.onRoute) {
             Match m;
             m.valid = true;
-            accept(m);
+            accept(m, false);
         }
         return mPos;
     }
@@ -196,7 +248,7 @@ const RouteTracker::Position& RouteTracker::update(const GeoPoint& fix)
         if (mPos.onRoute) {
             const Match m = pick(fix, false);
             if (m.valid) {
-                accept(m);
+                accept(m, false);
             }
         }
         return mPos;
@@ -208,12 +260,25 @@ const RouteTracker::Position& RouteTracker::update(const GeoPoint& fix)
     const bool  lookWide = !inWin.valid || (window.valid && global.d + kJumpMarginM < window.d);
     const Match wide     = lookWide ? pick(fix, false) : Match {};
     if (inWin.valid && !(wide.valid && wide.d + kJumpMarginM < inWin.d)) {
-        accept(inWin);
+        // Fallen behind the furthest point: if the route comes back past the
+        // runner the other way, they turned where it turns (an out-and-back).
+        const Match back = turnaround(fix, inWin);
+        mTurnCount       = back.valid ? static_cast<uint8_t>(mTurnCount + 1) : 0;
+        if (back.valid && mTurnCount >= kTurnConfirm) {
+            mTurnCount = 0;
+            accept(back, true);
+        } else {
+            accept(inWin, false);
+            mPos.wayBack = back.valid;
+        }
     } else if (wide.valid) {
-        accept(wide);
-        mAdvance = 0.0f;   // the jump itself says nothing about the runner's pace
-    } else if (mFixesSince < 0xFFFFu) {
-        ++mFixesSince;
+        mTurnCount = 0;
+        accept(wide, true);
+    } else {
+        mTurnCount = 0;
+        if (mFixesSince < 0xFFFFu) {
+            ++mFixesSince;
+        }
     }
     // Otherwise off the route: progress holds where it was.
     return mPos;

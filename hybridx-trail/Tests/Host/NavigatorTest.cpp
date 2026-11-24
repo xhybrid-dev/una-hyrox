@@ -435,3 +435,41 @@ TEST(Navigator, AThinnedLongRouteKeepsItsElevationAligned)
     EXPECT_NEAR(p.elevationM(30000), 400.0f, 2.0f);
     EXPECT_NEAR(p.totalAscentM(), 300.0f, 10.0f);
 }
+
+TEST(Navigator, WrongWayIsReportedWithTheRoutesOwnWay)
+{
+    // North 300 m then east 300 m. The runner goes 200 m north, turns back
+    // south: wrong way, the arrow's direction is the route's (north), and the
+    // turn ahead is not shown. Then they turn round again: right way.
+    FlatFileSystem fs;
+    auto           nav = loaded(fs, gpx(kRightAngle, "L"));
+    uint32_t       t   = 0;
+    std::vector<OffCourse::Event> events;
+    auto go = [&](const std::vector<NE>& way) {
+        for (const GeoPoint& f : RunSim::run(way, 3.0)) {
+            const auto e = nav->update(t += 1000, f, 4.0f, true);
+            if (e != OffCourse::Event::None) {
+                events.push_back(e);
+            }
+        }
+    };
+    go({ { 0, 0 }, { 200, 0 } });
+    EXPECT_FALSE(nav->status().wrongWay);
+    EXPECT_TRUE(nav->status().turnValid);
+    go({ { 200, 0 }, { 140, 0 } });
+    ASSERT_EQ(events, (std::vector<OffCourse::Event> { OffCourse::Event::WentWrong }));
+    EXPECT_TRUE(nav->status().wrongWay);
+    EXPECT_NEAR(nav->status().routeBearingDeg, 0.0f, 2.0f);
+    EXPECT_FALSE(nav->status().turnValid);
+    EXPECT_EQ(nav->status().alert, OffCourse::State::OnCourse);
+    go({ { 140, 0 }, { 200, 0 } });
+    EXPECT_EQ(events.back(), OffCourse::Event::RightWay);
+    EXPECT_FALSE(nav->status().wrongWay);
+    EXPECT_TRUE(nav->status().turnValid);
+
+    // A new activity forgets it all.
+    go({ { 200, 0 }, { 120, 0 } });
+    EXPECT_TRUE(nav->status().wrongWay);
+    nav->resetProgress();
+    EXPECT_FALSE(nav->status().wrongWay);
+}

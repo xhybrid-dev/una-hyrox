@@ -25,6 +25,7 @@ enum class ScreenId : uint8_t {
     // HybridX Trail
     RouteList,
     RoutePreview,
+    AddRoutes,
     // Intervals configuration
     MenuIntervals,
     MenuIntervalsRepeats,

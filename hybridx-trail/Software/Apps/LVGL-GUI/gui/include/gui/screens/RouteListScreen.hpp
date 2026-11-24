@@ -4,9 +4,10 @@
  * @brief   HybridX Trail: choose a route (or none) from Routes/.
  *
  * A wheel of the routes the service found, by name, each with its distance and
- * climb; "No route" first, for a plain run; and, last, how to add routes. R1
- * on a route opens its preview; on "No route" it clears the route and goes
- * back. R2 goes back.
+ * climb; "No route" first, for a plain run; and, last, "Add routes", whose
+ * tip names this app's folder (T4: a store install's is the App ID). R1 on a
+ * route opens its preview; on "No route" it clears the route and goes back;
+ * on "Add routes" it opens AddRoutesScreen, the whole path. R2 goes back.
  ******************************************************************************
  */
 
@@ -42,6 +43,7 @@ private:
     WheelMenu::Item mItems[kMaxItems] {};
     char            mNames[kMaxItems][32] {};
     char            mTips[kMaxItems][32] {};
+    char            mAddTip[32] {};   ///< "in <the app's folder>"
     uint16_t        mItemCount = 0;
 
     std::unique_ptr<Widgets::Title>   mTitle;

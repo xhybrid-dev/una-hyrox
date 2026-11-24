@@ -55,6 +55,29 @@
  * went off course (NOTES, T3). A real shortcut still finishes, as long as
  * it skips less than half the route.
  *
+ * Turnarounds (T4). An out-and-back drawn along one path doubles back on
+ * itself, and a runner who turns a few metres short of the GPX's end (a cone
+ * placed short, or GPS that falls short at the turn) is equally near both
+ * legs. The 2x cost of "behind" then follows them backwards down the outward
+ * leg, so "to go" grows and the wrong-way warning would fire. So once the
+ * match is kTurnBackM behind the furthest point reached (highAlong), the
+ * tracker looks ahead of that point (within the window) for a leg that passes
+ * the runner (within kRejoinM) running the opposite way to the leg they are
+ * on, and at least as far beyond the furthest point as they are behind it:
+ * the same place, on the way back. If there is one for kTurnConfirm fixes in
+ * a row, the runner turned where the route turns, and is placed on it. The
+ * direction rule is the route's own geometry, not GPS heading, and it keeps a
+ * runner going the wrong way on a straight route (the nearest point ahead is
+ * on the same leg, pointing the other way) from ever being snapped forward.
+ * Two guards keep GPS error from turning a runner who has not: 20 m is more
+ * than 8 m of noise either way can fake, held for three fixes; and the 20 m
+ * must come within kTurnMaxFixes of the furthest point, faster than GPS
+ * drifts while the runner stands at a feed station (0.67 m/s): the furthest
+ * point starts again where the runner is after that many fixes without a new
+ * one, so a rest short of the turnaround is judged from the rest. Before the
+ * turn is taken, Position::wayBack says one is possible, so the wrong-way
+ * warning holds off.
+ *
  * GPS direction of travel (CourseOverGround) is not used here: with a few
  * metres of GPS noise a second it swings by tens of degrees at running pace,
  * and a tracker that trusted it put the runner on the wrong leg (NOTES, T1).
@@ -98,11 +121,18 @@ public:
     static constexpr float kFinishCredit = 0.5f;     ///< ... once this share was run step by step
     static constexpr int   kCoverBins    = 64;       ///< coverage resolution: the route in this many parts
     static constexpr int   kCoverMaxMissed = 2;      ///< a step still covers after this many unmatched fixes
+    static constexpr float kTurnBackM    = 20.0f;    ///< this far behind the furthest point, look for the way back
+    static constexpr float kTurnSlackM   = 5.0f;     ///< the way back may be this much nearer than mirror-image
+    static constexpr float kTurnMaxDeg   = 60.0f;    ///< and must run within this of the opposite way
+    static constexpr int   kTurnConfirm  = 3;        ///< fixes in a row with a way back before taking it
+    static constexpr int   kTurnMaxFixes = 30;       ///< and the turn made within this many fixes of the furthest point
 
     struct Position {
         bool     everLocked = false;   ///< matched to the route at least once since reset()
         bool     onRoute    = false;   ///< this fix is within kAcquireM of the route
         bool     finished   = false;   ///< reached the finish; stays set until reset()
+        bool     jumped     = false;   ///< this fix's match was a jump (a rejoin, shortcut or turnaround), not a step
+        bool     wayBack    = false;   ///< behind the furthest point, and the route comes back past here the other way
         uint16_t segment    = 0;       ///< the matched segment starts at points[segment]
         float    alongM     = 0.0f;    ///< distance from the start, along the route (scaled)
         float    remainingM = 0.0f;    ///< distance to the finish, along the route (scaled)
@@ -163,7 +193,12 @@ private:
     float covered() const;
     /// The best-scoring segment within kAcquireM (and the window, if @p windowOnly).
     Match pick(const GeoPoint& fix, bool windowOnly) const;
-    void  accept(const Match& m);
+    /// The way back past the runner, for a match @p m that has fallen behind
+    /// the furthest point (see the class comment); invalid if there is none.
+    Match turnaround(const GeoPoint& fix, const Match& m) const;
+    /// Forward bearing of segment @p i.
+    float segmentBearing(uint16_t i) const;
+    void  accept(const Match& m, bool jump);
 
     const GeoPoint* mPoints;
     uint16_t        mCount;
@@ -172,6 +207,9 @@ private:
     float           mLengthM = 0.0f;
     Position        mPos {};
     float           mLastAlong = 0.0f;   ///< unscaled
+    float           mHighAlong = 0.0f;   ///< furthest match since the last jump, unscaled
+    uint16_t        mSinceHigh = 0;      ///< fixes since mHighAlong last moved
+    uint8_t         mTurnCount = 0;      ///< fixes in a row with a way back
     float           mAdvance   = 0.0f;   ///< smoothed progress per fix, unscaled
     uint16_t        mFixesSince = 0;     ///< fixes since the last accepted match
     uint64_t        mCovered    = 0;     ///< bit b: part b of kCoverBins run in ordinary steps

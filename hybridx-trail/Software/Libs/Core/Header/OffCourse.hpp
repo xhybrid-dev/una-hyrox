@@ -17,9 +17,10 @@
  *      BackOn. (OnCourse)
  *   6. Still off course, every remindMs: StillOff, a reminder.
  *
- * offM and backM differ on purpose (hysteresis): a runner 40 m off the line
- * on a switchback that doesn't match the GPX exactly neither triggers the
- * alert nor, once alerted, clears it by wobbling between 45 and 55 m.
+ * offM and backM differ on purpose (hysteresis): a runner 15 m off the line
+ * on a path that doesn't match the GPX exactly neither triggers the alert
+ * nor, once alerted, clears it by wobbling between 15 and 25 m. 20 m and
+ * 12 m since Jon's first field test (T4): 8 m apart, about one GPS error.
  *
  * Time comes from the caller (the kernel's millisecond clock), and is only
  * ever subtracted as unsigned: right across the clock's wrap.
@@ -40,15 +41,18 @@ class OffCourse
 {
 public:
     enum class State : uint8_t { NotStarted, OnCourse, Off, Finished };
-    enum class Event : uint8_t { None, WentOff, StillOff, BackOn, Finished };
+    /// The alerts the navigation raises, one at most per fix. WentWrong,
+    /// StillWrong and RightWay are WrongWay's (running the route backwards);
+    /// they share this type so one message carries every alert.
+    enum class Event : uint8_t { None, WentOff, StillOff, BackOn, Finished, WentWrong, StillWrong, RightWay };
 
     struct Config {
-        float    offM          = 50.0f;
-        float    backM         = 30.0f;
+        float    offM          = 20.0f;   ///< Jon, after the first field test (24 November 2026; was 50)
+        float    backM         = 12.0f;   ///< and back within this (was 30)
         uint32_t confirmOffMs  = 5000u;
         uint32_t confirmBackMs = 3000u;
         uint32_t remindMs      = 60000u;   ///< 0: no reminders
-        float    maxPrecisionM = 25.0f;    ///< worse fixes are ignored; 0 or less means "unknown", which counts
+        float    maxPrecisionM = 20.0f;    ///< worse fixes are ignored (one that can't tell offM from 0); 0 or less means "unknown", which counts
     };
 
     OffCourse() = default;

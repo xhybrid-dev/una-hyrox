@@ -420,6 +420,8 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
                 memcpy(mRoutes, msg->routes, sizeof(Trail::RouteInfo) * mRouteCount);
             }
             mSelectedRoute = msg->selected < static_cast<int8_t>(mRouteCount) ? msg->selected : -1;
+            memcpy(mAppFolder, msg->folder, sizeof(mAppFolder));
+            mAppFolder[sizeof(mAppFolder) - 1] = '\0';
             modelListener->onRoutes();
         } break;
 

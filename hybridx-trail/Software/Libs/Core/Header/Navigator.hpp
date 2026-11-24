@@ -15,7 +15,8 @@
  *     in route.sel for next time, and points the tracker at it.
  *   - update(): one GPS fix: where the runner is along the route, the heading
  *     (GPS while running, compass when slow: HeadingFusion), the off-course
- *     alert, the way back to the line, and the next turn (TurnFinder). Alerts
+ *     alert, the wrong-way alert (WrongWay: on the route, running it
+ *     backwards), the way back to the line, and the next turn (TurnFinder). Alerts
  *     and turn cues are only raised while @p alertsLive (an activity
  *     running): walking about on the start screen, or paused, is not being
  *     lost.
@@ -44,6 +45,7 @@
 #include "RouteBuilder.hpp"
 #include "RouteTracker.hpp"
 #include "TurnFinder.hpp"
+#include "WrongWay.hpp"
 
 namespace Trail
 {
@@ -67,7 +69,7 @@ public:
     static constexpr const char* kIndexFile = "routes.idx";
     static constexpr const char* kSelFile   = "route.sel";
 
-    static constexpr float kGuideMinM   = 25.0f;    ///< show the way back from this far off the line
+    static constexpr float kGuideMinM   = 12.0f;    ///< show the way back from this far off the line (OffCourse's backM)
     static constexpr float kCueM        = 50.0f;    ///< a turn is announced this far ahead
     static constexpr float kLookaheadM  = 400.0f;   ///< and shown from this far
 
@@ -88,6 +90,10 @@ public:
         bool                   guideToStart = false;
         float                  guideBearingDeg = 0.0f;   ///< true bearing from the fix
         float                  guideDistM   = 0.0f;
+        // Running the route backwards (WrongWay), and the route's own way where
+        // the runner is matched: the arrow for "turn around".
+        bool                   wrongWay     = false;
+        float                  routeBearingDeg = 0.0f;   ///< true bearing of the route, forwards, at the match
         // The next turn ahead, if within kLookaheadM.
         bool                   turnValid    = false;
         int16_t                turnAngleDeg = 0;         ///< positive right, negative left
@@ -168,6 +174,7 @@ private:
     GpxReader                    mReader;
     RouteTracker                 mTracker;
     OffCourse                    mOffCourse;
+    WrongWay                     mWrongWay;
     CourseOverGround             mCourse;
     HeadingFusion                mHeading;
     ElevationProfile             mProfile;

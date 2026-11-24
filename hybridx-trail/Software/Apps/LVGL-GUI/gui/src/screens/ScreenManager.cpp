@@ -18,6 +18,7 @@
 #include "gui/screens/MainScreen.hpp"
 #include "gui/screens/RouteListScreen.hpp"
 #include "gui/screens/RoutePreviewScreen.hpp"
+#include "gui/screens/AddRoutesScreen.hpp"
 #include "gui/screens/MenuIntervalsScreen.hpp"
 #include "gui/screens/MenuIntervalsRepeatsScreen.hpp"
 #include "gui/screens/MenuIntervalsMetricScreen.hpp"
@@ -135,6 +136,7 @@ Screen* ScreenManager::create(ScreenId id)
         case ScreenId::Main:                      return new MainScreen(m);
         case ScreenId::RouteList:                 return new RouteListScreen(m);
         case ScreenId::RoutePreview:              return new RoutePreviewScreen(m);
+        case ScreenId::AddRoutes:                 return new AddRoutesScreen(m);
 
         case ScreenId::MenuIntervals:             return new MenuIntervalsScreen(m);
         case ScreenId::MenuIntervalsRepeats:      return new MenuIntervalsRepeatsScreen(m);
