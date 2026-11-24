@@ -953,3 +953,26 @@ after the finish (T1.2's rule 6: walking back to the car).
 5. **The folder:** the route list's "Add routes" should read "in 1C83FDDE4EA3C880" (the store
    install); R1 shows the path. If you also have a USB copy in `Apps/HybridXTrail`, see whether
    that one says "HybridXTrail" (it does only if the watch names the folder: we don't know yet).
+
+## T5: 1.1.0 for the store (24 November 2026)
+
+Jon asked for 1.1.0 to be packaged for the store and his entry to UNA's November app competition.
+The steps, the release notes and a draft entry: `docs/SUBMISSION.md`.
+
+- **Previews** (`Resources/previews/`, `store_previews.sh`): six, now with off course on the new
+  cap (`21-off-course.png`) and the wrong way (`t4-01-wrong-way.png`, from `capture_t4.sh`); the
+  navigation face's preview is dropped to keep six. `--recapture` runs both walkthroughs.
+- **Gallery** (`docs/store/`, `hybridx-link/Tools/Brand/store_images.py trail`): the off-course card
+  says 20 m, **Wrong way** replaces **Heading up**, the routes card says the watch names the folder;
+  the family card now has X Training. Contrast: 72 text blocks, none under 4.5:1.
+- **Store text** (`hybridx-link/docs/STORE_RELEASE.md`, "X Trail"): two claims in 1.0.0's text were
+  wrong and are corrected: "off by 25 m" (the alert was at 50 m; 25 m was the arrow back), and
+  "300 m to 3 km with one button" (the zoom has been nine steps, 60 m to 3.5 km, on UP and DOWN,
+  since 28 October).
+- **Checked:** built as 1.1.0 (`-DBUILD_VERSION=1.1.0`, the local compile check), then
+  `pack-store-zip.sh --expect-version 1.1.0` passed (the portal's manifest rules, both SDK
+  validators, the App ID in all three places). That zip was deleted: only CI's, from the tag
+  `trail-v1.1.0`, goes to the portal.
+- **Not done on a watch:** the whole of T4. The release steps put Jon's short watch test (with the
+  tag's own `.uapp`) before the upload.
+

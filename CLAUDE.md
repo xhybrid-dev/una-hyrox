@@ -210,6 +210,9 @@ independent of Race and Streak.
     tracker's turnaround rule), the banner as a cap across the top, the run's
     time and distance after the finish, and the app's folder on the route list
     (a store install's is the App ID, `Apps/1C83FDDE4EA3C880`).
+  - the store update 1.1.0 and the November competition entry: `hybridx-trail/docs/SUBMISSION.md`
+    (tag `trail-v1.1.0`, CI artifact `trail-store-zip`; previews `docs/experiments/store_previews.sh`,
+    gallery `hybridx-link/Tools/Brand/store_images.py trail`).
   - Route Sender (Android APK, with host tests):
     `hybridx-trail/Tools/RouteSender/build.sh`. It uses `$ANDROID_HOME` if
     set, else Ubuntu's `android-sdk-platform-23 aapt apksigner zipalign

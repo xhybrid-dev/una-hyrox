@@ -11,6 +11,10 @@ prefix for the SDK's version script. The store release of the Streak family:
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-24
+
+The first field test's amendments (NOTES "T4").
+
 ### Added
 
 - **Wrong way**: on the route but running it backwards (30 m back along it), a quick, insistent
