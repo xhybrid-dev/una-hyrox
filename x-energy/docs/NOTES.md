@@ -1,7 +1,8 @@
-# X Sleep: notes
+# X Energy: notes
 
-**Working name.** The name on the watch is Jon's decision (at most 15 bytes; see
-"Questions for Jon").
+**Name (Jon, 24 November 2026): X Energy**, to sound more optimistic than X Sleep, Body
+or Battery. The folder was `x-sleep/` for the desk study. The final watch name is still
+open (at most 15 bytes); the Gate SL0 probe is **Energy Probe** (`docs/PROBE.md`).
 
 **The app:** automatic sleep and nap tracking, plus an all-day energy score of the kind
 Garmin calls Body Battery. It also covers rest, stress and exercise. It is independent of
@@ -415,7 +416,7 @@ If `HEART_BEAT` gives beat times, a v2 adds:
 
 ## Questions for Jon
 
-1. **The name** on the watch, at most 15 bytes ("X Sleep"? "X Recover"?), and a name
+1. **The name** on the watch, at most 15 bytes (X Energy, Jon's lead, 24 November), and a name
    for the energy score (not "Body Battery"). Some options: Energy, Charge, Reserve,
    Tank.
 2. **The battery.** What cost is acceptable for automatic tracking? For example, 10 days
@@ -478,3 +479,122 @@ If `HEART_BEAT` gives beat times, a v2 adds:
   ([garmin.com](https://www.garmin.com/en-US/blog/?p=29612)).
 - **Battery life claim (a retailer's page, not UNA's):**
   ([heyupnow.com](https://heyupnow.com/collections/brand-una-watch.oembed)).
+
+---
+
+## Gate SL0: the Energy Probe (24 November 2026)
+
+Jon asked for an initial app that records every parameter above, to confirm the
+viability of the full app, with the battery drain recorded and some nights set to record
+nothing, as a baseline. He starts testing tonight. Jon's steps: `PROBE.md`.
+
+### What it is
+
+- **Energy Probe** (`Tools/Probe`):
+  - app folder `EnergyProbe`, a Utility;
+  - development APP_ID `939CAA3975888E07` (md5 of the folder name);
+  - version 0.1.0;
+  - started from the Bike Probe (`hybridx-ride/Tools/Probe`).
+- **`APP_AUTOSTART On`**, as the SDK's Alarm example. The service starts at boot and
+  after USB mode, and never exits because its screen closed. Only `COMMAND_APP_STOP` ends
+  it, after writing the part-row and the state.
+- **Five modes** (`Core/Header/ProbeMode.hpp`):
+  - **Off**: the battery only, a row every 10 minutes (the baseline);
+  - **Full**: every sensor below;
+  - **Motion**: the accelerometer only;
+  - **Heart**: `HEART_RATE_EX` every second only;
+  - **Heart 1 in 5**: heart rate for the first minute of every five.
+- **The nights:**
+  - The night window defaults to 22:00–08:00, with presets 21–07, 23–09 and 00–10.
+  - A night belongs to its evening's date.
+  - The rotation runs from the first night seen: **Full, Off, Full, Off, Motion, Heart,
+    Heart 1 in 5, Off**, then repeats.
+  - The Tonight page overrides one night.
+  - Days are Full (a setting makes them Off), so naps and rest are recorded.
+- **Full connects:**
+  - `ACCELEROMETER` at 100 ms with 1 s batches (`ACCELEROMETER_RAW` if that fails);
+  - `HEART_RATE_EX` 1000/1000;
+  - `HEART_BEAT` (0/1000);
+  - `AMBIENT_TEMPERATURE`, `TOUCH_DETECT`, `MOTION_DETECT`, `ACTIVITY_RECOGNITION` and
+    `WRIST_MOTION` (0/0);
+  - `HEART_RATE_METRICS_DAILY`, `STEP_COUNTER_DAILY`, `ACTIVITY_TIME_DAILY` and
+    `FLOOR_COUNTER_DAILY`;
+  - in every mode, `BATTERY_LEVEL`, `BATTERY_CHARGING` and `BATTERY_METRICS` at 60 s
+    (10 minutes when Off).
+  - Periods and latencies are in ms, as the Bike Probe's and RunLVGL's watch-proven
+    connections.
+- **The sensor check** (on demand, 2 minutes):
+  - asks for each of 21 types: `RequestDefault`, `RequestList` and `RequestGetDesc`;
+  - connects those the logger doesn't already hold, and leaves the logger's own alone;
+  - counts messages, samples and fields, and keeps the first three samples' first four
+    fields as floats and hex;
+  - this is where `HEART_BEAT`, `PPG`, `SPO2` and `ECG` get their first answer.
+
+### The files (`Apps/EnergyProbe/Logs/`)
+
+- **`min_<yyyymmdd>.csv`** (`MinuteEpoch`), 60 columns, integers only:
+  - battery % ×100, charging and USB, mV, mA ×100, average mA ×100, mAh ×10;
+  - wakes (messages a row);
+  - motion: accelerometer samples, mean magnitude ×100 (to settle the unit), ENMO in
+    mg ×10, **twelve 5-second arm angles** ×10 (van Hees), the angle change;
+  - heart rate: samples, trusted samples (Race's gate), min, mean ×10, max, mean trust,
+    optical-zero count, source, seconds to the first trusted reading;
+  - the watch's daily AHR, RHR, steps, active time and floors;
+  - temperature;
+  - touch and its changes, motion-detect counts, activity class, wrist raises;
+  - beats: count, RR mean, RMSSD ×10, rejected RR.
+- **`nights.csv`** (`NightSummary`), a row per night:
+  - battery at both ends, hours, **drain %/h ×100**;
+  - the mAh drop and the mean current from it;
+  - the fuel gauge's mean average current;
+  - rows, worn minutes, heart-rate minutes;
+  - flags: charged, restarted, partial, no battery, mode changed (Tonight changed while the night was on).
+- **`events.csv`**, **`check_<utc>.csv`**, **`beats_<yyyymmdd>.csv`** (raw beats, first
+  10 minutes of each hour) and **`state.txt`** (`StateFile`: the settings, the first
+  night, the override, the open night's sums, the last 7 nights).
+- **Writing:**
+  - Rows are buffered and appended every 10 rows (open, seek to the end, write, close, as
+    X Weigh-in's LogStore).
+  - The state is written to `state.new`, then swapped in.
+
+### Sizes
+
+- The watch build (local compile check, not for a watch) is 214 KB.
+- The service has 31 KB of code and 16 KB of data and bss, plus its 10 KB stack. That is
+  what stays resident.
+
+### Verified (here)
+
+- **Host tests:** 39 (`Tests/Host`): schedule, rotation and override, civil dates, the
+  minute row, the night's drain, the state file, fixed-point text.
+- **Simulator:** rows written each minute; absent sensors listed in `events.csv`; the
+  pages captured; R1 changes the override, window and daytime; the sensor check writes
+  its file and lists 21 lines.
+  - The GUI's queue holds ten messages, so the check lines go five to a message.
+  - The simulator has no accelerometer, beat, temperature, touch, event or daily sensor,
+    so they read as absent.
+  - Closing the simulator's screen ends the program, so "logging continues with the
+    screen closed" is for the watch to show.
+  - **A night, end to end** (`docs/experiments/night_check.sh`, the local time moved with
+    `TZ`):
+    - the night opened at 22:00;
+    - a restart at 07:58 the next morning carried it on (flagged restarted);
+    - 08:00 closed it into `nights.csv`, the state's history and the Nights page.
+  - Screens: `docs/screens/sl0-*.png` (`capture_screens.sh`).
+- **`probe_report.py`:** run on the simulator's logs, and on a synthetic folder (four
+  nights, one charged, a 10-hour night of angles). It found the made-up sleep window,
+  23:00 to 06:55, and left out the charged night.
+- **Local watch compile check** (Trail Quest's recipe).
+- **CI**'s build is the one to install.
+
+### What Gate SL0 must answer (Jon's eight nights)
+
+1. Does the service log all night, every night, with no screen?
+2. Each mode's drain against the Off nights (`probe_report.py`).
+3. The sensor check: `HEART_BEAT`, `PPG`, `SPO2`, `TOUCH_DETECT` and the daily figures.
+4. How the watch's temperature, touch and motion events behave overnight, and off the
+   wrist on a bedside table.
+5. Whether X Training and Race still open with the probe resident.
+6. The first look at each night's sleep window and lowest heart rate, against Jon's
+   Garmin and his notes.
+

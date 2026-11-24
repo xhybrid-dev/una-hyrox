@@ -109,3 +109,9 @@ hybridx-training/Software/Apps/LVGL-GUI/simulator/build*/
 hybridx-training/Tools/Plans/__pycache__/
 hybridx-training/Software/SharedData/
 hybridx-training/build/
+# X Energy: the Gate SL0 probe (x-energy/docs/PROBE.md)
+x-energy/build/
+x-energy/build-tests/
+x-energy/Tools/Probe/Output/
+x-energy/Tools/Probe/Software/Output/
+x-energy/Tools/Probe/Software/Apps/LVGL-GUI/simulator/build/
