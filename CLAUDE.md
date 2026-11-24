@@ -677,3 +677,17 @@ link. The pre-release review's fixes (a plan was settled retroactively; the cloc
     `training-glance-store-zip`, a dry run without `--expect-version` until the glance has its portal ID); a local watch
     compile check of the glance: Trail Quest's recipe with `hybridx-training/Software/Apps/HXTrainingGlance-CMake`
     into `hybridx-training/build/arm-glance`; its store images: `hybridx-link/Tools/Brand/store_images.py training-glance`.
+
+## X Sleep (`x-sleep/`) — scoping
+A fourteenth app, at the scoping stage (24 November 2026; the name is a working one, Jon's to
+choose): automatic sleep and nap tracking, rest, and an all-day energy score of the kind Garmin
+calls Body Battery, tied to the family's training load. Automatic tracking needs a resident
+service (`APP_AUTOSTART`, as the SDK's Alarm example), whose battery cost has never been measured.
+- **Docs:** the desk study, the metric catalogue (what is measured, worked out, our model or
+  logged; Ready, Likely, Unknown or No), the Gate SL0 probe and the phases (SL0-SL5):
+  `x-sleep/docs/NOTES.md`. Read it at the start of each phase, and work only on that phase.
+- **Rules:** the same standing rules as Race apply. Also:
+  - a wellness app: never claim to detect anxiety, sleep apnoea, heart rhythm or illness;
+  - never call the energy score "Body Battery" (Garmin's trademark);
+  - no sleep stages unless beat-to-beat HRV is proven (`HEART_BEAT` has no parser; NOTES);
+  - every recorded probe night becomes a host test, as for X Velocity.
