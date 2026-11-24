@@ -598,3 +598,84 @@ nothing, as a baseline. He starts testing tonight. Jon's steps: `PROBE.md`.
 6. The first look at each night's sleep window and lowest heart rate, against Jon's
    Garmin and his notes.
 
+
+### First run on the watch (Jon, 24 November 2026, before the first night)
+
+Jon installed the CI build, opened it, ran the sensor check, then plugged the watch in to
+copy the files.
+- The files are those of a single ten-minute session (`min_20261124.csv`, 10 rows), plus
+  `events.csv`, `check_1795523327.csv` and `state.txt`.
+- `probe_report.py` reads them.
+
+**The probe itself works on the watch:**
+- **It autostarts.**
+  - "start 1" came 21 s after boot.
+  - After USB, it started again by itself ("start 2" at 456 s of uptime). It was stopped
+    with `COMMAND_APP_STOP` when the cable went in.
+- **It stays resident.** The screen was closed and reopened four times with no new start:
+  the same service carried on.
+- **The rows are complete.** Every minute has accelerometer data (600 samples, 10 Hz), heart
+  rate, temperature, touch and the battery gauge.
+- **The service wakes 120 to 300 times a minute in Full.**
+
+**"Sensors failed: 0x10" is the beat sensor, and it is absent, not failing:**
+- `HEART_BEAT` has no handle on the watch (the check: handle 0).
+- Nor do `PPG`, `SPO2`, `ECG` and `GESTURE_RECOGNITION`.
+- **So this watch gives no beat-to-beat timing, no raw PPG and no SpO2 through the SDK.**
+- That settles the desk study's biggest question for now:
+  - #14 (overnight HRV), #15 (breathing rate), #16 (SpO2) and #22 (HRV stress) are **No**
+    unless UNA adds them;
+  - stress stays the heart-rate proxy (#23);
+  - the energy score charges on heart rate, not HRV.
+- It goes to UNA as a question (Questions for UNA, 2-3).
+
+**What the sensors are** (from their descriptions):
+- **Accelerometer:** "BMI270 accelerometer", in **m/s²**. It reads 9.78 at rest, as the
+  current SDK documents.
+  - `ACCELEROMETER_RAW` sends three fields that do not read as floats. Its parser reads
+    int16s; we do not use it.
+- **Temperature:** "Barometer temperature", the MS5837's own sensor inside the watch. That
+  fits X Sauna's finding of a lagging internal temperature near the skin.
+  - It reads 30.2 °C, falling to 28.3 °C over ten minutes off the charger.
+  - It arrives at 1 Hz.
+- **Heart rate:** optical (source 1), trust about 2.7, 52 to 56 bpm at rest.
+  - The first trusted reading came 27 s after connecting (18 s after the restart).
+- **The watch's daily figures** arrive when connected, then only on a change:
+  - AHR 56.0 and **RHR 41.0** bpm;
+  - 1812 steps, 11 active minutes, 4 floors.
+- **Touch, motion and wrist:**
+  - Touch said "on the wrist" (1).
+  - `MOTION_DETECT` events arrive.
+  - `ACTIVITY_RECOGNITION` and `WRIST_MOTION` sent nothing in ten still minutes.
+- **The battery gauge** (`BATTERY_METRICS`) reports, each minute:
+  - volts;
+  - the current and its average (negative is discharge);
+  - **remaining capacity in mAh**.
+- **Battery level** arrives only on a change. It stayed at 66.53 % for six minutes.
+
+**The battery is about 132 mAh, not 400.**
+- The gauge read 88.0 mAh at 66.53 %, and 92.5 mAh at 69.89 % after charging. Both give
+  132 mAh for 100 %.
+- So the SDK diagram's "400 mAh" (desk study, "The battery") is wrong for this watch.
+- With the retailer's 10 days, the whole watch averages about **0.55 mA**, not 1.7.
+- Revised "what an extra drain would cost":
+
+  | Extra average current | Days of everyday use (132 mAh, 0.55 mA baseline) |
+  |---|---|
+  | none | 10 |
+  | 0.25 mA | 6.9 |
+  | 0.5 mA | 5.2 |
+  | 1 mA | 3.5 |
+  | 2 mA | 2.2 |
+
+- With the screen on and the check running, the gauge's average current read 2 to 8 mA.
+  That includes the screen, so it is not the probe's cost: the first night, screen off,
+  gives that.
+- But the margin is far tighter than the desk study assumed.
+- The mAh reading (0.5 mAh steps or finer) measures the drain much more finely than the
+  %, and the Off nights' baseline matters even more.
+
+**For the next build** (not before the first nights: this one works):
+- show absent sensors as "not on this watch" rather than "failed";
+- log the gauge's design capacity once;
+- stop asking for `HEART_BEAT` (and leave it to the check).
