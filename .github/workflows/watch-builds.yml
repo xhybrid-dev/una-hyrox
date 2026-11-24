@@ -109,6 +109,9 @@ jobs:
           build hybridx-training/Software/Apps/HybridXTraining-CMake training
           # X Training's glance (TP6): today's session on the glances screen.
           build hybridx-training/Software/Apps/HXTrainingGlance-CMake training-glance
+          # X Energy: the Gate SL0 Energy Probe, a resident logger for sleep, energy and the
+          # battery drain -- see x-energy/docs/PROBE.md.
+          build x-energy/Tools/Probe/Software/Apps/EnergyProbe-CMake energy-probe
 
       - name: Collect
         run: |
@@ -133,6 +136,7 @@ jobs:
           cp hybridx-workout/Output/*.uapp watch-apps/
           cp hybridx-training/Output/*.uapp watch-apps/
           cp hybridx-training/Output/Glance/*.uapp watch-apps/
+          cp x-energy/Tools/Probe/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -582,3 +586,12 @@ jobs:
           cmake -S hybridx-training/Tests/Host -B ci-build/training-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/training-tests -j"$(nproc)"
           ctest --test-dir ci-build/training-tests --output-on-failure
+
+      - name: X Energy host tests
+        # The Energy Probe's core: the schedule and rotation, the minute row, the night's
+        # battery drain, the state file, fixed-point text.
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S x-energy/Tests/Host -B ci-build/x-energy-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/x-energy-tests -j"$(nproc)"
+          ctest --test-dir ci-build/x-energy-tests --output-on-failure

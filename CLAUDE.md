@@ -677,3 +677,38 @@ link. The pre-release review's fixes (a plan was settled retroactively; the cloc
     `training-glance-store-zip`, a dry run without `--expect-version` until the glance has its portal ID); a local watch
     compile check of the glance: Trail Quest's recipe with `hybridx-training/Software/Apps/HXTrainingGlance-CMake`
     into `hybridx-training/build/arm-glance`; its store images: `hybridx-link/Tools/Brand/store_images.py training-glance`.
+
+## X Energy (`x-energy/`) — Gate SL0
+A fourteenth app (24 November 2026; first scoped as "X Sleep", named **X Energy** by Jon):
+automatic sleep and nap tracking, rest, and an all-day energy score of the kind Garmin calls
+Body Battery, tied to the family's training load. Automatic tracking needs a resident service
+(`APP_AUTOSTART`, as the SDK's Alarm example). **Gate SL0, the Energy Probe**, is built and on
+Jon's wrist: a resident logger that records every sensor a row a minute and each night's battery
+drain, with nights in rotation (Full, Off, Full, Off, Motion, Heart, Heart 1 in 5, Off) so the cost
+of each part can be measured against the Off nights.
+- **Docs:** the desk study, the metric catalogue (what is measured, worked out, our model or
+  logged; Ready, Likely, Unknown or No), Gate SL0 and the phases (SL0-SL5): `x-energy/docs/NOTES.md`;
+  Jon's step-by-step for the probe: `PROBE.md`. Read `NOTES.md` at the start of each phase, and
+  work only on that phase.
+- **Rules:** the same standing rules as Race apply. Also:
+  - a wellness app: never claim to detect anxiety, sleep apnoea, heart rhythm or illness;
+  - never call the energy score "Body Battery" (Garmin's trademark);
+  - no sleep stages unless beat-to-beat HRV is proven (`HEART_BEAT` has no parser; NOTES);
+  - every recorded probe night becomes a host test, as for X Velocity;
+  - the watch's printf may not do 64-bit integers: format 32-bit halves (`Fixed.hpp`, `StateFile.cpp`);
+  - the GUI's queue holds ten messages: batch anything sent in a burst (the check's lines).
+- **Layout:** the probe is `Tools/Probe` (from the Bike Probe): the pure core `Software/Libs/Core`
+  (`ProbeMode.hpp`, `CivilDate.hpp` and `Fixed.hpp` header-only for the GUI; `Schedule`,
+  `MinuteEpoch`, `NightSummary`, `StateFile`), the service `Software/Libs/App`, the GUI
+  `Software/Apps/LVGL-GUI` (six pages), the watch build `Software/Apps/EnergyProbe-CMake`
+  (app folder `EnergyProbe`, development APP_ID `939CAA3975888E07`, version 0.1.0).
+- **Watch builds come from CI** (`EnergyProbe_0.1.0.uapp` in `watch-apps`).
+- **Commands:**
+  - host tests: `cmake -S x-energy/Tests/Host -B x-energy/build-tests && cmake --build x-energy/build-tests && x-energy/build-tests/x-energy-host-tests`;
+  - simulator: `x-energy/Tools/Probe/Software/Apps/LVGL-GUI/simulator` (a Ninja build in its `build/`;
+    run `build/bin/EnergyProbeSimulator`; keys 1-4 are L1, L2, R1, R2; files in
+    `x-energy/Tools/Probe/Software/Output/Logs`). `TZ` moves its local time, which is how a night's
+    start and end are tried without waiting (NOTES "Gate SL0");
+  - the logs Jon sends back: `python3 x-energy/docs/experiments/probe_report.py <Logs dir> [--md out.md]`;
+  - a local watch compile check: Trail Quest's recipe with `x-energy/Tools/Probe/Software/Apps/EnergyProbe-CMake`
+    into `x-energy/build/arm`.
