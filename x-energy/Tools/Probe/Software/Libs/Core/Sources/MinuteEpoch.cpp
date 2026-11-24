@@ -105,6 +105,7 @@ void MinuteEpoch::reset()
     mAccN = 0;
     mMagSum = 0;
     mEnmoSum = 0;
+    mEnmoSumG = 0;
     for (uint8_t b = 0; b < kAngles; ++b) {
         mBx[b] = mBy[b] = mBz[b] = 0.0f;
         mBn[b] = 0;
@@ -201,6 +202,8 @@ void MinuteEpoch::accel(uint32_t offsetMs, float x, float y, float z)
     if (mAccelMs2) {
         const double enmo = mag / kGravity - 1.0;
         mEnmoSum += enmo > 0 ? enmo * 1000.0 : 0.0;
+        const double enmoG = mag - 1.0;
+        mEnmoSumG += enmoG > 0 ? enmoG * 1000.0 : 0.0;
     }
     ++mAccN;
 }
@@ -357,7 +360,10 @@ size_t MinuteEpoch::format(char* out, size_t cap, const RowContext& ctx) const
     // motion
     o.i(mAccN); o.comma();
     o.maybe(mAccN > 0, mAccN > 0 ? roundToInt(mMagSum * 100.0 / mAccN) : 0); o.comma();
-    o.maybe(mAccN > 0 && mAccelMs2, mAccN > 0 ? roundToInt(mEnmoSum * 10.0 / mAccN) : 0); o.comma();
+    // A watch at rest reads 9.8 in m/s^2 or 1 in g: below 4, the samples are in g.
+    const bool   inG  = mAccN > 0 && mMagSum / mAccN < 4.0;
+    const double enmo = inG ? mEnmoSumG : mEnmoSum;
+    o.maybe(mAccN > 0 && mAccelMs2, mAccN > 0 ? roundToInt(enmo * 10.0 / mAccN) : 0); o.comma();
     int16_t prev = mLastAngle;
     int64_t change = 0;
     bool    anyAngle = false;

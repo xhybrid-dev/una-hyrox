@@ -157,6 +157,13 @@ TEST(MinuteEpoch, EnmoInMilliG)
     }
     EXPECT_EQ(col(formatRow(e), "enmo_mg_x10"), "5000");
 
+    // Samples in g (an older SDK document said g): 1.5 g is still 500 mg.
+    MinuteEpoch g;
+    for (int i = 0; i < 10; ++i) {
+        g.accel(0, 0.0f, 0.0f, 1.5f);
+    }
+    EXPECT_EQ(col(formatRow(g), "enmo_mg_x10"), "5000");
+
     // Raw units: no ENMO, the magnitude still shown.
     MinuteEpoch raw;
     raw.setAccelUnitsMs2(false);

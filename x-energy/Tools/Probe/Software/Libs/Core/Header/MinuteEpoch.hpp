@@ -54,7 +54,8 @@ public:
     void batteryMetrics(float volts, float mA, float avgMa, float mAh);
 
     // --- motion ---
-    /// The accelerometer's unit: m/s^2 (ENMO in mg) or raw (ENMO not worked out).
+    /// The accelerometer's unit: m/s^2 or g (ENMO in mg; the row's mean magnitude picks which,
+    /// 9.8 or 1) or raw (ENMO not worked out).
     void setAccelUnitsMs2(bool ms2) { mAccelMs2 = ms2; }
     /// One sample, `offsetMs` after the row began (by the service's clock, which buckets it).
     void accel(uint32_t offsetMs, float x, float y, float z);
@@ -130,7 +131,8 @@ private:
     uint32_t mWakes        = 0;
     uint32_t mAccN         = 0;
     double   mMagSum       = 0;
-    double   mEnmoSum      = 0;   ///< mg
+    double   mEnmoSum      = 0;   ///< mg, if the samples are in m/s^2
+    double   mEnmoSumG     = 0;   ///< mg, if they are in g (an older SDK document said g)
     float    mBx[kAngles]  {};
     float    mBy[kAngles]  {};
     float    mBz[kAngles]  {};
