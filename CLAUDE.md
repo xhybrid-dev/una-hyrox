@@ -199,9 +199,20 @@ independent of Race and Streak.
     `build/bin`;
   - test routes: `python3 hybridx-trail/Tools/TestRoutes/make_test_gpx.py <folder>`.
   - app simulator: `hybridx-trail/Software/Apps/LVGL-GUI/simulator` (routes
-    in `Software/Output/Routes/`, from `Tools/TestRoutes/make_sim_routes.py`);
+    in `Software/Output/Routes/`, from `Tools/TestRoutes/make_sim_routes.py`;
+    `sim-reverse.gpx` is run backwards by the simulated runner: the wrong way);
   - captures: `hybridx-trail/docs/experiments/capture_screens.sh [out-dir]`
-    (every screen, into `docs/screens/`); `sim_run.sh` for a quick run.
+    (every screen, into `docs/screens/`); `capture_t4.sh [out-dir]` (the wrong
+    way, and the run after the finish with its FIT checked; into `t4-*.png`);
+    `sim_run.sh` for a quick run.
+  - the field-test amendments (T4, 24 November 2026; NOTES "T4"): off course at
+    20 m (back within 12 m), the wrong-way alert (`Core/WrongWay`, and the
+    tracker's turnaround rule), the banner as a cap across the top, the run's
+    time and distance after the finish, and the app's folder on the route list
+    (a store install's is the App ID, `Apps/1C83FDDE4EA3C880`).
+  - the store update 1.1.0 and the November competition entry: `hybridx-trail/docs/SUBMISSION.md`
+    (tag `trail-v1.1.0`, CI artifact `trail-store-zip`; previews `docs/experiments/store_previews.sh`,
+    gallery `hybridx-link/Tools/Brand/store_images.py trail`).
   - Route Sender (Android APK, with host tests):
     `hybridx-trail/Tools/RouteSender/build.sh`. It uses `$ANDROID_HOME` if
     set, else Ubuntu's `android-sdk-platform-23 aapt apksigner zipalign

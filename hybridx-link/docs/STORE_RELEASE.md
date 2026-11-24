@@ -34,7 +34,7 @@ the zips CI builds from the tags go to the portal.**
 | X Streak Glance | `Glance/HXStreakGlance-<v>.zip` (`streak-store-zip`) | the same tag | the portal's `BC8BFA0808314DB6` |
 | X Run | `HybridXRun-<v>.zip` (`run-store-zip`) | `run-v1.0.0` | the portal's `D0A3ADE4AF694DB2` |
 | VO2max Glance | `Glance/HybridXRunGlance-<v>.zip` (`run-store-zip`) | the same tag | the portal's `A38E5C0975D2394A` |
-| X Trail | `HybridXTrail-<v>.zip` (`trail-store-zip`) | `trail-v1.0.0` | the portal's `1C83FDDE4EA3C880` |
+| X Trail | `HybridXTrail-<v>.zip` (`trail-store-zip`) | `trail-v1.0.0`, `trail-v1.0.1`; the update is `trail-v1.1.0` (`hybridx-trail/docs/SUBMISSION.md`) | the portal's `1C83FDDE4EA3C880` |
 | X Workout | `HybridXWorkout-<v>.zip` (`workout-store-zip`) | `workout-v1.0.0` | the portal's `B9171EBAF7066A30` |
 | X Ride | `HybridXRide-<v>.zip` (`ride-store-zip`) | `ride-v1.0.0` | the portal's `58F141AE44428F51` |
 | X Training (new) | `HybridXTraining-<v>.zip` (`training-store-zip`) | `training-v1.0.0` (published; the update is `training-v1.1.0`) | the portal's `C790FB2FDF322688` |
@@ -270,20 +270,26 @@ Counts in X Streak.
 > Run a route without looking at your phone.
 >
 > - Load a GPX route and see it on a map with you on the line: heading-up or north-up, zoomed
->   from 300 m to 3 km with one button.
-> - Off by 25 m or more? A buzz, and an arrow back to the route. "Back on course" when you are.
+>   in and out with the up and down buttons, from 60 m to 3.5 km around you or the whole route.
+> - Off by 20 m or more? A buzz, and an arrow back to the route. "Back on course" when you are.
+> - Running the route the wrong way? A different buzz, and an arrow the right way.
 > - Turn cues before each turn, distance to go, and an elevation profile for routes with heights.
 > - It records the run too, with distance, pace, heart rate and laps, and it syncs to the UNA app
 >   and Strava.
 > - Counts in **X Streak**, with its training load. Your steady minutes also count towards
 >   X Run's VO2max.
 >
-> **Routes:** copy GPX files to the app's Routes folder with the watch connected by USB.
+> **Routes:** copy GPX files to the app's Routes folder with the watch connected by USB. The
+> app's "Add routes" shows where: `Apps/1C83FDDE4EA3C880/Routes`.
 >
 > Made by HybridX.
 
-**Facts checked against the code:** Trail NOTES T3, T3b and T3c (zoom 300 m, 750 m, 1.5 km and
-3 km; off course from 25 m; turn cues; the way back; elevation), and "Run link".
+**Facts checked against the code:** Trail NOTES T3, T3b and T3c (turn cues; the way back;
+elevation), `Core/Header/MapZoom.hpp` (nine steps from 60 m to 3.5 km, then the whole route, on
+UP and DOWN since 28 October), T4 (off course from 20 m, the wrong way, the folder), and "Run
+link". **Corrected for 1.1.0:** 1.0.0's text said "off by 25 m" (that is where the arrow back
+appears; the alert was at 50 m) and "300 m to 3 km with one button" (T3b's zoom, replaced before
+1.0.0 shipped).
 
 **Not claimed:** routes sent from the phone. The Route Sender is a test and is not part of
 this release.

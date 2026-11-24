@@ -11,12 +11,37 @@ prefix for the SDK's version script. The store release of the Streak family:
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-24
+
+The first field test's amendments (NOTES "T4").
+
 ### Added
 
+- **Wrong way**: on the route but running it backwards (30 m back along it), a quick, insistent
+  buzz and an orange "Wrong way / turn around" with an arrow the route's way; a reminder every
+  minute; "Right way" once you are running it forwards again. Never on an out-and-back's
+  turnaround, nor from GPS wandering while you stand (NOTES "T4.2").
+- **Where routes go**: the route list's "Add routes" names the app's folder (from the store,
+  `Apps/1C83FDDE4EA3C880`), and R1 on it shows the whole path.
 - **Form after a save**: with X Streak installed (a version that leaves its training load,
   Streak NOTES "S10"), the Saved screen says where your form now stands, under the session's load
   ("Form now -18, building"), worked out by Streak's own model. Not while Streak is still learning
   (its first two weeks).
+
+### Changed
+
+- **Off course at 20 m** from the line (it was 50 m), and back on course within 12 m (it was 30 m).
+- **The alert banner is a cap across the top** of the face, so the map below it still shows you
+  and the route (it was a band across the middle, over your arrow).
+- **After the finish** the map and the navigation face show the run's time and distance, still
+  counting until you save (they showed "0 m to go" and looked stopped; the recording never was).
+
+### Fixed
+
+- "Back on course" shows again: the green banner was put straight back to "Off course" and then
+  hidden, so only the buzz said so.
+- On an out-and-back, turning a little before the GPX's turnaround no longer sends "to go" back
+  up the outward leg: the return leg is taken (NOTES "T4.2").
 
 ## [1.0.1] - 2026-11-16
 

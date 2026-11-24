@@ -333,6 +333,7 @@ void Navigator::clear()
     mStatus.alert       = OffCourse::State::NotStarted;
     mStatus.offForS     = 0;
     mStatus.toStartM    = 0.0f;
+    mStatus.wrongWay    = false;
     mFs.remove(kSelFile);
     resetProgress();
 }
@@ -354,6 +355,7 @@ void Navigator::resetProgress()
 {
     mTracker.reset();
     mOffCourse.reset();
+    mWrongWay.reset();
     mCourse.reset();
     mHeading.reset();
     mHavePrevFix    = false;
@@ -363,6 +365,7 @@ void Navigator::resetProgress()
     mStatus.pos     = mTracker.position();
     mStatus.alert   = mOffCourse.state();
     mStatus.offForS = 0;
+    mStatus.wrongWay = false;
     mStatus.guideValid = false;
     mStatus.turnValid  = false;
     mStatus.headingValid  = false;
@@ -414,7 +417,7 @@ void Navigator::updateTurn(bool alertsLive)
     mStatus.turnValid = false;
     const RouteTracker::Position& pos = mStatus.pos;
     if (!mStatus.routeLoaded || !pos.everLocked || pos.finished || mStatus.alert == OffCourse::State::Off ||
-        !pos.onRoute) {
+        mStatus.wrongWay || !pos.onRoute) {
         return;
     }
     const float along = mTracker.thinnedAlongM();
@@ -462,14 +465,26 @@ OffCourse::Event Navigator::update(uint32_t nowMs, const GeoPoint& fix, float pr
     mStatus.pos      = mTracker.update(fix);
     mStatus.toStartM = Geo::distanceM(fix, mPoints[0]);
 
-    // The alert only runs during an activity: frozen on the start screen and
-    // while paused, so neither can raise one.
+    // The alerts only run during an activity: frozen on the start screen and
+    // while paused, so neither can raise one. Off course is the bigger news:
+    // it wins a fix that raises both (WrongWay stands down while off anyway).
     OffCourse::Event event = OffCourse::Event::None;
     if (alertsLive) {
         event = mOffCourse.update(nowMs, mStatus.pos, precisionM);
+        const OffCourse::Event wrong =
+            mWrongWay.update(nowMs, mStatus.pos, precisionM, mOffCourse.state() == OffCourse::State::Off);
+        if (event == OffCourse::Event::None) {
+            event = wrong;
+        }
     }
-    mStatus.alert   = mOffCourse.state();
-    mStatus.offForS = mOffCourse.offForMs(nowMs) / 1000u;
+    mStatus.alert    = mOffCourse.state();
+    mStatus.offForS  = mOffCourse.offForMs(nowMs) / 1000u;
+    mStatus.wrongWay = mWrongWay.wrong();
+    if (mStatus.pos.everLocked && mPointCount >= 2) {
+        const uint16_t seg = mStatus.pos.segment + 1u < mPointCount ? mStatus.pos.segment
+                                                                    : static_cast<uint16_t>(mPointCount - 2u);
+        mStatus.routeBearingDeg = Geo::bearingDeg(mPoints[seg], mPoints[seg + 1u]);
+    }
     updateGuide();
     updateTurn(alertsLive);
     return event;

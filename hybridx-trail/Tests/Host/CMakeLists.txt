@@ -40,6 +40,7 @@ add_executable(hybridx-trail-host-tests
     ProbeRunnerTest.cpp
     RouteTrackerTest.cpp
     OffCourseTest.cpp
+    WrongWayTest.cpp
     MapViewTest.cpp
     NavigatorTest.cpp
     HeadingFusionTest.cpp
@@ -56,6 +57,7 @@ add_executable(hybridx-trail-host-tests
     "${CORE_LIBS}/Sources/RouteMath.cpp"
     "${CORE_LIBS}/Sources/RouteTracker.cpp"
     "${CORE_LIBS}/Sources/OffCourse.cpp"
+    "${CORE_LIBS}/Sources/WrongWay.cpp"
     "${CORE_LIBS}/Sources/MapView.cpp"
     "${CORE_LIBS}/Sources/Navigator.cpp"
     "${CORE_LIBS}/Sources/TextFold.cpp"

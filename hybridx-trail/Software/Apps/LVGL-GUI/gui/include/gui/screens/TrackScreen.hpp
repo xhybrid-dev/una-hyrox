@@ -9,7 +9,9 @@
  * Port of the Run app's TrackView/TrackPresenter and its TrackFace* containers.
  *
  * HybridX Trail adds two map faces (near and far) and a navigation face, and a
- * banner over every face for off course, back on course and route complete.
+ * banner over every face for off course, wrong way, back on course, right way,
+ * turns and route complete: a cap across the top of the face (T4), so the map
+ * below it still shows the runner and the route.
  * Only the face on display exists: paging deletes it and builds the next.
  * RunLVGL built every face up front, but its four faces take some 24 KB of
  * LVGL's 40 KB pool (SDK lv_conf.h), which leaves no room for the map.
@@ -69,9 +71,12 @@ private:
     void buildFaceNav();
     void buildFaceProfile();
     void updateProfile(const Trail::Navigator::Status& s);
-    /// The banner's arrow, pointing @p screenDeg clockwise from the top of the screen.
+    /// The banner's arrow before its detail line, pointing @p screenDeg
+    /// clockwise from the top of the screen; with @p show false, the detail alone, centred.
     void setBannerArrow(bool show, float screenDeg);
     void buildBanner();
+    /// Hide the map face's top lines while the cap is up; show them again after.
+    void syncMapLabels();
     void updateMap(const Trail::Navigator::Status& s);
     void updateNav(const Trail::Navigator::Status& s);
     void showBanner(const char* title, const char* sub, uint32_t colour, uint32_t forMs);
@@ -139,20 +144,21 @@ private:
     lv_obj_t* mProfNext   = nullptr;
     lv_obj_t* mProfNow    = nullptr;
     // Navigation face
+    lv_obj_t* mNavTop      = nullptr;   ///< "To go", or "Time" after the finish
     lv_obj_t* mNavToGo     = nullptr;
     lv_obj_t* mNavToGoUnit = nullptr;
     lv_obj_t* mNavDone   = nullptr;
     lv_obj_t* mNavTotal  = nullptr;
     lv_obj_t* mNavStatus = nullptr;
     lv_obj_t* mNavFoot   = nullptr;
-    // The banner over every face: off course (stays), back on / finished (timed)
+    // The banner over every face: off course and wrong way (stay), the rest (timed)
     lv_obj_t*   mBanner      = nullptr;
     lv_obj_t*   mBannerText  = nullptr;
     lv_obj_t*   mBannerSub   = nullptr;
     lv_obj_t*   mBannerArrow = nullptr;   ///< the way back to the line, in the off-course band
     lv_point_precise_t mArrowPts[5] {};
     lv_timer_t* mBannerTimer = nullptr;
-    bool        mOffBanner   = false;
+    bool        mStandingBanner = false;   ///< off course or wrong way: shown until it clears
     // The faces this run has, in order (the map ones only with a route)
     uint16_t mFaces[App::MenuNav::TrackView::ID_COUNT] {};
     uint8_t  mFaceCount = 0;

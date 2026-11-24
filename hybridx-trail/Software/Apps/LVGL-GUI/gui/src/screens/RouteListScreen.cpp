@@ -69,7 +69,10 @@ void RouteListScreen::fill()
     add                  = WheelMenu::Item {};
     add.style            = Style::Tip;
     add.text             = "Add routes";
-    add.tip              = "copy GPX by USB";
+    // Where they go: this app's folder (T4: a store install's is the App ID,
+    // which a runner can't guess). R1 spells out the whole path.
+    std::snprintf(mAddTip, sizeof(mAddTip), "in %s", mModel.appFolder());
+    add.tip              = mModel.appFolder()[0] != '\0' ? mAddTip : "copy GPX by USB";
     add.tipColor         = Color::GRAY;
 }
 
@@ -110,7 +113,8 @@ void RouteListScreen::onRoutes()
 void RouteListScreen::updateButtons()
 {
     const uint16_t sel     = mMenu->selected();
-    const bool     canPick = sel == 0 || (isRoute(sel) && mModel.routeAt(static_cast<uint8_t>(sel - 1)).points > 0);
+    const bool     canPick = sel == 0 || (isRoute(sel) && mModel.routeAt(static_cast<uint8_t>(sel - 1)).points > 0) ||
+                         sel + 1u == mItemCount;   // "Add routes" opens where they go
     mMenu->setBackground(canPick ? Color::TEAL_DARK : Color::GRAY_DARK);
     mButtons->set(Widgets::Buttons::NONE, Widgets::Buttons::NONE,
                   canPick ? Widgets::Buttons::AMBER : Widgets::Buttons::NONE, Widgets::Buttons::WHITE);
@@ -130,6 +134,8 @@ void RouteListScreen::onKey(uint8_t code)
             } else if (isRoute(sel) && mModel.routeAt(static_cast<uint8_t>(sel - 1)).points > 0) {
                 mModel.setPreviewRoute(static_cast<int8_t>(sel - 1));
                 ScreenManager::instance().goTo(ScreenId::RoutePreview);
+            } else if (sel + 1u == mItemCount) {
+                ScreenManager::instance().goTo(ScreenId::AddRoutes);   // "Add routes": where they go
             }
         } break;
         case Btn::R2: ScreenManager::instance().goTo(ScreenId::Main); break;

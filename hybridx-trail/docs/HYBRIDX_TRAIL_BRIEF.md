@@ -3,7 +3,10 @@
 **Owner:** Jon
 **Status:** Gate T0 **GO** (28 September 2026). T1 (route core), T2 (service)
 and T3 (screens) built and verified in the simulator (NOTES, "T1" to "T3");
-screenshots in `docs/screens/`. Next: T4, Jon's field test on the watch.
+screenshots in `docs/screens/`. 1.0.0 on the store (9 November 2026). T4, Jon's
+field test: the first run's amendments (wrong way, off course at 20 m, the banner
+as a top cap, the run after the finish, the folder on the route list) are built
+and simulator-checked (NOTES, "T4"); next, Jon's second run on the watch.
 Waiting on Jon's OK for the alert behaviour (NOTES T1.2). Heading-up uses GPS
 direction of travel: the compass never calibrated on-watch. Phone delivery:
 a second app can use the watch's file transfer (NOTES, "Phone delivery over
@@ -35,7 +38,7 @@ athletes; this is for them.
 | F3 | **Map screen:** the route as a line, a marker for you, a start and finish marker | Drawn as an LVGL line, like RunLVGL's `Widgets::Map` |
 | F4 | **Zoom:** fixed scales, such as 200 m, 500 m, 1 km, 2 km and the whole route | One button cycles them |
 | F5 | **North-up or heading-up** | Heading-up rotates the map to the way you're facing: compass when standing, GPS direction of travel when moving. The default is decided at Gate T0 |
-| F6 | **Off-course alert:** a buzz and a banner when you're more than a set distance from the line, and another when you're back on it | Default 50 m, with some hysteresis so it doesn't chatter on switchbacks. The threshold is a setting |
+| F6 | **Off-course alert:** a buzz and a banner when you're more than a set distance from the line, and another when you're back on it | 20 m, back on within 12 m (Jon, after the first field test; it was 50 m), with hysteresis so it doesn't chatter on switchbacks. Plus a **wrong-way** alert when you're on the line running it backwards (T4) |
 | F7 | **Distance done and remaining along the route,** not in a straight line | Tracks your progress along the line, so an out-and-back or a loop that crosses itself doesn't jump to the wrong leg |
 | F8 | **A normal run recording at the same time:** time, distance, pace, heart rate, laps, saved as a FIT activity | Started from RunLVGL's recording, so it arrives in Strava or Garmin Connect like any run |
 | F9 | **Data screens** as in a normal run app, alongside the map | Reuses RunLVGL's faces |
@@ -78,6 +81,10 @@ USB. Jon or an athlete:
 Whether step 5 needs a power cycle first is one of the probe's questions. The
 watch can't be used while its drive is attached, so this is a "night before"
 flow, not one for the trailhead.
+
+**The folder:** installed from the store, the app's folder is named with its
+portal App ID (`Apps/1C83FDDE4EA3C880/Routes/`, Jon's watch, 24 November 2026),
+not `HybridXTrail`; the route list's "Add routes" says so (NOTES "T4.5").
 
 **For release: from the phone.** USB needs the user to know the folder, so
 it's a developer path only. For everyone else, one of two routes:
@@ -148,7 +155,8 @@ or decide. Build the watch target and the simulator after every change.
    any public release, phone delivery is needed (section 4): UNA's app if they
    add it, otherwise HybridX Route Sender.
 3. **Off-course threshold default:** 50 m suggested. You know what trail runners
-   will tolerate better than I do.
+   will tolerate better than I do. **Decided after the first field test: 20 m,
+   back on within 12 m** (24 November 2026).
 4. **Units:** kilometres only, or miles as a setting? (The other apps are metric.)
 5. **Heading-up or north-up by default:** decide after T0, once the compass has
    been seen on a real wrist.

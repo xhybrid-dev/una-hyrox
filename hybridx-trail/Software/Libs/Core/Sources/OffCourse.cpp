@@ -99,6 +99,9 @@ const char* OffCourse::name(Event e)
         case Event::StillOff: return "still off";
         case Event::BackOn:   return "back on";
         case Event::Finished: return "finished";
+        case Event::WentWrong:  return "went wrong way";
+        case Event::StillWrong: return "still wrong way";
+        case Event::RightWay:   return "right way";
     }
     return "?";
 }

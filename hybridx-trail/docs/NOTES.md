@@ -240,7 +240,9 @@ Each line is a host test (`OffCourseTest.cpp`):
    detour, rejoin at 700 m): off, three reminders, back on, finished.
 
 The numbers (50 m, 30 m, 5 s, 3 s, 60 s, 25 m) are one `Config` struct:
-changing any is one line. **Jon to confirm or change them.**
+changing any is one line. **Jon to confirm or change them.** (Changed after the
+first field test: off at 20 m, back within 12 m, fixes worse than 20 m ignored.
+See "T4: the first field test's amendments".)
 
 ### T1.3 Map
 
@@ -772,3 +774,205 @@ is now in every place that names it: the watch build's `CMakeLists.txt`, `Resour
 and the simulator's `CMakeLists.txt`. X Trail `1C83FDDE4EA3C880` (was `71ABD15ED7526601`). The packager still names the development ID,
 only to refuse it on a release. The CHANGELOG says 1.0.0. What is left: the tag `trail-v1.0.0`
 (Jon, on GitHub), then the upload.
+
+## T4: the first field test's amendments (24 November 2026)
+
+Jon ran X Trail (the store install) on a real route and asked for five things:
+
+1. a warning when you are on the route but running it the **wrong way**;
+2. the off-course warning at **20 m** (it was 50 m: the 1.0.0 store text's "25 m" is the
+   distance the arrow back appears, `Navigator::kGuideMinM`, not the alert);
+3. the off-course banner hid the map: it was a band across the middle, over the runner's
+   arrow (drawn 12 % below centre on a heading-up map) and the route around it. He chose a
+   **segment** of the screen, the map visible in the rest; then the **top** segment;
+4. after the route was complete, tracking and the timer seemed to stop; it should go on
+   until he ends the activity. He confirmed (asked) it was the **map and navigation face**
+   that looked frozen;
+5. can the app see its own folder name? A store install's folder looks random to a runner,
+   who can't tell where GPX files go.
+
+### T4.1 Off course at 20 m
+
+`OffCourse::Config`: off at **20 m** for 5 s (was 50 m), back on within **12 m** for 3 s
+(was 30 m; Jon chose 12 m of 10, 12 and 15: 8 m of hysteresis, about one GPS error), and
+fixes whose own precision is worse than **20 m** are ignored (was 25 m: such a fix can't
+tell 20 m from the line). The 60 s reminder is unchanged. The arrow back now shows from
+12 m (`kGuideMinM`), so it is always in the banner while it says off course. The T1.2
+walk-through holds with the new numbers (`OffCourseTest.cpp`, rewritten scenario by
+scenario), plus two new ones: 25 m off for 5 s now buzzes (under 50 m it never did), and a
+path drawn 10-18 m off the GPX never buzzes.
+
+**What 20 m means on the run:** the 5 s confirmation still guards against GPS spikes, so
+the buzz comes 5 s after crossing 20 m: about 35 m from the line at 3 m/s on a sharp wrong
+turn, less on a gentle one. The simulator's runner is fast (5.5 m/s): "went off (43 m off)"
+(it was 61 m at 50 m). Shortening the 5 s is one line, at the cost of spike protection.
+
+### T4.2 Wrong way
+
+**`WrongWay`** (`Core/WrongWay.hpp`), a state machine beside `OffCourse`, judged on the
+tracker's progress along the route, not GPS heading (T1: heading from 10 m of running is
+useless). **30 m back** from the furthest point reached, held **3 s**: "Wrong way" (about
+10 s at running pace, past the ~12 m a fix inside a corner projects back). Reminders every
+60 s. **"Right way"** once the runner has gone 20 m forward from the lowest point, held 3 s.
+Nothing before the route is joined or after the finish; off course takes over (the wrong
+way is dropped quietly); fixes worse than 20 m, or more than 12 m off the line, don't count;
+the furthest point starts again after 60 counted fixes without a new one, so GPS drifting
+at a feed station (slower than 0.5 m/s) never adds up. The events ride on
+`OffCourse::Event` (`WentWrong`, `StillWrong`, `RightWay`), so `NavAlert` carries them;
+off course wins a fix that raises both. No turn cues while wrong.
+
+**Found while testing: the tracker followed a short turn backwards.** On an out-and-back
+drawn along one path (as planners draw them), a runner who turns before the GPX's end (a
+cone placed short, or GPS that falls a few metres short at the turn) is equally near both
+legs, and the 2x cost of "behind" put them back down the outward leg: "to go" grew, and the
+finish could be lost. New host tests showed it turning 10 m and 25 m short (every seed
+failed) and, with 8 m of noise, at the turnaround itself. With a wrong-way warning on top,
+every such runner would have been told to turn round. Fixed in `RouteTracker`:
+
+- once the match is **20 m behind** the furthest point reached, the tracker looks ahead of
+  that point (in its window) for a leg that passes the runner (within 20 m) running the
+  **opposite way** to the leg they are on, at least as far beyond the furthest point as they
+  are behind it: the same place, on the way back. Held **3 fixes**, it is taken (a jump).
+  The direction test is the route's own geometry, so on a point-to-point route the nearest
+  point ahead (same leg, pointing the other way) is never taken, and a genuine wrong-way
+  run is followed back;
+- guards: 20 m is more than 8 m of noise either way can fake; the 20 m must come within 30
+  fixes of the furthest point (which starts again after 30 fixes without a new one, so a
+  rest at the cone is judged from the rest); and while a way back exists but is not yet
+  taken, `Position::wayBack` holds the wrong-way count off;
+- `Position::jumped` marks a match that was a jump (rejoin, shortcut, turnaround); the
+  wrong-way count starts again from the new place (still wrong, if it was: a loop run
+  backwards is warned once, not at every lap's start).
+
+A first try with 10 m and no guards snapped runners onto the return leg on the way out
+(8 m of noise, errors of 200-590 m): the guards are what make it safe.
+
+**Known limits:** at the turnaround itself, "to go" can be ~50 m out for a few seconds
+before the return leg is taken. On a same-path lollipop, turning back early on the stick is
+read as being on the way home (the GPX can't tell the two apart). A runner who chooses to
+run a route backwards is warned and reminded every minute: a "reverse route" option is the
+brief's P1 feature.
+
+**Buzzes** (`Service::notifyNav`): wrong way is quick and insistent, not off course's two
+long ones: 4 x 120 ms beeps and 3 x `STRONG_BUZZ_100`; still wrong, 2 and 2; right way as
+back on course (two short beeps, a double click).
+
+### T4.3 The banner: a cap across the top
+
+The banner is now a cap over the top of the face, 82 px deep and square-cornered (the round
+glass cuts it), just clear of the scroll indicator at 9 o'clock, over every face as before.
+SemiBold 20 title, Medium 18 detail with the arrow before it, the pair centred. Widths
+measured in Poppins (Pillow): the widest title, "Route complete", is 161 px, inside the
+circle's 167 px at its row; the widest detail with its arrow ("1888 m from line") 183 of
+207. The runner's arrow, the route near them and the scale bar stay visible. The map's own
+top lines (to go, the next turn) hide while the cap is up, as it replaces them.
+Colours: yellow off course, **orange wrong way** ("Wrong way / turn around", the arrow the
+route's own way as the runner faces), green back on course, right way and route complete,
+magenta turn cues. The navigation face's status line says "Wrong way" in orange.
+
+**Found while capturing: "Back on course" never showed.** The service sends an alert just
+before the status it comes from, and `TrackScreen::onNavAlert` ended by redrawing from the
+Model's status, which was still the one before: after "back on course" it still said off
+course, so the yellow banner went straight back over the green one, and the next status
+hid it. Only the buzz told the runner (T3's capture 23 shows the map without it, too). The
+good-news alerts (back on course, right way, the finish) now leave the redraw to the next
+status, a moment later.
+
+### T4.4 After the finish
+
+**Nothing stopped.** The service records until the activity is saved (as before); only the
+navigation was finished: the tracker holds progress at the route's end, so the map said
+"0 m to go" and the navigation face showed Done = the route's length, while a walking
+runner barely moves a 300 m map. Now, after the finish: the map's top lines show the
+run's **time and distance**, counting (lime); the navigation face's top row is **Time**,
+Done is the run's distance, the status "Finished", the foot "R1 to save". Alerts stay off
+after the finish (T1.2's rule 6: walking back to the car).
+
+### T4.5 The folder on the route list
+
+- **The platform:** the SDK has no call that names an app's own folder (`ISystem`,
+  `IFileSystem`, the kernel messages: none), and the sandbox hides `Apps/` from an app
+  (Streak NOTES, Gate 0: listing `..` lands elsewhere, sibling folders are refused).
+- **Jon's watch:** the store install is `Apps/1C83FDDE4EA3C880`, **the portal App ID**, which
+  the build defines (`APP_ID`, `una-app.cmake:244`). So the app can name it for certain.
+- `Service::findAppFolder` (once at start): the App ID; unless `fs.objectInfo("/")` names
+  exactly `HybridXTrail` (a development copy over USB), which is then believed. Anything else
+  it returns is ignored and logged (`App folder: objectInfo("/") ...`): the simulator says
+  "Output" (its root folder). Whether the watch names the folder this way is untried. Sent
+  in `RouteList` (`folder[24]`).
+- **The route list:** "Add routes" reads "in 1C83FDDE4EA3C880" (Italic 18, 206 px), and R1
+  on it opens **Add routes** (`AddRoutesScreen`): "Over USB, copy GPX files into: Apps /
+  1C83FDDE4EA3C880 / Routes", and that they show when X Trail next opens (`scan()` runs at
+  start).
+- **Follow-ups, not done:** Route Sender looks for `/Apps/HybridXTrail` (`RouteFile.java:17`),
+  so it would not find a store install: it should try the App ID too. And the request to UNA
+  could ask for a call that names the app's folder (`UNA_GPX_REQUEST.md`).
+
+
+### T4 verified (in the container)
+
+- **Host tests: 172** (149 before; 23 new: `WrongWayTest` 15, the tracker's turnarounds 5,
+  `OffCourse` 2 more, `Navigator` 1), also under ASan + UBSan, clean. The "never" cases:
+  the straight route, the square loop, the bow tie, switchbacks 20 m apart and the
+  out-and-back, each with 0, 3 and 6 m of noise over 5 seeds; the out-and-back with 5 and 8 m
+  over 20 seeds; turning 10 m and 25 m short over 10; five minutes standing with 8 m of
+  wander; four minutes of 0.4 m/s drift; a rejoin behind after a detour.
+- **Watch target** compile check (Ubuntu's arm-none-eabi-gcc with the syscall stubs, not for a
+  watch; CI builds the real one): no warnings outside the SDK, `.uapp` 464,368 B. The
+  simulator builds with no warnings in Trail's code. `NavUpdate` and `RouteList` stay inside
+  the 256-byte message block (static asserts).
+- **Simulator:**
+  - `sim-reverse.gpx` (`capture_t4.sh`, `sim_run.sh`): "went wrong way" 13-20 s into the run,
+    "still wrong way" a minute later, once each lap (not a fresh warning at the loop's start);
+  - `sim-wrong-turn.gpx` (`capture_screens.sh`): "went off" at 38-45 m (the simulated runner
+    does 5.5 m/s) and "back on" at 0 m, the cap over the map with the arrow back, the runner
+    and route visible under it, then the green "Back on course" (capture 23);
+  - `sim-3-laps.gpx` run on past the finish (`capture_t4.sh`): the map and navigation face show
+    the time and distance counting after "Route complete"; the saved `.fit` has a record every
+    second of the 53 s between the finish and the pause, and 1,505 m on the 1,200 m route;
+  - the route list's "Add routes" reads "in 1C83FDDE4EA3C880", R1 shows the path; the
+    service logs `objectInfo("/")` as "Output" in the simulator, so the App ID is used;
+  - LVGL pool peak 82 %, as before.
+- `capture_screens.sh` now takes the maps and data faces on the three-lap route (the runner
+  stays on it) and the off-course part on the wrong-turn route after a relaunch: the run it
+  replaced depended on where the simulated runner happened to be, and its frame 21 (in T3's
+  captures too) showed the map after the alert rather than during it.
+
+### For Jon on the watch (T4, second run)
+
+1. **Off course:** on a known loop, a deliberate 20-30 m detour: one buzz about 5 s after you
+   pass 20 m, the yellow cap across the top with the arrow back, the map below it; "Back on
+   course" once you're within 12 m.
+2. **Wrong way:** turn round on the route and run back 50 m: the quick buzz and the orange
+   "Wrong way / turn around" within about 15 s, the arrow pointing the route's way; turn again:
+   "Right way". Tell me if it ever fires when you are going the right way.
+3. **An out-and-back's turnaround:** run to the cone (and once, turn a little before the GPX's
+   end): no wrong-way buzz, and "to go" counting down on the way back.
+4. **After the finish:** carry on a few minutes: the map shows the time and distance counting;
+   the navigation face says Time and Finished; the saved run includes the extra minutes.
+5. **The folder:** the route list's "Add routes" should read "in 1C83FDDE4EA3C880" (the store
+   install); R1 shows the path. If you also have a USB copy in `Apps/HybridXTrail`, see whether
+   that one says "HybridXTrail" (it does only if the watch names the folder: we don't know yet).
+
+## T5: 1.1.0 for the store (24 November 2026)
+
+Jon asked for 1.1.0 to be packaged for the store and his entry to UNA's November app competition.
+The steps, the release notes and a draft entry: `docs/SUBMISSION.md`.
+
+- **Previews** (`Resources/previews/`, `store_previews.sh`): six, now with off course on the new
+  cap (`21-off-course.png`) and the wrong way (`t4-01-wrong-way.png`, from `capture_t4.sh`); the
+  navigation face's preview is dropped to keep six. `--recapture` runs both walkthroughs.
+- **Gallery** (`docs/store/`, `hybridx-link/Tools/Brand/store_images.py trail`): the off-course card
+  says 20 m, **Wrong way** replaces **Heading up**, the routes card says the watch names the folder;
+  the family card now has X Training. Contrast: 72 text blocks, none under 4.5:1.
+- **Store text** (`hybridx-link/docs/STORE_RELEASE.md`, "X Trail"): two claims in 1.0.0's text were
+  wrong and are corrected: "off by 25 m" (the alert was at 50 m; 25 m was the arrow back), and
+  "300 m to 3 km with one button" (the zoom has been nine steps, 60 m to 3.5 km, on UP and DOWN,
+  since 28 October).
+- **Checked:** built as 1.1.0 (`-DBUILD_VERSION=1.1.0`, the local compile check), then
+  `pack-store-zip.sh --expect-version 1.1.0` passed (the portal's manifest rules, both SDK
+  validators, the App ID in all three places). That zip was deleted: only CI's, from the tag
+  `trail-v1.1.0`, goes to the portal.
+- **Not done on a watch:** the whole of T4. The release steps put Jon's short watch test (with the
+  tag's own `.uapp`) before the upload.
+

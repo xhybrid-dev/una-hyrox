@@ -241,6 +241,7 @@ private:
     Trail::Navigator& mNav;
     float             mGpsPrecisionM   = 0.0f;   ///< the latest fix's own precision estimate
     uint32_t          mNavFixTimestamp = 0;      ///< the GPS timestamp last fed to mNav
+    char              mAppFolder[24]   = {};     ///< this app's folder in Apps/, for the route list
 
     // -- Lifecycle ------------------------------------------------------------
 
@@ -295,6 +296,8 @@ private:
 
     void sendRoutes();
     void sendRoute();
+    /// Work out this app's folder name (mAppFolder), once at start.
+    void findAppFolder();
     void processNav();
     void notifyNav(Trail::OffCourse::Event event);
     void notifyTurn(int16_t angleDeg);

@@ -130,6 +130,8 @@ public:
     uint8_t                         routeCount() const { return mRouteCount; }
     const Trail::RouteInfo&         routeAt(uint8_t i) const { return mRoutes[i < mRouteCount ? i : 0]; }
     int8_t                          selectedRoute() const { return mSelectedRoute; }
+    /// This app's folder in Apps/ (where Routes/ is), as the service worked it out.
+    const char*                     appFolder() const { return mAppFolder; }
     bool                            hasRoute() const { return mRoutePointCount >= 2; }
     const Trail::RouteInfo&         route() const { return mRouteInfo; }
     const Trail::GeoPoint*          routePoints() const { return mRoutePoints; }
@@ -205,6 +207,7 @@ private:
     Trail::RouteInfo         mRoutes[Trail::Navigator::kMaxRoutes] {};
     uint8_t                  mRouteCount      = 0;
     int8_t                   mSelectedRoute   = -1;
+    char                     mAppFolder[24]   = {};
     int8_t                   mPreviewRoute    = -1;
     uint8_t                  mMapZoom         = MapZoom::kDefault;
     uint16_t                 mLastDataFace    = kNoFace;

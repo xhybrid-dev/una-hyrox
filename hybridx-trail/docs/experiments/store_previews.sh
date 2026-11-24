@@ -9,11 +9,13 @@
 #  1-routes  (05-route-list-3-laps.png)
 #  2-route  (08-route-preview-long-name.png)
 #  3-map  (11-map-150m-running.png)
-#  4-off-course  (16-nav.png)
-#  5-elevation  (17-elevation.png)
-#  6-navigation  (22-nav-off-course.png)
+#  4-off-course  (21-off-course.png: the cap across the top, the map under it; 1.1.0)
+#  5-wrong-way  (t4-01-wrong-way.png, from capture_t4.sh; 1.1.0)
+#  6-elevation  (17-elevation.png)
 #
-# --recapture first re-runs the walkthrough, capture_screens.sh (the routes, the map and the navigation, off course and back, and the save), into docs/screens. It needs what that
+# --recapture first re-runs the walkthroughs, capture_screens.sh (the routes, the map and the
+# navigation, off course and back, and the save) and capture_t4.sh (the wrong way, and the run
+# after the finish), into docs/screens. It needs what they
 # needs (Xvfb, xdotool, ImageMagick, fitdecode; the simulator built). Run it on an idle machine,
 # then look at the previews again before committing them. The release:
 # hybridx-link/docs/STORE_RELEASE.md.
@@ -29,6 +31,7 @@ rc=0
 if [ "${1:-}" = "--recapture" ]; then
     echo "Re-running the walkthrough into docs/screens (look at its screens before keeping them)..."
     "$HERE/capture_screens.sh" || rc=1
+    "$HERE/capture_t4.sh" || rc=1
 fi
 # pick <file pattern under docs/screens> <preview name>: kept at 480x480 (the watch's 240 at 2x).
 pick() {
@@ -50,7 +53,7 @@ rm -f "$OUT"/*.png
 pick "05-route-list-3-laps.png" 1-routes
 pick "08-route-preview-long-name.png" 2-route
 pick "11-map-150m-running.png" 3-map
-pick "16-nav.png" 4-off-course
-pick "17-elevation.png" 5-elevation
-pick "22-nav-off-course.png" 6-navigation
+pick "21-off-course.png" 4-off-course
+pick "t4-01-wrong-way.png" 5-wrong-way
+pick "17-elevation.png" 6-elevation
 exit $rc

@@ -4,6 +4,7 @@
 #include <ctime>
 #include <cmath>
 #include <memory>
+#include <cstdio>
 #include <cstring>
 #include <new>
 
@@ -63,6 +64,21 @@ static float getPace(float speed, float threshold)
 static constexpr uint32_t kVo2FreshMs      = 2500;
 static constexpr uint16_t kVo2MinGoodSec   = 40;
 static const char* const  kVo2SharedDir    = "../SharedData/HybridX";
+
+/// FAT names compare without case.
+static bool sameNameIgnoringCase(const char* a, const char* b)
+{
+    for (;; ++a, ++b) {
+        const char ca = (*a >= 'A' && *a <= 'Z') ? static_cast<char>(*a + 32) : *a;
+        const char cb = (*b >= 'A' && *b <= 'Z') ? static_cast<char>(*b + 32) : *b;
+        if (ca != cb) {
+            return false;
+        }
+        if (ca == '\0') {
+            return true;
+        }
+    }
+}
 
 static float speedFromTotals(float distanceM, float activeTimeS)
 {
@@ -145,6 +161,7 @@ void Service::run()
     }
 
     // HybridX Trail: the routes copied into Routes/, and the one chosen last time.
+    findAppFolder();
     mNav.scan();
     if (mNav.restoreSelection()) {
         LOG_INFO("Route: %s\n", mNav.current().name);
@@ -1963,7 +1980,27 @@ void Service::handleEvent(const CustomMessage::RouteRescan& /*event*/)
 
 void Service::sendRoutes()
 {
-    SDK::send_msg<CustomMessage::RouteList>(mKernel, mNav.routes(), mNav.routeCount(), mNav.selected());
+    SDK::send_msg<CustomMessage::RouteList>(mKernel, mNav.routes(), mNav.routeCount(), mNav.selected(), mAppFolder);
+}
+
+void Service::findAppFolder()
+{
+    // The folder GPX files go in, for the route list to name. The SDK has no
+    // call for an app's own folder, and the sandbox hides Apps/ (Streak NOTES,
+    // Gate 0). But a store install is named with the portal App ID (Jon's
+    // watch, 24 November 2026: Apps/1C83FDDE4EA3C880), which the build knows;
+    // a development copy over USB is in Apps/<APP_NAME>. objectInfo("/") might
+    // name the folder on the watch (untried): it is only believed when it
+    // names one of those two, so the list never shows a wrong folder.
+    std::snprintf(mAppFolder, sizeof(mAppFolder), "%s", APP_ID);
+    SDK::Interface::IFileSystem::ObjectInfo info {};
+    const bool ok = mKernel.fs.objectInfo("/", info);
+    info.name[sizeof(info.name) - 1] = '\0';
+    LOG_INFO("App folder: objectInfo(\"/\") %s \"%s\"\n", ok ? "named" : "failed", ok ? info.name : "");
+    if (ok && sameNameIgnoringCase(info.name, APP_NAME)) {
+        std::snprintf(mAppFolder, sizeof(mAppFolder), "%s", APP_NAME);
+    }
+    LOG_INFO("Routes folder: Apps/%s/Routes\n", mAppFolder);
 }
 
 void Service::sendRoute()
@@ -2054,6 +2091,23 @@ void Service::notifyNav(Trail::OffCourse::Event event)
             backlightOn();
             playBuzzerPattern(150, 3);
             playVibroPattern(Effect::ALERT_1000MS_100, 1);
+            break;
+        case Trail::OffCourse::Event::WentWrong:
+            // Not off course's two long ones: quick and insistent, "turn round".
+            backlightOn();
+            playBuzzerPattern(120, 4, 80);
+            playVibroPattern(Effect::STRONG_BUZZ_100, 3, 150);
+            break;
+        case Trail::OffCourse::Event::StillWrong:
+            backlightOn();
+            playBuzzerPattern(120, 2, 80);
+            playVibroPattern(Effect::STRONG_BUZZ_100, 2, 150);
+            break;
+        case Trail::OffCourse::Event::RightWay:
+            // Good news, as back on course.
+            backlightOn();
+            playBuzzerPattern(80, 2, 80);
+            playVibroPattern(Effect::DOUBLE_CLICK_100, 1);
             break;
         case Trail::OffCourse::Event::None:
             break;

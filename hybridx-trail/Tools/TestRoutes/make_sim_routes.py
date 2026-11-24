@@ -14,6 +14,9 @@ same track, so the simulated runner is really on (or off) them:
   sim-wrong-turn.gpx   the first straight, then carries straight on east for
                        300 m and back: the runner, lapping the track, leaves
                        the route at the first bend. The off-course alert fires.
+  sim-reverse.gpx      two laps of the track the other way round: the runner
+                       runs the route backwards. The wrong-way alert fires
+                       (T4), and reminds every minute.
 
     python3 make_sim_routes.py <output folder>
 """
@@ -76,8 +79,10 @@ def main():
     one = lap()
     three = one * 3 + [one[0]]
     wrong = [(x, RADIUS) for x in range(0, 390, 5)] + [(x, RADIUS - 10) for x in range(385, -1, -5)]
+    reverse = list(reversed(one * 2 + [one[0]]))
     for name, title, pts in (("sim-3-laps.gpx", "Stadium 3 laps", three),
-                             ("sim-wrong-turn.gpx", "Stadium wrong turn", wrong)):
+                             ("sim-wrong-turn.gpx", "Stadium wrong turn", wrong),
+                             ("sim-reverse.gpx", "Stadium the wrong way", reverse)):
         path = os.path.join(out, name)
         with open(path, "w") as f:
             f.write(gpx(title, pts))
