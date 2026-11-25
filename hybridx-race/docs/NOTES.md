@@ -2441,3 +2441,18 @@ UNA's email says SpO2 and HRV are "coming soon". From the sources, today:
    for HRV (X Energy's SL4 plan), before any app uses them.
 4. **Optional, Jon's call:** lap while paused in Run, X Training and Trail (copy RunLVGL's change, about
    140 lines each); in Ride and Workout from UNA's Cycling and Workout examples.
+
+### 5.41 Pin moved to sdk-v1.7.0 (25 November 2026)
+
+`UNA_SDK_REF` is now `f7de9da0151d29b7953c958a17140fc7c60ab913` (`sdk-v1.7.0`, also `apps-v1.7.0`),
+up from `6bd43f04` (`sdk-v1.6.2`). Jon asked for it after the review (5.35-5.40). No app code changed.
+
+- **Why it is light:** `Libs/Source`, `cmake/`, `ThirdParty/` (LVGL `85aa60d1` at both) and
+  `Tests/` are byte-identical between the tags, and `Libs/Header` differs by one comment, so every
+  app compiles the same SDK code; ABI 3, `minKernelVersion` 1.4.0.
+- **Verified locally** on the real `una-sdk/` checkout at the tag: host tests Trail 172, Streak 214,
+  X Energy 39, Link 58, all passing; Trail's simulator rebuilt with no errors.
+- **CI** builds every app with ST's toolchain on the new pin (the result is recorded below).
+- `README.md`, `THIRD-PARTY-LICENSES.md` and CLAUDE.md's SDK line name the new pin. X Training's
+  brief keeps `sdk-v1.6.2` where it records what was read at the time.
+- **Still unproven:** nothing here has run on a watch; nor had 1.6.2's builds on firmware 1.7.0.

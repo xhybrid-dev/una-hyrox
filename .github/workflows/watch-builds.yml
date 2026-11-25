@@ -14,7 +14,7 @@ on:
 
 env:
   # The SDK commit these apps are built and tested against (README "Getting set up").
-  UNA_SDK_REF: 6bd43f041175b46536da949696ab1b2f0948da8d
+  UNA_SDK_REF: f7de9da0151d29b7953c958a17140fc7c60ab913
 
 jobs:
   watch-apps:

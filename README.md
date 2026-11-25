@@ -67,7 +67,7 @@ git clone --recurse-submodules https://github.com/UNAWatch/una-sdk.git
 cd una-sdk && git checkout sdk-v1.6.2 && git submodule update --init --recursive
 ```
 
-`sdk-v1.6.2` (`6bd43f04`) is the release this app is built and
+`sdk-v1.7.0` (`f7de9da0`) is the release this app is built and
 tested against. The SDK ABI it carries is 3, which means the watch needs kernel
 firmware **1.4.0 or newer**.
 
