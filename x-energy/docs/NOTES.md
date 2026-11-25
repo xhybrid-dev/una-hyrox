@@ -679,3 +679,21 @@ copy the files.
 - show absent sensors as "not on this watch" rather than "failed";
 - log the gauge's design capacity once;
 - stop asking for `HEART_BEAT` (and leave it to the check).
+
+## SDK v1.7.0 and the public kernel (25 November 2026)
+
+Reviewed in `hybridx-race/docs/NOTES.md`, 5.35-5.40. For this app:
+- **SpO2 is real on this hardware.** UNA's kernel is now public, and its vendor library says the
+  PAH8316 has two red and two infrared LEDs as well as green, with a 25 Hz SpO2 profile and PixArt's
+  SpO2 algorithm (`una-kernel-public`, `Software/ThirdParty/VendorLib/README.md`). Questions for UNA,
+  "Which lights does the PAH8316LS have?": answered.
+- **HRV is in reach too:** the same library has PixArt's HRV algorithm, with beat-to-beat (R-R)
+  intervals online (each with a confidence level), SDNN, RMSSD, LF/HF and a respiration rate.
+- **Neither is wired up in firmware 1.7.0,** which matches the probe's first run (no handle for
+  `HEART_BEAT`, `PPG` or `SPO2`). UNA's community email says both are "coming soon".
+- **Inference, to check against UNA's release:** the sensor runs one profile at a time (green 20 Hz
+  for heart rate, red and infrared 25 Hz for SpO2, one green 25 Hz for HRV), so SpO2 and HRV may come
+  as measurement windows rather than alongside heart rate all night. Plan for that.
+- **1.7.0's sleep mode** (lift to wake off, alerts muted, on a schedule) is the user saying when they
+  sleep, but the SDK gives apps no way to read it.
+- The probe needs no change to notice them: its nightly check tries `HEART_BEAT`, `PPG` and `SPO2`.

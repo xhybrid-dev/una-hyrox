@@ -8,8 +8,10 @@ This workspace holds two folders:
 - `hybridx-race/`: our app, a HYROX-format race timer for the UNA Watch.
 
 SDK status: pinned at `sdk-v1.6.2` (`6bd43f04`) since 26 October 2026 (`sdk-v1.6.0`
-from 14 October). See `hybridx-race/docs/NOTES.md` 5.21-5.28 and 5.34 before any SDK or
-firmware-compatibility work.
+from 14 October). `sdk-v1.7.0` (11 November) is reviewed and the pin not yet moved (5.35-5.40:
+no interface change; the kernel is now public, `UNAWatch/una-kernel-public`, and its vendor
+library has SpO2 and HRV algorithms the firmware does not use yet). See `hybridx-race/docs/NOTES.md`
+5.21-5.28, 5.34 and 5.35-5.40 before any SDK or firmware-compatibility work.
 
 ## Before any work
 1. Read `hybridx-race/docs/HYBRIDX_RACE_BRIEF.md` in full at the start of each phase.

@@ -976,3 +976,15 @@ The steps, the release notes and a draft entry: `docs/SUBMISSION.md`.
 - **Not done on a watch:** the whole of T4. The release steps put Jon's short watch test (with the
   tag's own `.uapp`) before the upload.
 
+
+## SDK v1.7.0 and the public kernel (25 November 2026)
+
+Reviewed in `hybridx-race/docs/NOTES.md`, 5.35-5.40. For Trail:
+- **The folder name (T4.5), from the kernel's source:** the sandbox turns `"/"` into `<app root>/`
+  (for example `2:/Apps/HybridXTrail/`) and `objectInfo` is FatFs's `f_stat` on it, which returns the
+  folder's own name. So `findAppFolder()` should see `HybridXTrail` for a USB copy, and the App ID for
+  a store install (which it then shows anyway). To be seen on the watch.
+- **UNA's apps lap while paused** since 1.7.0; Trail's pause menu has no Lap. RunLVGL's change is about
+  140 lines: Jon's call whether Trail takes it.
+- **Sensor injection** on the kernel's `main` (not released) may let a recorded GPS track be played
+  into Trail on a real watch: the wrong-way and off-course alerts tested at a desk.

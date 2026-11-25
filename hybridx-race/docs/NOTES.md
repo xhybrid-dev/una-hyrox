@@ -2319,3 +2319,125 @@ Race and Trail read it and every app's activity summary, and show "3 of 4 this w
 are in `hybridx-link/docs/ACTIVITY_LINK.md`, "The Streak line". The code is the link library's
 `StreakNow` (copied into each app), and `Service::sendStreakLine()` in each app (in Streak,
 `Service::saveStreakNow()`).
+
+## Amendment — UNA SDK v1.7.0 reviewed; pin not yet moved (25 November 2026)
+
+The shared record for every app in this repository, as 5.21-5.28 and 5.34 were. Jon asked for it
+after UNA's community email (which featured X Trail and HybridX Race) said SpO2 and HRV are coming.
+Notes only: no code, pin or CI change.
+
+### 5.35 Where we stand
+
+| | |
+|---|---|
+| Pinned (`UNA_SDK_REF`) | `6bd43f04` (`sdk-v1.6.2`, 26 October 2026; 5.34) |
+| Latest SDK release | `sdk-v1.7.0` = `apps-v1.7.0` = `f7de9da0151d29b7953c958a17140fc7c60ab913` (11 November 2026, "Una Watch 1.7.0") |
+| Distance | 4 commits, 85 files, +938 -264 |
+| SDK ABI (`KERNEL_INTERFACE_VERSION`) | 3 at both |
+| `abi_kernel_map.json` | identical: ABI 3 -> kernel 1.4.0, so `minKernelVersion` stays 1.4.0 |
+| LVGL | the same submodule commit (`85aa60d1`) at both |
+| Kernel firmware | **now public**: `UNAWatch/una-kernel-public`, tag `v1.7.0` (`114fe12`), main at `002e8b3` (24 November) when read |
+
+### 5.36 What v1.7.0 contains
+
+**The release notes** (GitHub, `sdk-v1.7.0` and `apps-v1.7.0`, read through a page-fetch tool that
+summarises, so not guaranteed verbatim):
+- **New for watch users:** lift to wake (Settings > Backlight > Gesture); a backlight timeout of 5,
+  10 or 15 s; **sleep mode**, which turns lift to wake off and **mutes alerts**, from the top menu or
+  on a schedule per day; and a manual **lap from the pause menu** in every UNA activity app.
+- **For developers:** the kernel source is public.
+- **Nothing about SpO2, HRV, new sensors or firmware requirements.**
+
+**The SDK source, 1.6.2 to 1.7.0:**
+- **No public interface changed.** `Libs/` differs only in a comment in
+  `Libs/Header/SDK/Variant/VariantConfig.hpp`; `Libs/Source`, `cmake/`, `Tests/` and `ThirdParty/` are
+  unchanged. `Utilities/` loses `migrate-release-tags.sh` and a docstring changes in
+  `make_variant.py`. So a watch build of any of our apps should be the same code on 1.7.0.
+- **The example apps** (Running, RunLVGL, Cycling, Hiking, Treadmill, Workout): the lap while paused,
+  and the fix that hides the pause menu's Lap once one is taken. In RunLVGL it is 9 files, +139 -25:
+  `Service` keeps a lap taken while paused, `TrackActionScreen` shows a Lap row in a free run once per
+  pause, and `Model` remembers it.
+- **Docs:** kernel references point at the public kernel; the merge-apps release walkthrough is gone.
+
+### 5.37 SpO2 and HRV: what the SDK, the watch and the kernel say
+
+UNA's email says SpO2 and HRV are "coming soon". From the sources, today:
+
+- **The SDK has had SpO2 since at least v1.5.0:** sensor type `SPO2` (0xF1) and
+  `SensorDataParserSpo2.hpp` (saturation % and a trust level, "like HEART_RATE"). `HEART_BEAT` (0x40,
+  "beat peak event") is listed **without a parser**, and `PPG` (0xF0) likewise (`Docs/SensorsLayer.md`).
+- **Jon's watch gives neither.** X Energy's probe, on its first run (24 November, firmware 1.7.0 or
+  1.6.2), found no sensor handle at all for `HEART_BEAT`, `PPG`, `SPO2` or `ECG` (X Energy NOTES,
+  "First run on the watch").
+- **The firmware does not implement them yet.** In the public kernel nothing outside the vendor's own
+  headers mentions SpO2, HRV or beat events: the body sensor's callback carries touch and heart rate
+  only (`Software/Libs/Header/Hardware/PAH8316LS/IBodySensor.hpp`), and none of its 14 pull requests
+  adds them.
+- **But the hardware and the algorithms are there.** The vendor library UNA links
+  (`Software/ThirdParty/VendorLib/README.md`):
+  - the PAH8316 optical sensor has **green, red and infrared LEDs**, in three register profiles:
+    green at 20 Hz for heart rate; **two red and two infrared at 25 Hz for SpO2**; one green at 25 Hz
+    for HRV. This answers X Energy's open question: SpO2 is real on this hardware;
+  - PixArt's **SpO2 V587** algorithm (it needs a heart rate from PixArt's SHRD algorithm);
+  - PixArt's **HRV V3131**: beat-to-beat (R-R) intervals online, each with a confidence level and a
+    time, plus SDNN, RMSSD, an LF/HF ratio and a respiration rate (`include/pixart/alg/pxialg_hrv_v3.h`).
+- **Inference, not established:** the profiles are separate sensor settings, so SpO2 and HRV may come
+  as measurement windows (the sensor switched for a while) rather than running alongside heart rate
+  all the time. That would shape every design: spot readings and overnight sampling, not a live
+  number during a run. UNA's SDK release will say.
+- **What the SDK would most likely add:** a parser for `HEART_BEAT` (beat times or R-R intervals)
+  and the firmware behind `SPO2`. Nothing should be designed on that guess: read the release first.
+
+### 5.38 Other things the public kernel settles
+
+- **X Trail's folder name** (Trail NOTES "T4.5"). The sandbox (`FsGuard::resolve`,
+  `Software/Libs/Header/Components/FileSystem/GuardPath.hpp`) turns `"/"` into `<app root>/`, for
+  example `2:/Apps/HybridXTrail/`, and `objectInfo` is FatFs's `f_stat` on it
+  (`Software/Libs/Source/Components/FileSystem/FileSystem.cpp`), which fills in that folder's own
+  name. So on a watch `objectInfo("/")` should name the app's real folder: from source, still to be
+  seen on the watch (Jon's USB-copy check, Trail NOTES "For Jon on the watch" 5).
+- **Streak's Gate 0**, from the same function: an app reaches only its own folder,
+  `../SharedData` (read and write) and `:/Workouts` (read-only); any other `..` is refused. That is
+  what the probe found on the watch.
+- **On kernel `main` after v1.7.0** (23-24 November, in no release yet): a developer mode that drives
+  the watch from a computer over USB, and **injected sensor values**, repeated at each listener's
+  sampling period. If injection reaches GPS and heart rate, our apps could be tested on a real watch
+  at a desk, for example X Trail's wrong-way warning with a recorded track played in. To read when
+  it is released.
+- **The kernel takes pull requests** (its README). Wiring the HRV and SpO2 algorithms to the SDK's
+  sensor types ourselves would be possible in principle, but it is UNA's sensor pipeline and they
+  say it is coming: ask first.
+
+### 5.39 What it means per app (assessed from source and notes, nothing built)
+
+| App | Effect of 1.7.0 | SpO2 and HRV, when they arrive |
+|---|---|---|
+| All | Nothing to change: no interface moved. | |
+| Race | Sleep mode "mutes alerts": whether that includes an app's buzzer and vibration is not stated. | HRV after a race or simulation, as recovery: later |
+| Streak | None. | **Readiness** beside form (overnight HRV against your own baseline) |
+| Trail | UNA's apps now lap while paused; Trail's pause menu has no Lap (a RunLVGL copy at `a7a995a1`). Lift to wake and the backlight timeout may interact with `backlightOn()` for alerts: check on the watch. | SpO2 at altitude on hill days, as a reading only (no health claim): a maybe |
+| Run | The same lap-while-paused gap; Run is closest to RunLVGL (re-synced at 1.6.0, R6a), so it ports most easily. | HRV-guided easy days; not part of the VO2max method |
+| X Training | The same gap (a copy of X Run). | **Readiness**: hold or ease a hard session when HRV is down, as TP8's "hold the plan" already does for pace |
+| Ride, Workout | UNA's Cycling and Workout examples gained the lap; ours could copy it. | Recovery after a session: later |
+| Sauna | Sleep mode muting alerts would matter only if used during a session. | HRV and heart-rate recovery after a sauna: a natural fit |
+| X Energy | **Sleep mode** is the user telling the watch they are asleep, but the SDK does not expose it to apps. | **The main user.** Overnight HRV (RMSSD) for recovery and the energy score's charging (desk study #14, #22; SL4), the SpO2 overnight trend (#16, a trend only, never a breathing-disorder claim), respiration rate (#15). The probe already tries `HEART_BEAT`, `PPG` and `SPO2` each night, so it will show the day a firmware update turns them on |
+| Weigh-in, Knitting, Trail Quest, Velocity, Intervals (retired) | None. | None planned |
+
+### 5.40 Plan
+
+1. **Move the pin to `sdk-v1.7.0`** (`f7de9da0`), the 5.34 way, as its own step: a scratch checkout of
+   the tag (LVGL as at the pin); host tests and simulators for every app on both SDKs; then
+   `UNA_SDK_REF`, the README and THIRD-PARTY mentions, CLAUDE.md's SDK line; CI. Low risk: no
+   interface changed and the kernel floor stays 1.4.0, so the apps still run on older firmware.
+2. **Ask UNA** (one note, with the community email as the reason):
+   - SpO2 and HRV: when, and in what form? A `HEART_BEAT` parser with beat times or R-R intervals?
+     During activities, or in measurement windows? Overnight only?
+   - Does sleep mode mute an app's buzzer and vibration?
+   - Does the backlight timeout cap an app's `backlightOn(ms)`?
+   - When will developer mode and sensor injection be released, and can injection play GPS and heart
+     rate into an app?
+3. **Watch for the firmware.** No code is needed to notice SpO2 or HRV arriving: X Energy's probe
+   checks each night. When they arrive: read the SDK release, then a probe phase with a chest strap
+   for HRV (X Energy's SL4 plan), before any app uses them.
+4. **Optional, Jon's call:** lap while paused in Run, X Training and Trail (copy RunLVGL's change, about
+   140 lines each); in Ride and Workout from UNA's Cycling and Workout examples.
