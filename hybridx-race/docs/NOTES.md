@@ -2452,7 +2452,7 @@ up from `6bd43f04` (`sdk-v1.6.2`). Jon asked for it after the review (5.35-5.40)
   app compiles the same SDK code; ABI 3, `minKernelVersion` 1.4.0.
 - **Verified locally** on the real `una-sdk/` checkout at the tag: host tests Trail 172, Streak 214,
   X Energy 39, Link 58, all passing; Trail's simulator rebuilt with no errors.
-- **CI** builds every app with ST's toolchain on the new pin (the result is recorded below).
+- **CI, run 45660480878 on `e15510b`: green.** Every app built with ST's toolchain on the new pin, and the host-test job passed.
 - `README.md`, `THIRD-PARTY-LICENSES.md` and CLAUDE.md's SDK line name the new pin. X Training's
   brief keeps `sdk-v1.6.2` where it records what was read at the time.
 - **Still unproven:** nothing here has run on a watch; nor had 1.6.2's builds on firmware 1.7.0.
