@@ -757,6 +757,20 @@ Jon's notes):
   0.9 mA, which is about 5.8 days on a charge with no other use. GPS sessions come on top.
   The Motion and Heart nights will show which part costs what.
 
+**Jon's answers (26 November 2026):**
+1. **The 22:32 reset was an app update** Jon installed before bed, not a crash. So the
+   probe has had no unexplained reset.
+2. **The 25th's 18:00 to 20:00 session was an interval run in X Training** (GPS).
+   - **X Training opened, recorded and saved with the probe resident.** That answers
+     Gate SL0's memory question (5) for X Training; Race is still to try.
+   - The probe logged straight through it, with the same optical heart rate, 101 to 124
+     bpm.
+3. **No Garmin on these nights.** For now the sleep windows are checked against Jon's own
+   bed and wake times, not a second device. A night or two with the Garmin is still worth
+   having before SL1 tunes anything.
+4. **Friday's long run moves earlier in the day**, so Friday's Off night should give a
+   cleaner baseline.
+
 **For the next build** (after the week; nothing changes on Jon's watch mid-test):
 - **A row filed under 1970:** `stop()` writes the part-row without setting the buffer's
   date. It happened once: `min_19700101.csv`, one row.
