@@ -103,10 +103,9 @@ def coverage(logs, out):
     files = sorted(glob.glob(os.path.join(logs, "min_*.csv")))
     if not files:
         out.append("No minute files.\n")
-        return {}
+        return
     out.append("| File | Rows | Modes | Accel | HR trusted | Beats | Temp | Touch | Gauge mAh | Wakes/row |")
     out.append("|---|---|---|---|---|---|---|---|---|---|")
-    nights = {}
     for f in files:
         rows = read_csv(f)
         if not rows:
@@ -124,11 +123,7 @@ def coverage(logs, out):
             f"{share('beat_n', lambda v: (num(v) or 0) > 0)} | {share('temp_n', lambda v: (num(v) or 0) > 0)} | "
             f"{share('touch', lambda v: v != '')} | {share('batt_mah_x10', lambda v: v != '')} | {wakes:.1f} |"
         )
-        for r in rows:
-            if r.get("period") == "night":
-                nights.setdefault(r["mode"] + " " + f, []).append(r)
     out.append("")
-    return nights
 
 
 def check(logs, out):
@@ -150,42 +145,63 @@ def check(logs, out):
     out.append("")
 
 
-def sleep_look(nights, out):
+def night_key(r):
+    """The night a night row belongs to: its evening's date (rows after midnight count back)."""
+    date, hour = r["local"][:10], int(r["local"][11:13] or 0)
+    if hour >= 12:
+        return date
+    d = datetime.strptime(date, "%Y-%m-%d").toordinal() - 1
+    return datetime.fromordinal(d).strftime("%Y-%m-%d")
+
+
+def sleep_look(logs, out):
     out.append("## 4. A first look at sleep (not validated)\n")
+    out.append("Per night (all its rows, across midnight). A minute is *still* when none of its 5-second arm "
+               "angles moved more than 5 degrees from the one before (van Hees 2015). Asleep from the first "
+               "30 minutes that are 80% still to the end of the last such 30 minutes: a crude window, to set "
+               "against the diary and the Garmin.\n")
+    rows = []
+    for f in sorted(glob.glob(os.path.join(logs, "min_*.csv"))):
+        rows += read_csv(f)
+    nights = {}
+    for r in sorted(rows, key=lambda r: int(r["utc"])):
+        if r.get("period") == "night":
+            nights.setdefault(night_key(r), []).append(r)
     shown = 0
-    for key, rows in sorted(nights.items()):
-        rows = [r for r in rows if (num(r.get("acc_n")) or 0) > 0]
-        if len(rows) < 60:
+    for key, rs in sorted(nights.items()):
+        moving = [r for r in rs if (num(r.get("acc_n")) or 0) > 0]
+        if len(moving) < 60:
+            out.append(f"**{key}** ({rs[0]['mode']}): no movement data, nothing to say about sleep.\n")
             continue
-        # Per minute: the largest change between its 5-second arm angles.
-        changes = []
-        for r in rows:
+        still = []
+        for r in moving:
             angles = [num(r.get(f"ang{i}"), 10) for i in range(12)]
             angles = [a for a in angles if a is not None]
             big = max((abs(b - a) for a, b in zip(angles, angles[1:])), default=0.0)
-            changes.append(big)
-        # Still: this minute and the next four all under 5 degrees.
-        still = [all(c < 5.0 for c in changes[i:i + 5]) and i + 5 <= len(changes) for i in range(len(changes))]
-        first = next((i for i, s in enumerate(still) if s), None)
-        last = next((i for i in range(len(still) - 1, -1, -1) if still[i]), None)
-        hrs = [num(r.get("hr_mean_x10"), 10) for r in rows]
+            still.append(big < 5.0)
+        win = 30
+        good = [i for i in range(len(still) - win + 1) if sum(still[i:i + win]) >= 0.8 * win]
+        hrs = [num(r.get("hr_mean_x10"), 10) for r in moving]
         lows = []
         for i in range(0, len(hrs) - 29):
             w = [h for h in hrs[i:i + 30] if h is not None]
             if len(w) >= 20:
                 lows.append(statistics.mean(w))
-        still_share = 100.0 * sum(still) / len(still)
-        out.append(f"**{key.split(' ')[0]}, {os.path.basename(key.split(' ', 1)[1])}**: {len(rows)} minutes with "
-                   f"movement data, {still_share:.0f}% of them still.")
-        if first is not None:
-            out.append(f"First still block {rows[first]['local']}, last {rows[last]['local']} "
-                       f"(a crude sleep window).")
+        line = f"**{key}** ({rs[0]['mode']}): {len(moving)} minutes with movement, {100.0 * sum(still) / len(still):.0f}% still."
+        if good:
+            onset, wake = moving[good[0]]["local"][11:], moving[min(good[-1] + win - 1, len(moving) - 1)]["local"][11:]
+            inside = still[good[0]:good[-1] + win]
+            line += (f" Asleep about {onset} to {wake} ({len(inside) / 60:.1f} h; {100.0 * sum(inside) / len(inside):.0f}% "
+                     f"still inside, {sum(1 for a, b in zip(inside, inside[1:]) if a and not b)} breaks).")
         if lows:
-            out.append(f"Lowest 30-minute heart rate {min(lows):.1f} bpm.")
-        out.append("")
+            line += f" Lowest 30-minute heart rate {min(lows):.1f} bpm."
+        mins40 = sum(1 for r in moving if r.get("hr_min") == "40")
+        if mins40:
+            line += f" ({mins40} minutes touched 40 bpm, which may be the sensor's floor.)"
+        out.append(line + "\n")
         shown += 1
-    if shown == 0:
-        out.append("No night with an hour or more of movement data yet.\n")
+    if not nights:
+        out.append("No night rows yet.\n")
 
 
 def events(logs, out):
@@ -213,9 +229,9 @@ def main():
         sys.exit(f"{a.logs}: not a folder")
     out = ["# Energy Probe report\n", f"From `{os.path.abspath(a.logs)}`.\n"]
     battery(a.logs, out)
-    nights = coverage(a.logs, out)
+    coverage(a.logs, out)
     check(a.logs, out)
-    sleep_look(nights, out)
+    sleep_look(a.logs, out)
     events(a.logs, out)
     text = "\n".join(out)
     print(text)

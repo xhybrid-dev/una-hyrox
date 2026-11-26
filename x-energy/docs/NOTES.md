@@ -679,3 +679,90 @@ copy the files.
 - show absent sensors as "not on this watch" rather than "failed";
 - log the gauge's design capacity once;
 - stop asking for `HEART_BEAT` (and leave it to the check).
+
+### Nights 1 and 2 (Jon's logs, 26 November 2026)
+
+Jon sent the Logs folder after two nights:
+- Tue 24, **Full**;
+- Wed 25, **Off**;
+- the days of the 25th and 26th, Full.
+
+Read with `probe_report.py`; its sleep look now takes each night whole, across midnight.
+
+**The logger:**
+- every row of both nights is there;
+- the Off night wrote a row every 10 minutes with the battery only, as designed;
+- the night summaries, the rotation (Full, then Off) and the Nights page all worked.
+- **One unexplained reset at 22:32 on the 24th**:
+  - "start 11" came 10 s after a boot, with no `stop` before it, so the watch reset rather
+    than closing the app (or Jon restarted it; to be asked).
+  - The six rows in the RAM buffer (22:26 to 22:31) were lost, as designed.
+  - The night carried on, flagged restarted.
+- The afternoon of the 24th has three more boots with no stop (starts 5, 6 and 8): Jon
+  installing and restarting.
+
+**Night 1 (Full), from the rows** (`probe_report.py`; to be set against the Garmin and
+Jon's notes):
+
+| Hour | Heart rate (mean) | Arm still | ENMO, mg | Watch temp, °C |
+|---|---|---|---|---|
+| 22:00 | 50.0 | 33 % | 20 | 29.1 |
+| 23:00 | 45.4 | 85 % | 8.7 | 32.8 |
+| 00:00 | 44.4 | 90 % | 3.9 | 31.0 |
+| 01:00-04:00 | 45 to 52 | 87 to 92 % | 3.5 to 4.4 | 28.9 to 30.3 |
+| 05:00-07:00 | 44.7 to 46.0 | 78 to 90 % | 5.6 to 6.2 | 30.5 to 31.7 |
+| 08:00 | 74.6 | 15 % | 59 | 26.1 |
+
+- **Asleep about 22:59 to 07:59** (the crude window), 87 % still inside.
+  - 07:59 is the end of the night window, so the true wake may be later; the 08:00 hour is
+    plainly up and about.
+  - The lowest 30 minutes of heart rate averaged **42.3 bpm**. The watch's own RHR is 41.0.
+- **Heart rate touched exactly 40 bpm in 185 of 594 minutes.** 40 is the most common
+  minute minimum by far, which looks like **a floor in the watch's heart rate**. Jon's
+  Garmin's overnight low will tell.
+- **The night and the day separate cleanly on every channel:**
+  - heart rate: 44 to 52 at night, 57 to 85 by day;
+  - arm still: 78 to 92 % at night, 2 to 22 % by day;
+  - ENMO: 3.5 to 6 mg at night, 20 to 65 mg by day;
+  - significant-motion events: 0 to 4 an hour at night, 50 to 450 by day;
+  - activity-recognition events: about 0 at night, 10 to 250 by day;
+  - the watch's temperature: 29 to 33 °C at night, 23 to 28 °C by day.
+- `WRIST_MOTION` fired 2 to 22 times an hour at night: turning over, perhaps a
+  restlessness signal.
+- Touch stayed "on" all night. It flickered once during the evening's activity on the 25th.
+
+**The battery, so far:**
+- **Full costs about 0.85 to 0.95 mA, whole watch, day or night at rest.**
+  - Night 1: 8.5 mAh in 10 h (0.70 %/h).
+  - The morning of the 26th: 5 mAh in about 5.3 h.
+- **The Off night is not a clean baseline yet.** It came after a hard evening (18:00 to
+  20:00 on the 25th):
+  - heart rate 101 to 124 and 14.7 °C, so outdoors, almost certainly with GPS;
+  - 14 % gone in two hours, at 6 to 14 mA.
+  - The gauge's remaining capacity then *rose* from 81.0 to 83.0 mAh in the first hours of
+    the Off night (recovery after the load), before falling to 79.0 by 08:00.
+  - So "2.0 mAh in 10 h (0.20 mA)" understates the baseline. The second half alone gives
+    about 0.6 mA.
+  - **Full's extra cost is somewhere between 0.2 and 0.65 mA** until a clean Off night pins
+    it down. Jon is asked to keep the evening before an Off night free of long GPS
+    sessions, or to note them.
+- **The gauge is coarse:**
+  - % moves in whole steps;
+  - mAh moves in 0.5 steps and drifts after a heavy load.
+  - So: whole nights only, never an hour.
+- **The capacity, from % and mAh together:** 122 to 125 mAh on the 24th to 26th, 132 on
+  the first run. "About 125 mAh" is the working figure; the design-capacity field, logged
+  in the next build, will settle it.
+- **What it means, provisionally:** with Full on all the time, the watch at rest draws about
+  0.9 mA, which is about 5.8 days on a charge with no other use. GPS sessions come on top.
+  The Motion and Heart nights will show which part costs what.
+
+**For the next build** (after the week; nothing changes on Jon's watch mid-test):
+- **A row filed under 1970:** `stop()` writes the part-row without setting the buffer's
+  date. It happened once: `min_19700101.csv`, one row.
+- **Worn minutes on an Off night:** they count the touch state carried over from the day,
+  though touch is not connected. Clear it when the events group disconnects.
+- **Absent sensors** as "not on this watch", not "failed"; and stop asking for
+  `HEART_BEAT`.
+- **The gauge's design capacity**, logged once.
+- **Flushing more often** at night (5 rows), since a reset loses what is buffered.
