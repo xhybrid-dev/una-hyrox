@@ -1,0 +1,14 @@
+# Knitting pilot: count rows, undo by hold, next set, reset
+1500    screenshot 01-start
++300    click R1
++300    click R1
++300    click R1
++500    screenshot 02-three-rows
++0      hold R1 900
++1500   screenshot 03-after-undo
++0      click L1
++500    click R1
++500    screenshot 04-set2
++0      hold L2 400
++1000   screenshot 05-after-reset
++500    exit

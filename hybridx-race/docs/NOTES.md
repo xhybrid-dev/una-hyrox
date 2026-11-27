@@ -2319,3 +2319,34 @@ Race and Trail read it and every app's activity summary, and show "3 of 4 this w
 are in `hybridx-link/docs/ACTIVITY_LINK.md`, "The Streak line". The code is the link library's
 `StreakNow` (copied into each app), and `Service::sendStreakLine()` in each app (in Streak,
 `Service::saveStreakNow()`).
+
+## UNA's agent tooling and scripted simulator runs: pilot (27 November 2026)
+
+UNA added three things to its SDK: agent skills, scripted headless simulator runs, and watch
+automation over USB (`Utilities/Scripts/una_watch/una_watch.py`). Read from the SDK at
+`c191c954` (`Docs/agent-skills.md`, `Docs/Simulator.md#scripted-runs`, `Docs/watch-automation.md`)
+and `UNAWatch/una-kernel-public`. **The pin is unchanged (`sdk-v1.6.2`, `6bd43f04`); Jon has not
+yet decided to move it.**
+
+- **Not in `sdk-v1.7.0`.** The tag `sdk-v1.7.0` has no `AGENTS.md`, `skills/`, `una_watch/` or
+  `watch-automation.md`. They are on `main`, 64 commits after `apps-v1.7.0` (`c191c954`, 27 November
+  2026). Any bump to use them would be to a commit on `main`, or to the next tag, not to 1.7.0.
+- **Pilot (Knitting).** Built unchanged against `c191c954` in a scratch checkout (`libsdl2-dev`
+  needed in the container). `knitting/docs/experiments/headless_pilot.txt` is a script: three row
+  presses, a 900 ms R1 hold (undo), L1 (new set), a row, an L2 hold. Run from the simulator's
+  `build/bin`:
+  `SDL_VIDEODRIVER=dummy ./KnittingSimulator --headless --script headless_pilot.txt --out <out> --fs-root <fresh dir>`.
+  Result: exit 0 in 7 s, five 240 x 240 PNGs that show the right screens (0, 3, "Row undone" 2,
+  set 2, "Hold to reset" after a 400 ms L2 hold, which is shorter than the app's 0.8 s hold). It
+  needs no Xvfb, xdotool or ImageMagick. `sim.log` also reports the LVGL pool peak (11208 B
+  against 40960 B; a 64-bit build, so it overstates the watch's), and exit code 4 would flag an
+  exhausted pool.
+- **Not yet checked:** that `gps` and `hr` steps override the simulators' own mocks (Ride, Run,
+  Trail, Race); that `--fs-root` and our seeded `Software/Output` files agree; the apps' TouchGFX
+  or older simulators (Race's); `una_watch.py` on a real watch (needs the watch on a computer with
+  USB, firmware with Developer, Jon's step); `mem` across the family.
+- **Watch cautions** (from UNA's doc): Developer (Settings > Device) lets anything on USB drive the
+  watch, so switch it off afterwards; injected `hr` and GPS reach the watch's own records;
+  `install` restarts the watch; a bad USB unmount can damage the watch's filesystem.
+- **Next:** Jon checks the watch's firmware and Developer entry; then the same script on the
+  watch, `mem` across the family, and a decision on the pin. Read 5.21-5.28 and 5.34 before it.
