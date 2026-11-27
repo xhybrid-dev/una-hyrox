@@ -1,7 +1,8 @@
 # X Clock: notes
 
 A watch face for the UNA Watch that shows the HybridX family's data. **Phase F0 (the Clock Probe) is
-built and at its gate**; no face has been designed or built yet. Read this at the start of each X Clock
+built and at its gate; its first look on Jon's watch is good (below), the logs are still to come**; no face has
+been designed or built yet. Read this at the start of each X Clock
 phase, and work only on that phase.
 
 - Probe steps for Jon: `PROBE.md`.
@@ -12,7 +13,7 @@ phase, and work only on that phase.
 
 | Phase | Work | Status |
 |---|---|---|
-| F0 | The Clock Probe: what a Clockface-type app can do on the watch | Built and verified in the simulator. **Jon's test next.** |
+| F0 | The Clock Probe: what a Clockface-type app can do on the watch | Built; first look on the watch good (one photo). **Jon is wearing it; the logs are next.** |
 | F1 | The pure core: the face's mood rules, the week view, host tests | After F0 |
 | F2 | The face: rim, time, simulator captures, a text-fit audit | After F1 |
 | F3 | On Jon's wrist: a week of wear, the wrist subscription's battery cost | After F2 |
@@ -144,6 +145,39 @@ minute (current in hundredths of a milliamp: the whole watch averages about 0.55
   The LVGL pool, the 57.6 KB frame and the stripe are most of the GUI's.
 - **CI** builds it (`clock-probe`), copies it into `watch-apps`, runs the host tests and the audit, and
   checks the copies.
+
+## Gate F0: first look on Jon's watch (27 November 2026)
+
+Jon installed the CI build and sent one photo of the screen (09:25, the first install). What it shows,
+and how sure that makes it:
+
+| Question | The photo | Sure? |
+|---|---|---|
+| 1. Does an LVGL face install, get listed and draw? | **Yes.** It was chosen as the face and the whole screen drew, ring included | Yes |
+| 2. Can a face read the shared folder? | **Yes.** `Files 11 of 12`, a green light (nothing found unreadable) | Yes; which one is missing is in the scan dump |
+| 2. Can a face list it? | **Yes.** `List ok 4 + 24`: `../SharedData` has 4 entries and `../SharedData/HybridX` has **24**, twice our twelve known names. The family's rule "never list" was a precaution; from a face, listing works. The dump names all 24 (backup and temporary copies, and anything else there) | Yes |
+| 3. Can a face write its own folder? | **Yes.** `Log write ok` | Yes |
+| 4. Does a wrist raise reach a face? | `Wrist 1, 0s ago`: **one raise was heard**, at the moment of the photo | Once; the log has the timing against the GUI's resume |
+| 4. Is the GUI ticked? | `Ticks 10.0/s, R2`: **10 frames a second** while on screen, resumed twice | While on screen only; the minute rows say what the dark screen does |
+| Wish 1: VO2max progression | `VO2 49.7 (+1.2)` with the trend as bars: **the real figure, change and trend read correctly** | Yes |
+| Wish 2: today's plan | `85 min`: X Training's file gave today's `what` and no pace | Yes |
+
+- **The plan line needs its kind.** `what` is just `85 min` here. `training_today.json` rows also carry
+  `kind` (X Training's `Kind`: Easy, Long, Tempo, Intervals...), which the probe does not show. The face should
+  map it to a word ("Long run, 85 min"), as the concept's headline did. Note for F1.
+- **Colours, open.** In the photo everything has a blue-violet cast: the white text is lavender, the green
+  lights are pale blue, the "none" segments (dark grey in the design) are mid blue, and the VO2max bars (teal)
+  are bright blue. It may be the camera and the backlight, not the panel. The three days with sessions look
+  the same colour, so **amber (low) and yellow (high) cannot be told apart in this photo**, which matters for
+  a ring graded by colour. To settle: a photo of X Streak (lime and teal) in the same light, and the logs, which
+  show each day's real load. If low and high really look alike on the panel, the ring should be graded by
+  brightness (dark, mid, bright), not by hue.
+- **Layout is fine on the real face.** The text sits clear of the ring and the rim segments are crisp. The
+  right of the face is empty because the rows are left-aligned: a probe, not a design.
+
+Still to come from the logs: the wrist timing and how many raises, whether the GUI is ticked with the screen
+dark, the battery cost by mode, the real contents of every family file, the full listing, and the daily figures.
+The memory test (the big apps with the face resident) is Jon's, from PROBE.md step B.
 
 ## Not verified (Jon's gate)
 
