@@ -112,6 +112,10 @@ jobs:
           # X Energy: the Gate SL0 Energy Probe, a resident logger for sleep, energy and the
           # battery drain -- see x-energy/docs/PROBE.md.
           build x-energy/Tools/Probe/Software/Apps/EnergyProbe-CMake energy-probe
+          # X Clock: the Gate F0 Clock Probe, a Clockface-type app that finds out what a face can
+          # do on the watch (read the family's shared files, hear a wrist raise) -- see
+          # x-clock/docs/PROBE.md.
+          build x-clock/Tools/Probe/Software/Apps/ClockProbe-CMake clock-probe
 
       - name: Collect
         run: |
@@ -137,6 +141,7 @@ jobs:
           cp hybridx-training/Output/*.uapp watch-apps/
           cp hybridx-training/Output/Glance/*.uapp watch-apps/
           cp x-energy/Tools/Probe/Output/*.uapp watch-apps/
+          cp x-clock/Tools/Probe/Output/*.uapp watch-apps/
           ls -l watch-apps
 
       - name: Upload
@@ -491,6 +496,11 @@ jobs:
         # files with copies of those apps' own readers (Streak NOTES "S7"); they must not drift.
         run: hybridx-streak/Utilities/check-family-copies.sh
 
+      - name: The Clock Probe's copies of the family's readers
+        # The probe reads X Training's and X Run's shared files with copies of their own readers (and
+        # Streak's test file system); they must not drift. Its copy of the activity link is checked above.
+        run: x-clock/Utilities/check-copies.sh
+
       - name: HybridX Trail host tests
         # The route core (GPX reader, thinning, off-route distance) and the
         # T0 probe's route check.
@@ -595,3 +605,13 @@ jobs:
           cmake -S x-energy/Tests/Host -B ci-build/x-energy-tests -DCMAKE_BUILD_TYPE=Debug
           cmake --build ci-build/x-energy-tests -j"$(nproc)"
           ctest --test-dir ci-build/x-energy-tests --output-on-failure
+
+      - name: X Clock host tests
+        # The Clock Probe's core: the scan of the shared folder with the family's own readers, the
+        # week view, the wrist and frame logs, every log row and screen line (and that each fits).
+        run: |
+          export UNA_SDK=$GITHUB_WORKSPACE/una-sdk
+          cmake -S x-clock/Tests/Host -B ci-build/x-clock-tests -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ci-build/x-clock-tests -j"$(nproc)"
+          ctest --test-dir ci-build/x-clock-tests --output-on-failure
+          python3 x-clock/docs/experiments/audit.py ci-build/x-clock-tests/worst_rows

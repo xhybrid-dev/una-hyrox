@@ -723,3 +723,48 @@ of each part can be measured against the Off nights.
   - the logs Jon sends back: `python3 x-energy/docs/experiments/probe_report.py <Logs dir> [--md out.md]`;
   - a local watch compile check: Trail Quest's recipe with `x-energy/Tools/Probe/Software/Apps/EnergyProbe-CMake`
     into `x-energy/build/arm`.
+
+## X Clock (`x-clock/`) — Gate F0
+A fifteenth app (27 November 2026): a watch face for the UNA Watch that shows the HybridX family's data.
+The concept (26 November): the rim is the week, seven segments, each graded by that day's activity; the time
+in rectangles; a one- or two-word headline that speaks only when a rule fires; form from Streak's model. Jon's
+wishes (27 November): **VO2max progression** (X Run's `vo2max.json`), **today's plan if X Training is
+installed** (its `training_today.json`), and **the ring of seven segments graded none, low, high**
+("activity level" is not yet defined: the family's training load, the watch's all-day activity, or both;
+NOTES "Jon's wish list"). **Gate F0, the Clock Probe, is built and on Jon's side to test**: nothing else is
+built, and no face design is decided. It is independent of the other apps but reads their shared files.
+- **Docs:** phases (F0-F4), findings, what is verified and what is not, the wish list: `x-clock/docs/NOTES.md`;
+  Jon's step-by-step for the probe: `PROBE.md`. Read `NOTES.md` at the start of each phase, and work only on
+  that phase.
+- **Rules:** the same standing rules as Race apply. Also:
+  - a face has one screen and **no buttons or touch** (the kernel owns them); every shipped SDK face is
+    TouchGFX, and whether an LVGL face is accepted is what F0 finds out;
+  - **a face's service leaves when its GUI goes**, and the GUI's queue holds ten messages and is drained only
+    while on screen: send snapshots, never deltas, and re-send everything when the GUI resumes
+    (`Docs/writing-a-clockface.md`);
+  - subscribe to nothing the face does not draw (a `HEART_RATE` subscription keeps the optical sensor
+    powered); the screen is an LCD with a backlight, so dark pixels are assumed to save no power;
+  - the family's readers are **copies**: change the original, then sync. Never read X Weigh-in's weight log, and
+    never log the wearer's height or weight.
+- **Layout:** `Tools/Probe` as X Energy's: the pure core `Software/Libs/Core` (header-only where the GUI uses
+  it: `ProbeView.hpp`, `CivilDate.hpp`, `Fixed.hpp`), the service and messages `Software/Libs/App`, the GUI
+  `Software/Apps/LVGL-GUI` (one screen), the watch build `Software/Apps/ClockProbe-CMake` (`APP_TYPE
+  Clockface`; app folder `ClockProbe`). Copies: `Libs/Link` (`hybridx-link/Utilities/check-link-copies.sh`),
+  `Libs/Training` and `Libs/Vo2` and Streak's `TreeFileSystem` for the tests (`x-clock/Utilities/check-copies.sh
+  [--sync]`; CI checks both).
+- **Watch builds come from CI**, as for the others (`ClockProbe_0.1.0.uapp` in `watch-apps`). Development
+  APP_ID `D3D9144125A884DD`; the probe is never for the store.
+- **Commands:**
+  - host tests: `cmake -S x-clock/Tests/Host -B x-clock/build-tests && cmake --build x-clock/build-tests && x-clock/build-tests/x-clock-host-tests`;
+  - the text-fit audit (every row's worst case, measured with the real font against the disc):
+    `python3 x-clock/docs/experiments/audit.py x-clock/build-tests/worst_rows`;
+  - the simulator (needs `libsdl2-dev`): `cd x-clock/Tools/Probe/Software/Apps/LVGL-GUI/simulator && cmake -S . -B build -G Ninja && cmake --build build`;
+  - a pretend watch in the real format, dated to today (`make_family`, built with the host tests):
+    `x-clock/build-tests/make_family <dir>/SharedData [full|noplan|empty|none|bad]`;
+  - the probe on a pretend watch, with screenshots, three key-press wrist raises and its own log checked:
+    `x-clock/docs/experiments/sim_probe.sh [scenario] [out-dir]` (`MINUTE=1` waits through a minute row;
+    needs Xvfb, xdotool, ImageMagick; keys: `5` raises the wrist, Escape stops it as USB mode does);
+  - the logs Jon sends back: `python3 x-clock/docs/experiments/probe_report.py <Logs dir> [--md out.md]`;
+  - a local watch compile check: Trail Quest's recipe ("Toolchain notes") with
+    `x-clock/Tools/Probe/Software/Apps/ClockProbe-CMake` into `x-clock/build/arm`; icons:
+    `python3 x-clock/Tools/Probe/Resources/make_icons.py`.

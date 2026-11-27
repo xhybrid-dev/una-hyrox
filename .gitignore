@@ -115,3 +115,10 @@ x-energy/build-tests/
 x-energy/Tools/Probe/Output/
 x-energy/Tools/Probe/Software/Output/
 x-energy/Tools/Probe/Software/Apps/LVGL-GUI/simulator/build/
+# X Clock: the Gate F0 Clock Probe (x-clock/docs/PROBE.md)
+x-clock/build/
+x-clock/build-tests/
+x-clock/Tools/Probe/Output/
+x-clock/Tools/Probe/Software/Output/
+x-clock/Tools/Probe/Software/SharedData/
+x-clock/Tools/Probe/Software/Apps/LVGL-GUI/simulator/build/

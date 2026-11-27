@@ -18,6 +18,7 @@ APPS=(
     hybridx-workout
     hybridx-ride
     hybridx-training
+    x-clock/Tools/Probe
 )
 
 FILES=(
